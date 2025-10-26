@@ -1,2 +1,235 @@
 # 2025-Autumn-Software-Engineering
+
 2025秋软件学院软件工程课程401A小组项目
+
+## 一、技术栈
+
+### 前端
+
+使用 React 框架开发网页端，再通过 React Native 打包为移动端应用，教程参考 [React 官方中文文档](https://react.docschina.org/) 和 [React Native 中文网 · 使用React来编写原生应用的框架](https://reactnative.cn/)。
+
+### 后端
+
+使用 NestJS 框架，教程参考 [NestJS 中文文档](https://docs.nestjs.cn/)。
+
+### 数据库
+
+使用 MySQL。
+
+### 部署
+
+使用 docker。
+
+### 设计工具
+
+- 使用 **pixso** 进行 UI 设计，官网网址：[Pixso官网 - 新一代UI设计工具，替代Sketch，Figma，支持在线实时协作](https://pixso.cn/)。设计图转代码功能可以参考 [【不会写代码也能做网页？Pixso AI 5 分钟搞定！| AI 设计指南】](https://www.bilibili.com/video/BV1QEsuztEzP/?share_source=copy_web&vd_source=44759ea33f56b7a9846e4290e821662c)。
+
+- 也可能会使用一些 antd 组件，可以参考 [Ant Design - 一套企业级 UI 设计语言和 React 组件库](https://ant.design/index-cn)。相关组件见 [组件总览 - Ant Design](https://ant.design/components/overview-cn/)。
+
+## 二、环境配置
+
+环境要求参考 [搭建开发环境 · React Native 中文网](https://reactnative.cn/docs/environment-setup) 和 [介绍 - NestJS 中文文档](https://docs.nestjs.cn/introduction)。
+
+具体来说，对于前端开发，必须安装的依赖有：Node、JDK 和 Android Studio。
+
+- Node 的版本应**大于等于 18**。
+- 对于 JDK 版本，React Native 需要 **Java Development Kit [JDK] 17**。
+- 编译 React Native 应用需要的是 **Android 15 (VanillaIceCream)** 版本的 SDK。
+
+具体步骤较为繁琐，请严格参照 [搭建开发环境 · React Native 中文网](https://reactnative.cn/docs/environment-setup) 进行。
+
+对于后端开发，在开始之前，请确保您的开发环境满足以下要求：
+
+- Node.js：**版本 ≥20（推荐使用最新 LTS 版本）**
+- 包管理器：npm（Node.js 自带）、yarn 或 pnpm
+
+以上两份教程中的命令使用的包管理器分别为 `yarn` 和 `npm`，注意可以用 `yarn` 代替 `npm`，例如用 `yarn` 代替 `npm install` 命令，用 `yarn add 某第三方库名` 代替 `npm install 某第三方库名`。
+
+数据库可以安装到本地，可以参考 [MySQL 安装 | 菜鸟教程](https://www.runoob.com/mysql/mysql-install.html)；也可以像上次大作业一样，不在本地安装只在 Docker 部署时直接使用镜像。
+
+## 三、项目架构
+
+### 项目总体目录结构
+
+```txt
+quwan-chess/
+├── frontend/                # 前端（React + TypeScript + Vite）
+├── backend/                 # 后端（NestJS + Prisma + Redis）
+├── ai-service/              # AI 教学与棋局分析子服务（FastAPI）
+├── infra/                   # 基础设施层（Docker、Nginx、CI/CD）
+├── docs/                    # 需求、设计、接口、部署文档
+├── scripts/                 # 自动化脚本
+└── README.md
+```
+
+---
+
+**以下部分由 AI 生成，随项目推进随时更改。**
+
+---
+
+### 前端目录结构（frontend/）
+
+```txt
+frontend/
+├── public/                  # 公共静态资源（favicon、manifest、logo等）
+├── src/
+│   ├── assets/              # 图片、图标、字体等静态资源
+│   ├── components/          # 通用组件库（按钮、弹窗、棋盘UI等）
+│   ├── hooks/               # 自定义Hooks（useAuth、useSocket等）
+│   ├── pages/               # 页面级组件（Home、Play、Replay、Profile等）
+│   ├── routes/              # 路由配置（React Router）
+│   ├── store/               # 状态管理（Zustand / Redux Toolkit）
+│   ├── services/            # 前端API接口封装（Axios + React Query）
+│   ├── utils/               # 工具函数（格式化、节流、防抖等）
+│   ├── types/               # TypeScript类型定义（API响应、棋局模型）
+│   ├── theme/               # Tailwind / Ant Design 定制样式
+│   ├── App.tsx              # 根组件
+│   └── main.tsx             # 入口文件（Vite启动点）
+├── index.html
+├── vite.config.ts
+├── package.json
+└── tsconfig.json
+```
+
+**✅ 说明：**
+
+- `store/` 管理玩家状态、棋局状态、WebSocket 实时同步；
+- `services/` 统一封装 REST 与 GraphQL 请求；
+- `hooks/` 实现与后端的实时通信逻辑；
+- `theme/` 控制全局 UI 风格；
+- `pages/Replay` 配合 `Immer` 实现棋局“时间旅行复盘”功能。
+
+---
+
+### 后端目录结构（backend/）
+
+```txt
+backend/
+├── src/
+│   ├── main.ts                      # 程序入口（NestFactory）
+│   ├── app.module.ts                # 根模块
+│   ├── common/                      # 公共模块（拦截器、管道、过滤器、装饰器）
+│   ├── config/                      # 环境变量与配置模块（dotenv + ConfigModule）
+│   ├── modules/
+│   │   ├── user/                    # 用户模块（注册、登录、认证）
+│   │   ├── game/                    # 对局模块（走棋、状态、回放）
+│   │   ├── chat/                    # 聊天与观战频道（Socket.IO Gateway）
+│   │   ├── match/                   # 匹配与大厅逻辑
+│   │   ├── ai/                      # 调用 FastAPI 分析接口
+│   │   ├── upload/                  # 文件上传（Cloud OSS）
+│   │   └── rank/                    # 排行榜与战绩系统
+│   ├── prisma/                      # Prisma ORM 配置与迁移
+│   │   ├── schema.prisma
+│   │   └── migrations/
+│   ├── websocket/                   # WebSocket Gateway 实现
+│   ├── guards/                      # 权限与JWT验证守卫
+│   ├── filters/                     # 全局异常捕获
+│   ├── logger/                      # Winston日志封装
+│   └── main.gateway.ts              # Socket.IO 主网关
+├── test/                            # Jest单元测试
+├── .env.example
+├── Dockerfile
+├── package.json
+└── tsconfig.json
+```
+
+**✅ 说明：**
+
+- 每个功能模块独立成文件夹（符合 NestJS 模块化架构）；
+- `game/` 与 `chat/` 模块通过 Gateway 实现实时通信；
+- `ai/` 模块调用 Python FastAPI；
+- `upload/` 模块负责文件上传至 Cloud OSS；
+- `logger/` 集成 Winston + Logstash；
+- `prisma/` 提供数据库模型与迁移命令；
+- `filters/` 与 `guards/` 实现安全与错误控制。
+
+---
+
+### AI 子服务（ai-service/）
+
+```txt
+ai-service/
+├── app/
+│   ├── main.py                    # FastAPI 主入口
+│   ├── routers/
+│   │   ├── analyze.py             # 棋局AI分析接口
+│   │   ├── suggest.py             # 下一步提示接口
+│   │   └── train.py               # AI 模型训练接口
+│   ├── services/
+│   │   ├── engine.py              # 棋局分析核心逻辑
+│   │   └── utils.py               # 通用工具函数
+│   └── models/
+│       └── request_response.py    # 请求/响应模型（Pydantic）
+├── requirements.txt
+├── Dockerfile
+└── README.md
+```
+
+**✅ 说明：**
+
+- 使用 **FastAPI + Uvicorn** 提供 REST 接口；
+- 负责棋局分析、AI讲解、提示生成；
+- 可通过 **HTTP 或 gRPC** 与主后端交互；
+- 模块独立部署，便于扩展与并行训练。
+
+---
+
+### 运维与部署层（infra/）
+
+```txt
+infra/
+├── nginx/
+│   ├── default.conf               # Nginx 反向代理配置
+│   └── ssl/                       # HTTPS 证书（.crt / .key）
+├── docker/
+│   ├── docker-compose.yml         # 全系统容器编排
+│   ├── Dockerfile.frontend        # 前端构建镜像
+│   ├── Dockerfile.backend         # 后端构建镜像
+│   ├── Dockerfile.ai-service      # AI服务镜像
+│   └── Dockerfile.log             # ELK 日志服务镜像
+├── ci-cd/
+│   └── github-actions.yml         # CI/CD 流水线定义
+├── logs/
+│   ├── logstash.conf              # 日志转发配置
+│   ├── elasticsearch/             # 数据索引存储
+│   └── kibana/                    # 日志可视化配置
+└── monitoring/
+    ├── prometheus.yml             # 性能监控指标
+    └── grafana-dashboard.json     # Grafana 仪表盘模板
+```
+
+**✅ 说明：**
+
+- `docker-compose.yml` 启动所有服务（frontend、backend、redis、mysql、log、nginx）；
+- `ci-cd/` 存放 GitHub Actions 自动化脚本；
+- `logs/` 集成 ELK Stack；
+- `monitoring/` 用于性能监控。
+
+---
+
+### 文档与辅助工具（docs/ + scripts/）
+
+```txt
+docs/
+├── SRS.md                        # 软件需求规格说明书
+├── API_SPEC.md                   # 接口文档（Swagger 导出）
+├── ARCHITECTURE.md               # 系统架构说明
+├── DEPLOYMENT.md                 # 部署与运维说明
+└── TEST_PLAN.md                  # 测试方案文档
+
+scripts/
+├── migrate.sh                    # 数据库迁移脚本
+├── seed.sh                       # 初始化测试数据
+└── deploy.sh                     # 一键部署脚本
+```
+
+---
+
+## 四、项目现状
+
+所有目录均为空。
+
+## 五、开发规范
+
+【TODO】。
