@@ -1,0 +1,110 @@
+# 通用忽略规则
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+[Tt]humbs.db
+[Dd]esktop.ini
+*.log
+*.gz
+*.tar
+*.zip
+*.rar
+*.bak
+.env
+!.env.example  # 保留示例配置
+
+# 前端项目忽略 (frontend/)
+frontend/node_modules/
+frontend/dist/
+frontend/.dist/
+frontend/.vite/
+frontend/.pnp
+frontend/.pnp.js
+frontend/coverage/
+frontend/.eslintcache
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+frontend/.env.local
+frontend/.env.development.local
+frontend/.env.test.local
+frontend/.env.production.local
+frontend/.next/
+frontend/out/
+frontend/build/
+frontend/.turbo
+frontend/.vercel
+frontend/.nuxt
+frontend/.output
+
+# 后端项目忽略 (backend/)
+backend/node_modules/
+backend/dist/
+backend/build/
+backend/.pnp
+backend/.pnp.js
+backend/coverage/
+backend/npm-debug.log*
+backend/yarn-debug.log*
+backend/yarn-error.log*
+backend/prisma/client/  # Prisma自动生成的客户端
+backend/prisma/migrations/  # 数据库迁移文件（如需版本控制可删除此行）
+backend/.env.local
+backend/.env.development
+backend/.env.production
+
+# AI服务忽略 (ai-service/)
+ai-service/venv/
+ai-service/__pycache__/
+ai-service/*.py[cod]
+ai-service*$py.class
+ai-service/*.so
+ai-service/.Python
+ai-service/env/
+ai-service/build/
+ai-service/develop-eggs/
+ai-service/dist/
+ai-service/downloads/
+ai-service/eggs/
+ai-service/.eggs/
+ai-service/lib/
+ai-service/lib64/
+ai-service/parts/
+ai-service/sdist/
+ai-service/var/
+ai-service/wheels/
+ai-service/*.egg-info/
+ai-service/.installed.cfg
+ai-service/*.egg
+ai-service/.pytest_cache/
+ai-service/.coverage
+ai-service/htmlcov/
+ai-service/*.log
+ai-service/.env
+
+# 基础设施相关忽略 (infra/)
+infra/nginx/ssl/  # 证书文件不入库
+infra/logs/
+infra/docker/.env
+infra/ci-cd/.env
+
+# 编辑器配置（可选，根据团队情况保留）
+.idea/
+.vscode/
+*.sublime-*
+*.iml
+*.ipr
+*.iws
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+*.sublime-workspace
