@@ -1,0 +1,75 @@
+# Python 字节码和缓存
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# 虚拟环境（Conda/venv 均适用）
+venv/
+env/
+ENV/
+.venv/
+chess/  # 若Conda环境名为chess且放在当前目录下（通常不建议，但若存在需忽略）
+*/site-packages/
+
+# 安装/构建产物
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# 测试与覆盖率
+.pytest_cache/
+.coverage
+htmlcov/
+*.cover
+nosetests.xml
+.pytest_cache/
+
+# 环境变量与敏感信息
+.env
+.env.local
+.env.*
+!/.env.example  # 保留示例配置
+
+# 日志文件
+*.log
+logs/
+
+# Jupyter Notebook 缓存
+.ipynb_checkpoints/
+*.ipynb
+
+# 编辑器配置
+.idea/
+.vscode/
+*.sublime-*
+*.swp
+*.swo
+
+# 操作系统文件
+.DS_Store
+Thumbs.db
+
+# AI模型相关（若本地存放模型文件，需忽略大文件）
+models/*.bin
+models/*.pth
+models/*.h5
+*.onnx
+*.pt
+
+# 临时文件
+tmp/
+temp/
