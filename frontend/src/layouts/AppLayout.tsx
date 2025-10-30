@@ -1,0 +1,35 @@
+import { NavLink, Outlet } from 'react-router-dom'
+import { IconHome, IconFun, IconHistory, IconProfile } from '../components/icons'
+
+export default function AppLayout() {
+    return (
+        <div>
+            <header className="header-bar">
+                <div className="header-title">趣玩象棋</div>
+            </header>
+
+            <main className="page-container">
+                <Outlet />
+            </main>
+
+            <nav className="tabbar" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+                <NavLink to="/app/home" className={({ isActive }) => `tab-item ${isActive ? 'active' : ''}`}>
+                    <IconHome />
+                    <span>主页</span>
+                </NavLink>
+                <NavLink to="/app/fun" className={({ isActive }) => `tab-item ${isActive ? 'active' : ''}`}>
+                    <IconFun />
+                    <span>娱乐</span>
+                </NavLink>
+                <NavLink to="/app/history" className={({ isActive }) => `tab-item ${isActive ? 'active' : ''}`}>
+                    <IconHistory />
+                    <span>记录</span>
+                </NavLink>
+                <NavLink to="/app/profile" className={({ isActive }) => `tab-item ${isActive ? 'active' : ''}`}>
+                    <IconProfile />
+                    <span>我的</span>
+                </NavLink>
+            </nav>
+        </div>
+    )
+}
