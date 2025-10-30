@@ -5,11 +5,31 @@
 // Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
 
 generator client {
-  provider = "prisma-client"
+  provider = "prisma-client-js"
   output   = "../generated/prisma"
 }
 
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+}
+
+// 用户与角色
+model User {
+  id            Int      @id @default(autoincrement())
+  username      String   @unique
+  email         String?  @unique
+  password      String
+  avatarUrl     String?
+  bio           String?
+  rating        Int      @default(1200)
+  role          Role     @default(USER)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  refreshTokens String[] // 可选：如采用 Redis，可移除
+}
+
+enum Role {
+  USER
+  ADMIN
 }
