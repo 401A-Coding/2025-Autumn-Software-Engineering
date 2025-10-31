@@ -17,17 +17,18 @@ export default function Login() {
         if (password.length < 6) return setError('密码至少 6 位')
         setError(null); setLoading(true)
         try {
-            const res = await fetch(`${base}/api/login`, {
+            const res = await fetch(`${base}/user/login`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ phone, password }),
             })
             if (!res.ok) throw new Error(await res.text().catch(() => `HTTP ${res.status}`))
-            const data = await res.json().catch(() => ({}))
-            if (data?.token) localStorage.setItem('token', data.token)
+            const data = (await res.json().catch(() => ({}))) as Partial<{ accessToken: string; refreshToken: string }>
+            if (data?.accessToken) localStorage.setItem('token', data.accessToken)
             navigate('/app/home', { replace: true })
-        } catch (e: any) {
-            setError(e.message || '登录失败')
+        } catch (e: unknown) {
+            const msg = e instanceof Error ? e.message : '登录失败'
+            setError(msg)
         } finally {
             setLoading(false)
         }
