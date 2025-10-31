@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 
+const base = import.meta.env.VITE_API_BASE || ''
+
 export default function Register() {
     const [phone, setPhone] = useState('');
     const [password, setPassword] = useState('');
@@ -13,15 +15,16 @@ export default function Register() {
         setError(null);
         setLoading(true);
         try {
-            const res = await fetch('/api/register', {
+            const res = await fetch(`${base}/user/register`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ phone, password }),
             });
             if (!res.ok) throw new Error('注册失败');
             navigate('/login', { replace: true });
-        } catch (err: any) {
-            setError(err.message || '注册失败');
+        } catch (err: unknown) {
+            const msg = err instanceof Error ? err.message : '注册失败'
+            setError(msg);
         } finally {
             setLoading(false);
         }

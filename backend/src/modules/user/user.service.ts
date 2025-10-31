@@ -6,7 +6,6 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateUserDto } from './dto/create-user.dto';
-import { UpdateUserDto } from './dto/update-user.dto';
 import { LoginUserDto } from './dto/login-user.dto';
 import bcrypt from 'bcryptjs';
 
@@ -15,24 +14,26 @@ export class UserService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
-  ) {}
+  ) { }
 
   // 注册
   async register(dto: CreateUserDto) {
     const existed = await this.prisma.user.findFirst({
       where: {
         OR: [
-          { username: dto.username },
+          { phone: dto.phone },
           ...(dto.email ? [{ email: dto.email }] : []),
         ],
       },
     });
-    if (existed) throw new BadRequestException('用户名或邮箱已被占用');
+    if (existed) throw new BadRequestException('手机号或邮箱已被占用');
 
     const hashed = await bcrypt.hash(dto.password, 10);
     const user = await this.prisma.user.create({
       data: {
-        username: dto.username,
+        // 用 username 字段保存手机号
+        username: dto.phone,
+        phone: dto.phone,
         email: dto.email,
         password: hashed,
       },
@@ -41,14 +42,10 @@ export class UserService {
     return this.generateTokens(user.id, user.username, user.role);
   }
 
-  // 登录（支持 username 或 email）
+  // 登录（使用 phone，即存于 username 字段）
   async login(dto: LoginUserDto) {
     const user = await this.prisma.user.findFirst({
-      where: dto.email
-        ? { email: dto.email }
-        : dto.username
-          ? { username: dto.username }
-          : undefined,
+      where: { phone: dto.phone },
     });
     if (!user) throw new UnauthorizedException('账号或密码错误');
 
