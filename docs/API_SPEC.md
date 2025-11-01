@@ -1,8 +1,10 @@
 # 🎯 趣玩象棋统一接口文档（v1.0）
 
-**架构**：NestJS + Prisma + PostgreSQL + Redis + WebSocket
-**风格**：RESTful 为主，部分 GraphQL / WebSocket 支持
+**架构**：NestJS + Prisma + PostgreSQL + Redis + WebSocket  
+**风格**：RESTful 为主，部分 GraphQL / WebSocket 支持  
 **认证**：JWT（Bearer Token）
+
+> 说明：当前仓库已实现的接口为用户注册/登录（路径为 `/user/register`、`/user/login`）。本文档以 `/api/v1/...` 为规划版本，以下请求/响应示例用于对齐未来实现（人机可读）。
 
 ---
 
@@ -15,6 +17,8 @@
   "data": { }
 }
 ```
+
+### 登录示例
 
 ---
 
@@ -31,7 +35,7 @@
 | 查询他人主页 | GET   | `/api/v1/users/:userId`   | ✅  | 查看他人主页信息            |
 | 登出     | POST  | `/api/v1/auth/logout`     | ✅  | 清除 Redis 中 token 状态 |
 
-注册示例
+注册示例（手机号）
 
 ```json
 POST /api/v1/auth/register
@@ -49,7 +53,162 @@ POST /api/v1/auth/register
 {
   "code": 0,
   "message": "注册成功",
-  "data": { "userId": 1024, "token": "<JWT_TOKEN>" }
+  "data": { "userId": 1024, "accessToken": "<JWT_TOKEN>", "refreshToken": "<REFRESH_TOKEN>", "expiresIn": 1800 }
+}
+```
+
+登录示例
+
+```json
+POST /api/v1/auth/login
+{
+  "type": "phone",
+  "phone": "13800000000",
+  "password": "Abc12345"
+}
+```
+
+响应
+
+```json
+{
+  "code": 0,
+  "message": "登录成功",
+  "data": {
+    "userId": 1024,
+    "accessToken": "<JWT_TOKEN>",
+    "refreshToken": "<REFRESH_TOKEN>",
+    "expiresIn": 1800
+  }
+}
+```
+
+获取验证码示例
+
+```json
+POST /api/v1/auth/sms
+{
+  "phone": "13800000000"
+}
+```
+
+响应
+
+```json
+{
+  "code": 0,
+  "message": "短信已发送",
+  "data": { "requestId": "sms_9f3a2", "expireIn": 300 }
+}
+```
+
+获取当前用户示例
+
+```json
+GET /api/v1/users/me
+Authorization: Bearer <token>
+```
+
+响应
+
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "id": 1024,
+    "nickname": "棋友A",
+    "phone": "13800000000",
+    "avatarUrl": null,
+    "role": "USER",
+    "createdAt": "2025-10-31T12:00:00.000Z"
+  }
+}
+```
+
+修改个人信息示例
+
+```json
+PATCH /api/v1/users/me
+Authorization: Bearer <token>
+{
+  "nickname": "新的昵称",
+  "password": "NewPass123",
+  "avatarUrl": "https://cdn.example.com/avatars/1024.png"
+}
+```
+
+响应
+
+```json
+{
+  "code": 0,
+  "message": "更新成功",
+  "data": {
+    "id": 1024,
+    "nickname": "新的昵称",
+    "avatarUrl": "https://cdn.example.com/avatars/1024.png"
+  }
+}
+```
+
+上传头像示例（multipart/form-data）
+
+```text
+POST /api/v1/users/me/avatar
+Authorization: Bearer <token>
+Content-Type: multipart/form-data
+
+form-data:
+- file: <binary image>
+```
+
+响应
+
+```json
+{
+  "code": 0,
+  "message": "上传成功",
+  "data": { "url": "https://cdn.example.com/avatars/1024.png" }
+}
+```
+
+查询他人主页示例
+
+```json
+GET /api/v1/users/2048
+Authorization: Bearer <token>
+```
+
+响应
+
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "id": 2048,
+    "nickname": "对手B",
+    "avatarUrl": null,
+    "rating": 1250
+  }
+}
+```
+
+登出示例
+
+```json
+POST /api/v1/auth/logout
+Authorization: Bearer <token>
+```
+
+响应
+
+```json
+{
+  "code": 0,
+  "message": "登出成功",
+  "data": {}
 }
 ```
 
@@ -65,6 +224,25 @@ POST /api/v1/auth/register
 | 查看棋局详情 | GET    | `/api/v1/boards/:boardId`  | ✅  | 读取棋局布局与规则   |
 | 更新棋局   | PATCH  | `/api/v1/boards/:boardId`  | ✅  | 更新布局或规则     |
 | 删除棋局   | DELETE | `/api/v1/boards/:boardId`  | ✅  | 删除自定义棋局     |
+
+获取模板列表示例
+
+```json
+GET /api/v1/boards/templates
+```
+
+响应
+
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": [
+    { "id": 1, "name": "中炮对屏风马", "preview": "/img/t1.png" },
+    { "id": 2, "name": "反宫马", "preview": "/img/t2.png" }
+  ]
+}
+```
 
 创建棋局示例
 
@@ -82,6 +260,97 @@ POST /api/v1/boards
     "horse": "日字",
     "cannon": "跳吃"
   }
+}
+```
+
+响应
+
+```json
+{
+  "code": 0,
+  "message": "创建成功",
+  "data": { "boardId": 301, "name": "中炮对屏风马" }
+}
+```
+
+查询我的棋局示例（分页）
+
+```json
+GET /api/v1/boards/mine?page=1&pageSize=10
+Authorization: Bearer <token>
+```
+
+响应
+
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "items": [ { "id": 301, "name": "中炮对屏风马" } ],
+    "page": 1,
+    "pageSize": 10,
+    "total": 1
+  }
+}
+```
+
+查看棋局详情示例
+
+```json
+GET /api/v1/boards/301
+Authorization: Bearer <token>
+```
+
+响应
+
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "id": 301,
+    "name": "中炮对屏风马",
+    "layout": { "pieces": [] },
+    "rules": { "horse": "日字" }
+  }
+}
+```
+
+更新棋局示例
+
+```json
+PATCH /api/v1/boards/301
+Authorization: Bearer <token>
+{
+  "name": "中炮对屏风马（改）"
+}
+```
+
+响应
+
+```json
+{
+  "code": 0,
+  "message": "更新成功",
+  "data": { "id": 301, "name": "中炮对屏风马（改）" }
+}
+```
+
+删除棋局示例
+
+```json
+DELETE /api/v1/boards/301
+Authorization: Bearer <token>
+```
+
+响应
+
+```json
+{
+  "code": 0,
+  "message": "删除成功",
+  "data": {}
 }
 ```
 
@@ -119,6 +388,96 @@ POST /api/v1/battles
   "message": "房间创建成功",
   "data": { "battleId": 501, "status": "waiting" }
 }
+
+```
+
+加入房间
+
+```json
+POST /api/v1/battles/join
+Authorization: Bearer <token>
+{
+  "battleId": 501,
+  "password": "abcd"
+}
+```
+
+响应
+
+```json
+{
+  "code": 0,
+  "message": "加入成功",
+  "data": {
+    "battleId": 501,
+    "players": [ { "id": 1024 }, { "id": 2048 } ],
+    "status": "waiting"
+  }
+}
+```
+
+快速匹配
+
+```json
+POST /api/v1/battles/match
+Authorization: Bearer <token>
+{
+  "mode": "pvp"
+}
+```
+
+响应
+
+```json
+{
+  "code": 0,
+  "message": "匹配成功",
+  "data": { "battleId": 777 }
+}
+```
+
+查询对战历史（分页）
+
+```json
+GET /api/v1/battles/history?page=1&pageSize=10
+Authorization: Bearer <token>
+```
+
+响应
+
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "items": [ { "battleId": 501, "result": "win" } ],
+    "page": 1,
+    "pageSize": 10,
+    "total": 23
+  }
+}
+```
+
+获取房间信息
+
+```json
+GET /api/v1/battles/501
+Authorization: Bearer <token>
+```
+
+响应
+
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "battleId": 501,
+    "status": "playing",
+    "players": [ { "id": 1024 }, { "id": 2048 } ],
+    "moves": [ { "from": {"x":0,"y":6}, "to": {"x":0,"y":4} } ]
+  }
+}
 ```
 
 ---
@@ -148,6 +507,24 @@ POST /api/v1/battles
 }
 ```
 
+加入房间事件
+
+```json
+{
+  "event": "battle.join",
+  "data": { "battleId": 501, "userId": 1024 }
+}
+```
+
+对战开始事件
+
+```json
+{
+  "event": "battle.start",
+  "data": { "battleId": 501, "initialBoard": { "pieces": [] } }
+}
+```
+
 ---
 
 ## 四、对局记录与分享模块（Record / Share）
@@ -163,6 +540,89 @@ POST /api/v1/battles
 | 获取评论   | GET    | `/api/v1/records/:id/comments` | ❌  | 查看评论      |
 | 导出残局   | GET    | `/api/v1/records/:id/export`   | ✅  | 导出指定步残局   |
 
+获取我的对局示例
+
+```json
+GET /api/v1/records?page=1&pageSize=10
+Authorization: Bearer <token>
+```
+
+响应
+
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "items": [ { "id": 501, "result": "win", "createdAt": "2025-10-31T12:00:00.000Z" } ],
+    "page": 1,
+    "pageSize": 10,
+    "total": 12
+  }
+}
+```
+
+获取对局详情示例
+
+```json
+GET /api/v1/records/501
+Authorization: Bearer <token>
+```
+
+响应
+
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "id": 501,
+    "battleId": 501,
+    "data": { "moves": [] },
+    "shared": false
+  }
+}
+```
+
+上传对局分享示例
+
+```json
+POST /api/v1/records/501/share
+Authorization: Bearer <token>
+{
+  "title": "这一局很精彩",
+  "tags": ["经典", "进攻"]
+}
+```
+
+响应
+
+```json
+{
+  "code": 0,
+  "message": "分享成功",
+  "data": { "shareId": 9001 }
+}
+```
+
+收藏/取消收藏示例
+
+```json
+POST /api/v1/records/501/favorite
+Authorization: Bearer <token>
+```
+
+```json
+DELETE /api/v1/records/501/favorite
+Authorization: Bearer <token>
+```
+
+响应（均返回）
+
+```json
+{ "code": 0, "message": "success", "data": {} }
+```
+
 评论示例
 
 ```json
@@ -172,6 +632,45 @@ POST /api/v1/records/501/comments
   "step": 36,
   "content": "这一手太妙了！"
 }
+```
+
+响应
+
+```json
+{ "code": 0, "message": "success", "data": { "commentId": 7001 } }
+```
+
+获取评论示例
+
+```json
+GET /api/v1/records/501/comments
+```
+
+响应
+
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": [ { "id": 7001, "type": "danmu", "content": "这一手太妙了！" } ]
+}
+```
+
+导出残局示例
+
+```text
+GET /api/v1/records/501/export
+Accept: application/octet-stream
+```
+
+响应（文件下载）
+
+```text
+HTTP/1.1 200 OK
+Content-Disposition: attachment; filename="record-501.pgn"
+Content-Type: application/octet-stream
+
+<binary content>
 ```
 
 ---
@@ -186,7 +685,83 @@ POST /api/v1/records/501/comments
 | 举报内容   | POST   | `/api/v1/community/reports`         | ✅  | 举报违规内容   |
 | 搜索对局   | GET    | `/api/v1/community/search`          | ❌  | 按标签/作者搜索 |
 
----
+获取分享广场示例
+
+```json
+GET /api/v1/community/shares?page=1&pageSize=20
+```
+
+响应
+
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "items": [ { "shareId": 9001, "title": "名局回顾", "likes": 42 } ],
+    "page": 1,
+    "pageSize": 20,
+    "total": 200
+  }
+}
+```
+
+点赞/取消点赞示例
+
+```json
+POST /api/v1/community/shares/9001/like
+Authorization: Bearer <token>
+```
+
+```json
+DELETE /api/v1/community/shares/9001/like
+Authorization: Bearer <token>
+```
+
+响应（均返回）
+
+```json
+{ "code": 0, "message": "success", "data": {} }
+```
+
+举报内容示例
+
+```json
+POST /api/v1/community/reports
+Authorization: Bearer <token>
+{
+  "targetType": "share",
+  "targetId": 9001,
+  "reason": "涉嫌违规"
+}
+```
+
+响应
+
+```json
+{ "code": 0, "message": "已受理", "data": { "reportId": 8001 } }
+```
+
+搜索对局示例
+
+```json
+GET /api/v1/community/search?q=经典&tag=进攻&page=1&pageSize=10
+```
+
+响应
+
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "items": [ { "recordId": 501, "title": "经典进攻对局" } ],
+    "page": 1,
+    "pageSize": 10,
+    "total": 3
+  }
+}
+```
 
 ## 六、GraphQL 接口（复盘与统计）
 
