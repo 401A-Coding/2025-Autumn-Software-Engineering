@@ -14,7 +14,11 @@
 
 ### 数据库
 
-使用 MySQL。
+使用 PostgreSQL（本地可通过 Docker Compose 快速启动，端口 5432，用户/密码 `postgres/postgres`，数据库 `mydb`）。示例连接串：
+
+```text
+postgresql://postgres:postgres@127.0.0.1:5432/mydb?schema=public
+```
 
 ### 部署
 
@@ -46,6 +50,17 @@
 以上两份教程中的命令使用的包管理器分别为 `yarn` 和 `npm`，注意可以用 `yarn` 代替 `npm`，例如用 `yarn` 代替 `npm install` 命令，用 `yarn add 某第三方库名` 代替 `npm install 某第三方库名`。
 
 数据库可以安装到本地，可以参考 [MySQL 安装 | 菜鸟教程](https://www.runoob.com/mysql/mysql-install.html)；也可以像上次大作业一样，不在本地安装只在 Docker 部署时直接使用镜像。
+
+## 开发者须知
+
+- 本项目数据库统一为 PostgreSQL（非 MySQL）。如需本地快速启动数据库，见 `infra/docker/docker-compose.yml` 或按 `docs/STARTUP.md` 操作（执行 `docker compose up -d`）。
+- 后端环境变量放在 `backend/prisma/.env`：`DATABASE_URL`、`JWT_SECRET`。推荐使用脚本：
+  - 全栈启动：`./scripts/start-all.ps1`（可加 `-ResetDb` 清空开发库）
+  - 仅后端：`./scripts/start-backend.ps1`
+  - 仅前端：`./scripts/start-frontend.ps1`
+- 前端通过 `VITE_API_BASE` 调用后端（默认 `http://localhost:3000`）；登录后 `accessToken` 存入 `localStorage.token`，路由守卫见 `frontend/src/routes/ProtectedRoute.tsx`。
+- CORS 已在 `backend/src/main.ts` 放开本地 Vite 开发域（5173）。
+- 若遇到与 MySQL 相关的旧描述，请以本说明和 `docs/STARTUP.md` 为准（现已统一为 Postgres）。
 
 ## 三、项目架构
 

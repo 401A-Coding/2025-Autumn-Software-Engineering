@@ -17,7 +17,7 @@ $composeDir = Join-Path $repoRoot "infra\docker"
 $composeFile = Join-Path $composeDir "docker-compose.yml"
 $docker = Get-Command docker -ErrorAction SilentlyContinue
 
-if (Test-Path $composeFile -PathType Leaf -and $docker) {
+if ((Test-Path $composeFile -PathType Leaf) -and $docker) {
     Write-Info "Starting Postgres via docker compose..."
     Push-Location $composeDir
     try {
@@ -31,13 +31,13 @@ if (Test-Path $composeFile -PathType Leaf -and $docker) {
 }
 
 # 2) Wait for Postgres on 127.0.0.1:5432 (best effort 60s)
-function Wait-Port([string]$host, [int]$port, [int]$timeoutSec = 60) {
+function Wait-Port([string]$hostname, [int]$port, [int]$timeoutSec = 60) {
     $sw = [Diagnostics.Stopwatch]::StartNew()
     while ($sw.Elapsed.TotalSeconds -lt $timeoutSec) {
         $ok = $false
         try {
             $tcp = New-Object System.Net.Sockets.TcpClient
-            $iar = $tcp.BeginConnect($host, $port, $null, $null)
+            $iar = $tcp.BeginConnect($hostname, $port, $null, $null)
             $ok = $iar.AsyncWaitHandle.WaitOne(1000) -and $tcp.Connected
             $tcp.Close()
         } catch { }
@@ -47,7 +47,7 @@ function Wait-Port([string]$host, [int]$port, [int]$timeoutSec = 60) {
     return $false
 }
 
-if (Wait-Port -host '127.0.0.1' -port 5432 -timeoutSec 60) {
+if (Wait-Port -hostname '127.0.0.1' -port 5432 -timeoutSec 60) {
     Write-Info "Postgres is reachable on 127.0.0.1:5432"
 } else {
     Write-Warn "Postgres not reachable on 127.0.0.1:5432 after waiting. Proceeding anyway."
