@@ -1,0 +1,1224 @@
+openapi: 3.1.0
+info:
+  title: Quwan Chess API (Contract-first v1)
+  version: 1.0.0
+  description: |
+    Contract-first API for Quwan Chess.
+
+    Notes:
+    - Planned public endpoints use the prefix /api/v1/... with a unified envelope { code, message, data }.
+    - Current dev endpoints implemented in this repo are /user/register and /user/login (no envelope). They are included as legacy for compatibility and will be deprecated once /api/v1/... is adopted.
+servers:
+  - url: http://localhost:3000
+    description: Local development
+
+tags:
+  - name: Auth
+    description: Authentication and user identity
+  - name: Users
+    description: User profile and current user
+
+paths:
+  /api/v1/auth/register:
+    post:
+      tags: [Auth]
+      summary: Register via phone + password
+      operationId: authRegister
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AuthRegisterRequest"
+            examples:
+              phone:
+                value:
+                  type: phone
+                  phone: "13800000000"
+                  code: "8523"
+                  password: Abc12345
+      responses:
+        "200":
+          description: Registered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseAuthTokens"
+              examples:
+                ok:
+                  value:
+                    code: 0
+                    message: 注册成功
+                    data:
+                      accessToken: eyJhbGciOi...
+                      refreshToken: eyJhbGciOi...
+                      expiresIn: 1800
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseError"
+  /api/v1/auth/login:
+    post:
+      tags: [Auth]
+      summary: Login via phone + password
+      operationId: authLogin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AuthLoginRequest"
+            examples:
+              phone:
+                value:
+                  type: phone
+                  phone: "13800000000"
+                  password: Abc12345
+      responses:
+        "200":
+          description: Logged in
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseAuthTokens"
+              examples:
+                ok:
+                  value:
+                    code: 0
+                    message: 登录成功
+                    data:
+                      accessToken: eyJhbGciOi...
+                      refreshToken: eyJhbGciOi...
+                      expiresIn: 1800
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseError"
+  /api/v1/users/me:
+    get:
+      tags: [Users]
+      summary: Get current user profile
+      operationId: usersMe
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseUser"
+              examples:
+                ok:
+                  value:
+                    code: 0
+                    message: success
+                    data:
+                      id: 1024
+                      nickname: 棋友A
+                      phone: "13800000000"
+                      avatarUrl: null
+                      role: USER
+                      createdAt: "2025-10-31T12:00:00.000Z"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseError"
+    patch:
+      tags: [Users]
+      summary: Update current user profile
+      operationId: usersMeUpdate
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserUpdateRequest"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseUser"
+
+  /api/v1/auth/sms:
+    post:
+      tags: [Auth]
+      summary: Send SMS code
+      operationId: authSms
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SmsRequest"
+      responses:
+        "200":
+          description: SMS sent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseSmsSent"
+
+  /api/v1/auth/logout:
+    post:
+      tags: [Auth]
+      summary: Logout current user
+      operationId: authLogout
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Logged out
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseOk"
+
+  /api/v1/users/{userId}:
+    get:
+      tags: [Users]
+      summary: Get other user's profile
+      operationId: usersGetById
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: User profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseUser"
+
+  /api/v1/users/me/avatar:
+    post:
+      tags: [Users]
+      summary: Upload avatar
+      operationId: usersMeAvatar
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        "200":
+          description: Uploaded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseAvatar"
+
+  /api/v1/boards/templates:
+    get:
+      tags: [Boards]
+      summary: List board templates
+      operationId: boardsTemplates
+      responses:
+        "200":
+          description: Templates
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseBoardTemplates"
+
+  /api/v1/boards:
+    post:
+      tags: [Boards]
+      summary: Create board
+      operationId: boardsCreate
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BoardCreateRequest"
+      responses:
+        "200":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseBoardCreateResult"
+
+  /api/v1/boards/mine:
+    get:
+      tags: [Boards]
+      summary: List my boards
+      operationId: boardsMine
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer, default: 1, minimum: 1 }
+        - in: query
+          name: pageSize
+          schema: { type: integer, default: 10, minimum: 1, maximum: 100 }
+      responses:
+        "200":
+          description: Page of boards
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponsePageBoards"
+
+  /api/v1/boards/{boardId}:
+    get:
+      tags: [Boards]
+      summary: Get board detail
+      operationId: boardsGet
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: boardId
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Board
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseBoard"
+    patch:
+      tags: [Boards]
+      summary: Update board
+      operationId: boardsUpdate
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: boardId
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BoardUpdateRequest"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseBoard"
+    delete:
+      tags: [Boards]
+      summary: Delete board
+      operationId: boardsDelete
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: boardId
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseOk"
+
+  /api/v1/battles:
+    post:
+      tags: [Battles]
+      summary: Create battle
+      operationId: battlesCreate
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BattleCreateRequest"
+      responses:
+        "200":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseBattleCreateResult"
+
+  /api/v1/battles/join:
+    post:
+      tags: [Battles]
+      summary: Join battle
+      operationId: battlesJoin
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BattleJoinRequest"
+      responses:
+        "200":
+          description: Joined
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseBattle"
+
+  /api/v1/battles/match:
+    post:
+      tags: [Battles]
+      summary: Quick match
+      operationId: battlesMatch
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BattleMatchRequest"
+      responses:
+        "200":
+          description: Matched
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseBattleMatchResult"
+
+  /api/v1/battles/history:
+    get:
+      tags: [Battles]
+      summary: Battle history
+      operationId: battlesHistory
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer, default: 1 }
+        - in: query
+          name: pageSize
+          schema: { type: integer, default: 10 }
+      responses:
+        "200":
+          description: History page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponsePageBattleHistory"
+
+  /api/v1/battles/{battleId}:
+    get:
+      tags: [Battles]
+      summary: Get battle info
+      operationId: battlesGet
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: battleId
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Battle info
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseBattle"
+
+  /api/v1/records:
+    get:
+      tags: [Records]
+      summary: List my records
+      operationId: recordsList
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer, default: 1 }
+        - in: query
+          name: pageSize
+          schema: { type: integer, default: 10 }
+      responses:
+        "200":
+          description: Records page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponsePageRecords"
+
+  /api/v1/records/{id}:
+    get:
+      tags: [Records]
+      summary: Get record detail
+      operationId: recordsGet
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Record
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseRecord"
+  /api/v1/records/{id}/share:
+    post:
+      tags: [Records]
+      summary: Share record
+      operationId: recordsShare
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ShareRequest"
+      responses:
+        "200":
+          description: Shared
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseShareResult"
+  /api/v1/records/{id}/favorite:
+    post:
+      tags: [Records]
+      summary: Favorite record
+      operationId: recordsFavorite
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseOk"
+    delete:
+      tags: [Records]
+      summary: Unfavorite record
+      operationId: recordsUnfavorite
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseOk"
+  /api/v1/records/{id}/comments:
+    get:
+      tags: [Records]
+      summary: List comments
+      operationId: recordsCommentsList
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Comments
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseComments"
+    post:
+      tags: [Records]
+      summary: Add comment
+      operationId: recordsCommentsAdd
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CommentCreateRequest"
+      responses:
+        "200":
+          description: Added
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseCommentCreate"
+  /api/v1/records/{id}/export:
+    get:
+      tags: [Records]
+      summary: Export record file
+      operationId: recordsExport
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Binary export
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+
+  /api/v1/community/shares:
+    get:
+      tags: [Community]
+      summary: Community feed
+      operationId: communityShares
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer, default: 1 }
+        - in: query
+          name: pageSize
+          schema: { type: integer, default: 20 }
+      responses:
+        "200":
+          description: Feed page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponsePageCommunityShares"
+  /api/v1/community/shares/{id}/like:
+    post:
+      tags: [Community]
+      summary: Like a share
+      operationId: communityLike
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseOk"
+    delete:
+      tags: [Community]
+      summary: Unlike a share
+      operationId: communityUnlike
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseOk"
+  /api/v1/community/reports:
+    post:
+      tags: [Community]
+      summary: Report content
+      operationId: communityReport
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReportRequest"
+      responses:
+        "200":
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseReportResult"
+  /api/v1/community/search:
+    get:
+      tags: [Community]
+      summary: Search records
+      operationId: communitySearch
+      parameters:
+        - in: query
+          name: q
+          schema: { type: string }
+        - in: query
+          name: tag
+          schema: { type: string }
+        - in: query
+          name: page
+          schema: { type: integer, default: 1 }
+        - in: query
+          name: pageSize
+          schema: { type: integer, default: 10 }
+      responses:
+        "200":
+          description: Search result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponsePageSearchResults"
+
+  # Legacy dev endpoints (implemented today) - no envelope
+  /user/register:
+    post:
+      tags: [Auth]
+      summary: LEGACY dev - register (no envelope)
+      description: Returns tokens directly { accessToken, refreshToken }.
+      operationId: legacyRegister
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [phone, password]
+              properties:
+                phone:
+                  type: string
+                  example: "13800000000"
+                password:
+                  type: string
+                  format: password
+                  example: Abc12345
+                email:
+                  type: string
+                  example: a@b.com
+      responses:
+        "200":
+          description: Registered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthTokens"
+  /user/login:
+    post:
+      tags: [Auth]
+      summary: LEGACY dev - login (no envelope)
+      description: Returns tokens directly { accessToken, refreshToken }.
+      operationId: legacyLogin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [phone, password]
+              properties:
+                phone:
+                  type: string
+                  example: "13800000000"
+                password:
+                  type: string
+                  format: password
+                  example: Abc12345
+      responses:
+        "200":
+          description: Logged in
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthTokens"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    ApiResponseAuthTokens:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 0
+        message:
+          type: string
+          example: success
+        data:
+          $ref: "#/components/schemas/AuthTokens"
+      required: [code, message, data]
+    ApiResponseUser:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 0
+        message:
+          type: string
+          example: success
+        data:
+          $ref: "#/components/schemas/User"
+      required: [code, message, data]
+    ApiResponseError:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 1001
+        message:
+          type: string
+          example: 参数错误
+        data:
+          nullable: true
+      required: [code, message]
+    AuthRegisterRequest:
+      type: object
+      required: [type, phone, password]
+      properties:
+        type:
+          type: string
+          enum: [phone]
+          default: phone
+        phone:
+          type: string
+          example: "13800000000"
+        code:
+          type: string
+          description: SMS verification code (optional if disabled)
+          example: "8523"
+        password:
+          type: string
+          format: password
+          minLength: 6
+          example: Abc12345
+        email:
+          type: string
+          format: email
+          nullable: true
+    AuthLoginRequest:
+      type: object
+      required: [type, phone, password]
+      properties:
+        type:
+          type: string
+          enum: [phone]
+          default: phone
+        phone:
+          type: string
+          example: "13800000000"
+        password:
+          type: string
+          format: password
+          example: Abc12345
+    AuthTokens:
+      type: object
+      properties:
+        accessToken:
+          type: string
+          description: JWT access token
+          example: eyJhbGciOi...
+        refreshToken:
+          type: string
+          description: JWT refresh token
+          example: eyJhbGciOi...
+        expiresIn:
+          type: integer
+          description: Access token TTL in seconds
+          example: 1800
+      required: [accessToken, refreshToken]
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1024
+        nickname:
+          type: string
+          example: 棋友A
+        phone:
+          type: string
+          example: "13800000000"
+        avatarUrl:
+          type: string
+          nullable: true
+        role:
+          type: string
+          enum: [USER, ADMIN]
+        createdAt:
+          type: string
+          format: date-time
+    UserUpdateRequest:
+      type: object
+      properties:
+        nickname: { type: string }
+        password: { type: string, format: password, minLength: 6 }
+        avatarUrl: { type: string }
+    SmsRequest:
+      type: object
+      required: [phone]
+      properties:
+        phone: { type: string, example: "13800000000" }
+    ApiResponseSmsSent:
+      type: object
+      properties:
+        code: { type: integer, example: 0 }
+        message: { type: string, example: 短信已发送 }
+        data:
+          type: object
+          properties:
+            requestId: { type: string, example: sms_9f3a2 }
+            expireIn: { type: integer, example: 300 }
+      required: [code, message]
+    ApiResponseOk:
+      type: object
+      properties:
+        code: { type: integer, example: 0 }
+        message: { type: string, example: success }
+        data: { type: object, nullable: true }
+
+    Board:
+      type: object
+      properties:
+        id: { type: integer, example: 301 }
+        name: { type: string, example: 中炮对屏风马 }
+        description: { type: string, nullable: true }
+        layout:
+          type: object
+          properties:
+            pieces:
+              type: array
+              items:
+                type: object
+                properties:
+                  type: { type: string, example: car }
+                  x: { type: integer }
+                  y: { type: integer }
+                  side: { type: string, enum: [red, black] }
+        rules:
+          type: object
+    BoardTemplate:
+      type: object
+      properties:
+        id: { type: integer, example: 1 }
+        name: { type: string, example: 中炮对屏风马 }
+        preview: { type: string, example: /img/t1.png }
+    BoardCreateRequest:
+      type: object
+      required: [name, layout]
+      properties:
+        name: { type: string }
+        description: { type: string, nullable: true }
+        layout: { type: object }
+        rules: { type: object, nullable: true }
+    BoardUpdateRequest:
+      type: object
+      properties:
+        name: { type: string }
+        description: { type: string, nullable: true }
+        layout: { type: object }
+        rules: { type: object, nullable: true }
+    ApiResponseBoardTemplates:
+      type: object
+      properties:
+        code: { type: integer, example: 0 }
+        message: { type: string, example: success }
+        data:
+          type: array
+          items: { $ref: "#/components/schemas/BoardTemplate" }
+    ApiResponseBoardCreateResult:
+      type: object
+      properties:
+        code: { type: integer, example: 0 }
+        message: { type: string, example: 创建成功 }
+        data:
+          type: object
+          properties:
+            boardId: { type: integer, example: 301 }
+            name: { type: string }
+    ApiResponsePageBoards:
+      type: object
+      properties:
+        code: { type: integer, example: 0 }
+        message: { type: string, example: success }
+        data:
+          type: object
+          properties:
+            items:
+              type: array
+              items: { $ref: "#/components/schemas/Board" }
+            page: { type: integer }
+            pageSize: { type: integer }
+            total: { type: integer }
+    ApiResponseBoard:
+      type: object
+      properties:
+        code: { type: integer, example: 0 }
+        message: { type: string, example: success }
+        data: { $ref: "#/components/schemas/Board" }
+    ApiResponseAvatar:
+      type: object
+      properties:
+        code: { type: integer, example: 0 }
+        message: { type: string, example: 上传成功 }
+        data:
+          type: object
+          properties:
+            url: { type: string }
+
+    Battle:
+      type: object
+      properties:
+        battleId: { type: integer, example: 501 }
+        status: { type: string, example: waiting }
+        mode: { type: string, example: pvp }
+        players:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: integer }
+        moves:
+          type: array
+          items: { type: object }
+    BattleCreateRequest:
+      type: object
+      properties:
+        mode: { type: string, example: pvp }
+        initialBoardId: { type: integer }
+        fogMode: { type: boolean }
+        password: { type: string, nullable: true }
+    BattleJoinRequest:
+      type: object
+      required: [battleId]
+      properties:
+        battleId: { type: integer }
+        password: { type: string, nullable: true }
+    BattleMatchRequest:
+      type: object
+      properties:
+        mode: { type: string, example: pvp }
+    BattleHistoryItem:
+      type: object
+      properties:
+        battleId: { type: integer }
+        result: { type: string, example: win }
+    ApiResponseBattleCreateResult:
+      type: object
+      properties:
+        code: { type: integer, example: 0 }
+        message: { type: string, example: 房间创建成功 }
+        data:
+          type: object
+          properties:
+            battleId: { type: integer }
+            status: { type: string }
+    ApiResponseBattleMatchResult:
+      type: object
+      properties:
+        code: { type: integer, example: 0 }
+        message: { type: string, example: 匹配成功 }
+        data:
+          type: object
+          properties:
+            battleId: { type: integer }
+    ApiResponseBattle:
+      type: object
+      properties:
+        code: { type: integer, example: 0 }
+        message: { type: string, example: success }
+        data: { $ref: "#/components/schemas/Battle" }
+    ApiResponsePageBattleHistory:
+      type: object
+      properties:
+        code: { type: integer, example: 0 }
+        message: { type: string, example: success }
+        data:
+          type: object
+          properties:
+            items:
+              type: array
+              items: { $ref: "#/components/schemas/BattleHistoryItem" }
+            page: { type: integer }
+            pageSize: { type: integer }
+            total: { type: integer }
+
+    Record:
+      type: object
+      properties:
+        id: { type: integer }
+        battleId: { type: integer }
+        data: { type: object }
+        shared: { type: boolean }
+    ShareRequest:
+      type: object
+      properties:
+        title: { type: string }
+        tags:
+          type: array
+          items: { type: string }
+    CommentCreateRequest:
+      type: object
+      properties:
+        type: { type: string, example: danmu }
+        step: { type: integer }
+        content: { type: string }
+    Comment:
+      type: object
+      properties:
+        id: { type: integer }
+        type: { type: string }
+        content: { type: string }
+    ApiResponsePageRecords:
+      type: object
+      properties:
+        code: { type: integer, example: 0 }
+        message: { type: string, example: success }
+        data:
+          type: object
+          properties:
+            items:
+              type: array
+              items: { $ref: "#/components/schemas/Record" }
+            page: { type: integer }
+            pageSize: { type: integer }
+            total: { type: integer }
+    ApiResponseRecord:
+      type: object
+      properties:
+        code: { type: integer, example: 0 }
+        message: { type: string, example: success }
+        data: { $ref: "#/components/schemas/Record" }
+    ApiResponseShareResult:
+      type: object
+      properties:
+        code: { type: integer, example: 0 }
+        message: { type: string, example: 分享成功 }
+        data:
+          type: object
+          properties:
+            shareId: { type: integer }
+    ApiResponseComments:
+      type: object
+      properties:
+        code: { type: integer, example: 0 }
+        message: { type: string, example: success }
+        data:
+          type: array
+          items: { $ref: "#/components/schemas/Comment" }
+    ApiResponseCommentCreate:
+      type: object
+      properties:
+        code: { type: integer, example: 0 }
+        message: { type: string, example: success }
+        data:
+          type: object
+          properties:
+            commentId: { type: integer }
+
+    CommunityShareItem:
+      type: object
+      properties:
+        shareId: { type: integer }
+        title: { type: string }
+        likes: { type: integer }
+    ReportRequest:
+      type: object
+      properties:
+        targetType: { type: string, example: share }
+        targetId: { type: integer }
+        reason: { type: string }
+    ApiResponseReportResult:
+      type: object
+      properties:
+        code: { type: integer, example: 0 }
+        message: { type: string, example: 已受理 }
+        data:
+          type: object
+          properties:
+            reportId: { type: integer }
+    SearchResultItem:
+      type: object
+      properties:
+        recordId: { type: integer }
+        title: { type: string }
+    ApiResponsePageCommunityShares:
+      type: object
+      properties:
+        code: { type: integer, example: 0 }
+        message: { type: string, example: success }
+        data:
+          type: object
+          properties:
+            items:
+              type: array
+              items: { $ref: "#/components/schemas/CommunityShareItem" }
+            page: { type: integer }
+            pageSize: { type: integer }
+            total: { type: integer }
+    ApiResponsePageSearchResults:
+      type: object
+      properties:
+        code: { type: integer, example: 0 }
+        message: { type: string, example: success }
+        data:
+          type: object
+          properties:
+            items:
+              type: array
+              items: { $ref: "#/components/schemas/SearchResultItem" }
+            page: { type: integer }
+            pageSize: { type: integer }
+            total: { type: integer }
