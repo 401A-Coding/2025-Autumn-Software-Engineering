@@ -143,6 +143,36 @@ chmod +x scripts/*.sh
 - 浏览器打开：Swagger UI 文档 `http://localhost:3000/docs`，原始规范 `http://localhost:3000/api-json`
 - 更新方式：编辑并保存 `docs/openapi.yaml`，重启后端即可在 `/docs` 看到最新接口
 
+## 从 OpenAPI 生成前端 TypeScript 类型
+
+前端已内置从 `docs/openapi.yaml` 生成类型声明（`.d.ts`）的脚本，便于在调用接口时获得静态类型提示。
+
+- 生成命令（在 `frontend/` 目录执行）：
+
+```powershell
+cd frontend
+npm run gen:api-types
+```
+
+- 生成结果：`frontend/src/types/api.d.ts`
+- 何时需要重新生成：当 `docs/openapi.yaml` 发生变更（例如新增/修改接口、模型）后。
+- 可选：如需监听模式，可使用 openapi-typescript 的 `--watch` 参数（一次性试用）
+
+```powershell
+cd frontend
+npx openapi-typescript ../docs/openapi.yaml --output src/types/api.d.ts --watch
+```
+
+简单用法示例：
+
+```ts
+// 示例：引用 OpenAPI 组件类型
+import type { components, paths } from '@/types/api';
+
+type AuthTokens = components['schemas']['AuthTokens'];
+type LoginOk = paths['/api/v1/auth/login']['post']['responses']['200']['content']['application/json'];
+```
+
 ## 常见问题（FAQ）
 
 - 报错：`Cannot find module '#main-entry-point'`
