@@ -138,12 +138,12 @@ chmod +x scripts/*.sh
 
 前端会将 `accessToken` 存入 `localStorage.token`。
 
-## 常见问题（FAQ）
-
 ## 接口文档（Swagger）
 
 - 浏览器打开：Swagger UI 文档 `http://localhost:3000/docs`，原始规范 `http://localhost:3000/api-json`
 - 更新方式：编辑并保存 `docs/openapi.yaml`，重启后端即可在 `/docs` 看到最新接口
+
+## 常见问题（FAQ）
 
 - 报错：`Cannot find module '#main-entry-point'`
   - 这是 Prisma Client 在某些环境下对 package.json imports 解析不生效导致。解决：

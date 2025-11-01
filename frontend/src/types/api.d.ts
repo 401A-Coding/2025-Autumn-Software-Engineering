@@ -52,6 +52,403 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
+        /** Update current user profile */
+        patch: operations["usersMeUpdate"];
+        trace?: never;
+    };
+    "/api/v1/auth/sms": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Send SMS code */
+        post: operations["authSms"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/logout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Logout current user */
+        post: operations["authLogout"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/{userId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get other user's profile */
+        get: operations["usersGetById"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/me/avatar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Upload avatar */
+        post: operations["usersMeAvatar"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/boards/templates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List board templates */
+        get: operations["boardsTemplates"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/boards": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create board */
+        post: operations["boardsCreate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/boards/mine": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List my boards */
+        get: operations["boardsMine"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/boards/{boardId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get board detail */
+        get: operations["boardsGet"];
+        put?: never;
+        post?: never;
+        /** Delete board */
+        delete: operations["boardsDelete"];
+        options?: never;
+        head?: never;
+        /** Update board */
+        patch: operations["boardsUpdate"];
+        trace?: never;
+    };
+    "/api/v1/battles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create battle */
+        post: operations["battlesCreate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/battles/join": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Join battle */
+        post: operations["battlesJoin"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/battles/match": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Quick match */
+        post: operations["battlesMatch"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/battles/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Battle history */
+        get: operations["battlesHistory"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/battles/{battleId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get battle info */
+        get: operations["battlesGet"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/records": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List my records */
+        get: operations["recordsList"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/records/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get record detail */
+        get: operations["recordsGet"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/records/{id}/share": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Share record */
+        post: operations["recordsShare"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/records/{id}/favorite": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Favorite record */
+        post: operations["recordsFavorite"];
+        /** Unfavorite record */
+        delete: operations["recordsUnfavorite"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/records/{id}/comments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List comments */
+        get: operations["recordsCommentsList"];
+        put?: never;
+        /** Add comment */
+        post: operations["recordsCommentsAdd"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/records/{id}/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Export record file */
+        get: operations["recordsExport"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/community/shares": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Community feed */
+        get: operations["communityShares"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/community/shares/{id}/like": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Like a share */
+        post: operations["communityLike"];
+        /** Unlike a share */
+        delete: operations["communityUnlike"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/community/reports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Report content */
+        post: operations["communityReport"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/community/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Search records */
+        get: operations["communitySearch"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
         patch?: never;
         trace?: never;
     };
@@ -185,6 +582,302 @@ export interface components {
             /** Format: date-time */
             createdAt?: string;
         };
+        UserUpdateRequest: {
+            nickname?: string;
+            /** Format: password */
+            password?: string;
+            avatarUrl?: string;
+        };
+        SmsRequest: {
+            /** @example 13800000000 */
+            phone: string;
+        };
+        ApiResponseSmsSent: {
+            /** @example 0 */
+            code: number;
+            /** @example 短信已发送 */
+            message: string;
+            data?: {
+                /** @example sms_9f3a2 */
+                requestId?: string;
+                /** @example 300 */
+                expireIn?: number;
+            };
+        };
+        ApiResponseOk: {
+            /** @example 0 */
+            code?: number;
+            /** @example success */
+            message?: string;
+            data?: Record<string, never> | null;
+        };
+        Board: {
+            /** @example 301 */
+            id?: number;
+            /** @example 中炮对屏风马 */
+            name?: string;
+            description?: string | null;
+            layout?: {
+                pieces?: {
+                    /** @example car */
+                    type?: string;
+                    x?: number;
+                    y?: number;
+                    /** @enum {string} */
+                    side?: "red" | "black";
+                }[];
+            };
+            rules?: Record<string, never>;
+        };
+        BoardTemplate: {
+            /** @example 1 */
+            id?: number;
+            /** @example 中炮对屏风马 */
+            name?: string;
+            /** @example /img/t1.png */
+            preview?: string;
+        };
+        BoardCreateRequest: {
+            name: string;
+            description?: string | null;
+            layout: Record<string, never>;
+            rules?: Record<string, never> | null;
+        };
+        BoardUpdateRequest: {
+            name?: string;
+            description?: string | null;
+            layout?: Record<string, never>;
+            rules?: Record<string, never> | null;
+        };
+        ApiResponseBoardTemplates: {
+            /** @example 0 */
+            code?: number;
+            /** @example success */
+            message?: string;
+            data?: components["schemas"]["BoardTemplate"][];
+        };
+        ApiResponseBoardCreateResult: {
+            /** @example 0 */
+            code?: number;
+            /** @example 创建成功 */
+            message?: string;
+            data?: {
+                /** @example 301 */
+                boardId?: number;
+                name?: string;
+            };
+        };
+        ApiResponsePageBoards: {
+            /** @example 0 */
+            code?: number;
+            /** @example success */
+            message?: string;
+            data?: {
+                items?: components["schemas"]["Board"][];
+                page?: number;
+                pageSize?: number;
+                total?: number;
+            };
+        };
+        ApiResponseBoard: {
+            /** @example 0 */
+            code?: number;
+            /** @example success */
+            message?: string;
+            data?: components["schemas"]["Board"];
+        };
+        ApiResponseAvatar: {
+            /** @example 0 */
+            code?: number;
+            /** @example 上传成功 */
+            message?: string;
+            data?: {
+                url?: string;
+            };
+        };
+        Battle: {
+            /** @example 501 */
+            battleId?: number;
+            /** @example waiting */
+            status?: string;
+            /** @example pvp */
+            mode?: string;
+            players?: {
+                id?: number;
+            }[];
+            moves?: Record<string, never>[];
+        };
+        BattleCreateRequest: {
+            /** @example pvp */
+            mode?: string;
+            initialBoardId?: number;
+            fogMode?: boolean;
+            password?: string | null;
+        };
+        BattleJoinRequest: {
+            battleId: number;
+            password?: string | null;
+        };
+        BattleMatchRequest: {
+            /** @example pvp */
+            mode?: string;
+        };
+        BattleHistoryItem: {
+            battleId?: number;
+            /** @example win */
+            result?: string;
+        };
+        ApiResponseBattleCreateResult: {
+            /** @example 0 */
+            code?: number;
+            /** @example 房间创建成功 */
+            message?: string;
+            data?: {
+                battleId?: number;
+                status?: string;
+            };
+        };
+        ApiResponseBattleMatchResult: {
+            /** @example 0 */
+            code?: number;
+            /** @example 匹配成功 */
+            message?: string;
+            data?: {
+                battleId?: number;
+            };
+        };
+        ApiResponseBattle: {
+            /** @example 0 */
+            code?: number;
+            /** @example success */
+            message?: string;
+            data?: components["schemas"]["Battle"];
+        };
+        ApiResponsePageBattleHistory: {
+            /** @example 0 */
+            code?: number;
+            /** @example success */
+            message?: string;
+            data?: {
+                items?: components["schemas"]["BattleHistoryItem"][];
+                page?: number;
+                pageSize?: number;
+                total?: number;
+            };
+        };
+        Record: {
+            id?: number;
+            battleId?: number;
+            data?: Record<string, never>;
+            shared?: boolean;
+        };
+        ShareRequest: {
+            title?: string;
+            tags?: string[];
+        };
+        CommentCreateRequest: {
+            /** @example danmu */
+            type?: string;
+            step?: number;
+            content?: string;
+        };
+        Comment: {
+            id?: number;
+            type?: string;
+            content?: string;
+        };
+        ApiResponsePageRecords: {
+            /** @example 0 */
+            code?: number;
+            /** @example success */
+            message?: string;
+            data?: {
+                items?: components["schemas"]["Record"][];
+                page?: number;
+                pageSize?: number;
+                total?: number;
+            };
+        };
+        ApiResponseRecord: {
+            /** @example 0 */
+            code?: number;
+            /** @example success */
+            message?: string;
+            data?: components["schemas"]["Record"];
+        };
+        ApiResponseShareResult: {
+            /** @example 0 */
+            code?: number;
+            /** @example 分享成功 */
+            message?: string;
+            data?: {
+                shareId?: number;
+            };
+        };
+        ApiResponseComments: {
+            /** @example 0 */
+            code?: number;
+            /** @example success */
+            message?: string;
+            data?: components["schemas"]["Comment"][];
+        };
+        ApiResponseCommentCreate: {
+            /** @example 0 */
+            code?: number;
+            /** @example success */
+            message?: string;
+            data?: {
+                commentId?: number;
+            };
+        };
+        CommunityShareItem: {
+            shareId?: number;
+            title?: string;
+            likes?: number;
+        };
+        ReportRequest: {
+            /** @example share */
+            targetType?: string;
+            targetId?: number;
+            reason?: string;
+        };
+        ApiResponseReportResult: {
+            /** @example 0 */
+            code?: number;
+            /** @example 已受理 */
+            message?: string;
+            data?: {
+                reportId?: number;
+            };
+        };
+        SearchResultItem: {
+            recordId?: number;
+            title?: string;
+        };
+        ApiResponsePageCommunityShares: {
+            /** @example 0 */
+            code?: number;
+            /** @example success */
+            message?: string;
+            data?: {
+                items?: components["schemas"]["CommunityShareItem"][];
+                page?: number;
+                pageSize?: number;
+                total?: number;
+            };
+        };
+        ApiResponsePageSearchResults: {
+            /** @example 0 */
+            code?: number;
+            /** @example success */
+            message?: string;
+            data?: {
+                items?: components["schemas"]["SearchResultItem"][];
+                page?: number;
+                pageSize?: number;
+                total?: number;
+            };
+        };
     };
     responses: never;
     parameters: never;
@@ -285,6 +978,678 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+        };
+    };
+    usersMeUpdate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UserUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseUser"];
+                };
+            };
+        };
+    };
+    authSms: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SmsRequest"];
+            };
+        };
+        responses: {
+            /** @description SMS sent */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseSmsSent"];
+                };
+            };
+        };
+    };
+    authLogout: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Logged out */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseOk"];
+                };
+            };
+        };
+    };
+    usersGetById: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                userId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description User profile */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseUser"];
+                };
+            };
+        };
+    };
+    usersMeAvatar: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    /** Format: binary */
+                    file: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Uploaded */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseAvatar"];
+                };
+            };
+        };
+    };
+    boardsTemplates: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Templates */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseBoardTemplates"];
+                };
+            };
+        };
+    };
+    boardsCreate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BoardCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseBoardCreateResult"];
+                };
+            };
+        };
+    };
+    boardsMine: {
+        parameters: {
+            query?: {
+                page?: number;
+                pageSize?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Page of boards */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponsePageBoards"];
+                };
+            };
+        };
+    };
+    boardsGet: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                boardId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Board */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseBoard"];
+                };
+            };
+        };
+    };
+    boardsDelete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                boardId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseOk"];
+                };
+            };
+        };
+    };
+    boardsUpdate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                boardId: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BoardUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseBoard"];
+                };
+            };
+        };
+    };
+    battlesCreate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BattleCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseBattleCreateResult"];
+                };
+            };
+        };
+    };
+    battlesJoin: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BattleJoinRequest"];
+            };
+        };
+        responses: {
+            /** @description Joined */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseBattle"];
+                };
+            };
+        };
+    };
+    battlesMatch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BattleMatchRequest"];
+            };
+        };
+        responses: {
+            /** @description Matched */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseBattleMatchResult"];
+                };
+            };
+        };
+    };
+    battlesHistory: {
+        parameters: {
+            query?: {
+                page?: number;
+                pageSize?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description History page */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponsePageBattleHistory"];
+                };
+            };
+        };
+    };
+    battlesGet: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                battleId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Battle info */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseBattle"];
+                };
+            };
+        };
+    };
+    recordsList: {
+        parameters: {
+            query?: {
+                page?: number;
+                pageSize?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Records page */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponsePageRecords"];
+                };
+            };
+        };
+    };
+    recordsGet: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Record */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseRecord"];
+                };
+            };
+        };
+    };
+    recordsShare: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ShareRequest"];
+            };
+        };
+        responses: {
+            /** @description Shared */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseShareResult"];
+                };
+            };
+        };
+    };
+    recordsFavorite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseOk"];
+                };
+            };
+        };
+    };
+    recordsUnfavorite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseOk"];
+                };
+            };
+        };
+    };
+    recordsCommentsList: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Comments */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseComments"];
+                };
+            };
+        };
+    };
+    recordsCommentsAdd: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommentCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Added */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseCommentCreate"];
+                };
+            };
+        };
+    };
+    recordsExport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Binary export */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/octet-stream": string;
+                };
+            };
+        };
+    };
+    communityShares: {
+        parameters: {
+            query?: {
+                page?: number;
+                pageSize?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Feed page */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponsePageCommunityShares"];
+                };
+            };
+        };
+    };
+    communityLike: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseOk"];
+                };
+            };
+        };
+    };
+    communityUnlike: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseOk"];
+                };
+            };
+        };
+    };
+    communityReport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReportRequest"];
+            };
+        };
+        responses: {
+            /** @description Accepted */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseReportResult"];
+                };
+            };
+        };
+    };
+    communitySearch: {
+        parameters: {
+            query?: {
+                q?: string;
+                tag?: string;
+                page?: number;
+                pageSize?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Search result */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponsePageSearchResults"];
                 };
             };
         };
