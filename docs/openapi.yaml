@@ -1,0 +1,313 @@
+openapi: 3.1.0
+info:
+  title: Quwan Chess API (Contract-first v1)
+  version: 1.0.0
+  description: |
+    Contract-first API for Quwan Chess.
+
+    Notes:
+    - Planned public endpoints use the prefix /api/v1/... with a unified envelope { code, message, data }.
+    - Current dev endpoints implemented in this repo are /user/register and /user/login (no envelope). They are included as legacy for compatibility and will be deprecated once /api/v1/... is adopted.
+servers:
+  - url: http://localhost:3000
+    description: Local development
+
+tags:
+  - name: Auth
+    description: Authentication and user identity
+  - name: Users
+    description: User profile and current user
+
+paths:
+  /api/v1/auth/register:
+    post:
+      tags: [Auth]
+      summary: Register via phone + password
+      operationId: authRegister
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AuthRegisterRequest"
+            examples:
+              phone:
+                value:
+                  type: phone
+                  phone: "13800000000"
+                  code: "8523"
+                  password: Abc12345
+      responses:
+        "200":
+          description: Registered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseAuthTokens"
+              examples:
+                ok:
+                  value:
+                    code: 0
+                    message: 注册成功
+                    data:
+                      accessToken: eyJhbGciOi...
+                      refreshToken: eyJhbGciOi...
+                      expiresIn: 1800
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseError"
+  /api/v1/auth/login:
+    post:
+      tags: [Auth]
+      summary: Login via phone + password
+      operationId: authLogin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AuthLoginRequest"
+            examples:
+              phone:
+                value:
+                  type: phone
+                  phone: "13800000000"
+                  password: Abc12345
+      responses:
+        "200":
+          description: Logged in
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseAuthTokens"
+              examples:
+                ok:
+                  value:
+                    code: 0
+                    message: 登录成功
+                    data:
+                      accessToken: eyJhbGciOi...
+                      refreshToken: eyJhbGciOi...
+                      expiresIn: 1800
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseError"
+  /api/v1/users/me:
+    get:
+      tags: [Users]
+      summary: Get current user profile
+      operationId: usersMe
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseUser"
+              examples:
+                ok:
+                  value:
+                    code: 0
+                    message: success
+                    data:
+                      id: 1024
+                      nickname: 棋友A
+                      phone: "13800000000"
+                      avatarUrl: null
+                      role: USER
+                      createdAt: "2025-10-31T12:00:00.000Z"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseError"
+
+  # Legacy dev endpoints (implemented today) - no envelope
+  /user/register:
+    post:
+      tags: [Auth]
+      summary: LEGACY dev - register (no envelope)
+      description: Returns tokens directly { accessToken, refreshToken }.
+      operationId: legacyRegister
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [phone, password]
+              properties:
+                phone:
+                  type: string
+                  example: "13800000000"
+                password:
+                  type: string
+                  format: password
+                  example: Abc12345
+                email:
+                  type: string
+                  example: a@b.com
+      responses:
+        "200":
+          description: Registered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthTokens"
+  /user/login:
+    post:
+      tags: [Auth]
+      summary: LEGACY dev - login (no envelope)
+      description: Returns tokens directly { accessToken, refreshToken }.
+      operationId: legacyLogin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [phone, password]
+              properties:
+                phone:
+                  type: string
+                  example: "13800000000"
+                password:
+                  type: string
+                  format: password
+                  example: Abc12345
+      responses:
+        "200":
+          description: Logged in
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthTokens"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    ApiResponseAuthTokens:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 0
+        message:
+          type: string
+          example: success
+        data:
+          $ref: "#/components/schemas/AuthTokens"
+      required: [code, message, data]
+    ApiResponseUser:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 0
+        message:
+          type: string
+          example: success
+        data:
+          $ref: "#/components/schemas/User"
+      required: [code, message, data]
+    ApiResponseError:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 1001
+        message:
+          type: string
+          example: 参数错误
+        data:
+          nullable: true
+      required: [code, message]
+    AuthRegisterRequest:
+      type: object
+      required: [type, phone, password]
+      properties:
+        type:
+          type: string
+          enum: [phone]
+          default: phone
+        phone:
+          type: string
+          example: "13800000000"
+        code:
+          type: string
+          description: SMS verification code (optional if disabled)
+          example: "8523"
+        password:
+          type: string
+          format: password
+          minLength: 6
+          example: Abc12345
+        email:
+          type: string
+          format: email
+          nullable: true
+    AuthLoginRequest:
+      type: object
+      required: [type, phone, password]
+      properties:
+        type:
+          type: string
+          enum: [phone]
+          default: phone
+        phone:
+          type: string
+          example: "13800000000"
+        password:
+          type: string
+          format: password
+          example: Abc12345
+    AuthTokens:
+      type: object
+      properties:
+        accessToken:
+          type: string
+          description: JWT access token
+          example: eyJhbGciOi...
+        refreshToken:
+          type: string
+          description: JWT refresh token
+          example: eyJhbGciOi...
+        expiresIn:
+          type: integer
+          description: Access token TTL in seconds
+          example: 1800
+      required: [accessToken, refreshToken]
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1024
+        nickname:
+          type: string
+          example: 棋友A
+        phone:
+          type: string
+          example: "13800000000"
+        avatarUrl:
+          type: string
+          nullable: true
+        role:
+          type: string
+          enum: [USER, ADMIN]
+        createdAt:
+          type: string
+          format: date-time

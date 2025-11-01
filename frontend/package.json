@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "gen:api-types": "openapi-typescript ../docs/openapi.yaml --output src/types/api.d.ts"
   },
   "dependencies": {
     "react": "^19.1.1",
@@ -26,6 +27,7 @@
     "globals": "^16.4.0",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.45.0",
-    "vite": "^7.1.7"
+    "vite": "^7.1.7",
+    "openapi-typescript": "^7.4.2"
   }
 }

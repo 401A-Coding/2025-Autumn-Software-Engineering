@@ -28,7 +28,7 @@ postgresql://postgres:postgres@127.0.0.1:5432/mydb?schema=public
 
 后端的环境变量放在 `backend/prisma/.env`，已提供示例：
 
-```
+```dotenv
 DATABASE_URL="postgresql://postgres:postgres@127.0.0.1:5432/mydb?schema=public"
 JWT_SECRET="your-strong-secret"
 ```
@@ -139,6 +139,11 @@ chmod +x scripts/*.sh
 前端会将 `accessToken` 存入 `localStorage.token`。
 
 ## 常见问题（FAQ）
+
+## 接口文档（Swagger）
+
+- 浏览器打开：Swagger UI 文档 `http://localhost:3000/docs`，原始规范 `http://localhost:3000/api-json`
+- 更新方式：编辑并保存 `docs/openapi.yaml`，重启后端即可在 `/docs` 看到最新接口
 
 - 报错：`Cannot find module '#main-entry-point'`
   - 这是 Prisma Client 在某些环境下对 package.json imports 解析不生效导致。解决：
