@@ -4,9 +4,9 @@ export default function Home() {
             <section className="paper-card" style={{ padding: 16 }}>
                 <h3 style={{ marginTop: 0 }}>本地对战</h3>
                 <p style={{ color: 'var(--muted)', marginTop: 6 }}>与身边的朋友在同一设备上对弈。</p>
-                <button className="btn-primary" style={{ marginTop: 8 }} disabled>
-                    开始对战（开发中）
-                </button>
+                <a className="btn-primary" style={{ display: 'inline-block', marginTop: 8 }} href="/app/play">
+                    开始对战
+                </a>
             </section>
 
             <section className="paper-card" style={{ padding: 16, marginTop: 12 }}>

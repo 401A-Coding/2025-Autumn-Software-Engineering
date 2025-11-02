@@ -8,6 +8,7 @@ import Home from './pages/app/Home.tsx'
 import Fun from './pages/app/Fun.tsx'
 import History from './pages/app/History.tsx'
 import Profile from './pages/app/Profile.tsx'
+import LocalPlay from './pages/app/LocalPlay.tsx'
 
 function App() {
   return (
@@ -20,6 +21,7 @@ function App() {
         <Route element={<AppLayout />}>
           <Route index element={<Navigate to="/app/home" replace />} />
           <Route path="home" element={<Home />} />
+          <Route path="play" element={<LocalPlay />} />
           <Route path="fun" element={<Fun />} />
           <Route path="history" element={<History />} />
           <Route path="profile" element={<Profile />} />
