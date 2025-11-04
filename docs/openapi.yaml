@@ -720,67 +720,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/ApiResponsePageSearchResults"
 
-  # Legacy dev endpoints (implemented today) - no envelope
-  /user/register:
-    post:
-      tags: [Auth]
-      summary: LEGACY dev - register (no envelope)
-      description: Returns tokens directly { accessToken, refreshToken }.
-      operationId: legacyRegister
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [phone, password]
-              properties:
-                phone:
-                  type: string
-                  example: "13800000000"
-                password:
-                  type: string
-                  format: password
-                  example: Abc12345
-                email:
-                  type: string
-                  example: a@b.com
-      responses:
-        "200":
-          description: Registered
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/AuthTokens"
-  /user/login:
-    post:
-      tags: [Auth]
-      summary: LEGACY dev - login (no envelope)
-      description: Returns tokens directly { accessToken, refreshToken }.
-      operationId: legacyLogin
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [phone, password]
-              properties:
-                phone:
-                  type: string
-                  example: "13800000000"
-                password:
-                  type: string
-                  format: password
-                  example: Abc12345
-      responses:
-        "200":
-          description: Logged in
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/AuthTokens"
-
 components:
   securitySchemes:
     bearerAuth:
