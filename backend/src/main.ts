@@ -5,9 +5,17 @@ import * as path from 'path';
 import { load } from 'js-yaml';
 import swaggerUi from 'swagger-ui-express';
 import { Request, Response } from 'express';
+import { ValidationPipe } from '@nestjs/common/pipes/validation.pipe';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true, // 自动移除DTO中未定义的字段
+      forbidNonWhitelisted: true, // 若存在未定义字段则报错
+      transform: true, // 自动转换数据类型（如字符串转数字）
+    }),
+  );
   // 启用 CORS，便于前端在 Vite (默认 5173) 开发环境跨域访问
   app.enableCors({
     origin: [
