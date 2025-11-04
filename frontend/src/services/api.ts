@@ -2,7 +2,7 @@
  * 棋盘和对局相关的 API 服务
  */
 
-import type { components } from '../types/api'
+import type { components, operations } from '../types/api'
 
 const base = import.meta.env.VITE_API_BASE || ''
 
@@ -12,11 +12,9 @@ type ApiResponse<T> = {
   data: T
 }
 
-type Board = components['schemas']['Board']
 type BoardTemplate = components['schemas']['BoardTemplate']
 type BoardCreateRequest = components['schemas']['BoardCreateRequest']
 type BoardUpdateRequest = components['schemas']['BoardUpdateRequest']
-type Battle = components['schemas']['Battle']
 type BattleCreateRequest = components['schemas']['BattleCreateRequest']
 
 /**
@@ -60,15 +58,23 @@ export const boardApi = {
    * 获取棋盘模板列表
    */
   async getTemplates(): Promise<BoardTemplate[]> {
-    const res = await apiRequest<BoardTemplate[]>('/api/v1/boards/templates')
+    type TemplatesData = NonNullable<
+      operations['boardsTemplates']['responses'][200]['content']['application/json']['data']
+    >
+    const res = await apiRequest<TemplatesData>('/api/v1/boards/templates')
     return res.data
   },
 
   /**
    * 创建自定义棋盘
    */
-  async create(request: BoardCreateRequest): Promise<{ boardId: number; name: string }> {
-    const res = await apiRequest<{ boardId: number; name: string }>('/api/v1/boards', {
+  async create(request: BoardCreateRequest): Promise<
+    NonNullable<operations['boardsCreate']['responses'][200]['content']['application/json']['data']>
+  > {
+    type CreateData = NonNullable<
+      operations['boardsCreate']['responses'][200]['content']['application/json']['data']
+    >
+    const res = await apiRequest<CreateData>('/api/v1/boards', {
       method: 'POST',
       body: JSON.stringify(request),
     })
@@ -78,8 +84,13 @@ export const boardApi = {
   /**
    * 获取我的棋盘列表
    */
-  async getMine(page = 1, pageSize = 20): Promise<{ items: Board[]; page: number; pageSize: number; total: number }> {
-    const res = await apiRequest<{ items: Board[]; page: number; pageSize: number; total: number }>(
+  async getMine(page = 1, pageSize = 20): Promise<
+    NonNullable<operations['boardsMine']['responses'][200]['content']['application/json']['data']>
+  > {
+    type MineData = NonNullable<
+      operations['boardsMine']['responses'][200]['content']['application/json']['data']
+    >
+    const res = await apiRequest<MineData>(
       `/api/v1/boards/mine?page=${page}&pageSize=${pageSize}`
     )
     return res.data
@@ -88,16 +99,26 @@ export const boardApi = {
   /**
    * 获取棋盘详情
    */
-  async get(boardId: number): Promise<Board> {
-    const res = await apiRequest<Board>(`/api/v1/boards/${boardId}`)
+  async get(boardId: number): Promise<
+    NonNullable<operations['boardsGet']['responses'][200]['content']['application/json']['data']>
+  > {
+    type GetData = NonNullable<
+      operations['boardsGet']['responses'][200]['content']['application/json']['data']
+    >
+    const res = await apiRequest<GetData>(`/api/v1/boards/${boardId}`)
     return res.data
   },
 
   /**
    * 更新棋盘
    */
-  async update(boardId: number, request: BoardUpdateRequest): Promise<Board> {
-    const res = await apiRequest<Board>(`/api/v1/boards/${boardId}`, {
+  async update(boardId: number, request: BoardUpdateRequest): Promise<
+    NonNullable<operations['boardsUpdate']['responses'][200]['content']['application/json']['data']>
+  > {
+    type UpdateData = NonNullable<
+      operations['boardsUpdate']['responses'][200]['content']['application/json']['data']
+    >
+    const res = await apiRequest<UpdateData>(`/api/v1/boards/${boardId}`, {
       method: 'PATCH',
       body: JSON.stringify(request),
     })
@@ -108,7 +129,8 @@ export const boardApi = {
    * 删除棋盘
    */
   async delete(boardId: number): Promise<void> {
-    await apiRequest<Record<string, never>>(`/api/v1/boards/${boardId}`, {
+    type DeleteData = operations['boardsDelete']['responses'][200]['content']['application/json']['data']
+    await apiRequest<DeleteData>(`/api/v1/boards/${boardId}`, {
       method: 'DELETE',
     })
   },
@@ -121,8 +143,13 @@ export const battleApi = {
   /**
    * 创建对局房间
    */
-  async create(request: BattleCreateRequest): Promise<{ battleId: number; status: string }> {
-    const res = await apiRequest<{ battleId: number; status: string }>('/api/v1/battles', {
+  async create(request: BattleCreateRequest): Promise<
+    NonNullable<operations['battlesCreate']['responses'][200]['content']['application/json']['data']>
+  > {
+    type CreateData = NonNullable<
+      operations['battlesCreate']['responses'][200]['content']['application/json']['data']
+    >
+    const res = await apiRequest<CreateData>('/api/v1/battles', {
       method: 'POST',
       body: JSON.stringify(request),
     })
@@ -132,8 +159,13 @@ export const battleApi = {
   /**
    * 加入对局
    */
-  async join(battleId: number, password?: string): Promise<Battle> {
-    const res = await apiRequest<Battle>('/api/v1/battles/join', {
+  async join(battleId: number, password?: string): Promise<
+    NonNullable<operations['battlesJoin']['responses'][200]['content']['application/json']['data']>
+  > {
+    type JoinData = NonNullable<
+      operations['battlesJoin']['responses'][200]['content']['application/json']['data']
+    >
+    const res = await apiRequest<JoinData>('/api/v1/battles/join', {
       method: 'POST',
       body: JSON.stringify({ battleId, password }),
     })
@@ -143,8 +175,13 @@ export const battleApi = {
   /**
    * 快速匹配
    */
-  async match(mode = 'pvp'): Promise<{ battleId: number }> {
-    const res = await apiRequest<{ battleId: number }>('/api/v1/battles/match', {
+  async match(mode = 'pvp'): Promise<
+    NonNullable<operations['battlesMatch']['responses'][200]['content']['application/json']['data']>
+  > {
+    type MatchData = NonNullable<
+      operations['battlesMatch']['responses'][200]['content']['application/json']['data']
+    >
+    const res = await apiRequest<MatchData>('/api/v1/battles/match', {
       method: 'POST',
       body: JSON.stringify({ mode }),
     })
@@ -154,18 +191,53 @@ export const battleApi = {
   /**
    * 获取对局详情
    */
-  async get(battleId: number): Promise<Battle> {
-    const res = await apiRequest<Battle>(`/api/v1/battles/${battleId}`)
+  async get(battleId: number): Promise<
+    NonNullable<operations['battlesGet']['responses'][200]['content']['application/json']['data']>
+  > {
+    type GetData = NonNullable<
+      operations['battlesGet']['responses'][200]['content']['application/json']['data']
+    >
+    const res = await apiRequest<GetData>(`/api/v1/battles/${battleId}`)
     return res.data
   },
 
   /**
    * 获取对局历史
    */
-  async getHistory(page = 1, pageSize = 20) {
-    const res = await apiRequest<{ items: any[]; page: number; pageSize: number; total: number }>(
+  async getHistory(page = 1, pageSize = 20): Promise<
+    NonNullable<operations['battlesHistory']['responses'][200]['content']['application/json']['data']>
+  > {
+    type HistoryData = NonNullable<
+      operations['battlesHistory']['responses'][200]['content']['application/json']['data']
+    >
+    const res = await apiRequest<HistoryData>(
       `/api/v1/battles/history?page=${page}&pageSize=${pageSize}`
     )
+    return res.data
+  },
+}
+
+/**
+ * 用户相关 API
+ */
+export const userApi = {
+  /** 获取当前用户信息 */
+  async getMe() {
+    type MeData = NonNullable<
+      operations['usersMe']['responses'][200]['content']['application/json']['data']
+    >
+    const res = await apiRequest<MeData>('/api/v1/users/me')
+    return res.data
+  },
+  /** 部分更新当前用户信息 */
+  async updateMe(patch: components['schemas']['UserUpdateRequest']) {
+    type MeUpdateData = NonNullable<
+      operations['usersMeUpdate']['responses'][200]['content']['application/json']['data']
+    >
+    const res = await apiRequest<MeUpdateData>('/api/v1/users/me', {
+      method: 'PATCH',
+      body: JSON.stringify(patch),
+    })
     return res.data
   },
 }

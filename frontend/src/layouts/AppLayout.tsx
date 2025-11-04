@@ -1,11 +1,15 @@
 import { NavLink, Outlet } from 'react-router-dom'
 import { IconHome, IconFun, IconHistory, IconProfile } from '../components/icons'
+import { logout } from '../lib/session'
 
 export default function AppLayout() {
     return (
         <div>
             <header className="header-bar">
                 <div className="header-title">趣玩象棋</div>
+                <div style={{ marginLeft: 'auto' }}>
+                    <button className="btn-ghost" onClick={() => logout()}>退出登录</button>
+                </div>
             </header>
 
             <main className="page-container">

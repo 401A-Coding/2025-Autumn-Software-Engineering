@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-
-const base = import.meta.env.VITE_API_BASE || ''
+import http from '../../lib/http'
+import type { operations } from '../../types/api'
 
 export default function Register() {
     const [phone, setPhone] = useState('');
@@ -15,12 +15,11 @@ export default function Register() {
         setError(null);
         setLoading(true);
         try {
-            const res = await fetch(`${base}/api/v1/auth/register`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ type: 'phone', phone, password }),
-            });
-            if (!res.ok) throw new Error('注册失败');
+            type RegisterReq = operations['authRegister']['requestBody']['content']['application/json']
+            type RegisterData = operations['authRegister']['responses'][200]['content']['application/json']['data']
+            const body: RegisterReq = { type: 'phone', phone, password }
+            // 响应 data 为 AuthTokens，但此处不直接使用，仅作类型校验
+            await http.post<RegisterData>('/api/v1/auth/register', body)
             navigate('/login', { replace: true });
         } catch (err: unknown) {
             const msg = err instanceof Error ? err.message : '注册失败'

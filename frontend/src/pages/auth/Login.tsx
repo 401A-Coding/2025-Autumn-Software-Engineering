@@ -1,8 +1,10 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import http from '../../lib/http'
+import { setTokens } from '../../lib/auth'
+import type { operations } from '../../types/api'
 
 const phoneRegex = /^1[3-9]\d{9}$/
-const base = import.meta.env.VITE_API_BASE || ''
 
 export default function Login() {
     const [phone, setPhone] = useState('')
@@ -17,15 +19,12 @@ export default function Login() {
         if (password.length < 6) return setError('密码至少 6 位')
         setError(null); setLoading(true)
         try {
-            const res = await fetch(`${base}/api/v1/auth/login`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ type: 'phone', phone, password }),
-            })
-            if (!res.ok) throw new Error(await res.text().catch(() => `HTTP ${res.status}`))
-            const json = await res.json().catch(() => ({}))
-            const data = json?.data || json
-            if (data?.accessToken) localStorage.setItem('token', data.accessToken)
+            type LoginReq = operations['authLogin']['requestBody']['content']['application/json']
+            type LoginData = operations['authLogin']['responses'][200]['content']['application/json']['data']
+            const body: LoginReq = { type: 'phone', phone, password }
+            const res = await http.post<LoginData>('/api/v1/auth/login', body)
+            const data = res.data
+            if (data?.accessToken && data?.refreshToken) setTokens(data)
             navigate('/app/home', { replace: true })
         } catch (e: unknown) {
             const msg = e instanceof Error ? e.message : '登录失败'

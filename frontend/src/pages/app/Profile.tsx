@@ -1,29 +1,9 @@
-import { useNavigate } from 'react-router-dom';
-
-const base = import.meta.env.VITE_API_BASE || '';
+import { logout } from '../../lib/session'
 
 export default function Profile() {
-    const navigate = useNavigate();
 
     const onLogout = async () => {
-        try {
-            const token = localStorage.getItem('token');
-            if (token) {
-                // Call logout API
-                await fetch(`${base}/api/v1/auth/logout`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`,
-                    },
-                }).catch(() => {
-                    // Ignore network errors, proceed with local logout
-                });
-            }
-        } finally {
-            localStorage.removeItem('token');
-            navigate('/login', { replace: true });
-        }
+        await logout();
     };
 
     return (
