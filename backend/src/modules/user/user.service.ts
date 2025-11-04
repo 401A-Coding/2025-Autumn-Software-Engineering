@@ -14,7 +14,7 @@ export class UserService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
-  ) {}
+  ) { }
 
   // 注册
   async register(dto: CreateUserDto) {
@@ -64,6 +64,8 @@ export class UserService {
     const payload = { sub, username, role };
     const accessToken = this.jwt.sign(payload, { expiresIn: '30m' });
     const refreshToken = this.jwt.sign(payload, { expiresIn: '7d' });
-    return { accessToken, refreshToken };
+    // keep contract in docs/openapi.yaml: expiresIn is seconds for access token TTL
+    const expiresIn = 30 * 60; // 30 minutes
+    return { accessToken, refreshToken, expiresIn };
   }
 }
