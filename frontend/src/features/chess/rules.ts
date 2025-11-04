@@ -230,3 +230,43 @@ export function movePiece(board: Board, from: Pos, to: Pos): Board {
     nb[from.y][from.x] = null
     return nb
 }
+
+/**
+ * 检查游戏是否结束
+ * @returns 'red' | 'black' | 'draw' | null
+ */
+export function checkGameOver(board: Board, currentTurn: Side): Side | 'draw' | null {
+    // 1. 检查将帅是否被吃掉
+    const redKing = findKing(board, 'red')
+    const blackKing = findKing(board, 'black')
+    
+    if (!redKing) return 'black' // 红方将帅被吃，黑方获胜
+    if (!blackKing) return 'red' // 黑方将帅被吃，红方获胜
+    
+    // 2. 检查飞将（面对面）
+    if (flyingGeneralsIllegal(board)) {
+        // 飞将状态下，当前轮到谁走棋，谁输
+        return currentTurn === 'red' ? 'black' : 'red'
+    }
+    
+    // 3. 检查当前方是否有合法走子（困毙）
+    let hasLegalMove = false
+    for (let y = 0; y < 10 && !hasLegalMove; y++) {
+        for (let x = 0; x < 9 && !hasLegalMove; x++) {
+            const piece = board[y][x]
+            if (piece && piece.side === currentTurn) {
+                const moves = generateLegalMoves(board, { x, y }, currentTurn)
+                if (moves.length > 0) {
+                    hasLegalMove = true
+                }
+            }
+        }
+    }
+    
+    if (!hasLegalMove) {
+        // 当前方无合法走子，对方获胜
+        return currentTurn === 'red' ? 'black' : 'red'
+    }
+    
+    return null // 游戏继续
+}

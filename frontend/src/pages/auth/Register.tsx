@@ -15,10 +15,10 @@ export default function Register() {
         setError(null);
         setLoading(true);
         try {
-            const res = await fetch(`${base}/user/register`, {
+            const res = await fetch(`${base}/api/v1/auth/register`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ phone, password }),
+                body: JSON.stringify({ type: 'phone', phone, password }),
             });
             if (!res.ok) throw new Error('注册失败');
             navigate('/login', { replace: true });
