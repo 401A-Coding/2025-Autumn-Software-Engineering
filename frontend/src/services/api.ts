@@ -218,6 +218,118 @@ export const battleApi = {
 }
 
 /**
+ * 记录相关 API
+ */
+export const recordsApi = {
+  /** 列出我的记录（分页） */
+  async list(page = 1, pageSize = 20): Promise<
+    NonNullable<operations['recordsList']['responses'][200]['content']['application/json']['data']>
+  > {
+    type ListData = NonNullable<
+      operations['recordsList']['responses'][200]['content']['application/json']['data']
+    >
+    const res = await apiRequest<ListData>(
+      `/api/v1/records?page=${page}&pageSize=${pageSize}`
+    )
+    return res.data
+  },
+
+  /** 获取记录详情 */
+  async get(id: number): Promise<
+    NonNullable<operations['recordsGet']['responses'][200]['content']['application/json']['data']>
+  > {
+    type GetData = NonNullable<
+      operations['recordsGet']['responses'][200]['content']['application/json']['data']
+    >
+    const res = await apiRequest<GetData>(`/api/v1/records/${id}`)
+    return res.data
+  },
+
+  /** 分享记录 */
+  async share(id: number, body: components['schemas']['ShareRequest']): Promise<
+    NonNullable<operations['recordsShare']['responses'][200]['content']['application/json']['data']>
+  > {
+    type ShareData = NonNullable<
+      operations['recordsShare']['responses'][200]['content']['application/json']['data']
+    >
+    const res = await apiRequest<ShareData>(`/api/v1/records/${id}/share`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    })
+    return res.data
+  },
+
+  /** 收藏记录 */
+  async favorite(id: number): Promise<
+    NonNullable<operations['recordsFavorite']['responses'][200]['content']['application/json']['data']>
+  > {
+    type FavoriteData = NonNullable<
+      operations['recordsFavorite']['responses'][200]['content']['application/json']['data']
+    >
+    const res = await apiRequest<FavoriteData>(`/api/v1/records/${id}/favorite`, {
+      method: 'POST',
+    })
+    return res.data
+  },
+
+  /** 取消收藏 */
+  async unfavorite(id: number): Promise<
+    NonNullable<operations['recordsUnfavorite']['responses'][200]['content']['application/json']['data']>
+  > {
+    type UnfavoriteData = NonNullable<
+      operations['recordsUnfavorite']['responses'][200]['content']['application/json']['data']
+    >
+    const res = await apiRequest<UnfavoriteData>(`/api/v1/records/${id}/favorite`, {
+      method: 'DELETE',
+    })
+    return res.data
+  },
+
+  comments: {
+    /** 列出评论 */
+    async list(id: number): Promise<
+      NonNullable<operations['recordsCommentsList']['responses'][200]['content']['application/json']['data']>
+    > {
+      type CommentsData = NonNullable<
+        operations['recordsCommentsList']['responses'][200]['content']['application/json']['data']
+      >
+      const res = await apiRequest<CommentsData>(`/api/v1/records/${id}/comments`)
+      return res.data
+    },
+
+    /** 新增评论 */
+    async add(id: number, body: components['schemas']['CommentCreateRequest']): Promise<
+      NonNullable<operations['recordsCommentsAdd']['responses'][200]['content']['application/json']['data']>
+    > {
+      type AddCommentData = NonNullable<
+        operations['recordsCommentsAdd']['responses'][200]['content']['application/json']['data']
+      >
+      const res = await apiRequest<AddCommentData>(`/api/v1/records/${id}/comments`, {
+        method: 'POST',
+        body: JSON.stringify(body),
+      })
+      return res.data
+    },
+  },
+
+  /** 导出记录（二进制） */
+  async export(id: number): Promise<
+    operations['recordsExport']['responses'][200]['content']['application/octet-stream']
+  > {
+    // 使用独立的二进制请求，保留 Authorization 头
+    const token = getAuthToken()
+    const res = await fetch(`${base}/api/v1/records/${id}/export`, {
+      method: 'GET',
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+    })
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    // OpenAPI 类型是 string；如需 Blob 可另行提供导出方法
+    return await res.text()
+  },
+}
+/**
  * 用户相关 API
  */
 export const userApi = {
