@@ -104,6 +104,26 @@ describe('UserService', () => {
     );
   });
 
+  it('logoutByAccessToken should clear refreshTokens when auth header valid', async () => {
+    jwt.verifyAsync.mockResolvedValue({ sub: 9, username: 'u9', role: 'USER' });
+    await service.logoutByAccessToken('Bearer access-token');
+    expect(jwt.verifyAsync).toHaveBeenCalledWith('access-token');
+    expect(prisma.user.update).toHaveBeenCalledWith({
+      where: { id: 9 },
+      data: { refreshTokens: { set: [] } },
+    });
+  });
+
+  it('logoutByAccessToken should be idempotent for missing/invalid header', async () => {
+    await service.logoutByAccessToken(undefined);
+    await service.logoutByAccessToken('');
+    await service.logoutByAccessToken('Token something');
+    jwt.verifyAsync.mockRejectedValue(new Error('bad'));
+    await service.logoutByAccessToken('Bearer bad');
+    // No throws and prisma.user.update may not be called in these cases
+    expect(true).toBe(true);
+  });
+
   it('refresh should rotate token and return new tokens', async () => {
     const oldToken = 'old-refresh';
     jwt.verifyAsync.mockResolvedValue({

@@ -96,6 +96,31 @@ export class UserService {
     }
   }
 
+  // 登出：基于 access token 找到用户并清空其 refreshTokens（服务端失效刷新能力）
+  async logoutByAccessToken(authorization?: string) {
+    try {
+      if (
+        !authorization ||
+        !authorization.toLowerCase().startsWith('bearer ')
+      ) {
+        return; // 无授权头则视为幂等成功
+      }
+      const token = authorization.slice(7).trim();
+      const payload = await this.jwt.verifyAsync<{
+        sub: number;
+        username: string;
+        role: 'USER' | 'ADMIN';
+      }>(token);
+      await this.prisma.user.update({
+        where: { id: payload.sub },
+        data: { refreshTokens: { set: [] } },
+      });
+    } catch {
+      // 忽略异常，保持登出幂等
+      return;
+    }
+  }
+
   private generateTokens(
     sub: number,
     username: string,

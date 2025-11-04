@@ -1,4 +1,4 @@
-import { Controller, Post, Body, HttpCode } from '@nestjs/common';
+import { Controller, Post, Body, HttpCode, Headers } from '@nestjs/common';
 import { UserService } from './user.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { LoginUserDto } from './dto/login-user.dto';
@@ -40,14 +40,9 @@ export class AuthController {
 
   @Post('logout')
   @HttpCode(200)
-  logout() {
-    // TODO: Implement token invalidation (Redis blacklist)
-    // For now, client-side token removal is sufficient
-    return {
-      code: 0,
-      message: '登出成功',
-      data: {},
-    };
+  async logout(@Headers('authorization') authorization?: string) {
+    await this.userService.logoutByAccessToken(authorization);
+    return { code: 0, message: '登出成功', data: {} };
   }
 
   @Post('refresh')
