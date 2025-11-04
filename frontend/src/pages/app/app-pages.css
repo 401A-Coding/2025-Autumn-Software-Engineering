@@ -23,6 +23,19 @@
     display: inline-block;
 }
 
+/* visually hidden for screen readers */
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
 .muted {
     color: var(--muted);
 }
@@ -57,4 +70,30 @@
     border-radius: 8px;
     padding: 16px;
     color: var(--muted);
+}
+
+/* simple layout helpers */
+.row-start {
+    display: flex;
+    align-items: center;
+}
+
+.gap-12 {
+    gap: 12px;
+}
+
+/* avatar placeholder or image */
+.avatar-64 {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: var(--muted-bg);
+    color: var(--muted);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    object-fit: cover;
+    -webkit-user-select: none;
+    user-select: none;
 }
