@@ -1,0 +1,8 @@
+/* AppLayout extracted styles */
+.header-actions {
+    margin-left: auto;
+}
+
+.tabbar.with-safe-area {
+    padding-bottom: env(safe-area-inset-bottom);
+}

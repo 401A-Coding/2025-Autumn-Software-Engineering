@@ -39,7 +39,13 @@ export class UserService {
       },
     });
 
-    return this.generateTokens(user.id, user.username, user.role);
+    const tokens = this.generateTokens(user.id, user.username, user.role);
+    // 持久化 refreshToken（开发期简单用数组，生产建议 Redis + 轮换）
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { refreshTokens: { push: tokens.refreshToken } },
+    });
+    return tokens;
   }
 
   // 登录（使用 phone，即存于 username 字段）
@@ -52,8 +58,67 @@ export class UserService {
     const ok = await bcrypt.compare(dto.password, user.password);
     if (!ok) throw new UnauthorizedException('账号或密码错误');
 
-    // TODO: 将 refreshToken 写入 Redis（可选）
-    return this.generateTokens(user.id, user.username, user.role);
+    const tokens = this.generateTokens(user.id, user.username, user.role);
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { refreshTokens: { push: tokens.refreshToken } },
+    });
+    return tokens;
+  }
+
+  // 刷新 accessToken（并轮换 refreshToken）
+  async refresh(refreshToken: string) {
+    try {
+      const payload = await this.jwt.verifyAsync<{
+        sub: number;
+        username: string;
+        role: 'USER' | 'ADMIN';
+      }>(refreshToken);
+      const user = await this.prisma.user.findFirst({
+        where: { id: payload.sub, refreshTokens: { has: refreshToken } },
+        select: { id: true, username: true, role: true, refreshTokens: true },
+      });
+      if (!user) throw new UnauthorizedException('刷新令牌无效');
+
+      const tokens = this.generateTokens(user.id, user.username, user.role);
+      // 轮换：移除旧的，加入新的
+      const nextList = (user.refreshTokens || []).filter(
+        (t) => t !== refreshToken,
+      );
+      nextList.push(tokens.refreshToken);
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: { refreshTokens: { set: nextList } },
+      });
+      return tokens;
+    } catch {
+      throw new UnauthorizedException('刷新令牌无效');
+    }
+  }
+
+  // 登出：基于 access token 找到用户并清空其 refreshTokens（服务端失效刷新能力）
+  async logoutByAccessToken(authorization?: string) {
+    try {
+      if (
+        !authorization ||
+        !authorization.toLowerCase().startsWith('bearer ')
+      ) {
+        return; // 无授权头则视为幂等成功
+      }
+      const token = authorization.slice(7).trim();
+      const payload = await this.jwt.verifyAsync<{
+        sub: number;
+        username: string;
+        role: 'USER' | 'ADMIN';
+      }>(token);
+      await this.prisma.user.update({
+        where: { id: payload.sub },
+        data: { refreshTokens: { set: [] } },
+      });
+    } catch {
+      // 忽略异常，保持登出幂等
+      return;
+    }
   }
 
   private generateTokens(
@@ -64,6 +129,8 @@ export class UserService {
     const payload = { sub, username, role };
     const accessToken = this.jwt.sign(payload, { expiresIn: '30m' });
     const refreshToken = this.jwt.sign(payload, { expiresIn: '7d' });
-    return { accessToken, refreshToken };
+    // keep contract in docs/openapi.yaml: expiresIn is seconds for access token TTL
+    const expiresIn = 30 * 60; // 30 minutes
+    return { accessToken, refreshToken, expiresIn };
   }
 }

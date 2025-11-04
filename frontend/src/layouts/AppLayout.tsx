@@ -1,18 +1,23 @@
 import { NavLink, Outlet } from 'react-router-dom'
 import { IconHome, IconFun, IconHistory, IconProfile } from '../components/icons'
+import { logout } from '../lib/session'
+import './app-layout.css'
 
 export default function AppLayout() {
     return (
         <div>
             <header className="header-bar">
                 <div className="header-title">趣玩象棋</div>
+                <div className="header-actions">
+                    <button className="btn-ghost" onClick={() => logout()}>退出登录</button>
+                </div>
             </header>
 
             <main className="page-container">
                 <Outlet />
             </main>
 
-            <nav className="tabbar" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+            <nav className="tabbar with-safe-area">
                 <NavLink to="/app/home" className={({ isActive }) => `tab-item ${isActive ? 'active' : ''}`}>
                     <IconHome />
                     <span>主页</span>
