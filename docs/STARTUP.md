@@ -156,7 +156,14 @@ npm run gen:api-types
 
 - 生成结果：`frontend/src/types/api.d.ts`
 - 何时需要重新生成：当 `docs/openapi.yaml` 发生变更（例如新增/修改接口、模型）后。
-- 可选：如需监听模式，可使用 openapi-typescript 的 `--watch` 参数（一次性试用）
+- 监听模式（开发期推荐）：
+
+```powershell
+cd frontend
+npm run gen:api-types:watch
+```
+
+- 可选：一次性试用 `--watch`（无需脚本）
 
 ```powershell
 cd frontend
