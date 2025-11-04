@@ -1,18 +1,20 @@
-import { IsOptional, IsString, Validate } from "class-validator";
-import { IsEmptyObject } from 'src/common/validators/is-empty-object.validator';
+import { IsOptional, IsString, ValidateNested, } from "class-validator";
+import { LayoutDto } from "./layout.dto";
+import { Type } from "class-transformer";
 
 export class CreateBoardDto {
 
-    @IsString({ message: "name必须是string类型" })
+    @IsString({ message: "Board name must be a string" })
     name!: string;
 
     @IsOptional()
-    @IsString({ message: "description必须是string类型" })
+    @IsString({ message: "Board description must be a string" })
     description?: string;
 
-    @Validate(IsEmptyObject)
-    layout!: {};
+    @ValidateNested()
+    @Type(() => LayoutDto)
+    layout!: LayoutDto;
 
-    @Validate(IsEmptyObject)
+    // TODO: Add proper validation for rules
     rules!: {};
 }
