@@ -9,6 +9,8 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { LoginUserDto } from './dto/login-user.dto';
 import bcrypt from 'bcryptjs';
 
+type MinimalUser = { id: number; username: string; role: 'USER' | 'ADMIN' };
+
 @Injectable()
 export class UserService {
   constructor(
@@ -29,20 +31,38 @@ export class UserService {
     if (existed) throw new BadRequestException('手机号或邮箱已被占用');
 
     const hashed = await bcrypt.hash(dto.password, 10);
-    const user = await this.prisma.user.create({
-      data: {
-        // 用 username 字段保存手机号
-        username: dto.phone,
-        phone: dto.phone,
-        email: dto.email,
-        password: hashed,
-      },
-    });
+    // 使用随机昵称作为 username
+    let created: MinimalUser | null = null;
+    for (let i = 0; i < 3; i++) {
+      const nickname = this.generateNickname();
+      try {
+        const u = await this.prisma.user.create({
+          data: {
+            username: nickname,
+            phone: dto.phone,
+            email: dto.email,
+            password: hashed,
+            avatarUrl: this.generateDefaultAvatar(nickname),
+          },
+          select: { id: true, username: true, role: true },
+        });
+        created = u;
+        break;
+      } catch (e: unknown) {
+        if (this.getPrismaErrorCode(e) === 'P2002') continue; // 唯一约束冲突，重试
+        throw e;
+      }
+    }
+    if (!created) throw new BadRequestException('注册失败，请重试');
 
-    const tokens = this.generateTokens(user.id, user.username, user.role);
+    const tokens = this.generateTokens(
+      created.id,
+      created.username,
+      created.role,
+    );
     // 持久化 refreshToken（开发期简单用数组，生产建议 Redis + 轮换）
     await this.prisma.user.update({
-      where: { id: user.id },
+      where: { id: created.id },
       data: { refreshTokens: { push: tokens.refreshToken } },
     });
     return tokens;
@@ -132,5 +152,126 @@ export class UserService {
     // keep contract in docs/openapi.yaml: expiresIn is seconds for access token TTL
     const expiresIn = 30 * 60; // 30 minutes
     return { accessToken, refreshToken, expiresIn };
+  }
+
+  // 简单随机昵称生成
+  private generateNickname() {
+    const prefix = '棋友';
+    const part1 = Math.random().toString(36).slice(2, 6).toUpperCase();
+    const part2 = (Math.floor(Math.random() * 900) + 100).toString();
+    return `${prefix}${part1}${part2}`;
+  }
+
+  private getPrismaErrorCode(err: unknown): string | undefined {
+    if (typeof err === 'object' && err && 'code' in (err as any)) {
+      const code = (err as { code?: unknown }).code;
+      return typeof code === 'string' ? code : undefined;
+    }
+    return undefined;
+  }
+
+  // 生成简单的 SVG 默认头像（圆底 + 首字母）
+  private generateDefaultAvatar(name: string) {
+    const initial = (name || '棋').charAt(0).toUpperCase();
+    const colors = ['#1abc9c', '#3498db', '#9b59b6', '#e67e22', '#e74c3c'];
+    const bg = colors[Math.abs(this.hashCode(name)) % colors.length];
+    const svg = `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <defs><style>.t{font:700 28px system-ui,Segoe UI,Arial;}</style></defs>
+  <circle cx="32" cy="32" r="32" fill="${bg}"/>
+  <text x="50%" y="50%" text-anchor="middle" dominant-baseline="central" fill="#ffffff" class="t">${initial}</text>
+</svg>`;
+    const b64 = Buffer.from(svg).toString('base64');
+    return `data:image/svg+xml;base64,${b64}`;
+  }
+
+  private hashCode(s: string) {
+    let h = 0;
+    for (let i = 0; i < s.length; i++) {
+      h = (Math.imul(31, h) + s.charCodeAt(i)) | 0;
+    }
+    return h;
+  }
+
+  // 解析 Authorization Bearer 头，返回 JWT payload
+  private async parseAccessToken(authorization?: string) {
+    if (!authorization || !authorization.toLowerCase().startsWith('bearer ')) {
+      throw new UnauthorizedException('未登录');
+    }
+    const token = authorization.slice(7).trim();
+    try {
+      const payload = await this.jwt.verifyAsync<{
+        sub: number;
+        username: string;
+        role: 'USER' | 'ADMIN';
+      }>(token);
+      return payload;
+    } catch {
+      throw new UnauthorizedException('无效的凭证');
+    }
+  }
+
+  // 获取当前用户信息
+  async getMe(authorization?: string) {
+    const payload = await this.parseAccessToken(authorization);
+    const user = await this.prisma.user.findUnique({
+      where: { id: payload.sub },
+      select: {
+        id: true,
+        username: true,
+        phone: true,
+        avatarUrl: true,
+        role: true,
+        createdAt: true,
+      },
+    });
+    if (!user) throw new UnauthorizedException('用户不存在');
+    const { username, ...rest } = user;
+    return { ...rest, nickname: username };
+  }
+
+  // 更新当前用户信息（支持 nickname/password/avatarUrl）
+  async updateMe(
+    authorization: string | undefined,
+    patch: { password?: string; avatarUrl?: string | null; nickname?: string },
+  ) {
+    const payload = await this.parseAccessToken(authorization);
+    const data: {
+      password?: string;
+      avatarUrl?: string | null;
+      username?: string;
+    } = {};
+    if (
+      typeof patch.nickname === 'string' &&
+      patch.nickname.trim().length > 0
+    ) {
+      data.username = patch.nickname.trim();
+    }
+    if (typeof patch.avatarUrl !== 'undefined') {
+      data.avatarUrl = patch.avatarUrl;
+    }
+    if (typeof patch.password === 'string' && patch.password.length > 0) {
+      data.password = await bcrypt.hash(patch.password, 10);
+    }
+    try {
+      const updated = await this.prisma.user.update({
+        where: { id: payload.sub },
+        data,
+        select: {
+          id: true,
+          username: true,
+          phone: true,
+          avatarUrl: true,
+          role: true,
+          createdAt: true,
+        },
+      });
+      const { username, ...rest } = updated;
+      return { ...rest, nickname: username };
+    } catch (e: unknown) {
+      if (this.getPrismaErrorCode(e) === 'P2002')
+        throw new BadRequestException('昵称已被占用');
+      throw e;
+    }
   }
 }

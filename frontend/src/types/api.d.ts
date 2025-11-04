@@ -1018,6 +1018,24 @@ export interface operations {
                     "application/json": components["schemas"]["ApiResponseUser"];
                 };
             };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
         };
     };
     authSms: {
@@ -1042,6 +1060,15 @@ export interface operations {
                     "application/json": components["schemas"]["ApiResponseSmsSent"];
                 };
             };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
         };
     };
     authLogout: {
@@ -1060,6 +1087,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ApiResponseOk"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
                 };
             };
         };
@@ -1084,6 +1120,15 @@ export interface operations {
                     "application/json": components["schemas"]["ApiResponseUser"];
                 };
             };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
         };
     };
     usersMeAvatar: {
@@ -1096,7 +1141,10 @@ export interface operations {
         requestBody: {
             content: {
                 "multipart/form-data": {
-                    /** Format: binary */
+                    /**
+                     * Format: binary
+                     * @description 上传头像文件（仅支持 image/png、image/jpeg、image/webp），建议大小 ≤ 2MB
+                     */
                     file: string;
                 };
             };
@@ -1109,6 +1157,24 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ApiResponseAvatar"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
                 };
             };
         };

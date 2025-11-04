@@ -352,4 +352,25 @@ export const userApi = {
     })
     return res.data
   },
+  /** 上传头像（multipart/form-data） */
+  async uploadAvatar(file: File) {
+    type AvatarData = NonNullable<
+      operations['usersMeAvatar']['responses'][200]['content']['application/json']['data']
+    >
+    const token = getAuthToken()
+    const form = new FormData()
+    form.append('file', file)
+    const res = await fetch(`${base}/api/v1/users/me/avatar`, {
+      method: 'POST',
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: form,
+    })
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status}: ${await res.text().catch(() => 'Unknown error')}`)
+    }
+    const json: ApiResponse<AvatarData> = await res.json()
+    return json.data
+  },
 }
