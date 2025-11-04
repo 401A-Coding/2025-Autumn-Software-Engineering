@@ -1,4 +1,5 @@
 import { logout } from '../../lib/session'
+import './app-pages.css'
 
 export default function Profile() {
 
@@ -8,10 +9,10 @@ export default function Profile() {
 
     return (
         <div>
-            <section className="paper-card" style={{ padding: 16 }}>
-                <h3 style={{ marginTop: 0 }}>个人信息</h3>
-                <p style={{ color: 'var(--muted)' }}>调试中：此处展示用户信息（待接入）。</p>
-                <button className="btn-ghost" onClick={onLogout} style={{ marginTop: 8 }}>退出登录</button>
+            <section className="paper-card card-pad">
+                <h3 className="mt-0">个人信息</h3>
+                <p className="muted">调试中：此处展示用户信息（待接入）。</p>
+                <button className="btn-ghost mt-8" onClick={onLogout}>退出登录</button>
             </section>
         </div>
     );
