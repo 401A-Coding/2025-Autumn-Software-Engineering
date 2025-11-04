@@ -33,3 +33,13 @@ enum Role {
   USER
   ADMIN
 }
+
+model Board {
+  id          Int      @id @default(autoincrement())
+  name        String
+  description String?
+  layout      Json
+  rules       Json
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
