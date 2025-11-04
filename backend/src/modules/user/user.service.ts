@@ -14,7 +14,7 @@ export class UserService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
-  ) { }
+  ) {}
 
   // 注册
   async register(dto: CreateUserDto) {
@@ -39,7 +39,13 @@ export class UserService {
       },
     });
 
-    return this.generateTokens(user.id, user.username, user.role);
+    const tokens = this.generateTokens(user.id, user.username, user.role);
+    // 持久化 refreshToken（开发期简单用数组，生产建议 Redis + 轮换）
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { refreshTokens: { push: tokens.refreshToken } },
+    });
+    return tokens;
   }
 
   // 登录（使用 phone，即存于 username 字段）
@@ -52,8 +58,42 @@ export class UserService {
     const ok = await bcrypt.compare(dto.password, user.password);
     if (!ok) throw new UnauthorizedException('账号或密码错误');
 
-    // TODO: 将 refreshToken 写入 Redis（可选）
-    return this.generateTokens(user.id, user.username, user.role);
+    const tokens = this.generateTokens(user.id, user.username, user.role);
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { refreshTokens: { push: tokens.refreshToken } },
+    });
+    return tokens;
+  }
+
+  // 刷新 accessToken（并轮换 refreshToken）
+  async refresh(refreshToken: string) {
+    try {
+      const payload = await this.jwt.verifyAsync<{
+        sub: number;
+        username: string;
+        role: 'USER' | 'ADMIN';
+      }>(refreshToken);
+      const user = await this.prisma.user.findFirst({
+        where: { id: payload.sub, refreshTokens: { has: refreshToken } },
+        select: { id: true, username: true, role: true, refreshTokens: true },
+      });
+      if (!user) throw new UnauthorizedException('刷新令牌无效');
+
+      const tokens = this.generateTokens(user.id, user.username, user.role);
+      // 轮换：移除旧的，加入新的
+      const nextList = (user.refreshTokens || []).filter(
+        (t) => t !== refreshToken,
+      );
+      nextList.push(tokens.refreshToken);
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: { refreshTokens: { set: nextList } },
+      });
+      return tokens;
+    } catch {
+      throw new UnauthorizedException('刷新令牌无效');
+    }
   }
 
   private generateTokens(

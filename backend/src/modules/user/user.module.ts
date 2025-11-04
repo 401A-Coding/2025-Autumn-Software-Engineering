@@ -15,4 +15,4 @@ import { PrismaModule } from '../../prisma/prisma.module';
   controllers: [AuthController],
   providers: [UserService],
 })
-export class UserModule { }
+export class UserModule {}

@@ -2,7 +2,7 @@ import { Controller, Post, Body, HttpCode } from '@nestjs/common';
 import { UserService } from './user.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { LoginUserDto } from './dto/login-user.dto';
-import { SmsRequestDto } from './dto/sms.dto';
+import { RefreshTokenDto } from './dto/refresh-token.dto';
 
 // New contract-first endpoints with unified envelope
 @Controller('api/v1/auth')
@@ -25,7 +25,7 @@ export class AuthController {
 
   @Post('sms')
   @HttpCode(200)
-  async sendSms(@Body() dto: SmsRequestDto) {
+  sendSms() {
     // TODO: Implement SMS service integration
     // For now, return a mock response
     return {
@@ -40,7 +40,7 @@ export class AuthController {
 
   @Post('logout')
   @HttpCode(200)
-  async logout() {
+  logout() {
     // TODO: Implement token invalidation (Redis blacklist)
     // For now, client-side token removal is sufficient
     return {
@@ -48,5 +48,12 @@ export class AuthController {
       message: '登出成功',
       data: {},
     };
+  }
+
+  @Post('refresh')
+  @HttpCode(200)
+  async refresh(@Body() dto: RefreshTokenDto) {
+    const tokens = await this.userService.refresh(dto.refreshToken);
+    return { code: 0, message: '刷新成功', data: tokens };
   }
 }

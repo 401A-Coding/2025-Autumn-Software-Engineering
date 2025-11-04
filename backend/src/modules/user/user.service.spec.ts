@@ -17,18 +17,22 @@ jest.mock('bcryptjs', () => ({
 
 describe('UserService', () => {
   let service: UserService;
-  let prisma: { user: { findFirst: jest.Mock; create: jest.Mock } };
-  let jwt: { sign: jest.Mock };
+  let prisma: {
+    user: { findFirst: jest.Mock; create: jest.Mock; update: jest.Mock };
+  };
+  let jwt: { sign: jest.Mock; verifyAsync: jest.Mock };
 
   beforeEach(async () => {
     prisma = {
       user: {
         findFirst: jest.fn(),
         create: jest.fn(),
+        update: jest.fn(),
       },
     };
     jwt = {
       sign: jest.fn(() => 'token-xxx'),
+      verifyAsync: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -57,6 +61,7 @@ describe('UserService', () => {
     const res = await service.register(regDto);
 
     expect(jwt.sign).toHaveBeenCalled();
+    expect(prisma.user.update).toHaveBeenCalled();
     expect(res).toHaveProperty('accessToken');
     expect(res).toHaveProperty('refreshToken');
     expect(res).toHaveProperty('expiresIn', 1800);
@@ -86,6 +91,7 @@ describe('UserService', () => {
     expect(res).toHaveProperty('accessToken');
     expect(res).toHaveProperty('refreshToken');
     expect(res).toHaveProperty('expiresIn', 1800);
+    expect(prisma.user.update).toHaveBeenCalled();
   });
 
   it('login should throw Unauthorized when user not found', async () => {
@@ -94,6 +100,45 @@ describe('UserService', () => {
     dto.phone = 'not-exist';
     dto.password = 'xxx';
     await expect(service.login(dto)).rejects.toBeInstanceOf(
+      UnauthorizedException,
+    );
+  });
+
+  it('refresh should rotate token and return new tokens', async () => {
+    const oldToken = 'old-refresh';
+    jwt.verifyAsync.mockResolvedValue({
+      sub: 1,
+      username: '138',
+      role: 'USER',
+    });
+    prisma.user.findFirst.mockResolvedValue({
+      id: 1,
+      username: '138',
+      role: 'USER',
+      refreshTokens: [oldToken, 'another'],
+    });
+    type UpdateArg = {
+      where: { id: number };
+      data: { refreshTokens: { set: string[] } };
+    };
+    let capturedArg: UpdateArg | undefined;
+    prisma.user.update.mockImplementation((arg: UpdateArg) => {
+      capturedArg = arg;
+      return Promise.resolve({});
+    });
+    const res = await service.refresh(oldToken);
+    expect(res).toHaveProperty('accessToken');
+    expect(res).toHaveProperty('refreshToken');
+    expect(prisma.user.update).toHaveBeenCalled();
+    expect(capturedArg).toBeDefined();
+    expect(capturedArg!.where).toEqual({ id: 1 });
+    expect(Array.isArray(capturedArg!.data.refreshTokens.set)).toBe(true);
+    expect(capturedArg!.data.refreshTokens.set).not.toContain(oldToken);
+  });
+
+  it('refresh should throw when token invalid', async () => {
+    jwt.verifyAsync.mockRejectedValue(new Error('bad token'));
+    await expect(service.refresh('bad')).rejects.toBeInstanceOf(
       UnauthorizedException,
     );
   });

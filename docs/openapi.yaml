@@ -98,6 +98,43 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiResponseError"
+  /api/v1/auth/refresh:
+    post:
+      tags: [Auth]
+      summary: Refresh and rotate tokens
+      operationId: authRefresh
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AuthRefreshRequest"
+            examples:
+              refresh:
+                value:
+                  refreshToken: eyJhbGciOi...
+      responses:
+        "200":
+          description: Refreshed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseAuthTokens"
+              examples:
+                ok:
+                  value:
+                    code: 0
+                    message: 刷新成功
+                    data:
+                      accessToken: eyJhbGciOi...
+                      refreshToken: eyJhbGciOi...
+                      expiresIn: 1800
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseError"
   /api/v1/users/me:
     get:
       tags: [Users]
@@ -802,6 +839,13 @@ components:
           type: string
           format: password
           example: Abc12345
+    AuthRefreshRequest:
+      type: object
+      required: [refreshToken]
+      properties:
+        refreshToken:
+          type: string
+          example: eyJhbGciOi...
     AuthTokens:
       type: object
       properties:
