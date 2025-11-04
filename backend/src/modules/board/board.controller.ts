@@ -3,18 +3,23 @@ import { BoardService } from './board.service';
 import { CreateBoardDto } from './dto/create-board.dto';
 import { UpdateBoardDto } from './dto/update-board.dto';
 
-@Controller('board')
+@Controller('api/v1/boards')
 export class BoardController {
-  constructor(private readonly boardService: BoardService) {}
+  constructor(private readonly boardService: BoardService) { }
 
   @Post()
   create(@Body() createBoardDto: CreateBoardDto) {
     return this.boardService.create(createBoardDto);
   }
 
-  @Get()
-  findAll() {
-    return this.boardService.findAll();
+  @Get("templates")
+  findTemplates() {
+    return this.boardService.findTemplates();
+  }
+
+  @Get("mine")
+  findMine() {
+    return this.boardService.findMine();
   }
 
   @Get(':id')

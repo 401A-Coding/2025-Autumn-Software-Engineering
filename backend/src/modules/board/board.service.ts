@@ -8,8 +8,12 @@ export class BoardService {
     return 'This action adds a new board';
   }
 
-  findAll() {
-    return `This action returns all board`;
+  findTemplates() {
+    return 'This action returns all board templates';
+  }
+
+  findMine() {
+    return 'This action returns all my boards';
   }
 
   findOne(id: number) {
