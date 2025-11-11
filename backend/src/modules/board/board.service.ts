@@ -7,18 +7,20 @@ import { Prisma } from '@prisma/client';
 
 @Injectable()
 export class BoardService {
-  constructor(private readonly prisma: PrismaService) { }  // Assume prisma is properly injected
+  constructor(private readonly prisma: PrismaService) {} // Assume prisma is properly injected
   create(createBoardDto: CreateBoardDto, ownerId?: number) {
     return this.prisma.board.create({
       data: {
         name: createBoardDto.name,
         description: createBoardDto.description,
-        layout: instanceToPlain(createBoardDto.layout) as Prisma.InputJsonObject,
+        layout: instanceToPlain(
+          createBoardDto.layout,
+        ) as Prisma.InputJsonObject,
         rules: instanceToPlain(createBoardDto.rules) as Prisma.InputJsonObject,
         preview: createBoardDto.preview,
         ownerId: ownerId ?? undefined,
         isTemplate: createBoardDto.isTemplate ?? false,
-      }
+      },
     });
   }
 
@@ -49,12 +51,28 @@ export class BoardService {
   async update(id: number, updateBoardDto: UpdateBoardDto) {
     // Build partial update payload, converting nested DTOs to JSON where needed
     const data: Prisma.BoardUpdateInput = {
-      ...(updateBoardDto.name !== undefined ? { name: updateBoardDto.name } : {}),
-      ...(updateBoardDto.description !== undefined ? { description: updateBoardDto.description } : {}),
-      ...(updateBoardDto.layout !== undefined ? { layout: instanceToPlain(updateBoardDto.layout) as Prisma.InputJsonObject } : {}),
-      ...(updateBoardDto.rules !== undefined ? { rules: updateBoardDto.rules as Prisma.InputJsonObject } : {}),
-      ...(updateBoardDto.preview !== undefined ? { preview: updateBoardDto.preview } : {}),
-      ...(updateBoardDto.isTemplate !== undefined ? { isTemplate: updateBoardDto.isTemplate } : {}),
+      ...(updateBoardDto.name !== undefined
+        ? { name: updateBoardDto.name }
+        : {}),
+      ...(updateBoardDto.description !== undefined
+        ? { description: updateBoardDto.description }
+        : {}),
+      ...(updateBoardDto.layout !== undefined
+        ? {
+            layout: instanceToPlain(
+              updateBoardDto.layout,
+            ) as Prisma.InputJsonObject,
+          }
+        : {}),
+      ...(updateBoardDto.rules !== undefined
+        ? { rules: updateBoardDto.rules as Prisma.InputJsonObject }
+        : {}),
+      ...(updateBoardDto.preview !== undefined
+        ? { preview: updateBoardDto.preview }
+        : {}),
+      ...(updateBoardDto.isTemplate !== undefined
+        ? { isTemplate: updateBoardDto.isTemplate }
+        : {}),
     };
     return await this.prisma.board.update({
       where: { id },

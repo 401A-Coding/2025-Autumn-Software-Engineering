@@ -10,4 +10,4 @@ import { BattleModule } from './modules/battle/battle.module';
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule { }
+export class AppModule {}
