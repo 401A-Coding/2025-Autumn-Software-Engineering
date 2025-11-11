@@ -9,7 +9,9 @@ export class BoardController {
 
   @Post()
   create(@Body() createBoardDto: CreateBoardDto) {
-    return this.boardService.create(createBoardDto);
+    // TODO: Get ownerId from auth token
+    const ownerId = 1; // Replace with actual logic to get user ID from token
+    return this.boardService.create(createBoardDto, ownerId);
   }
 
   @Get("templates")
