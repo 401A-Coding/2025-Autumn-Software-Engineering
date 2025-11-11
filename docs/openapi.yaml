@@ -59,6 +59,22 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiResponseError"
+              examples:
+                invalidPhone:
+                  value:
+                    code: 1001
+                    message: 手机号格式不正确
+                    data: null
+                phoneTaken:
+                  value:
+                    code: 1002
+                    message: 手机号已被注册
+                    data: null
+                weakPassword:
+                  value:
+                    code: 1003
+                    message: 密码过于简单
+                    data: null
   /api/v1/auth/login:
     post:
       tags: [Auth]
@@ -98,6 +114,70 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiResponseError"
+              examples:
+                incorrectCredentials:
+                  value:
+                    code: 401
+                    message: 账号或密码错误
+                    data: null
+                userNotFound:
+                  value:
+                    code: 401
+                    message: 用户不存在或已被禁用
+                    data: null
+  /api/v1/auth/refresh:
+    post:
+      tags: [Auth]
+      summary: Refresh and rotate tokens
+      operationId: authRefresh
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AuthRefreshRequest"
+            examples:
+              refresh:
+                value:
+                  refreshToken: eyJhbGciOi...
+      responses:
+        "200":
+          description: Refreshed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseAuthTokens"
+              examples:
+                ok:
+                  value:
+                    code: 0
+                    message: 刷新成功
+                    data:
+                      accessToken: eyJhbGciOi...
+                      refreshToken: eyJhbGciOi...
+                      expiresIn: 1800
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseError"
+              examples:
+                invalidRefresh:
+                  value:
+                    code: 401
+                    message: 刷新令牌无效
+                    data: null
+                expiredRefresh:
+                  value:
+                    code: 401
+                    message: 刷新令牌已过期
+                    data: null
+                revoked:
+                  value:
+                    code: 401
+                    message: 刷新令牌已注销
+                    data: null
   /api/v1/users/me:
     get:
       tags: [Users]
@@ -130,6 +210,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiResponseError"
+              examples:
+                unauthorized:
+                  value:
+                    code: 401
+                    message: 未认证或令牌无效
+                    data: null
     patch:
       tags: [Users]
       summary: Update current user profile
@@ -149,6 +235,30 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiResponseUser"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseError"
+              examples:
+                nicknameTaken:
+                  value:
+                    code: 1001
+                    message: 昵称已被占用
+                    data: null
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseError"
+              examples:
+                unauthorized:
+                  value:
+                    code: 401
+                    message: 未认证或令牌无效
+                    data: null
 
   /api/v1/auth/sms:
     post:
@@ -168,6 +278,23 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiResponseSmsSent"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseError"
+              examples:
+                invalidPhone:
+                  value:
+                    code: 1001
+                    message: 手机号格式不正确
+                    data: null
+                rateLimited:
+                  value:
+                    code: 1004
+                    message: 请求过于频繁，请稍后再试
+                    data: null
 
   /api/v1/auth/logout:
     post:
@@ -183,6 +310,18 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiResponseOk"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseError"
+              examples:
+                unauthorized:
+                  value:
+                    code: 401
+                    message: 未认证或令牌无效
+                    data: null
 
   /api/v1/users/{userId}:
     get:
@@ -203,6 +342,18 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiResponseUser"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseError"
+              examples:
+                unauthorized:
+                  value:
+                    code: 401
+                    message: 未认证或令牌无效
+                    data: null
 
   /api/v1/users/me/avatar:
     post:
@@ -222,6 +373,10 @@ paths:
                 file:
                   type: string
                   format: binary
+                  description: 上传头像文件（仅支持 image/png、image/jpeg、image/webp），建议大小 ≤ 2MB
+            encoding:
+              file:
+                contentType: image/png, image/jpeg, image/webp
       responses:
         "200":
           description: Uploaded
@@ -229,6 +384,37 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiResponseAvatar"
+              examples:
+                ok:
+                  value:
+                    code: 0
+                    message: 上传成功
+                    data:
+                      url: data:image/png;base64,iVBORw0KGgoAAAANSUhEUg...
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseError"
+              examples:
+                missingFile:
+                  value:
+                    code: 1001
+                    message: 缺少文件
+                    data: null
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseError"
+              examples:
+                unauthorized:
+                  value:
+                    code: 401
+                    message: 未认证或令牌无效
+                    data: null
 
   /api/v1/boards/templates:
     get:
@@ -720,67 +906,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/ApiResponsePageSearchResults"
 
-  # Legacy dev endpoints (implemented today) - no envelope
-  /user/register:
-    post:
-      tags: [Auth]
-      summary: LEGACY dev - register (no envelope)
-      description: Returns tokens directly { accessToken, refreshToken }.
-      operationId: legacyRegister
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [phone, password]
-              properties:
-                phone:
-                  type: string
-                  example: "13800000000"
-                password:
-                  type: string
-                  format: password
-                  example: Abc12345
-                email:
-                  type: string
-                  example: a@b.com
-      responses:
-        "200":
-          description: Registered
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/AuthTokens"
-  /user/login:
-    post:
-      tags: [Auth]
-      summary: LEGACY dev - login (no envelope)
-      description: Returns tokens directly { accessToken, refreshToken }.
-      operationId: legacyLogin
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [phone, password]
-              properties:
-                phone:
-                  type: string
-                  example: "13800000000"
-                password:
-                  type: string
-                  format: password
-                  example: Abc12345
-      responses:
-        "200":
-          description: Logged in
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/AuthTokens"
-
 components:
   securitySchemes:
     bearerAuth:
@@ -863,6 +988,13 @@ components:
           type: string
           format: password
           example: Abc12345
+    AuthRefreshRequest:
+      type: object
+      required: [refreshToken]
+      properties:
+        refreshToken:
+          type: string
+          example: eyJhbGciOi...
     AuthTokens:
       type: object
       properties:

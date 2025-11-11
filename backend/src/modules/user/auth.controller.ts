@@ -1,7 +1,8 @@
-import { Controller, Post, Body, HttpCode } from '@nestjs/common';
+import { Controller, Post, Body, HttpCode, Headers } from '@nestjs/common';
 import { UserService } from './user.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { LoginUserDto } from './dto/login-user.dto';
+import { RefreshTokenDto } from './dto/refresh-token.dto';
 
 // New contract-first endpoints with unified envelope
 @Controller('api/v1/auth')
@@ -20,5 +21,34 @@ export class AuthController {
   async login(@Body() dto: LoginUserDto) {
     const tokens = await this.userService.login(dto);
     return { code: 0, message: '登录成功', data: tokens };
+  }
+
+  @Post('sms')
+  @HttpCode(200)
+  sendSms() {
+    // TODO: Implement SMS service integration
+    // For now, return a mock response
+    return {
+      code: 0,
+      message: '短信已发送',
+      data: {
+        requestId: `sms_${Date.now()}`,
+        expireIn: 300,
+      },
+    };
+  }
+
+  @Post('logout')
+  @HttpCode(200)
+  async logout(@Headers('authorization') authorization?: string) {
+    await this.userService.logoutByAccessToken(authorization);
+    return { code: 0, message: '登出成功', data: {} };
+  }
+
+  @Post('refresh')
+  @HttpCode(200)
+  async refresh(@Body() dto: RefreshTokenDto) {
+    const tokens = await this.userService.refresh(dto.refreshToken);
+    return { code: 0, message: '刷新成功', data: tokens };
   }
 }
