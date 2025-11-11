@@ -8,7 +8,7 @@ import { Prisma } from '@prisma/client';
 @Injectable()
 export class BoardService {
   constructor(private readonly prisma: PrismaService) { }  // Assume prisma is properly injected
-  async create(createBoardDto: CreateBoardDto, ownerId?: number) {
+  create(createBoardDto: CreateBoardDto, ownerId?: number) {
     return this.prisma.board.create({
       data: {
         name: createBoardDto.name,
