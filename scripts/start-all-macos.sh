@@ -61,7 +61,7 @@ open_in_terminal() {
 
 if [[ -f "$BACKEND_SCRIPT" ]]; then
   say_info "Launching backend window..."
-  CMD="\"$BACKEND_SCRIPT\" $RESET_FLAG"
+  CMD="$BACKEND_SCRIPT $RESET_FLAG"
   open_in_terminal "$CMD" || (echo "$CMD" &)
 else
   say_warn "Backend script not found at $BACKEND_SCRIPT"
@@ -69,7 +69,7 @@ fi
 
 if [[ -f "$FRONTEND_SCRIPT" ]]; then
   say_info "Launching frontend window..."
-  CMD2="\"$FRONTEND_SCRIPT\""
+  CMD2="$FRONTEND_SCRIPT"
   open_in_terminal "$CMD2" || (echo "$CMD2" &)
 else
   say_warn "Frontend script not found at $FRONTEND_SCRIPT"
