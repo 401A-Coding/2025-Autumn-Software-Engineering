@@ -543,21 +543,62 @@ Authorization: Bearer <token>
 
 ## 四、对局记录与分享模块（Record / Share）
 
-| 接口     | 方法     | 路径                             | 鉴权 | 描述        |
-| ------ | ------ | ------------------------------ | -- | --------- |
-| 获取我的对局 | GET    | `/api/v1/records`              | ✅  | 分页查询      |
-| 获取对局详情 | GET    | `/api/v1/records/:id`          | ✅  | 查看单局数据    |
-| 上传对局分享 | POST   | `/api/v1/records/:id/share`    | ✅  | 上传至公共平台   |
-| 收藏对局   | POST   | `/api/v1/records/:id/favorite` | ✅  | 收藏        |
-| 取消收藏   | DELETE | `/api/v1/records/:id/favorite` | ✅  | 取消收藏      |
-| 评论对局   | POST   | `/api/v1/records/:id/comments` | ✅  | 添加静态/弹幕评论 |
-| 获取评论   | GET    | `/api/v1/records/:id/comments` | ❌  | 查看评论      |
-| 导出残局   | GET    | `/api/v1/records/:id/export`   | ✅  | 导出指定步残局   |
+说明：
+- 本模块覆盖“本地对战保存、列表、详情、收藏、复盘书签/笔记”等需求。
+- 新增记录时，后端会在“当前用户范围”内自动清理非收藏记录，仅保留最近 30 条；收藏记录不受影响。
 
-获取我的对局示例
+| 接口         | 方法     | 路径                                  | 鉴权 | 描述                     |
+| ------------ | -------- | ------------------------------------- | ---- | ------------------------ |
+| 创建对局记录 | POST     | `/api/v1/records`                     | ✅    | 新增一条对局记录（含 moves） |
+| 获取我的对局 | GET      | `/api/v1/records`                     | ✅    | 分页查询；支持 `favorite` 过滤 |
+| 获取对局详情 | GET      | `/api/v1/records/:id`                 | ✅    | 查看单局数据（含 moves、bookmarks） |
+| 更新对局信息 | PATCH    | `/api/v1/records/:id`                 | ✅    | 更新元信息（对手、标签、结果等） |
+| 收藏对局     | POST     | `/api/v1/records/:id/favorite`        | ✅    | 收藏                       |
+| 取消收藏     | DELETE   | `/api/v1/records/:id/favorite`        | ✅    | 取消收藏                   |
+| 新增书签/笔记 | POST     | `/api/v1/records/:id/bookmarks`       | ✅    | 在复盘某步添加书签/笔记         |
+| 修改书签/笔记 | PATCH    | `/api/v1/records/:id/bookmarks/:bid`  | ✅    | 编辑书签/笔记                |
+| 删除书签/笔记 | DELETE   | `/api/v1/records/:id/bookmarks/:bid`  | ✅    | 删除书签/笔记                |
+| 上传对局分享 | POST     | `/api/v1/records/:id/share`           | ✅    | 上传至公共平台                |
+| 获取评论     | GET      | `/api/v1/records/:id/comments`        | ❌    | 查看评论                    |
+| 评论对局     | POST     | `/api/v1/records/:id/comments`        | ✅    | 添加静态/弹幕评论              |
+| 导出残局     | GET      | `/api/v1/records/:id/export`          | ✅    | 导出指定步残局                |
+
+创建对局记录示例
 
 ```json
-GET /api/v1/records?page=1&pageSize=10
+POST /api/v1/records
+Authorization: Bearer <token>
+{
+  "opponent": "本地玩家",
+  "startedAt": "2025-11-11T10:00:00.000Z",
+  "endedAt": "2025-11-11T10:18:25.000Z",
+  "result": "red",
+  "endReason": "checkmate",
+  "keyTags": ["中局反击", "双车压制"],
+  "moves": [
+    {"moveIndex":0, "from":{"x":4,"y":9}, "to":{"x":4,"y":8}, "piece":{"type":"general","side":"red"}},
+    {"moveIndex":1, "from":{"x":4,"y":0}, "to":{"x":4,"y":1}, "piece":{"type":"general","side":"black"}}
+  ],
+  "bookmarks": [
+    {"step":12, "label":"妙手", "note":"这一手很关键"}
+  ]
+}
+```
+
+响应
+
+```json
+{
+  "code": 0,
+  "message": "创建成功",
+  "data": { "id": 601, "createdAt": "2025-11-11T10:18:26.000Z" }
+}
+```
+
+获取我的对局示例（支持收藏筛选）
+
+```json
+GET /api/v1/records?page=1&pageSize=10&favorite=false
 Authorization: Bearer <token>
 ```
 
@@ -568,7 +609,16 @@ Authorization: Bearer <token>
   "code": 0,
   "message": "success",
   "data": {
-    "items": [ { "id": 501, "result": "win", "createdAt": "2025-10-31T12:00:00.000Z" } ],
+    "items": [
+      {
+        "id": 501,
+        "opponent": "本地玩家",
+        "result": "win",
+        "keyTags": ["中局反击"],
+        "favorite": false,
+        "createdAt": "2025-10-31T12:00:00.000Z"
+      }
+    ],
     "page": 1,
     "pageSize": 10,
     "total": 12
@@ -576,7 +626,7 @@ Authorization: Bearer <token>
 }
 ```
 
-获取对局详情示例
+获取对局详情示例（含 moves、bookmarks）
 
 ```json
 GET /api/v1/records/501
@@ -591,11 +641,50 @@ Authorization: Bearer <token>
   "message": "success",
   "data": {
     "id": 501,
-    "battleId": 501,
-    "data": { "moves": [] },
-    "shared": false
+    "opponent": "本地玩家",
+    "startedAt": "2025-11-11T10:00:00.000Z",
+    "endedAt": "2025-11-11T10:18:25.000Z",
+    "result": "red",
+    "endReason": "checkmate",
+    "keyTags": ["中局反击"],
+    "favorite": false,
+    "moves": [ { "moveIndex": 0 }, { "moveIndex": 1 } ],
+    "bookmarks": [ { "id": 1, "step": 12, "label": "妙手" } ]
   }
 }
+```
+
+更新对局信息示例
+
+```json
+PATCH /api/v1/records/501
+Authorization: Bearer <token>
+{
+  "opponent": "AI Lv.3",
+  "keyTags": ["残局逆转"],
+  "result": "black",
+  "endReason": "resign"
+}
+```
+
+响应
+
+```json
+{ "code": 0, "message": "success", "data": {} }
+```
+
+新增书签/笔记示例
+
+```json
+POST /api/v1/records/501/bookmarks
+Authorization: Bearer <token>
+{ "step": 25, "label": "机会", "note": "这里应该先手弃炮" }
+```
+
+响应
+
+```json
+{ "code": 0, "message": "success", "data": { "id": 2 } }
 ```
 
 上传对局分享示例
@@ -686,6 +775,75 @@ Content-Type: application/octet-stream
 
 <binary content>
 ```
+
+---
+
+### 记录偏好（Retention Preferences）
+
+说明：用于控制“只保留最近 N 条非收藏对局”的用户级偏好。后端在创建新对局记录时，将依据该偏好自动清理超出上限的“非收藏”记录（收藏与置顶不受清理影响）。
+
+| 接口           | 方法   | 路径                         | 鉴权 | 描述                  |
+| -------------- | ------ | ---------------------------- | ---- | --------------------- |
+| 获取记录偏好   | GET    | `/api/v1/records/prefs`      | ✅    | 获取当前用户的记录保留偏好 |
+| 更新记录偏好   | PATCH  | `/api/v1/records/prefs`      | ✅    | 更新保留上限、是否自动清理 |
+
+字段定义
+
+- keepLimit: number，保留的“非收藏”记录上限；默认 30；建议范围 1–500（超范围按边界裁剪）。
+- autoCleanEnabled: boolean，是否在新建记录后自动清理；默认 true。
+- updatedAt: ISO Date，服务端维护的更新时间。
+
+获取记录偏好示例
+
+```json
+GET /api/v1/records/prefs
+Authorization: Bearer <token>
+```
+
+响应
+
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "keepLimit": 30,
+    "autoCleanEnabled": true,
+    "updatedAt": "2025-10-31T12:00:00.000Z"
+  }
+}
+```
+
+更新记录偏好示例
+
+```json
+PATCH /api/v1/records/prefs
+Authorization: Bearer <token>
+{
+  "keepLimit": 50,
+  "autoCleanEnabled": true
+}
+```
+
+响应
+
+```json
+{
+  "code": 0,
+  "message": "更新成功",
+  "data": {
+    "keepLimit": 50,
+    "autoCleanEnabled": true,
+    "updatedAt": "2025-10-31T12:05:00.000Z"
+  }
+}
+```
+
+后端清理规则
+
+- 当 autoCleanEnabled=true 时，成功创建记录后执行清理：按 createdAt 倒序，仅保留非收藏记录的最近 keepLimit 条；收藏记录不参与清理。
+- 为降低写放大，清理可延迟到“创建后异步任务”或“列表读取前惰性清理”，但对外行为一致。
+- 强制边界：keepLimit<1 记为 1；keepLimit>500 记为 500。
 
 ---
 
@@ -845,12 +1003,50 @@ model Battle {
 }
 
 model Record {
+  id           Int        @id @default(autoincrement())
+  userId       Int
+  opponent     String?
+  startedAt    DateTime
+  endedAt      DateTime?
+  result       String
+  endReason    String?
+  keyTags      String[]
+  favorite     Boolean    @default(false)
+  moves        Move[]
+  bookmarks    Bookmark[]
+  shared       Boolean    @default(false)
+  comments     Comment[]
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+}
+
+model Move {
+  id           Int      @id @default(autoincrement())
+  recordId     Int
+  moveIndex    Int
+  fromX        Int
+  fromY        Int
+  toX          Int
+  toY          Int
+  pieceType    String
+  pieceSide    String
+  capturedType String?
+  capturedSide String?
+  timeSpentMs  Int?
+  san          String?
+  record       Record   @relation(fields: [recordId], references: [id])
+  @@unique([recordId, moveIndex])
+}
+
+model Bookmark {
   id        Int      @id @default(autoincrement())
-  battleId  Int
-  data      Json
-  shared    Boolean
-  tags      String[]
-  comments  Comment[]
+  recordId  Int
+  step      Int
+  label     String?
+  note      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  record    Record   @relation(fields: [recordId], references: [id])
 }
 
 model Comment {
@@ -861,6 +1057,16 @@ model Comment {
   type      String
   step      Int
   createdAt DateTime @default(now())
+}
+
+// 用户记录保留偏好（仅摘要展示）
+model UserPreference {
+  userId            Int       @id
+  keepLimit         Int       @default(30)
+  autoCleanEnabled  Boolean   @default(true)
+  updatedAt         DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
 }
 ```
 

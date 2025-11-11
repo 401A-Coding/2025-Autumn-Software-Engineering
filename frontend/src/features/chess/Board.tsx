@@ -23,7 +23,13 @@ function PieceGlyph({ type, side }: { type: string; side: Side }) {
     )
 }
 
-export default function Board() {
+export default function Board({
+    onMove,
+    onGameOver,
+}: {
+    onMove?: (move: { from: Pos; to: Pos; turn: Side; ts: number }) => void
+    onGameOver?: (result: GameState['winner']) => void
+} = {}) {
     const [state, setState] = useState<GameState>({
         board: createInitialBoard(),
         turn: 'red',
@@ -87,6 +93,11 @@ export default function Board() {
                 history: [...s.history, { board: cloneBoard(s.board), turn: s.turn }],
                 winner: gameResult || undefined,
             }))
+            // 回调：记录一步
+            onMove?.({ from: state.selected!, to: { x, y }, turn: state.turn, ts: Date.now() })
+            if (gameResult) {
+                onGameOver?.(gameResult)
+            }
             return
         }
         // 否则：若该格有当前行棋方的棋子，则选中
