@@ -46,11 +46,23 @@ export class BoardService {
     return board;
   }
 
-  update(id: number, updateBoardDto: UpdateBoardDto) {
-    return `This action updates a #${id} board`;
+  async update(id: number, updateBoardDto: UpdateBoardDto) {
+    // Build partial update payload, converting nested DTOs to JSON where needed
+    const data: Prisma.BoardUpdateInput = {
+      ...(updateBoardDto.name !== undefined ? { name: updateBoardDto.name } : {}),
+      ...(updateBoardDto.description !== undefined ? { description: updateBoardDto.description } : {}),
+      ...(updateBoardDto.layout !== undefined ? { layout: instanceToPlain(updateBoardDto.layout) as Prisma.InputJsonObject } : {}),
+      ...(updateBoardDto.rules !== undefined ? { rules: updateBoardDto.rules as Prisma.InputJsonObject } : {}),
+      ...(updateBoardDto.preview !== undefined ? { preview: updateBoardDto.preview } : {}),
+      ...(updateBoardDto.isTemplate !== undefined ? { isTemplate: updateBoardDto.isTemplate } : {}),
+    };
+    return await this.prisma.board.update({
+      where: { id },
+      data,
+    });
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} board`;
+  async remove(id: number) {
+    return await this.prisma.board.delete({ where: { id } });
   }
 }
