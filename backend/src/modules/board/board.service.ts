@@ -16,17 +16,24 @@ export class BoardService {
         layout: instanceToPlain(createBoardDto.layout) as Prisma.InputJsonObject,
         rules: createBoardDto.rules as Prisma.InputJsonObject,
         preview: createBoardDto.preview,
-        ownerId: ownerId ?? undefined
+        ownerId: ownerId ?? undefined,
+        isTemplate: createBoardDto.isTemplate ?? false,
       }
     });
   }
 
   findTemplates() {
-    return 'This action returns all board templates';
+    return this.prisma.board.findMany({
+      where: { isTemplate: true },
+      orderBy: { updatedAt: 'desc' },
+    });
   }
 
-  findMine() {
-    return 'This action returns all my boards';
+  findMine(ownerId: number) {
+    return this.prisma.board.findMany({
+      where: { ownerId, isTemplate: false },
+      orderBy: { updatedAt: 'desc' },
+    });
   }
 
   findOne(id: number) {

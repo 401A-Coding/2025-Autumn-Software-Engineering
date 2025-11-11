@@ -21,7 +21,9 @@ export class BoardController {
 
   @Get("mine")
   findMine() {
-    return this.boardService.findMine();
+    // TODO: Get ownerId from auth token
+    const ownerId = 1; // Replace with actual logic to get user ID from token
+    return this.boardService.findMine(ownerId);
   }
 
   @Get(':id')

@@ -41,6 +41,7 @@ model Board {
   description String?
   layout      Json
   rules       Json
+  isTemplate  Boolean  @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   ownerId     Int?
@@ -48,4 +49,5 @@ model Board {
   preview     String?
 
   @@index([ownerId])
+  @@index([isTemplate])
 }

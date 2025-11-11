@@ -1,4 +1,4 @@
-import { IsOptional, IsString, ValidateNested } from "class-validator";
+import { IsOptional, IsString, ValidateNested, IsBoolean } from "class-validator";
 import { Type } from "class-transformer";
 import { LayoutDto } from "./layout.dto";
 
@@ -22,4 +22,8 @@ export class UpdateBoardDto {
 
     @IsString({ message: "Preview must be a string" })
     preview?: string;
+
+    @IsOptional()
+    @IsBoolean({ message: "isTemplate must be a boolean" })
+    isTemplate?: boolean;
 }
