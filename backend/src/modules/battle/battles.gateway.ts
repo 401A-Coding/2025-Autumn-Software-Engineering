@@ -12,7 +12,7 @@ import { BattlesService } from './battles.service';
 
 @WebSocketGateway({
   namespace: '/battle',
-  cors: { origin: [/http:\/\/localhost:5173$/] },
+  cors: { origin: [/http:\/\/localhost:(5173|5174)$/] },
 })
 export class BattlesGateway implements OnGatewayConnection {
   private readonly logger = new Logger(BattlesGateway.name);
@@ -63,7 +63,6 @@ export class BattlesGateway implements OnGatewayConnection {
       battleId: number;
       from: { x: number; y: number };
       to: { x: number; y: number };
-      piece?: string;
     },
     @ConnectedSocket() client: Socket,
   ) {
@@ -71,10 +70,12 @@ export class BattlesGateway implements OnGatewayConnection {
     const m = this.battles.move(userId, body.battleId, {
       from: body.from,
       to: body.to,
-      piece: body.piece,
     });
     // 广播给房间
     this.server.to(`battle:${body.battleId}`).emit('battle.move', m);
+    // 同步最新快照（包含权威棋盘与可能的胜负状态）
+    const snapshot = this.battles.snapshot(body.battleId);
+    this.server.to(`battle:${body.battleId}`).emit('battle.snapshot', snapshot);
     return m;
   }
 

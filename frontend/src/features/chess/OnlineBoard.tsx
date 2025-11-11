@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import type { BattleMove } from '../../services/battlesSocket'
-import type { Pos, Side } from './types'
+import type { Board, Pos, Side } from './types'
 import { createInitialBoard } from './types'
 import { generateLegalMoves, movePiece, checkGameOver, isInCheck } from './rules'
 import './board.css'
@@ -29,20 +29,24 @@ export type OnlineBoardProps = {
     myUserId?: number | null
     onAttemptMove: (from: Pos, to: Pos) => void
     winnerId?: number | null
+    // 新增：来自权威快照的棋盘与轮次
+    authoritativeBoard?: Board
+    authoritativeTurn?: Side
 }
 
-export default function OnlineBoard({ moves, turnIndex, players, myUserId, onAttemptMove, winnerId }: OnlineBoardProps) {
-    // 从服务器的走子序列重建棋盘
+export default function OnlineBoard({ moves, turnIndex, players, myUserId, onAttemptMove, winnerId, authoritativeBoard, authoritativeTurn }: OnlineBoardProps) {
+    // 优先使用后端权威棋盘；若缺失则回退到从 moves 重建（兼容旧行为）
     const board = useMemo(() => {
+        if (authoritativeBoard) return authoritativeBoard
         let b = createInitialBoard()
         for (const m of moves) {
             b = movePiece(b, m.from as Pos, m.to as Pos)
         }
         return b
-    }, [moves])
+    }, [authoritativeBoard, moves])
 
-    // 当前手
-    const turn: Side = turnIndex === 0 ? 'red' : 'black'
+    // 当前手：优先使用权威 turn；否则使用 turnIndex 推断
+    const turn: Side = authoritativeTurn ?? (turnIndex === 0 ? 'red' : 'black')
 
     // 判定我方阵营与观战
     const redUser = players?.[0]
@@ -105,6 +109,8 @@ export default function OnlineBoard({ moves, turnIndex, players, myUserId, onAtt
         else setSelected(undefined)
     }
 
+    const isFlipped = mySide === 'black'
+
     return (
         <div>
             <div className="board-toolbar">
@@ -122,13 +128,12 @@ export default function OnlineBoard({ moves, turnIndex, players, myUserId, onAtt
                     )}
                 </div>
                 <div className="board-toolbar__actions">
-                    {/* 在线对战不提供本地悔棋/重开按钮 */}
+                    {/* 在线对战暂不支持重新开始；悔棋按钮保留占位（禁用） */}
                     <button className="btn-ghost" disabled>悔棋</button>
-                    <button className="btn-primary" disabled>重新开始</button>
                 </div>
             </div>
 
-            <div className="board">
+            <div className={`board ${isFlipped ? 'board--flip' : ''}`}>
                 {Array.from({ length: 10 }).map((_, row) => (
                     <div key={'h' + row} className={`grid-h row-${row}`} />
                 ))}

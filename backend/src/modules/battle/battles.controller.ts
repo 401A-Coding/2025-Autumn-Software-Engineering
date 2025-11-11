@@ -32,7 +32,7 @@ export class BattlesController {
     @Headers('authorization') authorization?: string,
   ) {
     const userId = this.battles.verifyBearer(authorization);
-    const snap = this.battles.joinBattle(userId, body.battleId, body.password);
+    this.battles.joinBattle(userId, body.battleId, body.password);
     return {
       code: 0,
       message: '加入成功',

@@ -11,6 +11,9 @@ export default function LiveBattle() {
     const [moves, setMoves] = useState<BattleMove[]>([]);
     const connRef = useRef<ReturnType<typeof connectBattle> | null>(null);
     const [myUserId, setMyUserId] = useState<number | null>(null);
+    const latestSnapshotRef = useRef<BattleSnapshot | null>(null);
+    const fallbackTimerRef = useRef<number | null>(null);
+    const pendingSeqRef = useRef<number | null>(null);
 
     const conn = useMemo(() => {
         const c = connectBattle();
@@ -18,10 +21,32 @@ export default function LiveBattle() {
         c.socket.on('connect', () => setConnected(true));
         c.socket.on('disconnect', () => setConnected(false));
         c.onSnapshot((s) => {
+            latestSnapshotRef.current = s;
             setSnapshot(s);
             setMoves(s.moves || []);
+            // 收到任何权威快照后，取消保底计时
+            if (fallbackTimerRef.current) {
+                clearTimeout(fallbackTimerRef.current);
+                fallbackTimerRef.current = null;
+            }
+            pendingSeqRef.current = null;
         });
-        c.onMove((m) => setMoves((prev) => [...prev, m]));
+        c.onMove((m) => {
+            setMoves((prev) => [...prev, m]);
+            // 启动保底计时：若短时间内未收到包含该步的 snapshot，则主动拉取一次
+            pendingSeqRef.current = m.seq;
+            if (fallbackTimerRef.current) {
+                clearTimeout(fallbackTimerRef.current);
+            }
+            fallbackTimerRef.current = window.setTimeout(() => {
+                const snap = latestSnapshotRef.current;
+                const hasThisMove = !!snap?.moves?.some((mv) => mv.seq === m.seq);
+                if (!hasThisMove) {
+                    c.snapshot(m.battleId);
+                }
+                fallbackTimerRef.current = null;
+            }, 600);
+        });
         return c;
     }, []);
 
@@ -55,13 +80,6 @@ export default function LiveBattle() {
         }
         conn.join(id);
         conn.snapshot(id);
-    };
-
-    const handleMockMove = () => {
-        const id = Number(battleId);
-        if (!id) return;
-        // 仅做示例：从 (0,0) 到 (0,1)
-        conn.move(id, { x: 0, y: 0 }, { x: 0, y: 1 }, 'mock');
     };
 
     const handleAttemptMove = (from: { x: number; y: number }, to: { x: number; y: number }) => {
@@ -109,9 +127,6 @@ export default function LiveBattle() {
                 <button onClick={handleJoin} disabled={!connected || !battleId}>
                     加入房间
                 </button>
-                <button onClick={handleMockMove} disabled={!connected || !battleId}>
-                    发送演示走子
-                </button>
                 <button onClick={handleCreate} disabled={!connected}>
                     创建房间
                 </button>
@@ -132,6 +147,8 @@ export default function LiveBattle() {
                             players={snapshot.players}
                             myUserId={myUserId}
                             winnerId={snapshot.winnerId}
+                            authoritativeBoard={snapshot.board}
+                            authoritativeTurn={snapshot.turn}
                             onAttemptMove={handleAttemptMove}
                         />
                     </div>

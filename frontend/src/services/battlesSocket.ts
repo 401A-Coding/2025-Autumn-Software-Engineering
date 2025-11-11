@@ -6,7 +6,6 @@ export type BattleMove = {
     battleId: number;
     from: { x: number; y: number };
     to: { x: number; y: number };
-    piece?: string;
     by: number;
     seq: number;
     ts: number;
@@ -19,6 +18,9 @@ export type BattleSnapshot = {
     players: number[];
     moves: BattleMove[];
     turnIndex: 0 | 1;
+    // 后端权威棋盘与轮次（接入后端引擎后返回）
+    board?: import('../features/chess/types').Board;
+    turn?: import('../features/chess/types').Side;
     createdAt: number;
     winnerId: number | null;
 };
@@ -31,8 +33,8 @@ export function connectBattle() {
     });
 
     const join = (battleId: number) => socket.emit('battle.join', { battleId });
-    const move = (battleId: number, from: { x: number; y: number }, to: { x: number; y: number }, piece?: string) =>
-        socket.emit('battle.move', { battleId, from, to, piece });
+    const move = (battleId: number, from: { x: number; y: number }, to: { x: number; y: number }) =>
+        socket.emit('battle.move', { battleId, from, to });
     const snapshot = (battleId: number) => socket.emit('battle.snapshot', { battleId });
 
     const onMove = (cb: (m: BattleMove) => void) => socket.on('battle.move', cb);

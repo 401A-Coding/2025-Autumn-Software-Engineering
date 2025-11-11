@@ -4,13 +4,14 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import type { Board, Side } from '../../shared/chess/types';
+import { ChessEngineService } from './engine.service';
 
 export type BattleStatus = 'waiting' | 'playing' | 'finished';
 
 export interface Move {
   from: { x: number; y: number };
   to: { x: number; y: number };
-  piece?: string;
   by: number; // userId
   seq: number;
   ts: number;
@@ -25,6 +26,9 @@ export interface BattleState {
   turnIndex: 0 | 1; // 0=players[0], 1=players[1]
   createdAt: number;
   winnerId?: number | null;
+  // 权威棋盘与轮次
+  board: Board;
+  turn: Side; // 'red' | 'black'
 }
 
 @Injectable()
@@ -37,7 +41,10 @@ export class BattlesService {
     { battleId: number; result: 'win' | 'lose' | 'draw' }[]
   >();
 
-  constructor(private readonly jwt: JwtService) {}
+  constructor(
+    private readonly jwt: JwtService,
+    private readonly engine: ChessEngineService,
+  ) {}
 
   verifyBearer(authorization?: string) {
     if (!authorization || !authorization.toLowerCase().startsWith('bearer ')) {
@@ -62,6 +69,8 @@ export class BattlesService {
       moves: [],
       turnIndex: 0,
       createdAt: Date.now(),
+      board: this.engine.createInitialBoard(),
+      turn: 'red',
     };
     this.battles.set(id, state);
     return { battleId: id, status: state.status };
@@ -97,21 +106,31 @@ export class BattlesService {
       players: b.players,
       moves: b.moves,
       turnIndex: b.turnIndex,
+      board: b.board,
+      turn: b.turn,
       createdAt: b.createdAt,
       winnerId: b.winnerId ?? null,
     };
   }
 
-  move(
-    userId: number,
-    battleId: number,
-    move: Pick<Move, 'from' | 'to' | 'piece'>,
-  ) {
+  move(userId: number, battleId: number, move: Pick<Move, 'from' | 'to'>) {
     const b = this.getBattle(battleId);
     if (b.status !== 'playing') throw new BadRequestException('当前不可走子');
     const idx = b.players.indexOf(userId);
     if (idx === -1) throw new UnauthorizedException('不在房间内');
     if (idx !== b.turnIndex) throw new BadRequestException('未到你的回合');
+    // 权威校验与应用
+    const res = this.engine.validateAndApply(
+      b.board,
+      b.turn,
+      move.from,
+      move.to,
+    );
+    if (!('ok' in res) || !res.ok) {
+      throw new BadRequestException(res.reason || '非法走子');
+    }
+    b.board = res.board;
+    b.turn = res.nextTurn;
     const m: Move = {
       ...move,
       by: userId,
@@ -119,7 +138,17 @@ export class BattlesService {
       ts: Date.now(),
     };
     b.moves.push(m);
-    b.turnIndex = b.turnIndex === 0 ? 1 : 0;
+    // 同步 turnIndex
+    b.turnIndex = b.turn === 'red' ? 0 : 1;
+    // 胜负判定（如有）
+    if (res.winner) {
+      if (res.winner === 'draw') {
+        this.finish(b.id, { winnerId: null, reason: 'draw' });
+      } else {
+        const winnerId = res.winner === 'red' ? b.players[0] : b.players[1];
+        this.finish(b.id, { winnerId, reason: 'checkmate' });
+      }
+    }
     return m;
   }
 
