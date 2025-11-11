@@ -45,9 +45,7 @@ model Board {
   updatedAt   DateTime @updatedAt
   ownerId     Int?
   owner       User?    @relation(fields: [ownerId], references: [id])
-  isTemplate  Boolean  @default(false)
   preview     String?
 
   @@index([ownerId])
-  @@index([isTemplate])
 }

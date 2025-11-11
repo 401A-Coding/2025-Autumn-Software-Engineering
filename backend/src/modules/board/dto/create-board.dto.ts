@@ -17,4 +17,7 @@ export class CreateBoardDto {
 
     // TODO: Add proper validation for rules
     rules!: {};
+
+    @IsString({ message: "Preview must be a string" })
+    preview?: string;
 }

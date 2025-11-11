@@ -19,4 +19,7 @@ export class UpdateBoardDto {
     // TODO: Add proper validation for rules
     @IsOptional()
     rules?: {};
+
+    @IsString({ message: "Preview must be a string" })
+    preview?: string;
 }
