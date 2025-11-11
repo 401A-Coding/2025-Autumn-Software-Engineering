@@ -20,6 +20,7 @@ export class UpdateBoardDto {
     @IsOptional()
     rules?: {};
 
+    @IsOptional()
     @IsString({ message: "Preview must be a string" })
     preview?: string;
 
