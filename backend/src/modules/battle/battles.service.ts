@@ -24,12 +24,18 @@ export interface BattleState {
   moves: Move[];
   turnIndex: 0 | 1; // 0=players[0], 1=players[1]
   createdAt: number;
+  winnerId?: number | null;
 }
 
 @Injectable()
 export class BattlesService {
   private nextId = 1;
   private battles = new Map<number, BattleState>();
+  private waitingByMode = new Map<string, number[]>(); // mode -> battleId list
+  private histories = new Map<
+    number,
+    { battleId: number; result: 'win' | 'lose' | 'draw' }[]
+  >();
 
   constructor(private readonly jwt: JwtService) {}
 
@@ -92,6 +98,7 @@ export class BattlesService {
       moves: b.moves,
       turnIndex: b.turnIndex,
       createdAt: b.createdAt,
+      winnerId: b.winnerId ?? null,
     };
   }
 
@@ -122,6 +129,44 @@ export class BattlesService {
   ) {
     const b = this.getBattle(battleId);
     b.status = 'finished';
+    b.winnerId = typeof result.winnerId === 'number' ? result.winnerId : null;
+    // 记录历史
+    for (const pid of b.players) {
+      const list = this.histories.get(pid) || [];
+      let r: 'win' | 'lose' | 'draw' = 'draw';
+      if (b.winnerId && b.players.includes(b.winnerId)) {
+        r = pid === b.winnerId ? 'win' : 'lose';
+      }
+      list.unshift({ battleId: b.id, result: r });
+      this.histories.set(pid, list.slice(0, 200));
+    }
     return { battleId: b.id, ...result };
+  }
+
+  quickMatch(userId: number, mode = 'pvp') {
+    // 尝试匹配等待中的房间
+    const pool = this.waitingByMode.get(mode) || [];
+    while (pool.length) {
+      const bid = pool.shift()!;
+      const b = this.battles.get(bid);
+      if (b && b.status === 'waiting' && !b.players.includes(userId)) {
+        this.joinBattle(userId, bid);
+        this.waitingByMode.set(mode, pool);
+        return { battleId: bid };
+      }
+    }
+    // 无可匹配→创建并进入等待
+    const { battleId } = this.createBattle(userId, mode);
+    const list = this.waitingByMode.get(mode) || [];
+    list.push(battleId);
+    this.waitingByMode.set(mode, list);
+    return { battleId };
+  }
+
+  history(userId: number, page: number, pageSize: number) {
+    const list = this.histories.get(userId) || [];
+    const start = (page - 1) * pageSize;
+    const items = list.slice(start, start + pageSize);
+    return { items, page, pageSize, total: list.length };
   }
 }

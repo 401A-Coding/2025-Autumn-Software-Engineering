@@ -9,6 +9,7 @@ import Fun from './pages/app/Fun.tsx'
 import History from './pages/app/History.tsx'
 import Profile from './pages/app/Profile.tsx'
 import LocalPlay from './pages/app/LocalPlay.tsx'
+import LiveBattle from './pages/app/LiveBattle.tsx'
 
 function App() {
   return (
@@ -25,6 +26,7 @@ function App() {
           <Route path="fun" element={<Fun />} />
           <Route path="history" element={<History />} />
           <Route path="profile" element={<Profile />} />
+          <Route path="live-battle" element={<LiveBattle />} />
         </Route>
       </Route>
 
