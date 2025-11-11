@@ -1,33 +1,48 @@
-type Props = {
-    labels: [string, string]
-    activeIndex: 0 | 1
-    onChange: (index: 0 | 1) => void
+import React from 'react'
+
+export type SegmentedOption = {
+    label: React.ReactNode
+    value: string
 }
 
-export default function Segmented({ labels, activeIndex, onChange }: Props) {
+interface SegmentedProps {
+    options: SegmentedOption[]
+    value: string
+    onChange: (value: string) => void
+}
+
+export default function Segmented({ options, value, onChange }: SegmentedProps) {
     return (
-        <div className="segmented" role="tablist" aria-label="记录收藏切换">
-            <div
-                className="segmented__slider"
-                style={{ transform: `translateX(${activeIndex === 0 ? '0%' : '100%'})` }}
-                aria-hidden
-            />
-            <button
-                role="tab"
-                aria-selected={activeIndex === 0}
-                className={`segmented__item ${activeIndex === 0 ? 'is-active' : ''}`}
-                onClick={() => onChange(0)}
-            >
-                {labels[0]}
-            </button>
-            <button
-                role="tab"
-                aria-selected={activeIndex === 1}
-                className={`segmented__item ${activeIndex === 1 ? 'is-active' : ''}`}
-                onClick={() => onChange(1)}
-            >
-                {labels[1]}
-            </button>
+        <div style={{
+            display: 'inline-flex',
+            border: '1px solid var(--control-border)',
+            borderRadius: 999,
+            padding: 2,
+            background: 'var(--control-bg)',
+            userSelect: 'none'
+        }}>
+            {options.map((opt) => {
+                const active = opt.value === value
+                return (
+                    <button
+                        key={String(opt.value)}
+                        onClick={() => onChange(opt.value)}
+                        style={{
+                            border: 'none',
+                            outline: 'none',
+                            cursor: 'pointer',
+                            background: active ? 'var(--control-bg-active)' : 'transparent',
+                            color: active ? 'var(--control-text)' : 'var(--control-text-muted)',
+                            borderRadius: 999,
+                            padding: '6px 14px',
+                            boxShadow: active ? '0 2px 8px rgba(0,0,0,0.06)' : 'none',
+                            transition: 'all .15s ease'
+                        }}
+                    >
+                        {opt.label}
+                    </button>
+                )
+            })}
         </div>
     )
 }

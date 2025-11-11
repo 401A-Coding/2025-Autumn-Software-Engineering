@@ -2,35 +2,59 @@ import Board from '../../features/chess/Board'
 import { useNavigate } from 'react-router-dom'
 import { useState } from 'react'
 import './app-pages.css'
+import { recordStore } from '../../features/records/recordStore'
+import type { MoveRecord, ChessRecord } from '../../features/records/types'
 
 export default function LocalPlay() {
     const navigate = useNavigate()
     const [showExitConfirm, setShowExitConfirm] = useState(false)
+    const [moves, setMoves] = useState<MoveRecord[]>([])
+    const [startedAt] = useState<string>(new Date().toISOString())
 
     function handleExitClick() {
         setShowExitConfirm(true)
     }
 
-    function handleDoNotSave() {
+    function handleCancel() {
         setShowExitConfirm(false)
+    }
+
+    function handleExitWithoutSave() {
+        // 仅 UI：不保存直接退出
         navigate('/app/home')
     }
 
-    function handleSave() {
-        // 仅 UI：此处将来对接保存 API
-        setShowExitConfirm(false)
-        // 可替换为实际保存逻辑
-        // eslint-disable-next-line no-alert
-        alert('已保存（仅UI占位）')
-        navigate('/app/home')
+    function persistRecord(result?: 'red' | 'black' | 'draw') {
+        const rec: Omit<ChessRecord, 'id'> = {
+            startedAt,
+            endedAt: new Date().toISOString(),
+            opponent: '本地',
+            result,
+            keyTags: [],
+            favorite: false,
+            moves,
+            bookmarks: [],
+            notes: [],
+        }
+        recordStore.saveNew(rec)
     }
 
+    function handleSaveAndExit() {
+        persistRecord(undefined)
+        navigate('/app/home')
+    }
     return (
         <div>
             <div className="row-between mb-8">
                 <button className="btn-ghost" onClick={handleExitClick}>退出对局</button>
             </div>
-            <Board />
+            <Board
+                onMove={(m) => setMoves((prev) => [...prev, m])}
+                onGameOver={(result) => {
+                    // 自动保存
+                    persistRecord(result || undefined)
+                }}
+            />
 
             {/* TODO: 保存棋局功能 - 需要后端实现保存 API */}
             <div className="tip-box">
@@ -38,12 +62,41 @@ export default function LocalPlay() {
             </div>
 
             {showExitConfirm && (
-                <div className="gameover-mask">
-                    <div className="paper-card gameover-card">
-                        <div className="gameover-title">是否保存当前对局？</div>
-                        <div className="gameover-actions">
-                            <button className="btn-ghost btn-wide" onClick={handleDoNotSave}>不保存</button>
-                            <button className="btn-primary btn-wide" onClick={handleSave}>保存</button>
+                <div
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="exit-title"
+                    style={{
+                        position: 'fixed',
+                        inset: 0,
+                        background: 'rgba(0,0,0,0.35)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        zIndex: 50,
+                        padding: 16,
+                    }}
+                >
+                    <div
+                        className="paper-card"
+                        style={{
+                            width: '100%',
+                            maxWidth: 360,
+                            padding: 16,
+                            borderRadius: 10,
+                            textAlign: 'left',
+                        }}
+                    >
+                        <h4 id="exit-title" style={{ margin: '0 0 8px 0' }}>是否保存当前对局？</h4>
+                        <div className="muted" style={{ fontSize: 14, marginBottom: 12 }}>
+                            保存后可在“历史记录”中查看与复盘。
+                        </div>
+                        <div className="row-between" style={{ gap: 8 }}>
+                            <button className="btn-ghost" onClick={handleCancel}>取消</button>
+                            <div style={{ display: 'flex', gap: 8 }}>
+                                <button className="btn-ghost" onClick={handleExitWithoutSave}>不保存退出</button>
+                                <button className="btn-primary" onClick={handleSaveAndExit}>保存并退出</button>
+                            </div>
                         </div>
                     </div>
                 </div>

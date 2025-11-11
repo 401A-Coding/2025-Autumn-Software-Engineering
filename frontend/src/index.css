@@ -4,11 +4,19 @@
   --paper: #f7e6c4;
   --text: #3a2f2a;
   --muted: #8a7f73;
+  --muted-bg: #f2ebd8;
   --border: #e7d8b1;
   --wood: #8b5a2b;
   --wood-dark: #6e4521;
   --accent: #a62337;
   --accent-dark: #7e1a29;
+
+  /* 控件（米黄色）*/
+  --control-bg: #f6f1e1;
+  --control-bg-active: #efe3c8;
+  --control-border: #e4d8b4;
+  --control-text: #5a4632;
+  --control-text-muted: #8c7758;
 }
 
 * {
