@@ -660,6 +660,25 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiResponsePageRecords"
+    post:
+      tags: [Records]
+      summary: Create record
+      operationId: recordsCreate
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RecordCreateRequest"
+      responses:
+        "200":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseRecordCreateResult"
 
   /api/v1/records/{id}:
     get:
@@ -1273,6 +1292,22 @@ components:
         code: { type: integer, example: 0 }
         message: { type: string, example: success }
         data: { $ref: "#/components/schemas/Record" }
+    RecordCreateRequest:
+      type: object
+      required: [battleId, data]
+      properties:
+        battleId: { type: integer, example: 501 }
+        data: { type: object }
+        shared: { type: boolean, default: false }
+    ApiResponseRecordCreateResult:
+      type: object
+      properties:
+        code: { type: integer, example: 0 }
+        message: { type: string, example: 创建成功 }
+        data:
+          type: object
+          properties:
+            recordId: { type: integer, example: 1001 }
     ApiResponseShareResult:
       type: object
       properties:
