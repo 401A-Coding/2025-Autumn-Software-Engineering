@@ -56,9 +56,9 @@ export default function LocalPlay() {
                 }}
             />
 
-            {/* TODO: 保存棋局功能 - 需要后端实现 Board API */}
+            {/* TODO: 保存棋局功能 - 需要后端实现保存 API */}
             <div className="tip-box">
-                💡 提示：保存自定义棋局功能需要登录并调用后端 API（/api/v1/boards）
+                💡 提示：退出对局时可选择保存当前对局；后续将对接后端保存与记录列表。
             </div>
 
             {showExitConfirm && (

@@ -19,6 +19,49 @@
     margin-top: 12px;
 }
 
+/* Segmented control (slider/pill) */
+.segmented {
+    position: relative;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    align-items: center;
+    background: var(--muted-bg);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 2px;
+    width: 160px;
+    height: 36px;
+}
+
+.segmented__slider {
+    position: absolute;
+    top: 2px;
+    bottom: 2px;
+    left: 2px;
+    width: calc(50% - 2px);
+    background: #fffdf7;
+    border-radius: 999px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+    transition: transform 200ms ease;
+}
+
+.segmented__item {
+    position: relative;
+    z-index: 1;
+    appearance: none;
+    background: transparent;
+    border: none;
+    height: 32px;
+    border-radius: 999px;
+    font-weight: 700;
+    color: var(--muted);
+}
+
+.segmented__item.is-active {
+    color: #7f3b2f;
+    /* 木色系文本强调，与主题接近 */
+}
+
 .inline-block {
     display: inline-block;
 }
