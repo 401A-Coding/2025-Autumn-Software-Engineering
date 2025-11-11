@@ -97,3 +97,9 @@
     -webkit-user-select: none;
     user-select: none;
 }
+
+/* Profile meta layout (optional light styling) */
+.profile-meta {
+    font-size: 14px;
+    line-height: 1.5;
+}

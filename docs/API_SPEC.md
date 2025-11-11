@@ -689,6 +689,75 @@ Content-Type: application/octet-stream
 
 ---
 
+### 记录偏好（Retention Preferences）
+
+说明：用于控制“只保留最近 N 条非收藏对局”的用户级偏好。后端在创建新对局记录时，将依据该偏好自动清理超出上限的“非收藏”记录（收藏与置顶不受清理影响）。
+
+| 接口           | 方法   | 路径                         | 鉴权 | 描述                  |
+| -------------- | ------ | ---------------------------- | ---- | --------------------- |
+| 获取记录偏好   | GET    | `/api/v1/records/prefs`      | ✅    | 获取当前用户的记录保留偏好 |
+| 更新记录偏好   | PATCH  | `/api/v1/records/prefs`      | ✅    | 更新保留上限、是否自动清理 |
+
+字段定义
+
+- keepLimit: number，保留的“非收藏”记录上限；默认 30；建议范围 1–500（超范围按边界裁剪）。
+- autoCleanEnabled: boolean，是否在新建记录后自动清理；默认 true。
+- updatedAt: ISO Date，服务端维护的更新时间。
+
+获取记录偏好示例
+
+```json
+GET /api/v1/records/prefs
+Authorization: Bearer <token>
+```
+
+响应
+
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "keepLimit": 30,
+    "autoCleanEnabled": true,
+    "updatedAt": "2025-10-31T12:00:00.000Z"
+  }
+}
+```
+
+更新记录偏好示例
+
+```json
+PATCH /api/v1/records/prefs
+Authorization: Bearer <token>
+{
+  "keepLimit": 50,
+  "autoCleanEnabled": true
+}
+```
+
+响应
+
+```json
+{
+  "code": 0,
+  "message": "更新成功",
+  "data": {
+    "keepLimit": 50,
+    "autoCleanEnabled": true,
+    "updatedAt": "2025-10-31T12:05:00.000Z"
+  }
+}
+```
+
+后端清理规则
+
+- 当 autoCleanEnabled=true 时，成功创建记录后执行清理：按 createdAt 倒序，仅保留非收藏记录的最近 keepLimit 条；收藏记录不参与清理。
+- 为降低写放大，清理可延迟到“创建后异步任务”或“列表读取前惰性清理”，但对外行为一致。
+- 强制边界：keepLimit<1 记为 1；keepLimit>500 记为 500。
+
+---
+
 ## 五、社区模块（Community）
 
 | 接口     | 方法     | 路径                                  | 鉴权 | 描述       |
@@ -861,6 +930,16 @@ model Comment {
   type      String
   step      Int
   createdAt DateTime @default(now())
+}
+
+// 用户记录保留偏好（仅摘要展示）
+model UserPreference {
+  userId            Int       @id
+  keepLimit         Int       @default(30)
+  autoCleanEnabled  Boolean   @default(true)
+  updatedAt         DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
 }
 ```
 
