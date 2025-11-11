@@ -14,7 +14,7 @@ export class BoardService {
         name: createBoardDto.name,
         description: createBoardDto.description,
         layout: instanceToPlain(createBoardDto.layout) as Prisma.InputJsonObject,
-        rules: createBoardDto.rules as Prisma.InputJsonObject,
+        rules: instanceToPlain(createBoardDto.rules) as Prisma.InputJsonObject,
         preview: createBoardDto.preview,
         ownerId: ownerId ?? undefined,
         isTemplate: createBoardDto.isTemplate ?? false,

@@ -1,6 +1,7 @@
-import { IsOptional, IsString, ValidateNested, IsBoolean } from "class-validator";
+import { IsOptional, IsString, ValidateNested, IsBoolean, IsObject } from "class-validator";
 import { LayoutDto } from "./layout.dto";
 import { Type } from "class-transformer";
+import { RulesDto } from "./rules.dto";
 
 export class CreateBoardDto {
 
@@ -16,10 +17,12 @@ export class CreateBoardDto {
     layout!: LayoutDto;
 
     // TODO: Add proper validation for rules
-    rules!: {};
+    @ValidateNested()
+    @Type(() => RulesDto)
+    rules!: RulesDto;
 
     @IsString({ message: "Preview must be a string" })
-    preview?: string;
+    preview: string;
 
     @IsOptional()
     @IsBoolean({ message: "isTemplate must be a boolean" })
