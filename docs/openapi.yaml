@@ -939,7 +939,14 @@ components:
           type: string
           example: 参数错误
         data:
-          nullable: true
+          oneOf:
+            - type: "null"
+            - type: object
+              description: 参数校验错误详情
+              properties:
+                details:
+                  type: array
+                  items: { type: string }
       required: [code, message]
     AuthRegisterRequest:
       type: object
@@ -1072,7 +1079,7 @@ components:
                   y: { type: integer }
                   side: { type: string, enum: [red, black] }
         rules:
-          type: object
+          $ref: "#/components/schemas/Rules"
     BoardTemplate:
       type: object
       properties:
@@ -1086,14 +1093,18 @@ components:
         name: { type: string }
         description: { type: string, nullable: true }
         layout: { type: object }
-        rules: { type: object, nullable: true }
+        rules:
+          $ref: "#/components/schemas/Rules"
+          # Update 请求端允许部分字段（Partial），服务端将进行合并
     BoardUpdateRequest:
       type: object
       properties:
         name: { type: string }
         description: { type: string, nullable: true }
         layout: { type: object }
-        rules: { type: object, nullable: true }
+        rules:
+          $ref: "#/components/schemas/Rules"
+          # Update 请求端允许部分字段（Partial），服务端将进行合并
     ApiResponseBoardTemplates:
       type: object
       properties:
@@ -1265,15 +1276,109 @@ components:
         code: { type: integer, example: 0 }
         message: { type: string, example: success }
         data: { $ref: "#/components/schemas/Record" }
-    ApiResponseShareResult:
+
+    # ---- Custom Rules schema for board editor ----
+    Rules:
+      type: object
+      description: 自定义棋局规则（编辑器用），支持模板与图形化自定义
+      required: [layoutSource, pieceRules]
+      properties:
+        ruleVersion: { type: integer, minimum: 1, maximum: 100, default: 1 }
+        layoutSource:
+          type: string
+          enum: [empty, standard, template]
+        templateRefId: { type: integer, nullable: true }
+        coordinateSystem:
+          type: string
+          enum: [relativeToSide, absolute]
+          default: relativeToSide
+        mode:
+          type: string
+          enum: [analysis, localVersus]
+          default: analysis
+        pieceRules:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/PieceRuleConfig"
+        notes: { type: string, maxLength: 200, nullable: true }
+        templatesUsed:
+          type: array
+          items: { type: string }
+    PieceRuleConfig:
+      type: object
+      required: [ruleType]
+      properties:
+        ruleType: { type: string, enum: [template, custom] }
+        templateKey: { type: string, nullable: true }
+        movement: { $ref: "#/components/schemas/MoveSpec" }
+        captureMode:
+          { type: string, enum: [sameAsMove, separate], default: sameAsMove }
+        capture: { $ref: "#/components/schemas/MoveSpec" }
+        constraints: { $ref: "#/components/schemas/ConstraintsSpec" }
+    MoveSpec:
       type: object
       properties:
-        code: { type: integer, example: 0 }
-        message: { type: string, example: 分享成功 }
-        data:
-          type: object
-          properties:
-            shareId: { type: integer }
+        rays:
+          type: array
+          items: { $ref: "#/components/schemas/RaySpec" }
+        steps:
+          type: array
+          items: { $ref: "#/components/schemas/StepSpec" }
+        gridMask:
+          type: array
+          items:
+            type: array
+            items: { type: integer }
+            minItems: 2
+            maxItems: 2
+        maxDestinations: { type: integer, minimum: 1 }
+    RaySpec:
+      type: object
+      properties:
+        directions:
+          type: array
+          items:
+            type: string
+            enum: [N, S, E, W, NE, NW, SE, SW]
+        vectors:
+          type: array
+          items:
+            type: array
+            items: { type: integer }
+            minItems: 2
+            maxItems: 2
+        maxSteps: { type: integer, minimum: 1, nullable: true }
+        requireScreensForMove:
+          { type: integer, minimum: 0, maximum: 2, default: 0 }
+        requireScreensForCapture:
+          { type: integer, minimum: 0, maximum: 2, default: 0 }
+        stopAtFirstBlocker: { type: boolean, default: true }
+    StepSpec:
+      type: object
+      properties:
+        offset:
+          type: array
+          items: { type: integer }
+          minItems: 2
+          maxItems: 2
+        requiredEmpty:
+          type: array
+          items:
+            type: array
+            items: { type: integer }
+            minItems: 2
+            maxItems: 2
+        allowCapture: { type: boolean, default: true }
+    ConstraintsSpec:
+      type: object
+      properties:
+        palace:
+          { type: string, enum: [none, insideOnly, outsideOnly], default: none }
+        river:
+          { type: string, enum: [none, cannotCross, mustCross], default: none }
+        forwardOnlyBeforeRiver: { type: boolean }
+        enableSidewaysAfterRiver: { type: boolean }
+        allowBackwardAfterRiver: { type: boolean }
     ApiResponseComments:
       type: object
       properties:
