@@ -2,17 +2,20 @@ import {
   Body,
   Controller,
   Get,
-  Headers,
   HttpCode,
   Patch,
   Post,
   UseInterceptors,
   UploadedFile,
   BadRequestException,
+  UseGuards,
+  Req,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { UserService } from './user.service';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { Request } from 'express';
 
 @Controller('api/v1/users')
 export class UsersController {
@@ -20,25 +23,28 @@ export class UsersController {
 
   @Get('me')
   @HttpCode(200)
-  async me(@Headers('authorization') authorization?: string) {
-    return this.userService.getMe(authorization);
+  @UseGuards(JwtAuthGuard)
+  async me(@Req() req: Request & { user?: { sub: number } }) {
+    return this.userService.getMeByUserId(req.user!.sub);
   }
 
   @Patch('me')
   @HttpCode(200)
+  @UseGuards(JwtAuthGuard)
   async updateMe(
-    @Headers('authorization') authorization: string | undefined,
+    @Req() req: Request & { user?: { sub: number } },
     @Body() dto: UpdateUserDto,
   ) {
     // 支持 avatarUrl/password 以及 nickname（映射到 username）
-    return this.userService.updateMe(authorization, dto);
+    return this.userService.updateMeByUserId(req.user!.sub, dto);
   }
 
   @Post('me/avatar')
   @HttpCode(200)
+  @UseGuards(JwtAuthGuard)
   @UseInterceptors(FileInterceptor('file'))
   async uploadAvatar(
-    @Headers('authorization') authorization: string | undefined,
+    @Req() req: Request & { user?: { sub: number } },
     @UploadedFile() file?: { buffer: Buffer; mimetype: string },
   ) {
     if (!file || !file.buffer || !file.mimetype) {
@@ -47,7 +53,9 @@ export class UsersController {
     // 将文件转为 data URL，直接存入 avatarUrl，避免静态存储配置
     const base64 = file.buffer.toString('base64');
     const dataUrl = `data:${file.mimetype};base64,${base64}`;
-    await this.userService.updateMe(authorization, { avatarUrl: dataUrl });
+    await this.userService.updateMeByUserId(req.user!.sub, {
+      avatarUrl: dataUrl,
+    });
     return { url: dataUrl };
   }
 }
