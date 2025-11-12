@@ -8,7 +8,7 @@ describe('BoardService', () => {
   beforeEach(async () => {
     const prismaMock: Partial<PrismaService> = {
       // minimal board model stubs for tests
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+
       board: {
         create: jest.fn(),
         findMany: jest.fn(),

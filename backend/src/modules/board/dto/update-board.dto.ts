@@ -23,7 +23,8 @@ export class UpdateBoardDto {
 
   // TODO: Add proper validation for rules
   @IsOptional()
-  rules?: {};
+  // 使用 unknown 而不是 {}，避免空对象类型报警；后续可替换为更具体的规则 DTO
+  rules?: unknown;
 
   @IsOptional()
   @IsString({ message: 'Preview must be a string' })

@@ -232,12 +232,70 @@ Authorization: Bearer <token>
 
 | 接口     | 方法     | 路径                         | 鉴权 | 描述          |
 | ------ | ------ | -------------------------- | -- | ----------- |
+| 获取标准棋盘 | GET    | `/api/v1/boards/standard` | ❌  | 返回中国象棋标准开局 |
 | 获取模板列表 | GET    | `/api/v1/boards/templates` | ❌  | 获取系统预设棋局模板  |
 | 创建棋局   | POST   | `/api/v1/boards`           | ✅  | 用户自定义棋局     |
 | 查询我的棋局 | GET    | `/api/v1/boards/mine`      | ✅  | 获取自己创建的所有棋局 |
 | 查看棋局详情 | GET    | `/api/v1/boards/:boardId`  | ✅  | 读取棋局布局与规则   |
 | 更新棋局   | PATCH  | `/api/v1/boards/:boardId`  | ✅  | 更新布局或规则     |
 | 删除棋局   | DELETE | `/api/v1/boards/:boardId`  | ✅  | 删除自定义棋局     |
+获取标准棋盘示例
+
+```json
+GET /api/v1/boards/standard
+```
+
+响应
+
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "name": "标准开局",
+    "description": "中国象棋标准开局布局",
+    "layout": {
+      "pieces": [
+        { "type": "chariot", "side": "black", "x": 0, "y": 0 },
+        { "type": "chariot", "side": "black", "x": 8, "y": 0 },
+        { "type": "horse", "side": "black", "x": 1, "y": 0 },
+        { "type": "horse", "side": "black", "x": 7, "y": 0 },
+        { "type": "elephant", "side": "black", "x": 2, "y": 0 },
+        { "type": "elephant", "side": "black", "x": 6, "y": 0 },
+        { "type": "advisor", "side": "black", "x": 3, "y": 0 },
+        { "type": "advisor", "side": "black", "x": 5, "y": 0 },
+        { "type": "general", "side": "black", "x": 4, "y": 0 },
+        { "type": "cannon", "side": "black", "x": 1, "y": 2 },
+        { "type": "cannon", "side": "black", "x": 7, "y": 2 },
+        { "type": "soldier", "side": "black", "x": 0, "y": 3 },
+        { "type": "soldier", "side": "black", "x": 2, "y": 3 },
+        { "type": "soldier", "side": "black", "x": 4, "y": 3 },
+        { "type": "soldier", "side": "black", "x": 6, "y": 3 },
+        { "type": "soldier", "side": "black", "x": 8, "y": 3 },
+        { "type": "chariot", "side": "red", "x": 0, "y": 9 },
+        { "type": "chariot", "side": "red", "x": 8, "y": 9 },
+        { "type": "horse", "side": "red", "x": 1, "y": 9 },
+        { "type": "horse", "side": "red", "x": 7, "y": 9 },
+        { "type": "elephant", "side": "red", "x": 2, "y": 9 },
+        { "type": "elephant", "side": "red", "x": 6, "y": 9 },
+        { "type": "advisor", "side": "red", "x": 3, "y": 9 },
+        { "type": "advisor", "side": "red", "x": 5, "y": 9 },
+        { "type": "general", "side": "red", "x": 4, "y": 9 },
+        { "type": "cannon", "side": "red", "x": 1, "y": 7 },
+        { "type": "cannon", "side": "red", "x": 7, "y": 7 },
+        { "type": "soldier", "side": "red", "x": 0, "y": 6 },
+        { "type": "soldier", "side": "red", "x": 2, "y": 6 },
+        { "type": "soldier", "side": "red", "x": 4, "y": 6 },
+        { "type": "soldier", "side": "red", "x": 6, "y": 6 },
+        { "type": "soldier", "side": "red", "x": 8, "y": 6 }
+      ]
+    },
+    "rules": { "id": 1 },
+    "preview": "",
+    "isTemplate": true
+  }
+}
+```
 
 获取模板列表示例
 
@@ -544,6 +602,7 @@ Authorization: Bearer <token>
 ## 四、对局记录与分享模块（Record / Share）
 
 说明：
+
 - 本模块覆盖“本地对战保存、列表、详情、收藏、复盘书签/笔记”等需求。
 - 新增记录时，后端会在“当前用户范围”内自动清理非收藏记录，仅保留最近 30 条；收藏记录不受影响。
 

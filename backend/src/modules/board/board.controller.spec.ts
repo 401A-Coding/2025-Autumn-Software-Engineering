@@ -2,13 +2,13 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { BoardController } from './board.controller';
 import { BoardService } from './board.service';
 import { PrismaService } from '../../prisma/prisma.service';
+import { JwtService } from '@nestjs/jwt';
 
 describe('BoardController', () => {
   let controller: BoardController;
 
   beforeEach(async () => {
     const prismaMock: Partial<PrismaService> = {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       board: {
         create: jest.fn(),
         findMany: jest.fn(),
@@ -22,6 +22,7 @@ describe('BoardController', () => {
       providers: [
         BoardService,
         { provide: PrismaService, useValue: prismaMock },
+        { provide: JwtService, useValue: { verify: jest.fn() } },
       ],
     }).compile();
 

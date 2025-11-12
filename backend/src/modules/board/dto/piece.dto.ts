@@ -17,8 +17,8 @@ export class PieceDto {
   type!: string;
 
   @IsString()
-  @IsIn(['red', 'black'], { message: "Color must be either 'red' or 'black'" })
-  color!: string;
+  @IsIn(['red', 'black'], { message: "side must be either 'red' or 'black'" })
+  side!: string;
 
   @IsNumber()
   x!: number;
