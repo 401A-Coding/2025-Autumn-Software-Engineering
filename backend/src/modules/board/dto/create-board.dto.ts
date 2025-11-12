@@ -27,7 +27,7 @@ export class CreateBoardDto {
   rules!: RulesDto;
 
   @IsString({ message: 'Preview must be a string' })
-  preview: string;
+  preview!: string;
 
   @IsOptional()
   @IsBoolean({ message: 'isTemplate must be a boolean' })
