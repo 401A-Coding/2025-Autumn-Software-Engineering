@@ -6,6 +6,7 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { LayoutDto } from './layout.dto';
+import { RulesDto } from './rules.dto';
 
 export class UpdateBoardDto {
   @IsOptional()
@@ -21,10 +22,11 @@ export class UpdateBoardDto {
   @Type(() => LayoutDto)
   layout?: LayoutDto;
 
-  // TODO: Add proper validation for rules
+  // 自定义规则的部分更新
   @IsOptional()
-  // 使用 unknown 而不是 {}，避免空对象类型报警；后续可替换为更具体的规则 DTO
-  rules?: unknown;
+  @ValidateNested()
+  @Type(() => RulesDto)
+  rules?: Partial<RulesDto>;
 
   @IsOptional()
   @IsString({ message: 'Preview must be a string' })

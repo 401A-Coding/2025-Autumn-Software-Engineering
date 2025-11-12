@@ -4,6 +4,7 @@ import { UpdateBoardDto } from './dto/update-board.dto';
 import { PrismaService } from '../../prisma/prisma.service';
 import { instanceToPlain } from 'class-transformer';
 import { Prisma } from '@prisma/client';
+import { defaultRules } from './dto/rules.dto';
 
 @Injectable()
 export class BoardService {
@@ -69,7 +70,7 @@ export class BoardService {
           createBoardDto.layout,
         ) as Prisma.InputJsonObject,
         rules: instanceToPlain(
-          createBoardDto.rules ?? {},
+          createBoardDto.rules ?? defaultRules(),
         ) as Prisma.InputJsonObject,
         preview: createBoardDto.preview,
         ownerId: ownerId ?? undefined,
@@ -134,7 +135,11 @@ export class BoardService {
           }
         : {}),
       ...(updateBoardDto.rules !== undefined
-        ? { rules: updateBoardDto.rules as Prisma.InputJsonObject }
+        ? {
+            rules: instanceToPlain(
+              updateBoardDto.rules,
+            ) as Prisma.InputJsonObject,
+          }
         : {}),
       ...(updateBoardDto.preview !== undefined
         ? { preview: updateBoardDto.preview }
