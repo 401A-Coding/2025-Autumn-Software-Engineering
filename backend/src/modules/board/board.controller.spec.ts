@@ -8,7 +8,6 @@ describe('BoardController', () => {
 
   beforeEach(async () => {
     const prismaMock: Partial<PrismaService> = {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       board: {
         create: jest.fn(),
         findMany: jest.fn(),

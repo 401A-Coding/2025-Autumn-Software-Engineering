@@ -3,7 +3,6 @@ import {
   IsString,
   ValidateNested,
   IsBoolean,
-  IsObject,
 } from 'class-validator';
 import { LayoutDto } from './layout.dto';
 import { Type } from 'class-transformer';

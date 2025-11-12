@@ -29,12 +29,18 @@ export class BattlesGateway implements OnGatewayConnection {
       const authHeader =
         (client.handshake.headers['authorization'] as string) || '';
       const tokenFromQuery = (client.handshake.auth?.token as string) || '';
-      const authorization =
-        authHeader || (tokenFromQuery ? `Bearer ${tokenFromQuery}` : undefined);
+      const authorization: string | undefined = authHeader
+        ? authHeader
+        : tokenFromQuery
+          ? `Bearer ${String(tokenFromQuery)}`
+          : undefined;
       const userId = this.battles.verifyBearer(authorization);
       this.users.set(client, userId);
-    } catch (e) {
-      this.logger.warn(`Socket auth failed: ${e}`);
+    } catch (err) {
+      let reason: string;
+      if (err instanceof Error) reason = err.message;
+      else reason = String(err);
+      this.logger.warn(`Socket auth failed: ${reason}`);
       client.disconnect(true);
     }
   }
