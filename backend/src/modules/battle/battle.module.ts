@@ -4,6 +4,7 @@ import { BattlesGateway } from './battles.gateway';
 import { BattlesController } from './battles.controller';
 import { ChessEngineService } from './engine.service';
 import { JwtModule } from '@nestjs/jwt';
+import { JwtAuthGuard } from 'src/common/guards/jwt-auth.guard';
 
 @Module({
   imports: [
@@ -12,7 +13,7 @@ import { JwtModule } from '@nestjs/jwt';
     }),
   ],
   controllers: [BattlesController],
-  providers: [BattlesService, BattlesGateway, ChessEngineService],
+  providers: [BattlesService, BattlesGateway, ChessEngineService, JwtAuthGuard],
   exports: [BattlesService],
 })
 export class BattleModule {}
