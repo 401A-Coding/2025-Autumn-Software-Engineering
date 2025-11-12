@@ -452,6 +452,21 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiResponseBoardCreateResult"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseError"
+              examples:
+                invalidRules:
+                  value:
+                    code: 400
+                    message: 参数校验失败
+                    data:
+                      details:
+                        - "rules.pieceRules.general.constraints.palace must be one of [none, insideOnly, outsideOnly]"
+                        - "name should not be empty"
 
   /api/v1/boards/mine:
     get:
@@ -516,6 +531,21 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiResponseBoard"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseError"
+              examples:
+                invalidPatch:
+                  value:
+                    code: 400
+                    message: 参数校验失败
+                    data:
+                      details:
+                        - "rules.ruleVersion must be an integer greater than or equal to 1"
+                        - "layout.pieces[0].x must be an integer"
     delete:
       tags: [Boards]
       summary: Delete board
