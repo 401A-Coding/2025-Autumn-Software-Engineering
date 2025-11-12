@@ -30,13 +30,6 @@ paths:
           application/json:
             schema:
               $ref: "#/components/schemas/AuthRegisterRequest"
-            examples:
-              phone:
-                value:
-                  type: phone
-                  phone: "13800000000"
-                  code: "8523"
-                  password: Abc12345
       responses:
         "200":
           description: Registered
@@ -86,12 +79,6 @@ paths:
           application/json:
             schema:
               $ref: "#/components/schemas/AuthLoginRequest"
-            examples:
-              phone:
-                value:
-                  type: phone
-                  phone: "13800000000"
-                  password: Abc12345
       responses:
         "200":
           description: Logged in
@@ -136,10 +123,6 @@ paths:
           application/json:
             schema:
               $ref: "#/components/schemas/AuthRefreshRequest"
-            examples:
-              refresh:
-                value:
-                  refreshToken: eyJhbGciOi...
       responses:
         "200":
           description: Refreshed
@@ -429,6 +412,19 @@ paths:
               schema:
                 $ref: "#/components/schemas/ApiResponseBoardTemplates"
 
+  /api/v1/boards/standard:
+    get:
+      tags: [Boards]
+      summary: Get standard Xiangqi board definition
+      operationId: boardsStandard
+      responses:
+        "200":
+          description: Standard board definition
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseBoard"
+
   /api/v1/boards:
     post:
       tags: [Boards]
@@ -482,7 +478,6 @@ paths:
       parameters:
         - in: path
           name: boardId
-          required: true
           schema: { type: integer }
       responses:
         "200":
@@ -500,7 +495,6 @@ paths:
       parameters:
         - in: path
           name: boardId
-          required: true
           schema: { type: integer }
       requestBody:
         required: true
@@ -524,7 +518,6 @@ paths:
       parameters:
         - in: path
           name: boardId
-          required: true
           schema: { type: integer }
       responses:
         "200":
@@ -575,7 +568,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiResponseBattle"
-
   /api/v1/battles/match:
     post:
       tags: [Battles]

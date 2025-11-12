@@ -9,13 +9,18 @@ import {
   ParseIntPipe,
   Headers,
   UnauthorizedException,
+  Query,
+  UseInterceptors,
+  ForbiddenException,
 } from '@nestjs/common';
 import { BoardService } from './board.service';
 import { CreateBoardDto } from './dto/create-board.dto';
 import { UpdateBoardDto } from './dto/update-board.dto';
 import { JwtService } from '@nestjs/jwt';
+import { ResponseEnvelopeInterceptor } from '../../common/interceptors/response-envelope.interceptor';
 
 @Controller('api/v1/boards')
+@UseInterceptors(ResponseEnvelopeInterceptor)
 export class BoardController {
   constructor(
     private readonly boardService: BoardService,
@@ -35,6 +40,11 @@ export class BoardController {
     }
   }
 
+  @Get('standard')
+  getStandard() {
+    return this.boardService.standard();
+  }
+
   @Post()
   create(
     @Body() createBoardDto: CreateBoardDto,
@@ -50,13 +60,24 @@ export class BoardController {
   }
 
   @Get('mine')
-  findMine(@Headers('authorization') authorization?: string) {
+  findMine(
+    @Headers('authorization') authorization?: string,
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
+  ) {
     const ownerId = this.getUserIdFromAuth(authorization);
-    return this.boardService.findMine(ownerId);
+    const p = page ? parseInt(page, 10) : 1;
+    const ps = pageSize ? parseInt(pageSize, 10) : 10;
+    return this.boardService.findMinePaginated(ownerId, p, ps);
   }
 
   @Get(':id')
-  findOne(@Param('id', ParseIntPipe) id: number) {
+  findOne(
+    @Param('id', ParseIntPipe) id: number,
+    @Headers('authorization') authorization?: string,
+  ) {
+    // 与 OpenAPI 一致：需要鉴权
+    this.getUserIdFromAuth(authorization);
     return this.boardService.findOne(id);
   }
 
@@ -64,12 +85,28 @@ export class BoardController {
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateBoardDto: UpdateBoardDto,
+    @Headers('authorization') authorization?: string,
   ) {
-    return this.boardService.update(id, updateBoardDto);
+    const ownerId = this.getUserIdFromAuth(authorization);
+    return this.boardService.findOne(id).then((b) => {
+      if (b.ownerId && b.ownerId !== ownerId) {
+        throw new ForbiddenException('无权限');
+      }
+      return this.boardService.update(id, updateBoardDto);
+    });
   }
 
   @Delete(':id')
-  remove(@Param('id', ParseIntPipe) id: number) {
-    return this.boardService.remove(id);
+  remove(
+    @Param('id', ParseIntPipe) id: number,
+    @Headers('authorization') authorization?: string,
+  ) {
+    const ownerId = this.getUserIdFromAuth(authorization);
+    return this.boardService.findOne(id).then((b) => {
+      if (b.ownerId && b.ownerId !== ownerId) {
+        throw new ForbiddenException('无权限');
+      }
+      return this.boardService.remove(id);
+    });
   }
 }

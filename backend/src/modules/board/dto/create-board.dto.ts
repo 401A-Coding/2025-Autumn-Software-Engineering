@@ -21,9 +21,10 @@ export class CreateBoardDto {
   layout!: LayoutDto;
 
   // TODO: Add proper validation for rules
+  @IsOptional()
   @ValidateNested()
   @Type(() => RulesDto)
-  rules!: RulesDto;
+  rules?: RulesDto;
 
   @IsString({ message: 'Preview must be a string' })
   preview!: string;
