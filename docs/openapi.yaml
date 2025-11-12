@@ -404,13 +404,20 @@ paths:
       tags: [Boards]
       summary: List board templates
       operationId: boardsTemplates
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer, default: 1, minimum: 1 }
+        - in: query
+          name: pageSize
+          schema: { type: integer, default: 10, minimum: 1, maximum: 100 }
       responses:
         "200":
           description: Templates
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ApiResponseBoardTemplates"
+                $ref: "#/components/schemas/ApiResponsePageBoardTemplates"
 
   /api/v1/boards/standard:
     get:
@@ -1113,6 +1120,20 @@ components:
         data:
           type: array
           items: { $ref: "#/components/schemas/BoardTemplate" }
+    ApiResponsePageBoardTemplates:
+      type: object
+      properties:
+        code: { type: integer, example: 0 }
+        message: { type: string, example: success }
+        data:
+          type: object
+          properties:
+            items:
+              type: array
+              items: { $ref: "#/components/schemas/BoardTemplate" }
+            page: { type: integer }
+            pageSize: { type: integer }
+            total: { type: integer }
     ApiResponseBoardCreateResult:
       type: object
       properties:
