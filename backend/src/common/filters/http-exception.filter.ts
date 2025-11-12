@@ -20,7 +20,23 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     if (exception instanceof HttpException) {
       status = exception.getStatus();
       const payload = exception.getResponse();
-      if (typeof payload === 'string') {
+      // 专门处理 400（参数校验失败）：返回统一 details 数组
+      if (status === HttpStatus.BAD_REQUEST) {
+        let details: string[] = [];
+        if (payload && typeof payload === 'object') {
+          const obj = payload as Record<string, unknown>;
+          const msg = obj['message'];
+          if (Array.isArray(msg)) {
+            details = msg.filter((m): m is string => typeof m === 'string');
+          } else if (typeof msg === 'string') {
+            details = [msg];
+          }
+        } else if (typeof payload === 'string') {
+          details = [payload];
+        }
+        message = '参数校验失败';
+        errorData = { details };
+      } else if (typeof payload === 'string') {
         message = payload;
       } else if (payload && typeof payload === 'object') {
         const obj = payload as Record<string, unknown>;
@@ -30,7 +46,6 @@ export class GlobalExceptionFilter implements ExceptionFilter {
           : typeof msg === 'string'
             ? msg
             : exception.message;
-        // provide original payload for debugging if needed
         errorData = obj;
       } else {
         message = exception.message;

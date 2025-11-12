@@ -38,8 +38,22 @@ export class BoardController {
   }
 
   @Get('templates')
-  findTemplates() {
-    return this.boardService.findTemplates();
+  async findTemplates(
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
+  ) {
+    const p = page ? parseInt(page, 10) : 1;
+    const ps = pageSize ? parseInt(pageSize, 10) : 10;
+    const all = await this.boardService.findTemplates();
+    const total = all.length;
+    const start = (Math.max(p, 1) - 1) * Math.min(Math.max(ps, 1), 100);
+    const items = all.slice(start, start + Math.min(Math.max(ps, 1), 100));
+    return {
+      items,
+      page: Math.max(p, 1),
+      pageSize: Math.min(Math.max(ps, 1), 100),
+      total,
+    };
   }
 
   @Get('mine')
@@ -63,32 +77,54 @@ export class BoardController {
 
   @Patch(':id')
   @UseGuards(JwtAuthGuard)
-  update(
+  async update(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateBoardDto: UpdateBoardDto,
     @Req() req: Request & { user?: { sub: number } },
   ) {
     const ownerId = req.user!.sub;
-    return this.boardService.findOne(id).then((b) => {
+    const b = (await this.boardService.findOne(id)) as unknown as {
+      ownerId: number | null;
+      isTemplate?: boolean;
+    };
+    if (b.isTemplate) {
+      if (b.ownerId == null) {
+        throw new ForbiddenException('模板不可修改');
+      }
+      if (b.ownerId !== ownerId) {
+        throw new ForbiddenException('无权限');
+      }
+    } else {
       if (b.ownerId && b.ownerId !== ownerId) {
         throw new ForbiddenException('无权限');
       }
-      return this.boardService.update(id, updateBoardDto);
-    });
+    }
+    return this.boardService.update(id, updateBoardDto);
   }
 
   @Delete(':id')
   @UseGuards(JwtAuthGuard)
-  remove(
+  async remove(
     @Param('id', ParseIntPipe) id: number,
     @Req() req: Request & { user?: { sub: number } },
   ) {
     const ownerId = req.user!.sub;
-    return this.boardService.findOne(id).then((b) => {
+    const b = (await this.boardService.findOne(id)) as unknown as {
+      ownerId: number | null;
+      isTemplate?: boolean;
+    };
+    if (b.isTemplate) {
+      if (b.ownerId == null) {
+        throw new ForbiddenException('模板不可删除');
+      }
+      if (b.ownerId !== ownerId) {
+        throw new ForbiddenException('无权限');
+      }
+    } else {
       if (b.ownerId && b.ownerId !== ownerId) {
         throw new ForbiddenException('无权限');
       }
-      return this.boardService.remove(id);
-    });
+    }
+    return this.boardService.remove(id);
   }
 }

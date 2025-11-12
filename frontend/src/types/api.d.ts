@@ -509,7 +509,9 @@ export interface components {
             code: number;
             /** @example 参数错误 */
             message: string;
-            data?: unknown;
+            data?: null | {
+                details?: string[];
+            };
         };
         AuthRegisterRequest: {
             /**
@@ -625,7 +627,7 @@ export interface components {
                     side?: "red" | "black";
                 }[];
             };
-            rules?: Record<string, never>;
+            rules?: components["schemas"]["Rules"];
         };
         BoardTemplate: {
             /** @example 1 */
@@ -639,13 +641,13 @@ export interface components {
             name: string;
             description?: string | null;
             layout: Record<string, never>;
-            rules?: Record<string, never> | null;
+            rules?: components["schemas"]["Rules"];
         };
         BoardUpdateRequest: {
             name?: string;
             description?: string | null;
             layout?: Record<string, never>;
-            rules?: Record<string, never> | null;
+            rules?: components["schemas"]["Rules"];
         };
         ApiResponseBoardTemplates: {
             /** @example 0 */
@@ -653,6 +655,18 @@ export interface components {
             /** @example success */
             message?: string;
             data?: components["schemas"]["BoardTemplate"][];
+        };
+        ApiResponsePageBoardTemplates: {
+            /** @example 0 */
+            code?: number;
+            /** @example success */
+            message?: string;
+            data?: {
+                items?: components["schemas"]["BoardTemplate"][];
+                page?: number;
+                pageSize?: number;
+                total?: number;
+            };
         };
         ApiResponseBoardCreateResult: {
             /** @example 0 */
@@ -806,11 +820,88 @@ export interface components {
         ApiResponseShareResult: {
             /** @example 0 */
             code?: number;
-            /** @example 分享成功 */
+            /** @example success */
             message?: string;
             data?: {
+                /** @example 9001 */
                 shareId?: number;
+                /** @example /shares/9001 */
+                url?: string | null;
             };
+        };
+        /** @description 自定义棋局规则（编辑器用），支持模板与图形化自定义 */
+        Rules: {
+            /** @default 1 */
+            ruleVersion: number;
+            /** @enum {string} */
+            layoutSource: "empty" | "standard" | "template";
+            templateRefId?: number | null;
+            /**
+             * @default relativeToSide
+             * @enum {string}
+             */
+            coordinateSystem: "relativeToSide" | "absolute";
+            /**
+             * @default analysis
+             * @enum {string}
+             */
+            mode: "analysis" | "localVersus";
+            pieceRules: {
+                [key: string]: components["schemas"]["PieceRuleConfig"];
+            };
+            notes?: string | null;
+            templatesUsed?: string[];
+        };
+        PieceRuleConfig: {
+            /** @enum {string} */
+            ruleType: "template" | "custom";
+            templateKey?: string | null;
+            movement?: components["schemas"]["MoveSpec"];
+            /**
+             * @default sameAsMove
+             * @enum {string}
+             */
+            captureMode: "sameAsMove" | "separate";
+            capture?: components["schemas"]["MoveSpec"];
+            constraints?: components["schemas"]["ConstraintsSpec"];
+        };
+        MoveSpec: {
+            rays?: components["schemas"]["RaySpec"][];
+            steps?: components["schemas"]["StepSpec"][];
+            gridMask?: number[][];
+            maxDestinations?: number;
+        };
+        RaySpec: {
+            directions?: ("N" | "S" | "E" | "W" | "NE" | "NW" | "SE" | "SW")[];
+            vectors?: number[][];
+            maxSteps?: number | null;
+            /** @default 0 */
+            requireScreensForMove: number;
+            /** @default 0 */
+            requireScreensForCapture: number;
+            /** @default true */
+            stopAtFirstBlocker: boolean;
+        };
+        StepSpec: {
+            offset?: number[];
+            requiredEmpty?: number[][];
+            /** @default true */
+            allowCapture: boolean;
+        };
+        ConstraintsSpec: {
+            /**
+             * @default none
+             * @enum {string}
+             */
+            palace: "none" | "insideOnly" | "outsideOnly";
+            /**
+             * @default none
+             * @enum {string}
+             */
+            river: "none" | "cannotCross" | "mustCross";
+            forwardOnlyBeforeRiver?: boolean;
+            enableSidewaysAfterRiver?: boolean;
+            allowBackwardAfterRiver?: boolean;
         };
         ApiResponseComments: {
             /** @example 0 */
@@ -1198,7 +1289,10 @@ export interface operations {
     };
     boardsTemplates: {
         parameters: {
-            query?: never;
+            query?: {
+                page?: number;
+                pageSize?: number;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -1211,7 +1305,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ApiResponseBoardTemplates"];
+                    "application/json": components["schemas"]["ApiResponsePageBoardTemplates"];
                 };
             };
         };
