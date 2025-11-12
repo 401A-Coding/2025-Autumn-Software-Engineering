@@ -1298,6 +1298,17 @@ components:
         message: { type: string, example: success }
         data: { $ref: "#/components/schemas/Record" }
 
+    ApiResponseShareResult:
+      type: object
+      properties:
+        code: { type: integer, example: 0 }
+        message: { type: string, example: success }
+        data:
+          type: object
+          properties:
+            shareId: { type: integer, example: 9001 }
+            url: { type: string, nullable: true, example: "/shares/9001" }
+
     # ---- Custom Rules schema for board editor ----
     Rules:
       type: object
