@@ -21,8 +21,7 @@ export class UsersController {
   @Get('me')
   @HttpCode(200)
   async me(@Headers('authorization') authorization?: string) {
-    const user = await this.userService.getMe(authorization);
-    return { code: 0, message: 'success', data: user };
+    return this.userService.getMe(authorization);
   }
 
   @Patch('me')
@@ -32,8 +31,7 @@ export class UsersController {
     @Body() dto: UpdateUserDto,
   ) {
     // 支持 avatarUrl/password 以及 nickname（映射到 username）
-    const user = await this.userService.updateMe(authorization, dto);
-    return { code: 0, message: 'success', data: user };
+    return this.userService.updateMe(authorization, dto);
   }
 
   @Post('me/avatar')
@@ -50,6 +48,6 @@ export class UsersController {
     const base64 = file.buffer.toString('base64');
     const dataUrl = `data:${file.mimetype};base64,${base64}`;
     await this.userService.updateMe(authorization, { avatarUrl: dataUrl });
-    return { code: 0, message: '上传成功', data: { url: dataUrl } };
+    return { url: dataUrl };
   }
 }

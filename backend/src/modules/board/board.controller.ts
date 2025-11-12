@@ -10,17 +10,14 @@ import {
   Headers,
   UnauthorizedException,
   Query,
-  UseInterceptors,
   ForbiddenException,
 } from '@nestjs/common';
 import { BoardService } from './board.service';
 import { CreateBoardDto } from './dto/create-board.dto';
 import { UpdateBoardDto } from './dto/update-board.dto';
 import { JwtService } from '@nestjs/jwt';
-import { ResponseEnvelopeInterceptor } from '../../common/interceptors/response-envelope.interceptor';
 
 @Controller('api/v1/boards')
-@UseInterceptors(ResponseEnvelopeInterceptor)
 export class BoardController {
   constructor(
     private readonly boardService: BoardService,

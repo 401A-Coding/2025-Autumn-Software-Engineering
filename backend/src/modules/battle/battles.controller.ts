@@ -19,11 +19,7 @@ export class BattlesController {
     @Headers('authorization') authorization?: string,
   ) {
     const userId = this.battles.verifyBearer(authorization);
-    return {
-      code: 0,
-      message: '房间创建成功',
-      data: this.battles.createBattle(userId, body.mode || 'pvp'),
-    };
+    return this.battles.createBattle(userId, body.mode || 'pvp');
   }
 
   @Post('join')
@@ -33,11 +29,7 @@ export class BattlesController {
   ) {
     const userId = this.battles.verifyBearer(authorization);
     this.battles.joinBattle(userId, body.battleId, body.password);
-    return {
-      code: 0,
-      message: '加入成功',
-      data: this.battles.snapshot(body.battleId),
-    };
+    return this.battles.snapshot(body.battleId);
   }
 
   @Get(':battleId')
@@ -47,7 +39,7 @@ export class BattlesController {
   ) {
     this.battles.verifyBearer(authorization);
     const id = Number(battleId);
-    return { code: 0, message: 'success', data: this.battles.snapshot(id) };
+    return this.battles.snapshot(id);
   }
 
   @Post('match')
@@ -56,8 +48,7 @@ export class BattlesController {
     @Headers('authorization') authorization?: string,
   ) {
     const userId = this.battles.verifyBearer(authorization);
-    const res = this.battles.quickMatch(userId, body.mode || 'pvp');
-    return { code: 0, message: '匹配成功', data: res };
+    return this.battles.quickMatch(userId, body.mode || 'pvp');
   }
 
   @Get('history')
@@ -69,10 +60,6 @@ export class BattlesController {
     const userId = this.battles.verifyBearer(authorization);
     const p = Math.max(1, Number(page) || 1);
     const ps = Math.min(100, Math.max(1, Number(pageSize) || 10));
-    return {
-      code: 0,
-      message: 'success',
-      data: this.battles.history(userId, p, ps),
-    };
+    return this.battles.history(userId, p, ps);
   }
 }
