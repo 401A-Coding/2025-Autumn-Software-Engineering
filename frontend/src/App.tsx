@@ -7,7 +7,7 @@ import AppLayout from './layouts/AppLayout.tsx'
 import Home from './pages/app/Home.tsx'
 import Fun from './pages/app/Fun.tsx'
 import History from './pages/app/History.tsx'
-import Favorites from './pages/app/Favorites.tsx'
+import OnlineLobby from './pages/app/OnlineLobby.tsx'
 import Profile from './pages/app/Profile.tsx'
 import LocalPlay from './pages/app/LocalPlay.tsx'
 import LiveBattle from './pages/app/LiveBattle.tsx'
@@ -29,6 +29,7 @@ function App() {
           <Route path="history" element={<History />} />
           <Route path="record/:id" element={<RecordReplay />} />
           <Route path="profile" element={<Profile />} />
+          <Route path="online-lobby" element={<OnlineLobby />} />
           <Route path="live-battle" element={<LiveBattle />} />
         </Route>
       </Route>
