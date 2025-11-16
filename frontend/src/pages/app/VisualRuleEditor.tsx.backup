@@ -1,0 +1,614 @@
+import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import type { PieceType } from '../../features/chess/types'
+import type { CustomRuleSet, MovePattern } from '../../features/chess/ruleEngine'
+import { standardChessRules } from '../../features/chess/rulePresets'
+import { moveTemplates, getDefaultTemplateForPiece, type MoveTemplateType } from '../../features/chess/moveTemplates'
+
+/**
+ * 可视化规则编辑器
+ * 通过在简易棋盘上点击来定义棋子的移动规则
+ */
+export default function VisualRuleEditor() {
+    const navigate = useNavigate()
+    
+    // 初始化规则集
+    const getInitialRuleSet = (): CustomRuleSet => {
+        const savedRules = localStorage.getItem('customRuleSet')
+        if (savedRules) {
+            try {
+                const loadedRules = JSON.parse(savedRules) as CustomRuleSet
+                return {
+                    ...loadedRules,
+                    pieceRules: {
+                        ...standardChessRules.pieceRules,
+                        ...loadedRules.pieceRules,
+                    },
+                }
+            } catch (e) {
+                console.error('Failed to load saved rules:', e)
+            }
+        }
+        return standardChessRules
+    }
+    
+    const [ruleSet, setRuleSet] = useState<CustomRuleSet>(getInitialRuleSet())
+    const [selectedPiece, setSelectedPiece] = useState<PieceType>('rook')
+    const [selectedCells, setSelectedCells] = useState<Set<string>>(new Set())
+    const [editMode, setEditMode] = useState<'add' | 'remove'>('add')
+    const [moveType, setMoveType] = useState<'move' | 'capture' | 'both'>('both')
+    const [isRepeatable, setIsRepeatable] = useState(false)
+    const [selectedTemplate, setSelectedTemplate] = useState<MoveTemplateType | null>(null)
+    const [horseLegBlocked, setHorseLegBlocked] = useState(true) // 憋马腿
+    const [elephantEyeBlocked, setElephantEyeBlocked] = useState(true) // 塞象眼
+    const [cannonNeedsScreen, setCannonNeedsScreen] = useState(false) // 炮移动是否需要炮架子
+
+    const pieceNames: Record<PieceType, string> = {
+        general: '将/帅',
+        advisor: '士/仕',
+        elephant: '象/相',
+        horse: '马',
+        rook: '车',
+        cannon: '炮',
+        soldier: '兵/卒',
+    }
+
+    // 棋盘中心点 (用红色表示棋子位置)
+    const centerRow = 4
+    const centerCol = 4
+
+    // 根据模板设置面板状态与棋盘选择
+    const applyTemplateToBoard = (tplId: MoveTemplateType) => {
+        setSelectedTemplate(tplId)
+        const tpl = moveTemplates[tplId]
+        const next = new Set<string>()
+        // 从模板patterns推导代表性格子
+        tpl.patterns.forEach(p => {
+            const stepX = p.dx === 0 ? 0 : (p.dx > 0 ? 1 : -1)
+            const stepY = p.dy === 0 ? 0 : (p.dy > 0 ? 1 : -1)
+            if (p.repeat) {
+                // 将整条射线全部选中
+                let r = centerRow + stepY
+                let c = centerCol + stepX
+                while (r >= 0 && r < 9 && c >= 0 && c < 9) {
+                    next.add(`${r}-${c}`)
+                    r += stepY
+                    c += stepX
+                }
+            } else {
+                const row = centerRow + p.dy
+                const col = centerCol + p.dx
+                if (row >= 0 && row < 9 && col >= 0 && col < 9 && !(row === centerRow && col === centerCol)) {
+                    next.add(`${row}-${col}`)
+                }
+            }
+        })
+        setSelectedCells(next)
+        // 设置移动类型与可重复
+        const hasMoveOnly = tpl.patterns.every(p => p.moveOnly)
+        const hasCaptureOnly = tpl.patterns.every(p => p.captureOnly)
+        if (hasMoveOnly) setMoveType('move')
+        else if (hasCaptureOnly) setMoveType('capture')
+        else setMoveType('both')
+        setIsRepeatable(!!tpl.patterns.find(p => p.repeat))
+        // 默认条件开关
+        if (tplId === 'knight-l') setHorseLegBlocked(true)
+        if (tplId === 'elephant-field') setElephantEyeBlocked(true)
+        // 切换模板时重置炮架子开关
+        setCannonNeedsScreen(false)
+    }
+
+    // 初次加载时，为默认棋子应用默认模板
+    useEffect(() => {
+        const def = getDefaultTemplateForPiece(selectedPiece)
+        applyTemplateToBoard(def)
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [])
+
+    // 选择棋子时，预置默认模板并填充棋盘
+    const handleSelectPiece = (piece: PieceType) => {
+        setSelectedPiece(piece)
+        const defTpl = getDefaultTemplateForPiece(piece)
+        applyTemplateToBoard(defTpl)
+    }
+
+    // 从选中的格子生成移动模式（结合模板与开关）
+    const generateMovePatterns = (): MovePattern[] => {
+        const patterns: MovePattern[] = []
+        
+        selectedCells.forEach(cellKey => {
+            const [row, col] = cellKey.split('-').map(Number)
+            const dx = col - centerCol
+            const dy = row - centerRow
+            
+            if (dx === 0 && dy === 0) return // 跳过中心点
+            
+            const base: MovePattern = {
+                dx,
+                dy,
+                repeat: isRepeatable,
+                maxSteps: isRepeatable ? 0 : 1,
+                moveOnly: moveType === 'move',
+                captureOnly: moveType === 'capture',
+            }
+
+            // 条件：马/象阻挡、炮隔子
+            if (selectedTemplate === 'knight-l' && horseLegBlocked) {
+                base.conditions = [...(base.conditions || []), { type: 'path', hasNoObstacle: true }]
+            }
+            if (selectedTemplate === 'elephant-field' && elephantEyeBlocked) {
+                base.conditions = [...(base.conditions || []), { type: 'position', hasNoObstacle: true }]
+            }
+            if (selectedTemplate === 'cannon-capture') {
+                base.conditions = [...(base.conditions || []), { type: 'path', obstacleCount: 1 }]
+            }
+            if (selectedTemplate === 'cannon-move' && cannonNeedsScreen) {
+                base.conditions = [...(base.conditions || []), { type: 'path', obstacleCount: 1 }]
+            }
+
+            patterns.push(base)
+        })
+        
+        return patterns
+    }
+
+    // 应用规则到选中的棋子
+    const handleApplyRule = () => {
+        const patterns = generateMovePatterns()
+        
+        if (patterns.length === 0) {
+            alert('请至少选择一个移动位置')
+            return
+        }
+        
+        setRuleSet(prev => ({
+            ...prev,
+            pieceRules: {
+                ...prev.pieceRules,
+                [selectedPiece]: {
+                    name: pieceNames[selectedPiece],
+                    movePatterns: patterns,
+                    restrictions: prev.pieceRules[selectedPiece]?.restrictions || {},
+                },
+            },
+        }))
+        
+        alert(`已应用规则到 ${pieceNames[selectedPiece]}`)
+    }
+
+    // 保存规则集
+    const handleSaveRules = () => {
+        localStorage.setItem('customRuleSet', JSON.stringify(ruleSet))
+        alert('规则已保存！')
+    }
+
+    // 开始对局
+    const handleStartGame = () => {
+        localStorage.setItem('customRuleSet', JSON.stringify(ruleSet))
+        navigate('/app/custom-battle')
+    }
+
+    // 清除选择
+    const handleClearSelection = () => {
+        setSelectedCells(new Set())
+    }
+
+    // 加载当前棋子的规则到棋盘上
+    const handleLoadCurrentRule = () => {
+        const currentRule = ruleSet.pieceRules[selectedPiece]
+        if (!currentRule || !currentRule.movePatterns) {
+            alert('该棋子没有自定义规则')
+            return
+        }
+
+        const newSelection = new Set<string>()
+        currentRule.movePatterns.forEach(pattern => {
+            const stepX = pattern.dx === 0 ? 0 : (pattern.dx > 0 ? 1 : -1)
+            const stepY = pattern.dy === 0 ? 0 : (pattern.dy > 0 ? 1 : -1)
+            if (pattern.repeat) {
+                let r = centerRow + stepY
+                let c = centerCol + stepX
+                while (r >= 0 && r < 9 && c >= 0 && c < 9) {
+                    newSelection.add(`${r}-${c}`)
+                    r += stepY
+                    c += stepX
+                }
+            } else {
+                const targetRow = centerRow + pattern.dy
+                const targetCol = centerCol + pattern.dx
+                if (targetRow >= 0 && targetRow < 9 && targetCol >= 0 && targetCol < 9) {
+                    newSelection.add(`${targetRow}-${targetCol}`)
+                }
+            }
+        })
+        
+        setSelectedCells(newSelection)
+        
+        // 设置其他属性
+        if (currentRule.movePatterns.length > 0) {
+            const firstPattern = currentRule.movePatterns[0]
+            setIsRepeatable(!!firstPattern.repeat)
+            if (firstPattern.moveOnly) setMoveType('move')
+            else if (firstPattern.captureOnly) setMoveType('capture')
+            else setMoveType('both')
+        }
+        // 无法可靠反推模板，清空模板选中
+        setSelectedTemplate(null)
+    }
+
+    // 处理棋盘格子点击
+    const handleCellClick = (row: number, col: number) => {
+        // 不能点击中心点
+        if (row === centerRow && col === centerCol) return
+        
+        const cellKey = `${row}-${col}`
+        const newSelection = new Set(selectedCells)
+        
+        if (editMode === 'add') {
+            newSelection.add(cellKey)
+        } else {
+            newSelection.delete(cellKey)
+        }
+        
+        setSelectedCells(newSelection)
+    }
+
+    // 渲染棋盘
+    const renderBoard = () => {
+        const rows = []
+        const cellSize = 50 // 每个格子50px
+        
+        for (let row = 0; row < 9; row++) {
+            const cells = []
+            for (let col = 0; col < 9; col++) {
+                const isCenter = row === centerRow && col === centerCol
+                const cellKey = `${row}-${col}`
+                const isSelected = selectedCells.has(cellKey)
+                
+                // 根据状态决定背景色
+                let bgColor = 'white'
+                let cursor = 'pointer'
+                if (isCenter) {
+                    bgColor = '#ef4444' // 红色
+                    cursor = 'not-allowed'
+                } else if (isSelected) {
+                    bgColor = '#4ade80' // 绿色
+                }
+                
+                const cellStyle: React.CSSProperties = {
+                    width: cellSize,
+                    height: cellSize,
+                    border: '1px solid #9ca3af',
+                    backgroundColor: bgColor,
+                    cursor: cursor,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '14px',
+                    fontWeight: 'bold',
+                    transition: 'all 0.2s',
+                    position: 'relative',
+                }
+                
+                cells.push(
+                    <div
+                        key={cellKey}
+                        style={cellStyle}
+                        onClick={() => !isCenter && handleCellClick(row, col)}
+                        onMouseEnter={(e) => {
+                            if (!isCenter && !isSelected) {
+                                e.currentTarget.style.backgroundColor = '#e5e7eb'
+                            }
+                        }}
+                        onMouseLeave={(e) => {
+                            if (!isCenter && !isSelected) {
+                                e.currentTarget.style.backgroundColor = 'white'
+                            }
+                        }}
+                        title={isCenter ? '棋子位置' : `偏移: (${col - centerCol}, ${row - centerRow})`}
+                    >
+                        {isCenter && (
+                            <span style={{ color: 'white', fontSize: '16px' }}>
+                                {pieceNames[selectedPiece].split('/')[0]}
+                            </span>
+                        )}
+                        {isSelected && !isCenter && (
+                            <div
+                                style={{
+                                    width: 24,
+                                    height: 24,
+                                    backgroundColor: '#2563eb',
+                                    borderRadius: '50%',
+                                }}
+                            />
+                        )}
+                    </div>
+                )
+            }
+            rows.push(
+                <div key={row} style={{ display: 'flex' }}>
+                    {cells}
+                </div>
+            )
+        }
+        return (
+            <div style={{ 
+                display: 'inline-block', 
+                border: '3px solid #374151',
+                boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
+            }}>
+                {rows}
+            </div>
+        )
+    }
+
+    return (
+        <div style={{ 
+            minHeight: '100vh', 
+            background: 'linear-gradient(135deg, #fef3c7 0%, #fed7aa 100%)',
+            padding: '32px'
+        }}>
+            <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
+                {/* 标题 */}
+                <div style={{ marginBottom: '32px', textAlign: 'center' }}>
+                    <h1 style={{ fontSize: '36px', fontWeight: 'bold', color: '#1f2937', marginBottom: '8px' }}>
+                        🎨 可视化规则编辑器
+                    </h1>
+                    <p style={{ color: '#6b7280', fontSize: '16px' }}>在棋盘上点击来定义棋子的移动规则</p>
+                </div>
+
+                <div style={{ display: 'flex', gap: '24px', flexWrap: 'wrap', justifyContent: 'center' }}>
+                    {/* 左侧：棋子选择 */}
+                    <div style={{ flex: '0 0 300px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                        {/* 棋子选择 */}
+                            <div style={{ 
+                                background: 'white', 
+                                borderRadius: '8px', 
+                                boxShadow: '0 4px 6px rgba(0,0,0,0.1)', 
+                                padding: '20px' 
+                            }}>
+                                <h2 style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '16px', color: '#1f2937' }}>
+                                    选择棋子
+                                </h2>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                                {(Object.keys(pieceNames) as PieceType[]).map(piece => (
+                                    <button
+                                        key={piece}
+                                        onClick={() => handleSelectPiece(piece)}
+                                            style={{
+                                                padding: '14px',
+                                                borderRadius: '8px',
+                                                fontWeight: '500',
+                                                fontSize: '15px',
+                                                border: 'none',
+                                                cursor: 'pointer',
+                                                transition: 'all 0.2s',
+                                                backgroundColor: selectedPiece === piece ? '#3b82f6' : '#f3f4f6',
+                                                color: selectedPiece === piece ? 'white' : '#374151',
+                                                transform: selectedPiece === piece ? 'scale(1.05)' : 'scale(1)',
+                                                boxShadow: selectedPiece === piece ? '0 4px 6px rgba(59,130,246,0.3)' : 'none'
+                                            }}
+                                    >
+                                        {pieceNames[piece]}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* 模板选择 */}
+                        <div style={{ 
+                            background: 'white', 
+                            borderRadius: '8px', 
+                            boxShadow: '0 4px 6px rgba(0,0,0,0.1)', 
+                            padding: '20px' 
+                        }}>
+                            <h2 style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '12px', color: '#1f2937' }}>
+                                模板选择
+                            </h2>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                                {(
+                                    Object.keys(moveTemplates) as MoveTemplateType[]
+                                )
+                                    .filter(id => {
+                                        // 兵相关模板仅在选择兵时显示
+                                        const isPawnTemplate = id === 'pawn-forward' || id === 'pawn-cross'
+                                        if (isPawnTemplate) return selectedPiece === 'soldier'
+                                        return true
+                                    })
+                                    .map(id => (
+                                    <button
+                                        key={id}
+                                        onClick={() => applyTemplateToBoard(id)}
+                                        style={{
+                                            padding: '10px',
+                                            borderRadius: '8px',
+                                            border: selectedTemplate === id ? '2px solid #3b82f6' : '1px solid #e5e7eb',
+                                            background: selectedTemplate === id ? '#eff6ff' : 'white',
+                                            textAlign: 'left',
+                                            cursor: 'pointer'
+                                        }}
+                                        title={moveTemplates[id].description}
+                                    >
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                            <span style={{ fontSize: '18px' }}>{moveTemplates[id].icon}</span>
+                                            <span style={{ fontWeight: 600 }}>{moveTemplates[id].name}</span>
+                                        </div>
+                                    </button>
+                                ))}
+                            </div>
+                            {/* 特殊规则开关 */}
+                            {selectedTemplate === 'knight-l' && (
+                                <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12, cursor: 'pointer' }}>
+                                    <input type="checkbox" checked={horseLegBlocked} onChange={(e) => setHorseLegBlocked(e.target.checked)} />
+                                    <span>憋马腿（需要马脚无阻挡）</span>
+                                </label>
+                            )}
+                            {selectedTemplate === 'elephant-field' && (
+                                <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8, cursor: 'pointer' }}>
+                                    <input type="checkbox" checked={elephantEyeBlocked} onChange={(e) => setElephantEyeBlocked(e.target.checked)} />
+                                    <span>塞象眼（需要象眼无阻挡）</span>
+                                </label>
+                            )}
+                            {selectedTemplate === 'cannon-move' && (
+                                <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8, cursor: 'pointer' }}>
+                                    <input type="checkbox" checked={cannonNeedsScreen} onChange={(e) => setCannonNeedsScreen(e.target.checked)} />
+                                    <span>炮移动需要炮架子（路径上需有1个障碍）</span>
+                                </label>
+                            )}
+                        </div>
+
+                        {/* 编辑模式 */}
+                        <div className="bg-white rounded-lg shadow-lg p-6">
+                            <h2 className="text-xl font-bold mb-4 text-gray-800">编辑模式</h2>
+                            <div className="space-y-3">
+                                <div className="flex gap-3">
+                                    <button
+                                        onClick={() => setEditMode('add')}
+                                        className={`flex-1 p-3 rounded-lg font-medium transition-all ${
+                                            editMode === 'add'
+                                                ? 'bg-green-500 text-white'
+                                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                        }`}
+                                    >
+                                        ➕ 添加
+                                    </button>
+                                    <button
+                                        onClick={() => setEditMode('remove')}
+                                        className={`flex-1 p-3 rounded-lg font-medium transition-all ${
+                                            editMode === 'remove'
+                                                ? 'bg-red-500 text-white'
+                                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                        }`}
+                                    >
+                                        ➖ 删除
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* 移动类型 */}
+                        <div className="bg-white rounded-lg shadow-lg p-6">
+                            <h2 className="text-xl font-bold mb-4 text-gray-800">移动类型</h2>
+                            <div className="space-y-2">
+                                <label className="flex items-center space-x-3 p-2 hover:bg-gray-50 rounded cursor-pointer">
+                                    <input
+                                        type="radio"
+                                        name="moveType"
+                                        checked={moveType === 'both'}
+                                        onChange={() => setMoveType('both')}
+                                        className="w-4 h-4"
+                                    />
+                                    <span>移动和吃子</span>
+                                </label>
+                                <label className="flex items-center space-x-3 p-2 hover:bg-gray-50 rounded cursor-pointer">
+                                    <input
+                                        type="radio"
+                                        name="moveType"
+                                        checked={moveType === 'move'}
+                                        onChange={() => setMoveType('move')}
+                                        className="w-4 h-4"
+                                    />
+                                    <span>仅移动</span>
+                                </label>
+                                <label className="flex items-center space-x-3 p-2 hover:bg-gray-50 rounded cursor-pointer">
+                                    <input
+                                        type="radio"
+                                        name="moveType"
+                                        checked={moveType === 'capture'}
+                                        onChange={() => setMoveType('capture')}
+                                        className="w-4 h-4"
+                                    />
+                                    <span>仅吃子</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        {/* 高级选项已移除，重复与其他属性由模板决定 */}
+
+                        {/* 操作按钮 */}
+                        <div className="bg-white rounded-lg shadow-lg p-6 space-y-3">
+                            <button
+                                onClick={handleLoadCurrentRule}
+                                className="w-full bg-purple-500 text-white px-4 py-3 rounded-lg hover:bg-purple-600 transition-colors font-medium"
+                            >
+                                📥 加载当前规则
+                            </button>
+                            <button
+                                onClick={handleClearSelection}
+                                className="w-full bg-gray-500 text-white px-4 py-3 rounded-lg hover:bg-gray-600 transition-colors font-medium"
+                            >
+                                🗑️ 清除选择
+                            </button>
+                            <button
+                                onClick={handleApplyRule}
+                                className="w-full bg-blue-500 text-white px-4 py-3 rounded-lg hover:bg-blue-600 transition-colors font-medium"
+                            >
+                                ✅ 应用规则
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* 中间：棋盘 */}
+                    <div style={{ flex: '1 1 600px', minWidth: '600px' }}>
+                        <div style={{ 
+                            background: 'white', 
+                            borderRadius: '12px', 
+                            boxShadow: '0 10px 15px rgba(0,0,0,0.1)', 
+                            padding: '24px' 
+                        }}>
+                            <div style={{ marginBottom: '24px', textAlign: 'center' }}>
+                                <h2 style={{ fontSize: '24px', fontWeight: 'bold', color: '#1f2937', marginBottom: '8px' }}>
+                                    编辑规则：{pieceNames[selectedPiece]}
+                                </h2>
+                                <p style={{ color: '#6b7280', fontSize: '15px' }}>
+                                    已选择 <span style={{ fontWeight: 'bold', color: '#3b82f6' }}>{selectedCells.size}</span> 个位置
+                                </p>
+                            </div>
+                            
+                            {/* 棋盘 */}
+                            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '24px' }}>
+                                {renderBoard()}
+                            </div>
+
+                            {/* 说明 */}
+                            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-2">
+                                <h3 className="font-bold text-blue-800">使用说明：</h3>
+                                <ul className="text-sm text-blue-700 space-y-1">
+                                    <li>• <span className="font-medium">红色格子</span>：当前棋子位置（不可选）</li>
+                                    <li>• <span className="font-medium">绿色格子</span>：已选择的移动位置</li>
+                                    <li>• <span className="font-medium">点击格子</span>：添加/删除移动位置</li>
+                                    <li>• <span className="font-medium">蓝色圆点</span>：标记可移动到的位置</li>
+                                    <li>• 选择模板后，规则会自动带上可重复/吃子等属性</li>
+                                </ul>
+                            </div>
+
+                            {/* 底部操作 */}
+                            <div className="mt-6 flex gap-4">
+                                <button
+                                    onClick={handleSaveRules}
+                                    className="flex-1 bg-green-500 text-white px-6 py-3 rounded-lg hover:bg-green-600 transition-colors font-medium text-lg"
+                                >
+                                    💾 保存所有规则
+                                </button>
+                                <button
+                                    onClick={handleStartGame}
+                                    className="flex-1 bg-orange-500 text-white px-6 py-3 rounded-lg hover:bg-orange-600 transition-colors font-medium text-lg"
+                                >
+                                    ▶️ 开始对局
+                                </button>
+                                <button
+                                    onClick={() => navigate('/app/home')}
+                                    className="px-6 py-3 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors font-medium"
+                                >
+                                    返回
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* 当前规则预览已按需移除 */}
+                    </div>
+                </div>
+            </div>
+        </div>
+    )
+}
