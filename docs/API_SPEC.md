@@ -556,16 +556,16 @@ Authorization: Bearer <token>
 
 ### WebSocket 实时事件
 
-| 事件                 | 方向    | 描述             |
-| ------------------ | ----- | -------------- |
-| `battle.join`      | C → S | 加入房间（带 userId） |
-| `battle.start`     | S → C | 对战开始（同步初始棋盘）   |
-| `battle.move`      | 双向    | 走棋事件           |
-| `battle.chat`      | 双向    | 房间内消息          |
-| `battle.result`    | S → C | 结束结果（胜/负/和）    |
-| `battle.reconnect` | 双向    | 网络重连恢复状态       |
+说明：前端通过 Socket.IO 连接命名空间 `${VITE_API_BASE}/battle`，携带 `Authorization: Bearer <token>`（Socket auth 传递 `token`）。当前已用事件如下：
 
-走棋事件示例
+| 事件                 | 方向    | 描述                                 |
+| ------------------ | ----- | ------------------------------------ |
+| `battle.join`      | C → S | 加入房间（参数包含 `battleId`）             |
+| `battle.snapshot`  | 双向    | 请求/推送权威快照（包含棋盘、轮次、玩家、走子列表） |
+| `battle.move`      | 双向    | 走棋事件（客户端发起、服务端广播）              |
+| `battle.player_join` | S → C | 有玩家进入房间时的通知，用于触发拉取快照              |
+
+走棋事件示例（双向）
 
 ```json
 {
@@ -579,7 +579,7 @@ Authorization: Bearer <token>
 }
 ```
 
-加入房间事件
+加入房间事件（C → S）
 
 ```json
 {
@@ -588,12 +588,43 @@ Authorization: Bearer <token>
 }
 ```
 
-对战开始事件
+快照事件（请求与推送）
+
+请求当前快照（C → S）
 
 ```json
 {
-  "event": "battle.start",
-  "data": { "battleId": 501, "initialBoard": { "pieces": [] } }
+  "event": "battle.snapshot",
+  "data": { "battleId": 501 }
+}
+```
+
+推送权威快照（S → C）
+
+```json
+{
+  "event": "battle.snapshot",
+  "data": {
+    "battleId": 501,
+    "status": "waiting",
+    "mode": "pvp",
+    "players": [1024, 2048],
+    "moves": [ { "seq": 1, "from": {"x":0,"y":6}, "to": {"x":0,"y":4}, "by": 1024, "ts": 1730456822 } ],
+    "turnIndex": 0,
+    "board": { /* 略 */ },
+    "turn": "red",
+    "createdAt": 1730456000,
+    "winnerId": null
+  }
+}
+```
+
+玩家加入通知（S → C）
+
+```json
+{
+  "event": "battle.player_join",
+  "data": { "userId": 2048 }
 }
 ```
 

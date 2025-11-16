@@ -682,6 +682,9 @@ paths:
         - in: query
           name: pageSize
           schema: { type: integer, default: 10 }
+        - in: query
+          name: favorite
+          schema: { type: boolean, nullable: true }
       responses:
         "200":
           description: Records page
@@ -689,6 +692,25 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiResponsePageRecords"
+    post:
+      tags: [Records]
+      summary: Create a record
+      operationId: recordsCreate
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RecordCreateRequest"
+      responses:
+        "200":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseRecord"
 
   /api/v1/records/{id}:
     get:
@@ -709,6 +731,30 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiResponseRecord"
+    patch:
+      tags: [Records]
+      summary: Update record meta
+      operationId: recordsUpdate
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RecordUpdateRequest"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseOk"
   /api/v1/records/{id}/share:
     post:
       tags: [Records]
@@ -832,6 +878,118 @@ paths:
               schema:
                 type: string
                 format: binary
+
+  /api/v1/records/{id}/bookmarks:
+    post:
+      tags: [Records]
+      summary: Add bookmark/note
+      operationId: recordsBookmarkAdd
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BookmarkCreateRequest"
+      responses:
+        "200":
+          description: Added
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseBookmarkCreate"
+
+  /api/v1/records/{id}/bookmarks/{bid}:
+    patch:
+      tags: [Records]
+      summary: Update bookmark/note
+      operationId: recordsBookmarkUpdate
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+        - in: path
+          name: bid
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BookmarkUpdateRequest"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseOk"
+    delete:
+      tags: [Records]
+      summary: Delete bookmark/note
+      operationId: recordsBookmarkDelete
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+        - in: path
+          name: bid
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseOk"
+
+  /api/v1/records/prefs:
+    get:
+      tags: [Records]
+      summary: Get record retention preferences
+      operationId: recordsPrefsGet
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Prefs
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseRecordPrefs"
+    patch:
+      tags: [Records]
+      summary: Update record retention preferences
+      operationId: recordsPrefsUpdate
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RecordPrefsPatch"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseRecordPrefs"
 
   /api/v1/community/shares:
     get:
@@ -1286,8 +1444,91 @@ components:
       properties:
         id: { type: integer }
         battleId: { type: integer }
-        data: { type: object }
-        shared: { type: boolean }
+        opponent: { type: string, nullable: true }
+        startedAt: { type: string, format: date-time, nullable: true }
+        endedAt: { type: string, format: date-time, nullable: true }
+        result: { type: string, nullable: true, example: red }
+        endReason: { type: string, nullable: true, example: checkmate }
+        keyTags:
+          type: array
+          items: { type: string }
+        favorite: { type: boolean, default: false }
+        moves:
+          type: array
+          items: { $ref: "#/components/schemas/RecordMove" }
+        bookmarks:
+          type: array
+          items: { $ref: "#/components/schemas/Bookmark" }
+        shared: { type: boolean, default: false }
+        createdAt: { type: string, format: date-time, nullable: true }
+        updatedAt: { type: string, format: date-time, nullable: true }
+    RecordMove:
+      type: object
+      properties:
+        moveIndex: { type: integer }
+        from:
+          type: object
+          properties: { x: { type: integer }, y: { type: integer } }
+        to:
+          type: object
+          properties: { x: { type: integer }, y: { type: integer } }
+        piece:
+          type: object
+          properties:
+            type: { type: string }
+            side: { type: string, enum: [red, black] }
+        capturedType: { type: string, nullable: true }
+        capturedSide: { type: string, nullable: true }
+        timeSpentMs: { type: integer, nullable: true }
+        san: { type: string, nullable: true }
+    Bookmark:
+      type: object
+      properties:
+        id: { type: integer }
+        step: { type: integer }
+        label: { type: string, nullable: true }
+        note: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time, nullable: true }
+        updatedAt: { type: string, format: date-time, nullable: true }
+    RecordCreateRequest:
+      type: object
+      properties:
+        opponent: { type: string, nullable: true }
+        startedAt: { type: string, format: date-time, nullable: true }
+        endedAt: { type: string, format: date-time, nullable: true }
+        result: { type: string, nullable: true }
+        endReason: { type: string, nullable: true }
+        keyTags:
+          type: array
+          items: { type: string }
+        moves:
+          type: array
+          items: { $ref: "#/components/schemas/RecordMove" }
+        bookmarks:
+          type: array
+          items: { $ref: "#/components/schemas/Bookmark" }
+    RecordUpdateRequest:
+      type: object
+      properties:
+        opponent: { type: string }
+        result: { type: string }
+        endReason: { type: string }
+        keyTags:
+          type: array
+          items: { type: string }
+    BookmarkCreateRequest:
+      type: object
+      required: [step]
+      properties:
+        step: { type: integer }
+        label: { type: string, nullable: true }
+        note: { type: string, nullable: true }
+    BookmarkUpdateRequest:
+      type: object
+      properties:
+        step: { type: integer }
+        label: { type: string, nullable: true }
+        note: { type: string, nullable: true }
     ShareRequest:
       type: object
       properties:
@@ -1327,6 +1568,15 @@ components:
         code: { type: integer, example: 0 }
         message: { type: string, example: success }
         data: { $ref: "#/components/schemas/Record" }
+    ApiResponseBookmarkCreate:
+      type: object
+      properties:
+        code: { type: integer, example: 0 }
+        message: { type: string, example: success }
+        data:
+          type: object
+          properties:
+            id: { type: integer }
 
     ApiResponseShareResult:
       type: object
@@ -1513,3 +1763,20 @@ components:
             page: { type: integer }
             pageSize: { type: integer }
             total: { type: integer }
+    RecordPrefs:
+      type: object
+      properties:
+        keepLimit: { type: integer, example: 30, minimum: 1, maximum: 500 }
+        autoCleanEnabled: { type: boolean, example: true }
+        updatedAt: { type: string, format: date-time }
+    RecordPrefsPatch:
+      type: object
+      properties:
+        keepLimit: { type: integer, minimum: 1, maximum: 500 }
+        autoCleanEnabled: { type: boolean }
+    ApiResponseRecordPrefs:
+      type: object
+      properties:
+        code: { type: integer, example: 0 }
+        message: { type: string, example: success }
+        data: { $ref: "#/components/schemas/RecordPrefs" }
