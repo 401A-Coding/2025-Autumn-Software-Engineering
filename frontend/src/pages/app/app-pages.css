@@ -146,3 +146,72 @@
     font-size: 14px;
     line-height: 1.5;
 }
+
+/* === History page & general new utilities === */
+.pos-rel {
+    position: relative;
+}
+
+.row {
+    display: flex;
+    align-items: center;
+}
+
+.col {
+    display: flex;
+    flex-direction: column;
+}
+
+.gap-8 {
+    gap: 8px;
+}
+
+.mb-12 {
+    margin-bottom: 12px;
+}
+
+.pad-12 {
+    padding: 12px;
+}
+
+.align-center {
+    align-items: center;
+}
+
+.fw-600 {
+    font-weight: 600;
+}
+
+.text-12 {
+    font-size: 12px;
+}
+
+.nowrap {
+    white-space: nowrap;
+}
+
+.w-96 {
+    width: 96px;
+}
+
+.settings-btn {
+    border: 1px solid var(--control-border);
+    background: var(--control-bg-active);
+    border-radius: 6px;
+    padding: 4px 10px;
+    cursor: pointer;
+    color: var(--control-text);
+}
+
+.settings-popover {
+    position: absolute;
+    top: 36px;
+    left: 0;
+    z-index: 10;
+    background: var(--control-bg);
+    border: 1px solid var(--control-border);
+    border-radius: 8px;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+    padding: 12px;
+    width: 260px;
+}

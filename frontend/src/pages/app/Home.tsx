@@ -12,10 +12,10 @@ export default function Home() {
             </section>
 
             <section className="paper-card" style={{ padding: 16, marginTop: 12 }}>
-                <h3 style={{ marginTop: 0 }}>🎮 自定义棋局</h3>
-                <p style={{ color: 'var(--muted)', marginTop: 6 }}>自定义棋子规则，创造属于你的象棋玩法！</p>
-                <div style={{ display: 'flex', gap: 8, marginTop: 12, justifyContent: 'center' }}>
-                    <a className="btn-primary" style={{ display: 'inline-block', fontSize: 16, padding: '10px 24px' }} href="/app/visual-editor">
+                <h3 className="mt-0">🎮 自定义棋局</h3>
+                <p className="muted mt-6">自定义棋子规则，创造属于你的象棋玩法！</p>
+                <div className="row-start gap-8 mt-12" style={{ justifyContent: 'center' }}>
+                    <a className="btn-primary inline-block" href="/app/visual-editor">
                         🎨 可视化编辑器
                     </a>
                 </div>
