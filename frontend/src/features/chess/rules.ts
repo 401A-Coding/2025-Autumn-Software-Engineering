@@ -1,5 +1,6 @@
-import type { Board, Pos, Side } from './types'
+import type { Board, Pos, Side, CustomRules } from './types'
 import { cloneBoard, inBounds } from './types'
+import { generateCustomMoves } from './customRules'
 
 export function findKing(board: Board, side: Side): Pos | null {
     for (let y = 0; y < 10; y++) for (let x = 0; x < 9; x++) {
@@ -235,7 +236,17 @@ export function movePiece(board: Board, from: Pos, to: Pos): Board {
  * 检查游戏是否结束
  * @returns 'red' | 'black' | 'draw' | null
  */
-export function checkGameOver(board: Board, currentTurn: Side): Side | 'draw' | null {
+export function checkGameOver(board: Board, currentTurn: Side, customRules?: CustomRules): Side | 'draw' | null {
+    // 当使用自定义规则时，仅在将帅被吃掉时判输（满足“只有将被吃才会判输”的需求）
+    if (customRules) {
+        const redKing = findKing(board, 'red')
+        const blackKing = findKing(board, 'black')
+        if (!redKing) return 'black'
+        if (!blackKing) return 'red'
+        return null
+    }
+
+    // 标准规则的判定（保持原有逻辑）
     // 1. 检查将帅是否被吃掉
     const redKing = findKing(board, 'red')
     const blackKing = findKing(board, 'black')
@@ -269,4 +280,39 @@ export function checkGameOver(board: Board, currentTurn: Side): Side | 'draw' | 
     }
     
     return null // 游戏继续
+}
+
+/**
+ * 检查是否被将军（支持自定义规则）
+ */
+export function isInCheckWithCustomRules(
+    board: Board, 
+    side: Side, 
+    customRules?: CustomRules
+): boolean {
+    const king = findKing(board, side)
+    if (!king) return false
+    
+    const opp: Side = side === 'red' ? 'black' : 'red'
+    
+    // 如果有自定义规则,使用自定义规则检查
+    if (customRules) {
+        for (let y = 0; y < 10; y++) {
+            for (let x = 0; x < 9; x++) {
+                const p = board[y][x]
+                if (!p || p.side !== opp) continue
+                
+                const moves = generateCustomMoves(board, { x, y }, customRules)
+                for (const m of moves) {
+                    if (m.x === king.x && m.y === king.y) {
+                        return true
+                    }
+                }
+            }
+        }
+        return false
+    }
+    
+    // 否则使用标准规则检查
+    return isInCheck(board, side)
 }

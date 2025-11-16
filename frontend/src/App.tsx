@@ -10,6 +10,9 @@ import History from './pages/app/History.tsx'
 import OnlineLobby from './pages/app/OnlineLobby.tsx'
 import Profile from './pages/app/Profile.tsx'
 import LocalPlay from './pages/app/LocalPlay.tsx'
+import CustomRuleEditor from './pages/app/CustomRuleEditor.tsx'
+import CustomBattle from './pages/app/CustomBattle.tsx'
+import VisualRuleEditor from './pages/app/VisualRuleEditor.tsx'
 import LiveBattle from './pages/app/LiveBattle.tsx'
 import RecordReplay from './pages/app/RecordReplay.tsx'
 
@@ -25,6 +28,9 @@ function App() {
           <Route index element={<Navigate to="/app/home" replace />} />
           <Route path="home" element={<Home />} />
           <Route path="play" element={<LocalPlay />} />
+          <Route path="custom-editor" element={<CustomRuleEditor />} />
+          <Route path="visual-editor" element={<VisualRuleEditor />} />
+          <Route path="custom-battle" element={<CustomBattle />} />
           <Route path="fun" element={<Fun />} />
           <Route path="history" element={<History />} />
           <Route path="record/:id" element={<RecordReplay />} />

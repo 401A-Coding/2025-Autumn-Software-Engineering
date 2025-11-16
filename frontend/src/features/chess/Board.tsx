@@ -1,6 +1,11 @@
 import { useMemo, useState, useEffect } from 'react'
-import type { Pos, Side, GameState } from './types'
+import type { Pos, Side, GameState, CustomRules } from './types'
 import { createInitialBoard, cloneBoard } from './types'
+import { generateLegalMoves, movePiece, checkGameOver, isInCheckWithCustomRules } from './rules'
+import { generateCustomMoves } from './customRules'
+import type { CustomRuleSet } from './ruleEngine'
+import { isCustomRuleSet, ruleSetToCustomRules } from './ruleAdapter'
+import { generateMovesFromRules } from './ruleEngine'
 import { generateLegalMoves, movePiece, checkGameOver, isInCheck } from './rules'
 import './board.css'
 
@@ -23,25 +28,39 @@ function PieceGlyph({ type, side }: { type: string; side: Side }) {
     )
 }
 
-export default function Board({
-    onMove,
-    onGameOver,
-}: {
-    onMove?: (move: { from: Pos; to: Pos; turn: Side; ts: number }) => void
-    onGameOver?: (result: GameState['winner']) => void
-} = {}) {
+interface BoardProps {
+    customRules?: CustomRules | CustomRuleSet
+    initialBoard?: any // 自定义初始棋盘
+}
+
+export default function Board({ customRules: customRulesProp, initialBoard }: BoardProps) {
+    // 转换新格式规则到旧格式（用于兼容现有代码）
+    const customRules = useMemo(() => {
+        if (!customRulesProp) return undefined
+        if (isCustomRuleSet(customRulesProp)) {
+            return ruleSetToCustomRules(customRulesProp)
+        }
+        return customRulesProp
+    }, [customRulesProp])
+
     const [state, setState] = useState<GameState>({
-        board: createInitialBoard(),
+        board: initialBoard || createInitialBoard(),
         turn: 'red',
         selected: undefined,
         history: [],
+        customRules,
     })
     const [showGameOver, setShowGameOver] = useState(false)
 
+    // 当自定义规则改变时更新状态
+    useEffect(() => {
+        setState(prev => ({ ...prev, customRules }))
+    }, [customRules])
+
     // 检查当前方是否被将军
     const inCheck = useMemo(() => {
-        return isInCheck(state.board, state.turn)
-    }, [state.board, state.turn])
+        return isInCheckWithCustomRules(state.board, state.turn, state.customRules)
+    }, [state.board, state.turn, state.customRules])
 
     // 获取被将军的将帅位置（用于高亮）
     const kingInCheckPos = useMemo(() => {
@@ -69,8 +88,32 @@ export default function Board({
         const { x, y } = state.selected
         const p = state.board[y][x]
         if (!p || p.side !== state.turn) return []
+        
+        // 如果有自定义规则，使用自定义规则生成走法
+        // 如果传入的是新的 CustomRuleSet（编辑器/设置格式），直接使用新版 ruleEngine 的生成器，避免 adapter 丢失字段
+        if (customRulesProp && isCustomRuleSet(customRulesProp)) {
+            const ruleSet = customRulesProp as CustomRuleSet
+            const pieceRule = ruleSet.pieceRules[p.type]
+            if (pieceRule) {
+                const moves = generateMovesFromRules(state.board, { x, y }, pieceRule, state.turn)
+                return moves.filter(m => {
+                    const target = state.board[m.y]?.[m.x]
+                    return !target || target.side !== state.turn
+                })
+            }
+        }
+
+        if (state.customRules) {
+            const customMoves = generateCustomMoves(state.board, { x, y }, state.customRules)
+            // 过滤掉己方棋子的位置
+            return customMoves.filter(m => {
+                const target = state.board[m.y]?.[m.x]
+                return !target || target.side !== state.turn
+            })
+        }
+        
         return generateLegalMoves(state.board, { x, y }, state.turn)
-    }, [state])
+    }, [state, customRulesProp])
 
     function onCellClick(x: number, y: number) {
         // 游戏结束后不允许继续走子
@@ -84,14 +127,16 @@ export default function Board({
             const nextTurn: Side = state.turn === 'red' ? 'black' : 'red'
 
             // 检查游戏是否结束
-            const gameResult = checkGameOver(nb, nextTurn)
-
+            // 若当前使用自定义规则，传入 customRules 以便它按照自定义规则判定（自定义规则下仅将被吃判输）
+            const gameResult = checkGameOver(nb, nextTurn, state.customRules)
+            
             setState(s => ({
                 board: nb,
                 turn: nextTurn,
                 selected: undefined,
                 history: [...s.history, { board: cloneBoard(s.board), turn: s.turn }],
                 winner: gameResult || undefined,
+                customRules: s.customRules, // 保留自定义规则
             }))
             // 回调：记录一步
             onMove?.({ from: state.selected!, to: { x, y }, turn: state.turn, ts: Date.now() })
@@ -108,12 +153,26 @@ export default function Board({
         setState(s => {
             if (s.history.length === 0) return s
             const last = s.history[s.history.length - 1]
-            return { ...s, board: cloneBoard(last.board), turn: last.turn, selected: undefined, history: s.history.slice(0, -1) }
+            return { 
+                ...s, 
+                board: cloneBoard(last.board), 
+                turn: last.turn, 
+                selected: undefined, 
+                history: s.history.slice(0, -1),
+                customRules: s.customRules, // 保留自定义规则
+            }
         })
     }
 
     function restart() {
-        setState({ board: createInitialBoard(), turn: 'red', selected: undefined, history: [], winner: undefined })
+        setState(s => ({ 
+            board: initialBoard || createInitialBoard(), // 使用自定义初始棋盘或标准棋盘
+            turn: 'red', 
+            selected: undefined, 
+            history: [], 
+            winner: undefined,
+            customRules: s.customRules, // 保留自定义规则
+        }))
         setShowGameOver(false)
     }
 
@@ -140,24 +199,40 @@ export default function Board({
                 </div>
             </div>
 
-            <div className="board">
+            <div style={{
+                position: 'relative',
+                width: cellSize * 9,
+                height: cellSize * 10,
+                background: '#f7e6c4',
+                border: '1px solid var(--border)',
+                boxShadow: 'inset 0 0 0 2px #e7d8b1',
+                boxSizing: 'border-box',
+                padding: margin,
+                overflow: 'hidden',
+                borderRadius: 8,
+                margin: '0 auto', /* 居中显示，避免超过背景 */
+            }}>
                 {/* 网格线（加内边距，使交叉点处于容器内部）*/}
                 {Array.from({ length: 10 }).map((_, row) => (
-                    <div key={'h' + row} className={`grid-h row-${row}`} />
+                    <div key={'h' + row} style={{ position: 'absolute', left: margin, right: margin, top: margin + row * cellSize, height: 1, background: '#c9b37e', transform: 'translateY(-0.5px)', zIndex: 1 }} />
                 ))}
                 {Array.from({ length: 9 }).map((_, col) => (
-                    <div key={'v' + col} className={`grid-v col-${col}`} />
+                    <div key={'v' + col} style={{ position: 'absolute', top: margin, bottom: margin, left: margin + col * cellSize, width: 1, background: '#c9b37e', transform: 'translateX(-0.5px)', zIndex: 1 }} />
                 ))}
                 {/* 楚河汉界 */}
                 <div className="river-line" />
                 <div className="river-text">楚河        漢界</div>
                 {/* 宫线（简化：只画边框） */}
-                <div className="palace-top" />
-                <div className="palace-bottom" />
+                <div style={{ position: 'absolute', left: margin + cellSize * 3, top: margin + 0, width: cellSize * 3, height: cellSize * 3, border: '1px solid #c9b37e', boxSizing: 'border-box', zIndex: 1 }} />
+                <div style={{ position: 'absolute', left: margin + cellSize * 3, top: margin + cellSize * 7, width: cellSize * 3, height: cellSize * 3, border: '1px solid #c9b37e', boxSizing: 'border-box', zIndex: 1 }} />
 
                 {/* 落点高亮（仅空位） */}
                 {state.selected && legal.filter(m => !state.board[m.y][m.x]).map((m, i) => (
-                    <div key={i} className={`dot dot-x-${m.x} dot-y-${m.y}`} />
+                    <div key={i} style={{
+                        position: 'absolute',
+                        left: margin + m.x * cellSize - 6, top: margin + m.y * cellSize - 6, width: 12, height: 12,
+                        borderRadius: '50%', background: 'rgba(166,35,55,0.5)', zIndex: 2
+                    }} />
                 ))}
 
                 {/* 棋子 */}
@@ -168,25 +243,38 @@ export default function Board({
                     return p && (
                         <div key={p.id}
                             onClick={() => onCellClick(x, y)}
-                            className={`piece-wrap piece-x-${x} piece-y-${y}`}>
+                            style={{ position: 'absolute', left: margin + x * cellSize - (cellSize - 6) / 2, top: margin + y * cellSize - (cellSize - 6) / 2, cursor: 'pointer', zIndex: 3 }}>
                             <PieceGlyph type={p.type} side={p.side} />
                             {state.selected && state.selected.x === x && state.selected.y === y && (
                                 <div className="piece-selected" />
                             )}
                             {/* 将军高亮 */}
                             {kingInCheckPos && kingInCheckPos.x === x && kingInCheckPos.y === y && (
-                                <div className="king-check pulse" />
+                                <div style={{ 
+                                    position: 'absolute', 
+                                    inset: -4, 
+                                    border: '3px solid #ff6b6b', 
+                                    borderRadius: '50%',
+                                    animation: 'pulse 1.5s ease-in-out infinite',
+                                    boxShadow: '0 0 12px rgba(255,107,107,0.6)',
+                                zIndex: 4 }} />
                             )}
                             {/* 可吃子高亮 */}
                             {canCapture && (
-                                <div className="capture-ring" />
+                                <div style={{ 
+                                    position: 'absolute', 
+                                    inset: -3, 
+                                    border: '3px solid #ff9800', 
+                                    borderRadius: '50%',
+                                    boxShadow: '0 0 8px rgba(255,152,0,0.6), inset 0 0 8px rgba(255,152,0,0.3)',
+                                zIndex: 4 }} />
                             )}
                         </div>
                     )
                 }))}
                 {/* 点击区域：以交叉点为中心的正方形，便于点选 */}
                 {state.board.map((row, y) => row.map((_, x) => (
-                    <div key={`c-${x}-${y}`} onClick={() => onCellClick(x, y)} className={`click-area cell-x-${x} cell-y-${y}`} />
+                    <div key={`c-${x}-${y}`} onClick={() => onCellClick(x, y)} style={{ position: 'absolute', left: margin + x * cellSize - cellSize / 2, top: margin + y * cellSize - cellSize / 2, width: cellSize, height: cellSize, zIndex: 2 }} />
                 )))}
             </div>
 

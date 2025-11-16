@@ -26,6 +26,31 @@ export interface GameState {
     selected?: Pos
     history: { board: Board; turn: Side }[]
     winner?: Side | 'draw'
+    customRules?: CustomRules
+}
+
+// 自定义规则
+export interface CustomRules {
+    [pieceType: string]: {
+        moves: MovePattern[]
+        canJump?: boolean // 是否可以跳过其他棋子
+        canCrossBorder?: boolean // 是否可以过河（对兵/象有效）
+        palaceOnly?: boolean // 是否限制在九宫内
+        maxRange?: number // 最大移动距离（0表示无限制）
+    }
+}
+
+// 移动模式
+export interface MovePattern {
+    dx: number // X方向偏移
+    dy: number // Y方向偏移
+    repeat?: boolean // 是否可以重复（如车可以一直走）
+    condition?: 'forward' | 'crossed' | 'notCrossed' // 条件：向前、已过河、未过河
+    // 可选行为标记：用于区分仅吃子或仅移动的模板（如炮的吃子/移动分开）
+    captureOnly?: boolean
+    moveOnly?: boolean
+    // 兼容更复杂的条件数组（与 ruleEngine 中的 MoveCondition 格式兼容）
+    conditions?: any[]
 }
 
 export function cloneBoard(b: Board): Board {
