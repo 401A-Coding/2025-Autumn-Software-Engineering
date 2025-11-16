@@ -21,9 +21,6 @@ export default function Home() {
                 </div>
             </section>
 
-            <section className="paper-card" style={{ padding: 16, marginTop: 12 }}>
-                <h3 style={{ marginTop: 0 }}>精选推荐</h3>
-                <ul style={{ margin: 6, paddingLeft: 18, color: 'var(--muted)' }}>
             <section className="paper-card card-pad mt-12">
                 <h3 className="mt-0">在线对战</h3>
                 <p className="muted mt-6">通过网络与其他玩家实时对弈（演示版）。</p>

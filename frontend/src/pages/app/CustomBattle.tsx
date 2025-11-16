@@ -101,7 +101,7 @@ export default function CustomBattle() {
             {/* 主体：棋盘 + 侧栏（在窄屏隐藏） */}
             <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start', flexWrap: 'wrap' }}>
                 <div style={{ flex: '0 1 520px', display: 'flex', justifyContent: 'center', width: '100%' }}>
-                    <div style={{ padding: 12, background: '#f8f9fa', borderRadius: 10, boxShadow: '0 6px 18px rgba(0,0,0,0.06)' }}>
+                    <div>
                         <Board customRules={ruleSet!} initialBoard={customBoard} />
                     </div>
                 </div>
