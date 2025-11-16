@@ -25,60 +25,37 @@ export default function History() {
     }
     return (
         <div>
-            <section className="paper-card card-pad" style={{ position: 'relative' }}>
+            <section className="paper-card card-pad pos-rel">
                 <h3 className="mt-0">对局记录</h3>
-
-                {/* 顶部工具条：左上角设置，右上角滑块 */}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                    <div style={{ position: 'relative' }}>
+                <div className="row-between mb-12">
+                    <div className="pos-rel">
                         <button
                             aria-label="记录保留设置"
                             title="记录保留设置"
-                            onClick={() => setShowSettings((s) => !s)}
-                            style={{
-                                border: '1px solid var(--control-border)',
-                                background: 'var(--control-bg-active)',
-                                borderRadius: 6,
-                                padding: '4px 10px',
-                                cursor: 'pointer',
-                                color: 'var(--control-text)'
-                            }}
+                            onClick={() => setShowSettings(s => !s)}
+                            className="settings-btn"
                         >
                             ⚙ 设置
                         </button>
                         {showSettings && (
-                            <div
-                                style={{
-                                    position: 'absolute',
-                                    top: 36,
-                                    left: 0,
-                                    zIndex: 10,
-                                    background: 'var(--control-bg)',
-                                    border: '1px solid var(--control-border)',
-                                    borderRadius: 8,
-                                    boxShadow: '0 6px 18px rgba(0,0,0,0.08)',
-                                    padding: 12,
-                                    width: 260,
-                                }}
-                            >
-                                <div className="row-start gap-12" style={{ alignItems: 'center' }}>
-                                    <label className="muted" style={{ whiteSpace: 'nowrap' }}>保留条数</label>
+                            <div className="settings-popover">
+                                <div className="row-start gap-12 align-center">
+                                    <label className="muted nowrap">保留条数</label>
                                     <input
                                         type="number"
                                         min={1}
                                         max={500}
                                         value={keepLimit}
                                         onChange={(e) => updateLimit(Number(e.target.value))}
-                                        style={{ width: 96 }}
+                                        className="w-96"
                                     />
                                 </div>
-                                <div className="muted" style={{ marginTop: 6, fontSize: 12 }}>
+                                <div className="muted mt-6 text-12">
                                     超过此数量的“非收藏”记录将自动清理（默认 30，范围 1-500）
                                 </div>
                             </div>
                         )}
                     </div>
-
                     <Segmented
                         options={[
                             { label: '记录', value: 'records' },
@@ -88,13 +65,7 @@ export default function History() {
                         onChange={(v: string) => setTab(v as 'records' | 'favorites')}
                     />
                 </div>
-
-                {/* 主体列表（根据 tab 渲染） */}
-                {tab === 'records' ? (
-                    <RecordsList filter="all" />
-                ) : (
-                    <RecordsList filter="favorite" />
-                )}
+                {tab === 'records' ? <RecordsList filter="all" /> : <RecordsList filter="favorite" />}
             </section>
         </div>
     );
@@ -110,16 +81,16 @@ function RecordsList({ filter }: { filter: 'all' | 'favorite' }) {
     }
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {filtered.map((r) => (
-                <div key={r.id} className="paper-card" style={{ padding: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div className="col gap-8">
+            {filtered.map(r => (
+                <div key={r.id} className="paper-card pad-12 row-between align-center">
                     <div>
-                        <div style={{ fontWeight: 600 }}>{new Date(r.startedAt).toLocaleString()}</div>
-                        <div className="muted" style={{ fontSize: 12 }}>
+                        <div className="fw-600">{new Date(r.startedAt).toLocaleString()}</div>
+                        <div className="muted text-12">
                             对手：{r.opponent || '—'} · 结果：{r.result || '—'} · 标签：{(r.keyTags || []).join(', ') || '—'}
                         </div>
                     </div>
-                    <div style={{ display: 'flex', gap: 8 }}>
+                    <div className="row-start gap-8">
                         <button className="btn-ghost" onClick={() => navigate(`/app/record/${r.id}`)}>复盘</button>
                         <button className="btn-ghost" onClick={() => { recordStore.toggleFavorite(r.id, !r.favorite); location.reload() }}>{r.favorite ? '取消收藏' : '收藏'}</button>
                     </div>
