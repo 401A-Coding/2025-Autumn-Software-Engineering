@@ -173,6 +173,20 @@ form-data:
 }
 ```
 
+提示
+
+- 开发环境当前实现返回 Data URL（与 OpenAPI 文档一致）：
+
+```json
+{
+  "code": 0,
+  "message": "上传成功",
+  "data": { "url": "data:image/png;base64,iVBORw0KGgoAAA..." }
+}
+```
+
+- 生产可切换为静态存储/OSS/CDN，保持字段名不变（url）。
+
 查询他人主页示例
 
 ```json
@@ -218,12 +232,70 @@ Authorization: Bearer <token>
 
 | 接口     | 方法     | 路径                         | 鉴权 | 描述          |
 | ------ | ------ | -------------------------- | -- | ----------- |
+| 获取标准棋盘 | GET    | `/api/v1/boards/standard` | ❌  | 返回中国象棋标准开局 |
 | 获取模板列表 | GET    | `/api/v1/boards/templates` | ❌  | 获取系统预设棋局模板  |
 | 创建棋局   | POST   | `/api/v1/boards`           | ✅  | 用户自定义棋局     |
 | 查询我的棋局 | GET    | `/api/v1/boards/mine`      | ✅  | 获取自己创建的所有棋局 |
 | 查看棋局详情 | GET    | `/api/v1/boards/:boardId`  | ✅  | 读取棋局布局与规则   |
 | 更新棋局   | PATCH  | `/api/v1/boards/:boardId`  | ✅  | 更新布局或规则     |
 | 删除棋局   | DELETE | `/api/v1/boards/:boardId`  | ✅  | 删除自定义棋局     |
+获取标准棋盘示例
+
+```json
+GET /api/v1/boards/standard
+```
+
+响应
+
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "name": "标准开局",
+    "description": "中国象棋标准开局布局",
+    "layout": {
+      "pieces": [
+        { "type": "chariot", "side": "black", "x": 0, "y": 0 },
+        { "type": "chariot", "side": "black", "x": 8, "y": 0 },
+        { "type": "horse", "side": "black", "x": 1, "y": 0 },
+        { "type": "horse", "side": "black", "x": 7, "y": 0 },
+        { "type": "elephant", "side": "black", "x": 2, "y": 0 },
+        { "type": "elephant", "side": "black", "x": 6, "y": 0 },
+        { "type": "advisor", "side": "black", "x": 3, "y": 0 },
+        { "type": "advisor", "side": "black", "x": 5, "y": 0 },
+        { "type": "general", "side": "black", "x": 4, "y": 0 },
+        { "type": "cannon", "side": "black", "x": 1, "y": 2 },
+        { "type": "cannon", "side": "black", "x": 7, "y": 2 },
+        { "type": "soldier", "side": "black", "x": 0, "y": 3 },
+        { "type": "soldier", "side": "black", "x": 2, "y": 3 },
+        { "type": "soldier", "side": "black", "x": 4, "y": 3 },
+        { "type": "soldier", "side": "black", "x": 6, "y": 3 },
+        { "type": "soldier", "side": "black", "x": 8, "y": 3 },
+        { "type": "chariot", "side": "red", "x": 0, "y": 9 },
+        { "type": "chariot", "side": "red", "x": 8, "y": 9 },
+        { "type": "horse", "side": "red", "x": 1, "y": 9 },
+        { "type": "horse", "side": "red", "x": 7, "y": 9 },
+        { "type": "elephant", "side": "red", "x": 2, "y": 9 },
+        { "type": "elephant", "side": "red", "x": 6, "y": 9 },
+        { "type": "advisor", "side": "red", "x": 3, "y": 9 },
+        { "type": "advisor", "side": "red", "x": 5, "y": 9 },
+        { "type": "general", "side": "red", "x": 4, "y": 9 },
+        { "type": "cannon", "side": "red", "x": 1, "y": 7 },
+        { "type": "cannon", "side": "red", "x": 7, "y": 7 },
+        { "type": "soldier", "side": "red", "x": 0, "y": 6 },
+        { "type": "soldier", "side": "red", "x": 2, "y": 6 },
+        { "type": "soldier", "side": "red", "x": 4, "y": 6 },
+        { "type": "soldier", "side": "red", "x": 6, "y": 6 },
+        { "type": "soldier", "side": "red", "x": 8, "y": 6 }
+      ]
+    },
+    "rules": { "id": 1 },
+    "preview": "",
+    "isTemplate": true
+  }
+}
+```
 
 获取模板列表示例
 
@@ -484,16 +556,16 @@ Authorization: Bearer <token>
 
 ### WebSocket 实时事件
 
-| 事件                 | 方向    | 描述             |
-| ------------------ | ----- | -------------- |
-| `battle.join`      | C → S | 加入房间（带 userId） |
-| `battle.start`     | S → C | 对战开始（同步初始棋盘）   |
-| `battle.move`      | 双向    | 走棋事件           |
-| `battle.chat`      | 双向    | 房间内消息          |
-| `battle.result`    | S → C | 结束结果（胜/负/和）    |
-| `battle.reconnect` | 双向    | 网络重连恢复状态       |
+说明：前端通过 Socket.IO 连接命名空间 `${VITE_API_BASE}/battle`，携带 `Authorization: Bearer <token>`（Socket auth 传递 `token`）。当前已用事件如下：
 
-走棋事件示例
+| 事件                 | 方向    | 描述                                 |
+| ------------------ | ----- | ------------------------------------ |
+| `battle.join`      | C → S | 加入房间（参数包含 `battleId`）             |
+| `battle.snapshot`  | 双向    | 请求/推送权威快照（包含棋盘、轮次、玩家、走子列表） |
+| `battle.move`      | 双向    | 走棋事件（客户端发起、服务端广播）              |
+| `battle.player_join` | S → C | 有玩家进入房间时的通知，用于触发拉取快照              |
+
+走棋事件示例（双向）
 
 ```json
 {
@@ -507,7 +579,7 @@ Authorization: Bearer <token>
 }
 ```
 
-加入房间事件
+加入房间事件（C → S）
 
 ```json
 {
@@ -516,12 +588,43 @@ Authorization: Bearer <token>
 }
 ```
 
-对战开始事件
+快照事件（请求与推送）
+
+请求当前快照（C → S）
 
 ```json
 {
-  "event": "battle.start",
-  "data": { "battleId": 501, "initialBoard": { "pieces": [] } }
+  "event": "battle.snapshot",
+  "data": { "battleId": 501 }
+}
+```
+
+推送权威快照（S → C）
+
+```json
+{
+  "event": "battle.snapshot",
+  "data": {
+    "battleId": 501,
+    "status": "waiting",
+    "mode": "pvp",
+    "players": [1024, 2048],
+    "moves": [ { "seq": 1, "from": {"x":0,"y":6}, "to": {"x":0,"y":4}, "by": 1024, "ts": 1730456822 } ],
+    "turnIndex": 0,
+    "board": { /* 略 */ },
+    "turn": "red",
+    "createdAt": 1730456000,
+    "winnerId": null
+  }
+}
+```
+
+玩家加入通知（S → C）
+
+```json
+{
+  "event": "battle.player_join",
+  "data": { "userId": 2048 }
 }
 ```
 
@@ -529,21 +632,63 @@ Authorization: Bearer <token>
 
 ## 四、对局记录与分享模块（Record / Share）
 
-| 接口     | 方法     | 路径                             | 鉴权 | 描述        |
-| ------ | ------ | ------------------------------ | -- | --------- |
-| 获取我的对局 | GET    | `/api/v1/records`              | ✅  | 分页查询      |
-| 获取对局详情 | GET    | `/api/v1/records/:id`          | ✅  | 查看单局数据    |
-| 上传对局分享 | POST   | `/api/v1/records/:id/share`    | ✅  | 上传至公共平台   |
-| 收藏对局   | POST   | `/api/v1/records/:id/favorite` | ✅  | 收藏        |
-| 取消收藏   | DELETE | `/api/v1/records/:id/favorite` | ✅  | 取消收藏      |
-| 评论对局   | POST   | `/api/v1/records/:id/comments` | ✅  | 添加静态/弹幕评论 |
-| 获取评论   | GET    | `/api/v1/records/:id/comments` | ❌  | 查看评论      |
-| 导出残局   | GET    | `/api/v1/records/:id/export`   | ✅  | 导出指定步残局   |
+说明：
 
-获取我的对局示例
+- 本模块覆盖“本地对战保存、列表、详情、收藏、复盘书签/笔记”等需求。
+- 新增记录时，后端会在“当前用户范围”内自动清理非收藏记录，仅保留最近 30 条；收藏记录不受影响。
+
+| 接口         | 方法     | 路径                                  | 鉴权 | 描述                     |
+| ------------ | -------- | ------------------------------------- | ---- | ------------------------ |
+| 创建对局记录 | POST     | `/api/v1/records`                     | ✅    | 新增一条对局记录（含 moves） |
+| 获取我的对局 | GET      | `/api/v1/records`                     | ✅    | 分页查询；支持 `favorite` 过滤 |
+| 获取对局详情 | GET      | `/api/v1/records/:id`                 | ✅    | 查看单局数据（含 moves、bookmarks） |
+| 更新对局信息 | PATCH    | `/api/v1/records/:id`                 | ✅    | 更新元信息（对手、标签、结果等） |
+| 收藏对局     | POST     | `/api/v1/records/:id/favorite`        | ✅    | 收藏                       |
+| 取消收藏     | DELETE   | `/api/v1/records/:id/favorite`        | ✅    | 取消收藏                   |
+| 新增书签/笔记 | POST     | `/api/v1/records/:id/bookmarks`       | ✅    | 在复盘某步添加书签/笔记         |
+| 修改书签/笔记 | PATCH    | `/api/v1/records/:id/bookmarks/:bid`  | ✅    | 编辑书签/笔记                |
+| 删除书签/笔记 | DELETE   | `/api/v1/records/:id/bookmarks/:bid`  | ✅    | 删除书签/笔记                |
+| 上传对局分享 | POST     | `/api/v1/records/:id/share`           | ✅    | 上传至公共平台                |
+| 获取评论     | GET      | `/api/v1/records/:id/comments`        | ❌    | 查看评论                    |
+| 评论对局     | POST     | `/api/v1/records/:id/comments`        | ✅    | 添加静态/弹幕评论              |
+| 导出残局     | GET      | `/api/v1/records/:id/export`          | ✅    | 导出指定步残局                |
+
+创建对局记录示例
 
 ```json
-GET /api/v1/records?page=1&pageSize=10
+POST /api/v1/records
+Authorization: Bearer <token>
+{
+  "opponent": "本地玩家",
+  "startedAt": "2025-11-11T10:00:00.000Z",
+  "endedAt": "2025-11-11T10:18:25.000Z",
+  "result": "red",
+  "endReason": "checkmate",
+  "keyTags": ["中局反击", "双车压制"],
+  "moves": [
+    {"moveIndex":0, "from":{"x":4,"y":9}, "to":{"x":4,"y":8}, "piece":{"type":"general","side":"red"}},
+    {"moveIndex":1, "from":{"x":4,"y":0}, "to":{"x":4,"y":1}, "piece":{"type":"general","side":"black"}}
+  ],
+  "bookmarks": [
+    {"step":12, "label":"妙手", "note":"这一手很关键"}
+  ]
+}
+```
+
+响应
+
+```json
+{
+  "code": 0,
+  "message": "创建成功",
+  "data": { "id": 601, "createdAt": "2025-11-11T10:18:26.000Z" }
+}
+```
+
+获取我的对局示例（支持收藏筛选）
+
+```json
+GET /api/v1/records?page=1&pageSize=10&favorite=false
 Authorization: Bearer <token>
 ```
 
@@ -554,7 +699,16 @@ Authorization: Bearer <token>
   "code": 0,
   "message": "success",
   "data": {
-    "items": [ { "id": 501, "result": "win", "createdAt": "2025-10-31T12:00:00.000Z" } ],
+    "items": [
+      {
+        "id": 501,
+        "opponent": "本地玩家",
+        "result": "win",
+        "keyTags": ["中局反击"],
+        "favorite": false,
+        "createdAt": "2025-10-31T12:00:00.000Z"
+      }
+    ],
     "page": 1,
     "pageSize": 10,
     "total": 12
@@ -562,7 +716,7 @@ Authorization: Bearer <token>
 }
 ```
 
-获取对局详情示例
+获取对局详情示例（含 moves、bookmarks）
 
 ```json
 GET /api/v1/records/501
@@ -577,11 +731,50 @@ Authorization: Bearer <token>
   "message": "success",
   "data": {
     "id": 501,
-    "battleId": 501,
-    "data": { "moves": [] },
-    "shared": false
+    "opponent": "本地玩家",
+    "startedAt": "2025-11-11T10:00:00.000Z",
+    "endedAt": "2025-11-11T10:18:25.000Z",
+    "result": "red",
+    "endReason": "checkmate",
+    "keyTags": ["中局反击"],
+    "favorite": false,
+    "moves": [ { "moveIndex": 0 }, { "moveIndex": 1 } ],
+    "bookmarks": [ { "id": 1, "step": 12, "label": "妙手" } ]
   }
 }
+```
+
+更新对局信息示例
+
+```json
+PATCH /api/v1/records/501
+Authorization: Bearer <token>
+{
+  "opponent": "AI Lv.3",
+  "keyTags": ["残局逆转"],
+  "result": "black",
+  "endReason": "resign"
+}
+```
+
+响应
+
+```json
+{ "code": 0, "message": "success", "data": {} }
+```
+
+新增书签/笔记示例
+
+```json
+POST /api/v1/records/501/bookmarks
+Authorization: Bearer <token>
+{ "step": 25, "label": "机会", "note": "这里应该先手弃炮" }
+```
+
+响应
+
+```json
+{ "code": 0, "message": "success", "data": { "id": 2 } }
 ```
 
 上传对局分享示例
@@ -672,6 +865,75 @@ Content-Type: application/octet-stream
 
 <binary content>
 ```
+
+---
+
+### 记录偏好（Retention Preferences）
+
+说明：用于控制“只保留最近 N 条非收藏对局”的用户级偏好。后端在创建新对局记录时，将依据该偏好自动清理超出上限的“非收藏”记录（收藏与置顶不受清理影响）。
+
+| 接口           | 方法   | 路径                         | 鉴权 | 描述                  |
+| -------------- | ------ | ---------------------------- | ---- | --------------------- |
+| 获取记录偏好   | GET    | `/api/v1/records/prefs`      | ✅    | 获取当前用户的记录保留偏好 |
+| 更新记录偏好   | PATCH  | `/api/v1/records/prefs`      | ✅    | 更新保留上限、是否自动清理 |
+
+字段定义
+
+- keepLimit: number，保留的“非收藏”记录上限；默认 30；建议范围 1–500（超范围按边界裁剪）。
+- autoCleanEnabled: boolean，是否在新建记录后自动清理；默认 true。
+- updatedAt: ISO Date，服务端维护的更新时间。
+
+获取记录偏好示例
+
+```json
+GET /api/v1/records/prefs
+Authorization: Bearer <token>
+```
+
+响应
+
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "keepLimit": 30,
+    "autoCleanEnabled": true,
+    "updatedAt": "2025-10-31T12:00:00.000Z"
+  }
+}
+```
+
+更新记录偏好示例
+
+```json
+PATCH /api/v1/records/prefs
+Authorization: Bearer <token>
+{
+  "keepLimit": 50,
+  "autoCleanEnabled": true
+}
+```
+
+响应
+
+```json
+{
+  "code": 0,
+  "message": "更新成功",
+  "data": {
+    "keepLimit": 50,
+    "autoCleanEnabled": true,
+    "updatedAt": "2025-10-31T12:05:00.000Z"
+  }
+}
+```
+
+后端清理规则
+
+- 当 autoCleanEnabled=true 时，成功创建记录后执行清理：按 createdAt 倒序，仅保留非收藏记录的最近 keepLimit 条；收藏记录不参与清理。
+- 为降低写放大，清理可延迟到“创建后异步任务”或“列表读取前惰性清理”，但对外行为一致。
+- 强制边界：keepLimit<1 记为 1；keepLimit>500 记为 500。
 
 ---
 
@@ -831,12 +1093,50 @@ model Battle {
 }
 
 model Record {
+  id           Int        @id @default(autoincrement())
+  userId       Int
+  opponent     String?
+  startedAt    DateTime
+  endedAt      DateTime?
+  result       String
+  endReason    String?
+  keyTags      String[]
+  favorite     Boolean    @default(false)
+  moves        Move[]
+  bookmarks    Bookmark[]
+  shared       Boolean    @default(false)
+  comments     Comment[]
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+}
+
+model Move {
+  id           Int      @id @default(autoincrement())
+  recordId     Int
+  moveIndex    Int
+  fromX        Int
+  fromY        Int
+  toX          Int
+  toY          Int
+  pieceType    String
+  pieceSide    String
+  capturedType String?
+  capturedSide String?
+  timeSpentMs  Int?
+  san          String?
+  record       Record   @relation(fields: [recordId], references: [id])
+  @@unique([recordId, moveIndex])
+}
+
+model Bookmark {
   id        Int      @id @default(autoincrement())
-  battleId  Int
-  data      Json
-  shared    Boolean
-  tags      String[]
-  comments  Comment[]
+  recordId  Int
+  step      Int
+  label     String?
+  note      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  record    Record   @relation(fields: [recordId], references: [id])
 }
 
 model Comment {
@@ -848,28 +1148,45 @@ model Comment {
   step      Int
   createdAt DateTime @default(now())
 }
+
+// 用户记录保留偏好（仅摘要展示）
+model UserPreference {
+  userId            Int       @id
+  keepLimit         Int       @default(30)
+  autoCleanEnabled  Boolean   @default(true)
+  updatedAt         DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+}
 ```
 
 ---
 
 ## 八、错误码对照表
 
-| code | 含义         |
-| ---- | ---------- |
-| 0    | 成功         |
-| 1001 | 参数错误       |
-| 1002 | 鉴权失败或JWT过期 |
-| 1003 | 无权限访问      |
-| 2001 | 用户不存在      |
-| 3001 | 棋局不存在      |
-| 4001 | 房间已满或密码错误  |
-| 5001 | 服务器内部错误    |
+| code | 含义                              |
+| ---- | --------------------------------- |
+| 0    | 成功                              |
+| 1001 | 参数错误（含：手机号格式不正确、缺少文件等） |
+| 1002 | 手机号已被注册                      |
+| 1003 | 密码过于简单                        |
+| 1004 | 请求过于频繁（短信防刷）              |
+| 2001 | 用户不存在                          |
+| 3001 | 棋局不存在                          |
+| 4001 | 房间已满或密码错误                    |
+| 5001 | 服务器内部错误                        |
+| 401  | 未认证或令牌无效（部分错误示例采用 HTTP 状态码） |
+
+说明
+
+- 为与 OpenAPI 示例对齐，部分鉴权错误示例使用了 HTTP 401 作为 code；其余业务/校验错误使用 1xxx 域内错误码。
+- 如需完全统一为域内错误码，可将 401 归并为 1002（鉴权失败/令牌过期），但需同步更新 OpenAPI examples 与前端提示文案。
 
 ---
 
 ## 九、附录：接口鉴权规则
 
-* `Authorization: Bearer <token>`
-* Redis 存储黑名单，用于登出/失效 token 管理。
+- `Authorization: Bearer <token>`
+- Redis 存储黑名单，用于登出/失效 token 管理。
 
 ---

@@ -6,9 +6,10 @@ import { generateCustomMoves } from './customRules'
 import type { CustomRuleSet } from './ruleEngine'
 import { isCustomRuleSet, ruleSetToCustomRules } from './ruleAdapter'
 import { generateMovesFromRules } from './ruleEngine'
+import { generateLegalMoves, movePiece, checkGameOver, isInCheck } from './rules'
+import './board.css'
 
-const cellSize = 40 // px
-const margin = cellSize / 2 // 让棋子落在格线交叉点（居中），避免靠边溢出
+// Board metrics are defined in CSS (board.css). Keep TS constants removed.
 
 function PieceGlyph({ type, side }: { type: string; side: Side }) {
     const textMap: Record<string, string> = {
@@ -21,16 +22,7 @@ function PieceGlyph({ type, side }: { type: string; side: Side }) {
         soldier: side === 'red' ? '兵' : '卒',
     }
     return (
-        <div style={{
-            width: cellSize - 6,
-            height: cellSize - 6,
-            borderRadius: '50%',
-            border: `2px solid ${side === 'red' ? '#a62337' : '#333'}`,
-            color: side === 'red' ? '#a62337' : '#333',
-            background: '#fffdf7',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontWeight: 700
-        }}>
+        <div className={`piece ${side === 'red' ? 'piece--red' : 'piece--black'}`}>
             {textMap[type] || '?'}
         </div>
     )
@@ -126,14 +118,14 @@ export default function Board({ customRules: customRulesProp, initialBoard }: Bo
     function onCellClick(x: number, y: number) {
         // 游戏结束后不允许继续走子
         if (state.winner) return
-        
+
         const piece = state.board[y][x]
         // 若当前有选中且点击到合法落点，则走子
         const isLegal = legal.some(m => m.x === x && m.y === y)
         if (state.selected && isLegal) {
             const nb = movePiece(state.board, state.selected, { x, y })
             const nextTurn: Side = state.turn === 'red' ? 'black' : 'red'
-            
+
             // 检查游戏是否结束
             // 若当前使用自定义规则，传入 customRules 以便它按照自定义规则判定（自定义规则下仅将被吃判输）
             const gameResult = checkGameOver(nb, nextTurn, state.customRules)
@@ -146,6 +138,11 @@ export default function Board({ customRules: customRulesProp, initialBoard }: Bo
                 winner: gameResult || undefined,
                 customRules: s.customRules, // 保留自定义规则
             }))
+            // 回调：记录一步
+            onMove?.({ from: state.selected!, to: { x, y }, turn: state.turn, ts: Date.now() })
+            if (gameResult) {
+                onGameOver?.(gameResult)
+            }
             return
         }
         // 否则：若该格有当前行棋方的棋子，则选中
@@ -187,33 +184,16 @@ export default function Board({ customRules: customRulesProp, initialBoard }: Bo
 
     return (
         <div>
-            <style>{`
-                @keyframes pulse {
-                    0%, 100% { opacity: 1; transform: scale(1); }
-                    50% { opacity: 0.8; transform: scale(1.05); }
-                }
-            `}</style>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div className="board-toolbar">
+                <div className="board-toolbar__left">
                     <div>
-                        当前手：<b style={{ color: state.turn === 'red' ? '#a62337' : '#333' }}>{state.turn === 'red' ? '红' : '黑'}</b>
+                        当前手：<b className={state.turn === 'red' ? 'turn-red' : 'turn-black'}>{state.turn === 'red' ? '红' : '黑'}</b>
                     </div>
                     {inCheck && !state.winner && (
-                        <div style={{
-                            padding: '4px 12px',
-                            background: 'linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%)',
-                            color: 'white',
-                            borderRadius: 4,
-                            fontSize: 14,
-                            fontWeight: 700,
-                            animation: 'pulse 1.5s ease-in-out infinite',
-                            boxShadow: '0 2px 8px rgba(255,107,107,0.4)',
-                        }}>
-                            ⚠️ 将军！
-                        </div>
+                        <div className="incheck-banner pulse">⚠️ 将军！</div>
                     )}
                 </div>
-                <div style={{ display: 'flex', gap: 8 }}>
+                <div className="board-toolbar__actions">
                     <button className="btn-ghost" onClick={undo}>悔棋</button>
                     <button className="btn-primary" onClick={restart}>重新开始</button>
                 </div>
@@ -240,10 +220,8 @@ export default function Board({ customRules: customRulesProp, initialBoard }: Bo
                     <div key={'v' + col} style={{ position: 'absolute', top: margin, bottom: margin, left: margin + col * cellSize, width: 1, background: '#c9b37e', transform: 'translateX(-0.5px)', zIndex: 1 }} />
                 ))}
                 {/* 楚河汉界 */}
-                <div style={{ position: 'absolute', left: margin, right: margin, top: margin + cellSize * 4.5, height: 1, background: '#7f6a3c' }} />
-                <div style={{ position: 'absolute', left: margin, right: margin, top: margin + cellSize * 4.5 - 8, textAlign: 'center', color: '#7f3b2f', fontWeight: 700, opacity: .3 }}>
-                    楚河        漢界
-                </div>
+                <div className="river-line" />
+                <div className="river-text">楚河        漢界</div>
                 {/* 宫线（简化：只画边框） */}
                 <div style={{ position: 'absolute', left: margin + cellSize * 3, top: margin + 0, width: cellSize * 3, height: cellSize * 3, border: '1px solid #c9b37e', boxSizing: 'border-box', zIndex: 1 }} />
                 <div style={{ position: 'absolute', left: margin + cellSize * 3, top: margin + cellSize * 7, width: cellSize * 3, height: cellSize * 3, border: '1px solid #c9b37e', boxSizing: 'border-box', zIndex: 1 }} />
@@ -261,14 +239,14 @@ export default function Board({ customRules: customRulesProp, initialBoard }: Bo
                 {state.board.map((row, y) => row.map((p, x) => {
                     // 检查该位置是否是可吃子的目标
                     const canCapture = state.selected && legal.some(m => m.x === x && m.y === y) && p && p.side !== state.turn
-                    
+
                     return p && (
                         <div key={p.id}
                             onClick={() => onCellClick(x, y)}
                             style={{ position: 'absolute', left: margin + x * cellSize - (cellSize - 6) / 2, top: margin + y * cellSize - (cellSize - 6) / 2, cursor: 'pointer', zIndex: 3 }}>
                             <PieceGlyph type={p.type} side={p.side} />
                             {state.selected && state.selected.x === x && state.selected.y === y && (
-                                <div style={{ position: 'absolute', inset: 0, border: '2px solid #a62337', borderRadius: '50%' }} />
+                                <div className="piece-selected" />
                             )}
                             {/* 将军高亮 */}
                             {kingInCheckPos && kingInCheckPos.x === x && kingInCheckPos.y === y && (
@@ -302,52 +280,28 @@ export default function Board({ customRules: customRulesProp, initialBoard }: Bo
 
             {/* 游戏结束提示 */}
             {showGameOver && state.winner && (
-                <div style={{
-                    position: 'fixed',
-                    inset: 0,
-                    background: 'rgba(0,0,0,0.6)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    zIndex: 1000,
-                }}>
-                    <div className="paper-card" style={{ 
-                        padding: 32, 
-                        minWidth: 300,
-                        textAlign: 'center',
-                        boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
-                    }}>
-                        <div style={{ 
-                            fontSize: 32, 
-                            fontWeight: 700,
-                            marginBottom: 16,
-                            color: state.winner === 'red' ? '#a62337' : state.winner === 'black' ? '#333' : '#666',
-                        }}>
+                <div className="gameover-mask">
+                    <div className="paper-card gameover-card">
+                        <div className={`gameover-title ${state.winner === 'red' ? 'turn-red' : state.winner === 'black' ? 'turn-black' : 'turn-draw'}`}>
                             {getWinnerText()}
                         </div>
-                        
+
                         {state.winner !== 'draw' && (
-                            <div style={{ 
-                                fontSize: 14, 
-                                color: 'var(--muted)', 
-                                marginBottom: 24 
-                            }}>
+                            <div className="gameover-sub">
                                 {state.winner === 'red' ? '黑方' : '红方'}已无法继续对局
                             </div>
                         )}
 
-                        <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
-                            <button 
-                                className="btn-ghost" 
+                        <div className="gameover-actions">
+                            <button
+                                className="btn-ghost btn-wide"
                                 onClick={() => setShowGameOver(false)}
-                                style={{ minWidth: 100 }}
                             >
                                 查看棋局
                             </button>
-                            <button 
-                                className="btn-primary" 
+                            <button
+                                className="btn-primary btn-wide"
                                 onClick={restart}
-                                style={{ minWidth: 100 }}
                             >
                                 重新开始
                             </button>

@@ -30,13 +30,6 @@ paths:
           application/json:
             schema:
               $ref: "#/components/schemas/AuthRegisterRequest"
-            examples:
-              phone:
-                value:
-                  type: phone
-                  phone: "13800000000"
-                  code: "8523"
-                  password: Abc12345
       responses:
         "200":
           description: Registered
@@ -59,6 +52,22 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiResponseError"
+              examples:
+                invalidPhone:
+                  value:
+                    code: 1001
+                    message: 手机号格式不正确
+                    data: null
+                phoneTaken:
+                  value:
+                    code: 1002
+                    message: 手机号已被注册
+                    data: null
+                weakPassword:
+                  value:
+                    code: 1003
+                    message: 密码过于简单
+                    data: null
   /api/v1/auth/login:
     post:
       tags: [Auth]
@@ -70,12 +79,6 @@ paths:
           application/json:
             schema:
               $ref: "#/components/schemas/AuthLoginRequest"
-            examples:
-              phone:
-                value:
-                  type: phone
-                  phone: "13800000000"
-                  password: Abc12345
       responses:
         "200":
           description: Logged in
@@ -98,6 +101,66 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiResponseError"
+              examples:
+                incorrectCredentials:
+                  value:
+                    code: 401
+                    message: 账号或密码错误
+                    data: null
+                userNotFound:
+                  value:
+                    code: 401
+                    message: 用户不存在或已被禁用
+                    data: null
+  /api/v1/auth/refresh:
+    post:
+      tags: [Auth]
+      summary: Refresh and rotate tokens
+      operationId: authRefresh
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AuthRefreshRequest"
+      responses:
+        "200":
+          description: Refreshed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseAuthTokens"
+              examples:
+                ok:
+                  value:
+                    code: 0
+                    message: 刷新成功
+                    data:
+                      accessToken: eyJhbGciOi...
+                      refreshToken: eyJhbGciOi...
+                      expiresIn: 1800
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseError"
+              examples:
+                invalidRefresh:
+                  value:
+                    code: 401
+                    message: 刷新令牌无效
+                    data: null
+                expiredRefresh:
+                  value:
+                    code: 401
+                    message: 刷新令牌已过期
+                    data: null
+                revoked:
+                  value:
+                    code: 401
+                    message: 刷新令牌已注销
+                    data: null
   /api/v1/users/me:
     get:
       tags: [Users]
@@ -130,6 +193,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiResponseError"
+              examples:
+                unauthorized:
+                  value:
+                    code: 401
+                    message: 未认证或令牌无效
+                    data: null
     patch:
       tags: [Users]
       summary: Update current user profile
@@ -149,6 +218,30 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiResponseUser"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseError"
+              examples:
+                nicknameTaken:
+                  value:
+                    code: 1001
+                    message: 昵称已被占用
+                    data: null
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseError"
+              examples:
+                unauthorized:
+                  value:
+                    code: 401
+                    message: 未认证或令牌无效
+                    data: null
 
   /api/v1/auth/sms:
     post:
@@ -168,6 +261,23 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiResponseSmsSent"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseError"
+              examples:
+                invalidPhone:
+                  value:
+                    code: 1001
+                    message: 手机号格式不正确
+                    data: null
+                rateLimited:
+                  value:
+                    code: 1004
+                    message: 请求过于频繁，请稍后再试
+                    data: null
 
   /api/v1/auth/logout:
     post:
@@ -183,6 +293,18 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiResponseOk"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseError"
+              examples:
+                unauthorized:
+                  value:
+                    code: 401
+                    message: 未认证或令牌无效
+                    data: null
 
   /api/v1/users/{userId}:
     get:
@@ -203,6 +325,18 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiResponseUser"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseError"
+              examples:
+                unauthorized:
+                  value:
+                    code: 401
+                    message: 未认证或令牌无效
+                    data: null
 
   /api/v1/users/me/avatar:
     post:
@@ -222,6 +356,10 @@ paths:
                 file:
                   type: string
                   format: binary
+                  description: 上传头像文件（仅支持 image/png、image/jpeg、image/webp），建议大小 ≤ 2MB
+            encoding:
+              file:
+                contentType: image/png, image/jpeg, image/webp
       responses:
         "200":
           description: Uploaded
@@ -229,19 +367,70 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiResponseAvatar"
+              examples:
+                ok:
+                  value:
+                    code: 0
+                    message: 上传成功
+                    data:
+                      url: data:image/png;base64,iVBORw0KGgoAAAANSUhEUg...
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseError"
+              examples:
+                missingFile:
+                  value:
+                    code: 1001
+                    message: 缺少文件
+                    data: null
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseError"
+              examples:
+                unauthorized:
+                  value:
+                    code: 401
+                    message: 未认证或令牌无效
+                    data: null
 
   /api/v1/boards/templates:
     get:
       tags: [Boards]
       summary: List board templates
       operationId: boardsTemplates
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer, default: 1, minimum: 1 }
+        - in: query
+          name: pageSize
+          schema: { type: integer, default: 10, minimum: 1, maximum: 100 }
       responses:
         "200":
           description: Templates
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ApiResponseBoardTemplates"
+                $ref: "#/components/schemas/ApiResponsePageBoardTemplates"
+
+  /api/v1/boards/standard:
+    get:
+      tags: [Boards]
+      summary: Get standard Xiangqi board definition
+      operationId: boardsStandard
+      responses:
+        "200":
+          description: Standard board definition
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseBoard"
 
   /api/v1/boards:
     post:
@@ -263,6 +452,21 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiResponseBoardCreateResult"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseError"
+              examples:
+                invalidRules:
+                  value:
+                    code: 400
+                    message: 参数校验失败
+                    data:
+                      details:
+                        - "rules.pieceRules.general.constraints.palace must be one of [none, insideOnly, outsideOnly]"
+                        - "name should not be empty"
 
   /api/v1/boards/mine:
     get:
@@ -296,7 +500,6 @@ paths:
       parameters:
         - in: path
           name: boardId
-          required: true
           schema: { type: integer }
       responses:
         "200":
@@ -314,7 +517,6 @@ paths:
       parameters:
         - in: path
           name: boardId
-          required: true
           schema: { type: integer }
       requestBody:
         required: true
@@ -329,6 +531,21 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiResponseBoard"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseError"
+              examples:
+                invalidPatch:
+                  value:
+                    code: 400
+                    message: 参数校验失败
+                    data:
+                      details:
+                        - "rules.ruleVersion must be an integer greater than or equal to 1"
+                        - "layout.pieces[0].x must be an integer"
     delete:
       tags: [Boards]
       summary: Delete board
@@ -338,7 +555,6 @@ paths:
       parameters:
         - in: path
           name: boardId
-          required: true
           schema: { type: integer }
       responses:
         "200":
@@ -389,7 +605,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiResponseBattle"
-
   /api/v1/battles/match:
     post:
       tags: [Battles]
@@ -467,6 +682,9 @@ paths:
         - in: query
           name: pageSize
           schema: { type: integer, default: 10 }
+        - in: query
+          name: favorite
+          schema: { type: boolean, nullable: true }
       responses:
         "200":
           description: Records page
@@ -474,6 +692,25 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiResponsePageRecords"
+    post:
+      tags: [Records]
+      summary: Create a record
+      operationId: recordsCreate
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RecordCreateRequest"
+      responses:
+        "200":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseRecord"
 
   /api/v1/records/{id}:
     get:
@@ -494,6 +731,30 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiResponseRecord"
+    patch:
+      tags: [Records]
+      summary: Update record meta
+      operationId: recordsUpdate
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RecordUpdateRequest"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseOk"
   /api/v1/records/{id}/share:
     post:
       tags: [Records]
@@ -618,6 +879,118 @@ paths:
                 type: string
                 format: binary
 
+  /api/v1/records/{id}/bookmarks:
+    post:
+      tags: [Records]
+      summary: Add bookmark/note
+      operationId: recordsBookmarkAdd
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BookmarkCreateRequest"
+      responses:
+        "200":
+          description: Added
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseBookmarkCreate"
+
+  /api/v1/records/{id}/bookmarks/{bid}:
+    patch:
+      tags: [Records]
+      summary: Update bookmark/note
+      operationId: recordsBookmarkUpdate
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+        - in: path
+          name: bid
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BookmarkUpdateRequest"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseOk"
+    delete:
+      tags: [Records]
+      summary: Delete bookmark/note
+      operationId: recordsBookmarkDelete
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+        - in: path
+          name: bid
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseOk"
+
+  /api/v1/records/prefs:
+    get:
+      tags: [Records]
+      summary: Get record retention preferences
+      operationId: recordsPrefsGet
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Prefs
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseRecordPrefs"
+    patch:
+      tags: [Records]
+      summary: Update record retention preferences
+      operationId: recordsPrefsUpdate
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RecordPrefsPatch"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseRecordPrefs"
+
   /api/v1/community/shares:
     get:
       tags: [Community]
@@ -720,67 +1093,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/ApiResponsePageSearchResults"
 
-  # Legacy dev endpoints (implemented today) - no envelope
-  /user/register:
-    post:
-      tags: [Auth]
-      summary: LEGACY dev - register (no envelope)
-      description: Returns tokens directly { accessToken, refreshToken }.
-      operationId: legacyRegister
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [phone, password]
-              properties:
-                phone:
-                  type: string
-                  example: "13800000000"
-                password:
-                  type: string
-                  format: password
-                  example: Abc12345
-                email:
-                  type: string
-                  example: a@b.com
-      responses:
-        "200":
-          description: Registered
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/AuthTokens"
-  /user/login:
-    post:
-      tags: [Auth]
-      summary: LEGACY dev - login (no envelope)
-      description: Returns tokens directly { accessToken, refreshToken }.
-      operationId: legacyLogin
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [phone, password]
-              properties:
-                phone:
-                  type: string
-                  example: "13800000000"
-                password:
-                  type: string
-                  format: password
-                  example: Abc12345
-      responses:
-        "200":
-          description: Logged in
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/AuthTokens"
-
 components:
   securitySchemes:
     bearerAuth:
@@ -822,7 +1134,14 @@ components:
           type: string
           example: 参数错误
         data:
-          nullable: true
+          oneOf:
+            - type: "null"
+            - type: object
+              description: 参数校验错误详情
+              properties:
+                details:
+                  type: array
+                  items: { type: string }
       required: [code, message]
     AuthRegisterRequest:
       type: object
@@ -863,6 +1182,13 @@ components:
           type: string
           format: password
           example: Abc12345
+    AuthRefreshRequest:
+      type: object
+      required: [refreshToken]
+      properties:
+        refreshToken:
+          type: string
+          example: eyJhbGciOi...
     AuthTokens:
       type: object
       properties:
@@ -948,7 +1274,7 @@ components:
                   y: { type: integer }
                   side: { type: string, enum: [red, black] }
         rules:
-          type: object
+          $ref: "#/components/schemas/Rules"
     BoardTemplate:
       type: object
       properties:
@@ -962,14 +1288,18 @@ components:
         name: { type: string }
         description: { type: string, nullable: true }
         layout: { type: object }
-        rules: { type: object, nullable: true }
+        rules:
+          $ref: "#/components/schemas/Rules"
+          # Update 请求端允许部分字段（Partial），服务端将进行合并
     BoardUpdateRequest:
       type: object
       properties:
         name: { type: string }
         description: { type: string, nullable: true }
         layout: { type: object }
-        rules: { type: object, nullable: true }
+        rules:
+          $ref: "#/components/schemas/Rules"
+          # Update 请求端允许部分字段（Partial），服务端将进行合并
     ApiResponseBoardTemplates:
       type: object
       properties:
@@ -978,6 +1308,20 @@ components:
         data:
           type: array
           items: { $ref: "#/components/schemas/BoardTemplate" }
+    ApiResponsePageBoardTemplates:
+      type: object
+      properties:
+        code: { type: integer, example: 0 }
+        message: { type: string, example: success }
+        data:
+          type: object
+          properties:
+            items:
+              type: array
+              items: { $ref: "#/components/schemas/BoardTemplate" }
+            page: { type: integer }
+            pageSize: { type: integer }
+            total: { type: integer }
     ApiResponseBoardCreateResult:
       type: object
       properties:
@@ -1100,8 +1444,91 @@ components:
       properties:
         id: { type: integer }
         battleId: { type: integer }
-        data: { type: object }
-        shared: { type: boolean }
+        opponent: { type: string, nullable: true }
+        startedAt: { type: string, format: date-time, nullable: true }
+        endedAt: { type: string, format: date-time, nullable: true }
+        result: { type: string, nullable: true, example: red }
+        endReason: { type: string, nullable: true, example: checkmate }
+        keyTags:
+          type: array
+          items: { type: string }
+        favorite: { type: boolean, default: false }
+        moves:
+          type: array
+          items: { $ref: "#/components/schemas/RecordMove" }
+        bookmarks:
+          type: array
+          items: { $ref: "#/components/schemas/Bookmark" }
+        shared: { type: boolean, default: false }
+        createdAt: { type: string, format: date-time, nullable: true }
+        updatedAt: { type: string, format: date-time, nullable: true }
+    RecordMove:
+      type: object
+      properties:
+        moveIndex: { type: integer }
+        from:
+          type: object
+          properties: { x: { type: integer }, y: { type: integer } }
+        to:
+          type: object
+          properties: { x: { type: integer }, y: { type: integer } }
+        piece:
+          type: object
+          properties:
+            type: { type: string }
+            side: { type: string, enum: [red, black] }
+        capturedType: { type: string, nullable: true }
+        capturedSide: { type: string, nullable: true }
+        timeSpentMs: { type: integer, nullable: true }
+        san: { type: string, nullable: true }
+    Bookmark:
+      type: object
+      properties:
+        id: { type: integer }
+        step: { type: integer }
+        label: { type: string, nullable: true }
+        note: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time, nullable: true }
+        updatedAt: { type: string, format: date-time, nullable: true }
+    RecordCreateRequest:
+      type: object
+      properties:
+        opponent: { type: string, nullable: true }
+        startedAt: { type: string, format: date-time, nullable: true }
+        endedAt: { type: string, format: date-time, nullable: true }
+        result: { type: string, nullable: true }
+        endReason: { type: string, nullable: true }
+        keyTags:
+          type: array
+          items: { type: string }
+        moves:
+          type: array
+          items: { $ref: "#/components/schemas/RecordMove" }
+        bookmarks:
+          type: array
+          items: { $ref: "#/components/schemas/Bookmark" }
+    RecordUpdateRequest:
+      type: object
+      properties:
+        opponent: { type: string }
+        result: { type: string }
+        endReason: { type: string }
+        keyTags:
+          type: array
+          items: { type: string }
+    BookmarkCreateRequest:
+      type: object
+      required: [step]
+      properties:
+        step: { type: integer }
+        label: { type: string, nullable: true }
+        note: { type: string, nullable: true }
+    BookmarkUpdateRequest:
+      type: object
+      properties:
+        step: { type: integer }
+        label: { type: string, nullable: true }
+        note: { type: string, nullable: true }
     ShareRequest:
       type: object
       properties:
@@ -1141,15 +1568,129 @@ components:
         code: { type: integer, example: 0 }
         message: { type: string, example: success }
         data: { $ref: "#/components/schemas/Record" }
+    ApiResponseBookmarkCreate:
+      type: object
+      properties:
+        code: { type: integer, example: 0 }
+        message: { type: string, example: success }
+        data:
+          type: object
+          properties:
+            id: { type: integer }
+
     ApiResponseShareResult:
       type: object
       properties:
         code: { type: integer, example: 0 }
-        message: { type: string, example: 分享成功 }
+        message: { type: string, example: success }
         data:
           type: object
           properties:
-            shareId: { type: integer }
+            shareId: { type: integer, example: 9001 }
+            url: { type: string, nullable: true, example: "/shares/9001" }
+
+    # ---- Custom Rules schema for board editor ----
+    Rules:
+      type: object
+      description: 自定义棋局规则（编辑器用），支持模板与图形化自定义
+      required: [layoutSource, pieceRules]
+      properties:
+        ruleVersion: { type: integer, minimum: 1, maximum: 100, default: 1 }
+        layoutSource:
+          type: string
+          enum: [empty, standard, template]
+        templateRefId: { type: integer, nullable: true }
+        coordinateSystem:
+          type: string
+          enum: [relativeToSide, absolute]
+          default: relativeToSide
+        mode:
+          type: string
+          enum: [analysis, localVersus]
+          default: analysis
+        pieceRules:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/PieceRuleConfig"
+        notes: { type: string, maxLength: 200, nullable: true }
+        templatesUsed:
+          type: array
+          items: { type: string }
+    PieceRuleConfig:
+      type: object
+      required: [ruleType]
+      properties:
+        ruleType: { type: string, enum: [template, custom] }
+        templateKey: { type: string, nullable: true }
+        movement: { $ref: "#/components/schemas/MoveSpec" }
+        captureMode:
+          { type: string, enum: [sameAsMove, separate], default: sameAsMove }
+        capture: { $ref: "#/components/schemas/MoveSpec" }
+        constraints: { $ref: "#/components/schemas/ConstraintsSpec" }
+    MoveSpec:
+      type: object
+      properties:
+        rays:
+          type: array
+          items: { $ref: "#/components/schemas/RaySpec" }
+        steps:
+          type: array
+          items: { $ref: "#/components/schemas/StepSpec" }
+        gridMask:
+          type: array
+          items:
+            type: array
+            items: { type: integer }
+            minItems: 2
+            maxItems: 2
+        maxDestinations: { type: integer, minimum: 1 }
+    RaySpec:
+      type: object
+      properties:
+        directions:
+          type: array
+          items:
+            type: string
+            enum: [N, S, E, W, NE, NW, SE, SW]
+        vectors:
+          type: array
+          items:
+            type: array
+            items: { type: integer }
+            minItems: 2
+            maxItems: 2
+        maxSteps: { type: integer, minimum: 1, nullable: true }
+        requireScreensForMove:
+          { type: integer, minimum: 0, maximum: 2, default: 0 }
+        requireScreensForCapture:
+          { type: integer, minimum: 0, maximum: 2, default: 0 }
+        stopAtFirstBlocker: { type: boolean, default: true }
+    StepSpec:
+      type: object
+      properties:
+        offset:
+          type: array
+          items: { type: integer }
+          minItems: 2
+          maxItems: 2
+        requiredEmpty:
+          type: array
+          items:
+            type: array
+            items: { type: integer }
+            minItems: 2
+            maxItems: 2
+        allowCapture: { type: boolean, default: true }
+    ConstraintsSpec:
+      type: object
+      properties:
+        palace:
+          { type: string, enum: [none, insideOnly, outsideOnly], default: none }
+        river:
+          { type: string, enum: [none, cannotCross, mustCross], default: none }
+        forwardOnlyBeforeRiver: { type: boolean }
+        enableSidewaysAfterRiver: { type: boolean }
+        allowBackwardAfterRiver: { type: boolean }
     ApiResponseComments:
       type: object
       properties:
@@ -1222,3 +1763,20 @@ components:
             page: { type: integer }
             pageSize: { type: integer }
             total: { type: integer }
+    RecordPrefs:
+      type: object
+      properties:
+        keepLimit: { type: integer, example: 30, minimum: 1, maximum: 500 }
+        autoCleanEnabled: { type: boolean, example: true }
+        updatedAt: { type: string, format: date-time }
+    RecordPrefsPatch:
+      type: object
+      properties:
+        keepLimit: { type: integer, minimum: 1, maximum: 500 }
+        autoCleanEnabled: { type: boolean }
+    ApiResponseRecordPrefs:
+      type: object
+      properties:
+        code: { type: integer, example: 0 }
+        message: { type: string, example: success }
+        data: { $ref: "#/components/schemas/RecordPrefs" }

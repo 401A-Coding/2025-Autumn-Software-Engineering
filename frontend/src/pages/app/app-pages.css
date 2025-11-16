@@ -1,0 +1,148 @@
+/* Common page styles for app pages */
+.card-pad {
+    padding: 16px;
+}
+
+.mt-0 {
+    margin-top: 0;
+}
+
+.mt-6 {
+    margin-top: 6px;
+}
+
+.mt-8 {
+    margin-top: 8px;
+}
+
+.mt-12 {
+    margin-top: 12px;
+}
+
+/* Segmented control (slider/pill) */
+.segmented {
+    position: relative;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    align-items: center;
+    background: var(--muted-bg);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 2px;
+    width: 160px;
+    height: 36px;
+}
+
+.segmented__slider {
+    position: absolute;
+    top: 2px;
+    bottom: 2px;
+    left: 2px;
+    width: calc(50% - 2px);
+    background: #fffdf7;
+    border-radius: 999px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+    transition: transform 200ms ease;
+}
+
+.segmented__item {
+    position: relative;
+    z-index: 1;
+    appearance: none;
+    background: transparent;
+    border: none;
+    height: 32px;
+    border-radius: 999px;
+    font-weight: 700;
+    color: var(--muted);
+}
+
+.segmented__item.is-active {
+    color: #7f3b2f;
+    /* 木色系文本强调，与主题接近 */
+}
+
+.inline-block {
+    display: inline-block;
+}
+
+/* visually hidden for screen readers */
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+.muted {
+    color: var(--muted);
+}
+
+.list-muted {
+    margin: 6px;
+    padding-left: 18px;
+    color: var(--muted);
+}
+
+.row-between {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.mb-8 {
+    margin-bottom: 8px;
+}
+
+.tip-box {
+    margin-top: 12px;
+    padding: 12px;
+    background: var(--muted-bg);
+    border-radius: 4px;
+    font-size: 14px;
+    color: var(--muted);
+}
+
+.empty-box {
+    border: 1px dashed var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    color: var(--muted);
+}
+
+/* simple layout helpers */
+.row-start {
+    display: flex;
+    align-items: center;
+}
+
+.gap-12 {
+    gap: 12px;
+}
+
+/* avatar placeholder or image */
+.avatar-64 {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: var(--muted-bg);
+    color: var(--muted);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    object-fit: cover;
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+/* Profile meta layout (optional light styling) */
+.profile-meta {
+    font-size: 14px;
+    line-height: 1.5;
+}

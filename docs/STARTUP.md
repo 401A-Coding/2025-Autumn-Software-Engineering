@@ -129,14 +129,14 @@ chmod +x scripts/*.sh
 
 ## 前后端接口契约（当前版本）
 
-- 注册：POST `${VITE_API_BASE}/user/register`
-  - 请求体：`{ phone: string, password: string, email?: string }`
-  - 返回：`{ accessToken: string, refreshToken: string }`
-- 登录：POST `${VITE_API_BASE}/user/login`
-  - 请求体：`{ phone: string, password: string }`
-  - 返回：`{ accessToken: string, refreshToken: string }`
+- 注册：POST `${VITE_API_BASE}/api/v1/auth/register`
+  - 请求体：`{ type?: 'phone', phone: string, password: string, email?: string, code?: string }`
+  - 返回：`{ code: 0, message: string, data: { accessToken: string, refreshToken: string, expiresIn?: number } }`
+- 登录：POST `${VITE_API_BASE}/api/v1/auth/login`
+  - 请求体：`{ type?: 'phone', phone: string, password: string }`
+  - 返回：`{ code: 0, message: string, data: { accessToken: string, refreshToken: string, expiresIn?: number } }`
 
-前端会将 `accessToken` 存入 `localStorage.token`。
+前端会将 `data.accessToken` 存入 `localStorage.token`。
 
 ## 接口文档（Swagger）
 

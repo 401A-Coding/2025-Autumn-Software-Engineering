@@ -1,38 +1,189 @@
-import { useNavigate } from 'react-router-dom';
-
-const base = import.meta.env.VITE_API_BASE || '';
+import { useEffect, useState } from 'react'
+import { logout } from '../../lib/session'
+import { userApi } from '../../services/api'
+import type { operations } from '../../types/api'
+import './app-pages.css'
 
 export default function Profile() {
-    const navigate = useNavigate();
+    type Me = NonNullable<
+        operations['usersMe']['responses'][200]['content']['application/json']['data']
+    >
+
+    const [me, setMe] = useState<Me | null>(null)
+    const [loading, setLoading] = useState(true)
+    const [error, setError] = useState<string | null>(null)
+    const [newNickname, setNewNickname] = useState<string>('')
+    const [saving, setSaving] = useState(false)
+    const [uploading, setUploading] = useState(false)
+    const [showEdit, setShowEdit] = useState(false)
+    const fileInputId = 'avatar-upload-input'
+
+    function formatDate(iso?: string | Date | null) {
+        if (!iso) return '-'
+        const d = typeof iso === 'string' ? new Date(iso) : iso
+        if (Number.isNaN(d.getTime())) return '-'
+        return d.toLocaleString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
+    }
+
+    useEffect(() => {
+        (async () => {
+            try {
+                const data = await userApi.getMe()
+                setMe(data)
+                setNewNickname(data.nickname || '')
+            } catch (e) {
+                setError(e instanceof Error ? e.message : '加载失败')
+            } finally {
+                setLoading(false)
+            }
+        })()
+    }, [])
 
     const onLogout = async () => {
-        try {
-            const token = localStorage.getItem('token');
-            if (token) {
-                // Call logout API
-                await fetch(`${base}/api/v1/auth/logout`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`,
-                    },
-                }).catch(() => {
-                    // Ignore network errors, proceed with local logout
-                });
-            }
-        } finally {
-            localStorage.removeItem('token');
-            navigate('/login', { replace: true });
-        }
+        await logout();
     };
+
+    const handleSaveProfile = async () => {
+        if (!newNickname || saving) return
+        setSaving(true)
+        setError(null)
+        try {
+            const updated = await userApi.updateMe({ nickname: newNickname })
+            setMe(updated)
+            setShowEdit(false)
+        } catch (e) {
+            setError(e instanceof Error ? e.message : '保存失败')
+        } finally {
+            setSaving(false)
+        }
+    }
+
+    const onAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0]
+        if (!file || uploading) return
+        setUploading(true)
+        setError(null)
+        try {
+            const { url } = await userApi.uploadAvatar(file)
+            setMe((prev) => (prev ? { ...prev, avatarUrl: url } as Me : prev))
+        } catch (e) {
+            setError(e instanceof Error ? e.message : '上传失败')
+        } finally {
+            setUploading(false)
+            e.target.value = ''
+        }
+    }
 
     return (
         <div>
-            <section className="paper-card" style={{ padding: 16 }}>
-                <h3 style={{ marginTop: 0 }}>个人信息</h3>
-                <p style={{ color: 'var(--muted)' }}>调试中：此处展示用户信息（待接入）。</p>
-                <button className="btn-ghost" onClick={onLogout} style={{ marginTop: 8 }}>退出登录</button>
+            <section className="paper-card card-pad">
+                <h3 className="mt-0">个人信息</h3>
+
+                {loading && <p className="muted">加载中…</p>}
+                {error && <p className="muted">{error}</p>}
+
+                {!loading && !error && me && (
+                    <div style={{ display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
+                        {/* 左侧头像，仅展示 */}
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+                            {me.avatarUrl ? (
+                                <img className="avatar-64" src={me.avatarUrl || ''} alt="avatar" />
+                            ) : (
+                                <div className="avatar-64" aria-label="avatar">
+                                    {(me.nickname || me.phone || '?').charAt(0).toUpperCase()}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* 右侧信息，仅展示 */}
+                        <div style={{ minWidth: 220, flex: 1 }}>
+                            <div className="profile-meta">
+                                <div className="mt-6"><strong>昵称：</strong>{me.nickname || '-'}</div>
+                                <div className="mt-6"><strong>手机号：</strong>{me.phone || '-'}</div>
+                                <div className="mt-6"><strong>创建时间：</strong>{formatDate((me as any).createdAt)}</div>
+                            </div>
+
+                            <div className="mt-8">
+                                <button className="btn-ghost" onClick={() => setShowEdit(true)}>编辑我的个人资料</button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                <button className="btn-ghost mt-8" onClick={onLogout}>退出登录</button>
             </section>
+
+            {/* 编辑资料弹窗 */}
+            {showEdit && (
+                <div
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="edit-profile-title"
+                    style={{
+                        position: 'fixed',
+                        inset: 0,
+                        background: 'rgba(0,0,0,0.35)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        zIndex: 50,
+                        padding: 16,
+                    }}
+                >
+                    <div className="paper-card" style={{ width: '100%', maxWidth: 420, padding: 16, borderRadius: 10 }}>
+                        <h4 id="edit-profile-title" className="mt-0">编辑我的个人资料</h4>
+
+                        <div style={{ display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
+                            {/* 头像更换 */}
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+                                {me?.avatarUrl ? (
+                                    <img className="avatar-64" src={me.avatarUrl || ''} alt="avatar" />
+                                ) : (
+                                    <div className="avatar-64" aria-label="avatar">
+                                        {(me?.nickname || me?.phone || '?').charAt(0).toUpperCase()}
+                                    </div>
+                                )}
+                                <div>
+                                    <input
+                                        id={fileInputId}
+                                        className="sr-only"
+                                        aria-label="选择头像图片"
+                                        title="选择头像图片"
+                                        type="file"
+                                        accept="image/*"
+                                        onChange={onAvatarChange}
+                                        disabled={uploading}
+                                    />
+                                    <label htmlFor={fileInputId} className="btn-ghost" style={{ padding: '6px 10px', fontSize: 14 }}>
+                                        {uploading ? '上传中…' : '更换头像'}
+                                    </label>
+                                </div>
+                            </div>
+
+                            {/* 昵称编辑 */}
+                            <div style={{ minWidth: 220, flex: 1 }}>
+                                <div className="row-start" style={{ gap: 8 }}>
+                                    <strong>昵称：</strong>
+                                    <input
+                                        value={newNickname}
+                                        onChange={(e) => setNewNickname(e.target.value)}
+                                        placeholder="输入新昵称"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        {error && <div className="muted mt-6">{error}</div>}
+
+                        <div className="row-between mt-8" style={{ gap: 8 }}>
+                            <button className="btn-ghost" onClick={() => setShowEdit(false)}>取消</button>
+                            <button className="btn-primary" disabled={saving} onClick={handleSaveProfile}>
+                                {saving ? '保存中…' : '保存'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

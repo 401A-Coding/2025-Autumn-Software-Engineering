@@ -38,6 +38,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Refresh and rotate tokens */
+        post: operations["authRefresh"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/users/me": {
         parameters: {
             query?: never;
@@ -133,6 +150,23 @@ export interface paths {
         };
         /** List board templates */
         get: operations["boardsTemplates"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/boards/standard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get standard Xiangqi board definition */
+        get: operations["boardsStandard"];
         put?: never;
         post?: never;
         delete?: never;
@@ -452,46 +486,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/user/register": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * LEGACY dev - register (no envelope)
-         * @description Returns tokens directly { accessToken, refreshToken }.
-         */
-        post: operations["legacyRegister"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/user/login": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * LEGACY dev - login (no envelope)
-         * @description Returns tokens directly { accessToken, refreshToken }.
-         */
-        post: operations["legacyLogin"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -515,7 +509,9 @@ export interface components {
             code: number;
             /** @example 参数错误 */
             message: string;
-            data?: unknown;
+            data?: null | {
+                details?: string[];
+            };
         };
         AuthRegisterRequest: {
             /**
@@ -551,6 +547,10 @@ export interface components {
              * @example Abc12345
              */
             password: string;
+        };
+        AuthRefreshRequest: {
+            /** @example eyJhbGciOi... */
+            refreshToken: string;
         };
         AuthTokens: {
             /**
@@ -627,7 +627,7 @@ export interface components {
                     side?: "red" | "black";
                 }[];
             };
-            rules?: Record<string, never>;
+            rules?: components["schemas"]["Rules"];
         };
         BoardTemplate: {
             /** @example 1 */
@@ -641,13 +641,13 @@ export interface components {
             name: string;
             description?: string | null;
             layout: Record<string, never>;
-            rules?: Record<string, never> | null;
+            rules?: components["schemas"]["Rules"];
         };
         BoardUpdateRequest: {
             name?: string;
             description?: string | null;
             layout?: Record<string, never>;
-            rules?: Record<string, never> | null;
+            rules?: components["schemas"]["Rules"];
         };
         ApiResponseBoardTemplates: {
             /** @example 0 */
@@ -655,6 +655,18 @@ export interface components {
             /** @example success */
             message?: string;
             data?: components["schemas"]["BoardTemplate"][];
+        };
+        ApiResponsePageBoardTemplates: {
+            /** @example 0 */
+            code?: number;
+            /** @example success */
+            message?: string;
+            data?: {
+                items?: components["schemas"]["BoardTemplate"][];
+                page?: number;
+                pageSize?: number;
+                total?: number;
+            };
         };
         ApiResponseBoardCreateResult: {
             /** @example 0 */
@@ -808,11 +820,88 @@ export interface components {
         ApiResponseShareResult: {
             /** @example 0 */
             code?: number;
-            /** @example 分享成功 */
+            /** @example success */
             message?: string;
             data?: {
+                /** @example 9001 */
                 shareId?: number;
+                /** @example /shares/9001 */
+                url?: string | null;
             };
+        };
+        /** @description 自定义棋局规则（编辑器用），支持模板与图形化自定义 */
+        Rules: {
+            /** @default 1 */
+            ruleVersion: number;
+            /** @enum {string} */
+            layoutSource: "empty" | "standard" | "template";
+            templateRefId?: number | null;
+            /**
+             * @default relativeToSide
+             * @enum {string}
+             */
+            coordinateSystem: "relativeToSide" | "absolute";
+            /**
+             * @default analysis
+             * @enum {string}
+             */
+            mode: "analysis" | "localVersus";
+            pieceRules: {
+                [key: string]: components["schemas"]["PieceRuleConfig"];
+            };
+            notes?: string | null;
+            templatesUsed?: string[];
+        };
+        PieceRuleConfig: {
+            /** @enum {string} */
+            ruleType: "template" | "custom";
+            templateKey?: string | null;
+            movement?: components["schemas"]["MoveSpec"];
+            /**
+             * @default sameAsMove
+             * @enum {string}
+             */
+            captureMode: "sameAsMove" | "separate";
+            capture?: components["schemas"]["MoveSpec"];
+            constraints?: components["schemas"]["ConstraintsSpec"];
+        };
+        MoveSpec: {
+            rays?: components["schemas"]["RaySpec"][];
+            steps?: components["schemas"]["StepSpec"][];
+            gridMask?: number[][];
+            maxDestinations?: number;
+        };
+        RaySpec: {
+            directions?: ("N" | "S" | "E" | "W" | "NE" | "NW" | "SE" | "SW")[];
+            vectors?: number[][];
+            maxSteps?: number | null;
+            /** @default 0 */
+            requireScreensForMove: number;
+            /** @default 0 */
+            requireScreensForCapture: number;
+            /** @default true */
+            stopAtFirstBlocker: boolean;
+        };
+        StepSpec: {
+            offset?: number[];
+            requiredEmpty?: number[][];
+            /** @default true */
+            allowCapture: boolean;
+        };
+        ConstraintsSpec: {
+            /**
+             * @default none
+             * @enum {string}
+             */
+            palace: "none" | "insideOnly" | "outsideOnly";
+            /**
+             * @default none
+             * @enum {string}
+             */
+            river: "none" | "cannotCross" | "mustCross";
+            forwardOnlyBeforeRiver?: boolean;
+            enableSidewaysAfterRiver?: boolean;
+            allowBackwardAfterRiver?: boolean;
         };
         ApiResponseComments: {
             /** @example 0 */
@@ -953,6 +1042,39 @@ export interface operations {
             };
         };
     };
+    authRefresh: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AuthRefreshRequest"];
+            };
+        };
+        responses: {
+            /** @description Refreshed */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseAuthTokens"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+        };
+    };
     usersMe: {
         parameters: {
             query?: never;
@@ -1004,6 +1126,24 @@ export interface operations {
                     "application/json": components["schemas"]["ApiResponseUser"];
                 };
             };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
         };
     };
     authSms: {
@@ -1028,6 +1168,15 @@ export interface operations {
                     "application/json": components["schemas"]["ApiResponseSmsSent"];
                 };
             };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
         };
     };
     authLogout: {
@@ -1046,6 +1195,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ApiResponseOk"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
                 };
             };
         };
@@ -1070,6 +1228,15 @@ export interface operations {
                     "application/json": components["schemas"]["ApiResponseUser"];
                 };
             };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
         };
     };
     usersMeAvatar: {
@@ -1082,7 +1249,10 @@ export interface operations {
         requestBody: {
             content: {
                 "multipart/form-data": {
-                    /** Format: binary */
+                    /**
+                     * Format: binary
+                     * @description 上传头像文件（仅支持 image/png、image/jpeg、image/webp），建议大小 ≤ 2MB
+                     */
                     file: string;
                 };
             };
@@ -1097,11 +1267,32 @@ export interface operations {
                     "application/json": components["schemas"]["ApiResponseAvatar"];
                 };
             };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
         };
     };
     boardsTemplates: {
         parameters: {
-            query?: never;
+            query?: {
+                page?: number;
+                pageSize?: number;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -1114,7 +1305,27 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ApiResponseBoardTemplates"];
+                    "application/json": components["schemas"]["ApiResponsePageBoardTemplates"];
+                };
+            };
+        };
+    };
+    boardsStandard: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Standard board definition */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseBoard"];
                 };
             };
         };
@@ -1650,72 +1861,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ApiResponsePageSearchResults"];
-                };
-            };
-        };
-    };
-    legacyRegister: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    /** @example 13800000000 */
-                    phone: string;
-                    /**
-                     * Format: password
-                     * @example Abc12345
-                     */
-                    password: string;
-                    /** @example a@b.com */
-                    email?: string;
-                };
-            };
-        };
-        responses: {
-            /** @description Registered */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AuthTokens"];
-                };
-            };
-        };
-    };
-    legacyLogin: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    /** @example 13800000000 */
-                    phone: string;
-                    /**
-                     * Format: password
-                     * @example Abc12345
-                     */
-                    password: string;
-                };
-            };
-        };
-        responses: {
-            /** @description Logged in */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AuthTokens"];
                 };
             };
         };

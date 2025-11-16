@@ -27,9 +27,27 @@ model User {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   refreshTokens String[] // 可选：如采用 Redis，可移除
+  Board         Board[]
 }
 
 enum Role {
   USER
   ADMIN
+}
+
+model Board {
+  id          Int      @id @default(autoincrement())
+  name        String
+  description String?
+  layout      Json
+  rules       Json
+  isTemplate  Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  ownerId     Int?
+  owner       User?    @relation(fields: [ownerId], references: [id])
+  preview     String?
+
+  @@index([ownerId])
+  @@index([isTemplate])
 }

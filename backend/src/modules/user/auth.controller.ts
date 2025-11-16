@@ -1,8 +1,8 @@
-import { Controller, Post, Body, HttpCode } from '@nestjs/common';
+import { Controller, Post, Body, HttpCode, Headers } from '@nestjs/common';
 import { UserService } from './user.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { LoginUserDto } from './dto/login-user.dto';
-import { SmsRequestDto } from './dto/sms.dto';
+import { RefreshTokenDto } from './dto/refresh-token.dto';
 
 // New contract-first endpoints with unified envelope
 @Controller('api/v1/auth')
@@ -12,41 +12,36 @@ export class AuthController {
   @Post('register')
   @HttpCode(200)
   async register(@Body() dto: CreateUserDto) {
-    const tokens = await this.userService.register(dto);
-    return { code: 0, message: '注册成功', data: tokens };
+    return this.userService.register(dto);
   }
 
   @Post('login')
   @HttpCode(200)
   async login(@Body() dto: LoginUserDto) {
-    const tokens = await this.userService.login(dto);
-    return { code: 0, message: '登录成功', data: tokens };
+    return this.userService.login(dto);
   }
 
   @Post('sms')
   @HttpCode(200)
-  async sendSms(@Body() dto: SmsRequestDto) {
+  sendSms() {
     // TODO: Implement SMS service integration
     // For now, return a mock response
     return {
-      code: 0,
-      message: '短信已发送',
-      data: {
-        requestId: `sms_${Date.now()}`,
-        expireIn: 300,
-      },
+      requestId: `sms_${Date.now()}`,
+      expireIn: 300,
     };
   }
 
   @Post('logout')
   @HttpCode(200)
-  async logout() {
-    // TODO: Implement token invalidation (Redis blacklist)
-    // For now, client-side token removal is sufficient
-    return {
-      code: 0,
-      message: '登出成功',
-      data: {},
-    };
+  async logout(@Headers('authorization') authorization?: string) {
+    await this.userService.logoutByAccessToken(authorization);
+    return {};
+  }
+
+  @Post('refresh')
+  @HttpCode(200)
+  async refresh(@Body() dto: RefreshTokenDto) {
+    return this.userService.refresh(dto.refreshToken);
   }
 }

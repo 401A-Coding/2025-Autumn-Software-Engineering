@@ -7,11 +7,14 @@ import AppLayout from './layouts/AppLayout.tsx'
 import Home from './pages/app/Home.tsx'
 import Fun from './pages/app/Fun.tsx'
 import History from './pages/app/History.tsx'
+import OnlineLobby from './pages/app/OnlineLobby.tsx'
 import Profile from './pages/app/Profile.tsx'
 import LocalPlay from './pages/app/LocalPlay.tsx'
 import CustomRuleEditor from './pages/app/CustomRuleEditor.tsx'
 import CustomBattle from './pages/app/CustomBattle.tsx'
 import VisualRuleEditor from './pages/app/VisualRuleEditor.tsx'
+import LiveBattle from './pages/app/LiveBattle.tsx'
+import RecordReplay from './pages/app/RecordReplay.tsx'
 
 function App() {
   return (
@@ -30,7 +33,10 @@ function App() {
           <Route path="custom-battle" element={<CustomBattle />} />
           <Route path="fun" element={<Fun />} />
           <Route path="history" element={<History />} />
+          <Route path="record/:id" element={<RecordReplay />} />
           <Route path="profile" element={<Profile />} />
+          <Route path="online-lobby" element={<OnlineLobby />} />
+          <Route path="live-battle" element={<LiveBattle />} />
         </Route>
       </Route>
 
