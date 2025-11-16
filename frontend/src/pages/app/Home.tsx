@@ -14,7 +14,7 @@ export default function Home() {
             <section className="paper-card card-pad mt-12">
                 <h3 className="mt-0">在线对战</h3>
                 <p className="muted mt-6">通过网络与其他玩家实时对弈（演示版）。</p>
-                <a className="btn-primary inline-block mt-8" href="/app/live-battle">
+                <a className="btn-primary inline-block mt-8" href="/app/online-lobby">
                     进入在线对战
                 </a>
             </section>
