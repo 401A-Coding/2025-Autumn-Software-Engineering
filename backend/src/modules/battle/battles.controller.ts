@@ -14,7 +14,7 @@ import { Request } from 'express';
 
 @Controller('api/v1/battles')
 export class BattlesController {
-  constructor(private readonly battles: BattlesService) { }
+  constructor(private readonly battles: BattlesService) {}
 
   @Post()
   @UseGuards(JwtAuthGuard)

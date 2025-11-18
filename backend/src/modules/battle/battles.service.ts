@@ -44,7 +44,7 @@ export class BattlesService {
   constructor(
     private readonly jwt: JwtService,
     private readonly engine: ChessEngineService,
-  ) { }
+  ) {}
 
   verifyBearer(authorization?: string) {
     if (!authorization || !authorization.toLowerCase().startsWith('bearer ')) {
