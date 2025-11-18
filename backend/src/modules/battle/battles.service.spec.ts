@@ -4,20 +4,7 @@ import { JwtService } from '@nestjs/jwt';
 import { ChessEngineService } from './engine.service';
 import { BadRequestException } from '@nestjs/common';
 
-// Stub engine service: only initial board, no real move validation needed for these tests.
-class EngineStub {
-  createInitialBoard() {
-    return { cells: [] } as any; // minimal placeholder
-  }
-  validateAndApply(board: any, turn: any, from: any, to: any) {
-    return {
-      ok: true,
-      board,
-      nextTurn: turn === 'red' ? 'black' : 'red',
-      winner: null,
-    };
-  }
-}
+// 使用真实的引擎服务，避免 any 带来的 ESLint 报错
 
 describe('BattlesService', () => {
   let service: BattlesService;
@@ -27,7 +14,7 @@ describe('BattlesService', () => {
       providers: [
         BattlesService,
         { provide: JwtService, useValue: { verify: jest.fn() } },
-        { provide: ChessEngineService, useClass: EngineStub },
+        ChessEngineService,
       ],
     }).compile();
 
@@ -64,6 +51,9 @@ describe('BattlesService', () => {
     const res = service.cancelWaiting(uid, battleId);
     expect(res).toEqual({ battleId, cancelled: true });
     expect(() => service.snapshot(battleId)).toThrow(BadRequestException);
+    // 再次取消视为幂等成功
+    const res2 = service.cancelWaiting(uid, battleId);
+    expect(res2).toEqual({ battleId, cancelled: true });
   });
 
   it('cancelWaiting should fail after second player joins', () => {
@@ -76,6 +66,35 @@ describe('BattlesService', () => {
     expect(() => service.cancelWaiting(a, matchA.battleId)).toThrow(
       BadRequestException,
     );
+  });
+
+  it('leaveBattle should be idempotent and convert to waiting when one remains', () => {
+    const u1 = 611,
+      u2 = 612;
+    const m1 = service.quickMatch(u1, 'pvp');
+    service.quickMatch(u2, 'pvp');
+    const snapPlaying = service.snapshot(m1.battleId);
+    expect(snapPlaying.status).toBe('playing');
+    // u2 离开
+    const r1 = service.leaveBattle(u2, m1.battleId);
+    expect(r1).toEqual({ battleId: m1.battleId, left: true });
+    const snapWaiting = service.snapshot(m1.battleId);
+    expect(snapWaiting.status).toBe('waiting');
+    expect(snapWaiting.players).toEqual([u1]);
+    // 非房内用户再次离开为幂等
+    const r2 = service.leaveBattle(u2, m1.battleId);
+    expect(r2.left).toBe(false);
+  });
+
+  it('leaveBattle should delete room when last user leaves', () => {
+    const u1 = 701;
+    const { battleId } = service.quickMatch(u1, 'pvp');
+    const r = service.leaveBattle(u1, battleId);
+    expect(r).toEqual({ battleId, left: true });
+    expect(() => service.snapshot(battleId)).toThrow(BadRequestException);
+    // 再次离开为幂等
+    const r2 = service.leaveBattle(u1, battleId);
+    expect(r2.left).toBe(false);
   });
 
   it('cancelWaiting should fail if non-creator tries to cancel waiting battle', () => {

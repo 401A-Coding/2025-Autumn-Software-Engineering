@@ -60,6 +60,15 @@ export class BattlesController {
     return this.battles.cancelWaiting(req.user!.sub, body.battleId);
   }
 
+  @Post('leave')
+  @UseGuards(JwtAuthGuard)
+  leave(
+    @Body() body: { battleId: number },
+    @Req() req: Request & { user?: { sub: number } },
+  ) {
+    return this.battles.leaveBattle(req.user!.sub, body.battleId);
+  }
+
   @Get('history')
   @UseGuards(JwtAuthGuard)
   history(

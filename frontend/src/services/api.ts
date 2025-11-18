@@ -237,6 +237,18 @@ export const battleApi = {
     );
     return res.data;
   },
+
+  /** 离开房间（幂等） */
+  async leave(battleId: number): Promise<{ battleId: number; left: boolean; reason?: string }> {
+    const res = await apiRequest<{ battleId: number; left: boolean; reason?: string }>(
+      '/api/v1/battles/leave',
+      {
+        method: 'POST',
+        body: JSON.stringify({ battleId }),
+      }
+    );
+    return res.data;
+  },
 }
 
 /**

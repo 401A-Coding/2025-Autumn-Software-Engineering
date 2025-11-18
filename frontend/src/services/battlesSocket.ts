@@ -33,8 +33,28 @@ export function connectBattle() {
     });
 
     const join = (battleId: number) => socket.emit('battle.join', { battleId });
-    const move = (battleId: number, from: { x: number; y: number }, to: { x: number; y: number }) =>
-        socket.emit('battle.move', { battleId, from, to });
+    const move = (
+        battleId: number,
+        from: { x: number; y: number },
+        to: { x: number; y: number }
+    ) => {
+        const clientRequestId = (globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2));
+        return new Promise<BattleMove>((resolve, reject) => {
+            let settled = false;
+            const timer = setTimeout(() => {
+                if (!settled) {
+                    settled = true;
+                    reject(new Error('move ack timeout'));
+                }
+            }, 3000);
+            socket.emit('battle.move', { battleId, from, to, clientRequestId }, (ack: BattleMove) => {
+                if (settled) return;
+                settled = true;
+                clearTimeout(timer);
+                resolve(ack);
+            });
+        });
+    };
     const snapshot = (battleId: number) => socket.emit('battle.snapshot', { battleId });
 
     const onMove = (cb: (m: BattleMove) => void) => socket.on('battle.move', cb);

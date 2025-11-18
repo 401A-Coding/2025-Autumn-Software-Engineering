@@ -37,7 +37,7 @@ describe('Battles E2E', () => {
       .set('Authorization', `Bearer ${t1}`)
       .send({ mode: 'pvp' })
       .expect(201);
-    const battleId = m1.body.battleId as number;
+    const battleId = (m1.body as { battleId: number }).battleId;
     expect(typeof battleId).toBe('number');
 
     // snapshot: waiting with single player
@@ -45,8 +45,12 @@ describe('Battles E2E', () => {
       .get(`/api/v1/battles/${battleId}`)
       .set('Authorization', `Bearer ${t1}`)
       .expect(200);
-    expect(s1.body.status).toBe('waiting');
-    expect(s1.body.players).toEqual([9001]);
+    expect((s1.body as { status: string; players: number[] }).status).toBe(
+      'waiting',
+    );
+    expect((s1.body as { status: string; players: number[] }).players).toEqual([
+      9001,
+    ]);
 
     // user2 quick match -> joins same battle, status becomes playing
     const m2 = await request(app.getHttpServer())
@@ -54,14 +58,18 @@ describe('Battles E2E', () => {
       .set('Authorization', `Bearer ${t2}`)
       .send({ mode: 'pvp' })
       .expect(201);
-    expect(m2.body.battleId).toBe(battleId);
+    expect((m2.body as { battleId: number }).battleId).toBe(battleId);
 
     const s2 = await request(app.getHttpServer())
       .get(`/api/v1/battles/${battleId}`)
       .set('Authorization', `Bearer ${t1}`)
       .expect(200);
-    expect(s2.body.status).toBe('playing');
-    expect(s2.body.players.sort()).toEqual([9001, 9002].sort());
+    expect((s2.body as { status: string; players: number[] }).status).toBe(
+      'playing',
+    );
+    expect(
+      (s2.body as { status: string; players: number[] }).players.sort(),
+    ).toEqual([9001, 9002].sort());
 
     // creator tries to cancel now should fail (not waiting)
     await request(app.getHttpServer())
@@ -77,7 +85,7 @@ describe('Battles E2E', () => {
       .set('Authorization', `Bearer ${t3}`)
       .send({ mode: 'pvp' })
       .expect(201);
-    const bid2 = m3.body.battleId as number;
+    const bid2 = (m3.body as { battleId: number }).battleId;
     const c1 = await request(app.getHttpServer())
       .post('/api/v1/battles/cancel')
       .set('Authorization', `Bearer ${t3}`)
@@ -89,5 +97,48 @@ describe('Battles E2E', () => {
       .get(`/api/v1/battles/${bid2}`)
       .set('Authorization', `Bearer ${t3}`)
       .expect(400);
+  });
+
+  it('leave API works idempotently and converts to waiting when one leaves', async () => {
+    const t1 = makeToken(9901);
+    const t2 = makeToken(9902);
+    const m1 = await request(app.getHttpServer())
+      .post('/api/v1/battles/match')
+      .set('Authorization', `Bearer ${t1}`)
+      .send({ mode: 'pvp' })
+      .expect(201);
+    const bid = (m1.body as { battleId: number }).battleId;
+    await request(app.getHttpServer())
+      .post('/api/v1/battles/match')
+      .set('Authorization', `Bearer ${t2}`)
+      .send({ mode: 'pvp' })
+      .expect(201);
+    // user2 leaves -> ok
+    const l1 = await request(app.getHttpServer())
+      .post('/api/v1/battles/leave')
+      .set('Authorization', `Bearer ${t2}`)
+      .send({ battleId: bid })
+      .expect(201);
+    expect(l1.body as { battleId: number; left: boolean }).toEqual({
+      battleId: bid,
+      left: true,
+    });
+    const s = await request(app.getHttpServer())
+      .get(`/api/v1/battles/${bid}`)
+      .set('Authorization', `Bearer ${t1}`)
+      .expect(200);
+    expect((s.body as { status: string; players: number[] }).status).toBe(
+      'waiting',
+    );
+    expect((s.body as { status: string; players: number[] }).players).toEqual([
+      9901,
+    ]);
+    // user2 leaves again -> idempotent false
+    const l2 = await request(app.getHttpServer())
+      .post('/api/v1/battles/leave')
+      .set('Authorization', `Bearer ${t2}`)
+      .send({ battleId: bid })
+      .expect(201);
+    expect((l2.body as { left: boolean }).left).toBe(false);
   });
 });

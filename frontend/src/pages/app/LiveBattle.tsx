@@ -180,7 +180,7 @@ export default function LiveBattle() {
         }
     };
 
-    const handleExit = () => {
+    const handleExit = async () => {
         if (!inRoom) {
             navigate('/app/online-lobby');
             return;
@@ -188,8 +188,12 @@ export default function LiveBattle() {
         const ok = window.confirm('确认退出对局？');
         if (!ok) return;
         try {
-            // 若后端已有离开事件，可在此 emit('battle.leave', { battleId })
-            // 目前仅做前端级别退出：关闭连接并清理本地状态
+            // 先调用 REST 兜底离开，幂等返回
+            const id = battleIdRef.current;
+            if (id) {
+                try { await battleApi.leave(id); } catch { /* 忽略错误，继续本地清理 */ }
+            }
+            // 然后关闭连接并清理本地状态
             connRef.current?.socket?.close();
         } finally {
             setSnapshot(null);

@@ -69,14 +69,20 @@ export class BattlesGateway implements OnGatewayConnection {
       battleId: number;
       from: { x: number; y: number };
       to: { x: number; y: number };
+      clientRequestId?: string;
     },
     @ConnectedSocket() client: Socket,
   ) {
     const userId = this.users.get(client) as number;
-    const m = this.battles.move(userId, body.battleId, {
-      from: body.from,
-      to: body.to,
-    });
+    const m = this.battles.move(
+      userId,
+      body.battleId,
+      {
+        from: body.from,
+        to: body.to,
+      },
+      body.clientRequestId,
+    );
     // 广播给房间
     this.server.to(`battle:${body.battleId}`).emit('battle.move', m);
     // 同步最新快照（包含权威棋盘与可能的胜负状态）

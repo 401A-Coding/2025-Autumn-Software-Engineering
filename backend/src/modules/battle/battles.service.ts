@@ -40,6 +40,11 @@ export class BattlesService {
     number,
     { battleId: number; result: 'win' | 'lose' | 'draw' }[]
   >();
+  // 已处理的客户端请求（用于走子幂等）
+  private processedRequests = new Map<
+    string,
+    { battleId: number; result: Move; ts: number }
+  >();
 
   constructor(
     private readonly jwt: JwtService,
@@ -119,7 +124,18 @@ export class BattlesService {
     };
   }
 
-  move(userId: number, battleId: number, move: Pick<Move, 'from' | 'to'>) {
+  move(
+    userId: number,
+    battleId: number,
+    move: Pick<Move, 'from' | 'to'>,
+    clientRequestId?: string,
+  ) {
+    if (clientRequestId) {
+      const hit = this.processedRequests.get(clientRequestId);
+      if (hit && hit.battleId === battleId) {
+        return hit.result;
+      }
+    }
     const b = this.getBattle(battleId);
     if (b.status !== 'playing') throw new BadRequestException('当前不可走子');
     const idx = b.players.indexOf(userId);
@@ -153,6 +169,18 @@ export class BattlesService {
       } else {
         const winnerId = res.winner === 'red' ? b.players[0] : b.players[1];
         this.finish(b.id, { winnerId, reason: 'checkmate' });
+      }
+    }
+    if (clientRequestId) {
+      this.processedRequests.set(clientRequestId, {
+        battleId,
+        result: m,
+        ts: Date.now(),
+      });
+      // 简单清理：超过500条时删除最早的100条
+      if (this.processedRequests.size > 500) {
+        const keys = Array.from(this.processedRequests.keys()).slice(0, 100);
+        keys.forEach((k) => this.processedRequests.delete(k));
       }
     }
     return m;
@@ -212,7 +240,8 @@ export class BattlesService {
 
   cancelWaiting(userId: number, battleId: number) {
     const b = this.battles.get(battleId);
-    if (!b) throw new BadRequestException('房间不存在');
+    // 幂等：房间已不存在视为已取消
+    if (!b) return { battleId, cancelled: true };
     if (b.status !== 'waiting')
       throw new BadRequestException('当前状态不可取消');
     if (b.players.length !== 1 || b.players[0] !== userId) {
@@ -225,6 +254,35 @@ export class BattlesService {
     // 删除房间
     this.battles.delete(battleId);
     return { battleId, cancelled: true };
+  }
+
+  // 离开房间（幂等）：不在房间或房间不存在返回 left=false 与原因
+  leaveBattle(userId: number, battleId: number) {
+    const b = this.battles.get(battleId);
+    if (!b) return { battleId, left: false, reason: 'not_found' as const };
+    if (!b.players.includes(userId)) {
+      return { battleId, left: false, reason: 'not_in_room' as const };
+    }
+    // 从房间移除
+    b.players = b.players.filter((id) => id !== userId);
+    if (b.players.length === 0) {
+      // 若在等待池内则移除
+      const list = this.waitingByMode.get(b.mode) || [];
+      const filtered = list.filter((id) => id !== battleId);
+      this.waitingByMode.set(b.mode, filtered);
+      this.battles.delete(battleId);
+      return { battleId, left: true };
+    }
+    if (b.players.length === 1) {
+      // 只剩一人：转为等待，并放回等待池（去重）
+      b.status = 'waiting';
+      const list = this.waitingByMode.get(b.mode) || [];
+      if (!list.includes(battleId)) {
+        list.push(battleId);
+        this.waitingByMode.set(b.mode, list);
+      }
+    }
+    return { battleId, left: true };
   }
 
   // 查找用户在指定模式下的单人等待房间
