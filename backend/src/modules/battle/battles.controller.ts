@@ -14,7 +14,7 @@ import { Request } from 'express';
 
 @Controller('api/v1/battles')
 export class BattlesController {
-  constructor(private readonly battles: BattlesService) {}
+  constructor(private readonly battles: BattlesService) { }
 
   @Post()
   @UseGuards(JwtAuthGuard)
@@ -49,6 +49,15 @@ export class BattlesController {
     @Req() req: Request & { user?: { sub: number } },
   ) {
     return this.battles.quickMatch(req.user!.sub, body.mode || 'pvp');
+  }
+
+  @Post('cancel')
+  @UseGuards(JwtAuthGuard)
+  cancel(
+    @Body() body: { battleId: number },
+    @Req() req: Request & { user?: { sub: number } },
+  ) {
+    return this.battles.cancelWaiting(req.user!.sub, body.battleId);
   }
 
   @Get('history')

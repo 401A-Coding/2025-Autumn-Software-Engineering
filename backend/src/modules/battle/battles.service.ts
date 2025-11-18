@@ -44,7 +44,7 @@ export class BattlesService {
   constructor(
     private readonly jwt: JwtService,
     private readonly engine: ChessEngineService,
-  ) {}
+  ) { }
 
   verifyBearer(authorization?: string) {
     if (!authorization || !authorization.toLowerCase().startsWith('bearer ')) {
@@ -60,6 +60,12 @@ export class BattlesService {
   }
 
   createBattle(creatorId: number, mode = 'pvp') {
+    // 若该用户在该模式已有单人等待房间，直接复用避免重复创建
+    const reuse = this.findUserWaiting(creatorId, mode);
+    if (reuse) {
+      const b = this.battles.get(reuse)!;
+      return { battleId: b.id, status: b.status };
+    }
     const id = this.nextId++;
     const state: BattleState = {
       id,
@@ -173,6 +179,11 @@ export class BattlesService {
   }
 
   quickMatch(userId: number, mode = 'pvp') {
+    // 先看自己是否已有等待房间（可能前端重复点击）
+    const selfWaiting = this.findUserWaiting(userId, mode);
+    if (selfWaiting) {
+      return { battleId: selfWaiting };
+    }
     // 尝试匹配等待中的房间
     const pool = this.waitingByMode.get(mode) || [];
     while (pool.length) {
@@ -197,5 +208,39 @@ export class BattlesService {
     const start = (page - 1) * pageSize;
     const items = list.slice(start, start + pageSize);
     return { items, page, pageSize, total: list.length };
+  }
+
+  cancelWaiting(userId: number, battleId: number) {
+    const b = this.battles.get(battleId);
+    if (!b) throw new BadRequestException('房间不存在');
+    if (b.status !== 'waiting')
+      throw new BadRequestException('当前状态不可取消');
+    if (b.players.length !== 1 || b.players[0] !== userId) {
+      throw new BadRequestException('仅创建者可取消等待');
+    }
+    // 从等待池移除
+    const list = this.waitingByMode.get(b.mode) || [];
+    const filtered = list.filter((id) => id !== battleId);
+    this.waitingByMode.set(b.mode, filtered);
+    // 删除房间
+    this.battles.delete(battleId);
+    return { battleId, cancelled: true };
+  }
+
+  // 查找用户在指定模式下的单人等待房间
+  private findUserWaiting(userId: number, mode: string): number | undefined {
+    const pool = this.waitingByMode.get(mode) || [];
+    for (const bid of pool) {
+      const b = this.battles.get(bid);
+      if (
+        b &&
+        b.status === 'waiting' &&
+        b.players.length === 1 &&
+        b.players[0] === userId
+      ) {
+        return bid;
+      }
+    }
+    return undefined;
   }
 }

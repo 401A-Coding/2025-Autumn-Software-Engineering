@@ -1,0 +1,86 @@
+.livebattle-conn-status {
+    font-size: 12px;
+    margin-bottom: 8px;
+}
+
+.livebattle-actions-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.livebattle-room-input {
+    width: 140px;
+}
+
+.livebattle-banner {
+    margin-top: 12px;
+    padding: 12px;
+    border-radius: 8px;
+    background: var(--muted-bg);
+    color: var(--control-text);
+    border: 1px solid var(--border);
+}
+
+.livebattle-banner-title {
+    font-weight: 700;
+    font-size: 16px;
+    color: var(--accent);
+}
+
+.livebattle-banner-sub {
+    font-size: 12px;
+    opacity: .85;
+    margin-top: 4px;
+}
+
+.livebattle-room-bar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-bottom: 8px;
+    flex-wrap: wrap;
+}
+
+.livebattle-room-badge {
+    padding: 8px 12px;
+    border-radius: 8px;
+    background: var(--control-bg);
+    color: var(--accent);
+    border: 1px solid var(--control-border);
+    font-weight: 700;
+    font-size: 18px;
+}
+
+.livebattle-exit {
+    color: var(--accent-dark);
+}
+
+.livebattle-cancel {
+    color: var(--danger, #c0392b);
+}
+
+.livebattle-state-line {
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.livebattle-players-line {
+    font-size: 12px;
+    margin-top: 4px;
+}
+
+.livebattle-board-wrapper {
+    margin-top: 12px;
+}
+
+.livebattle-offline-hint {
+    font-weight: 600;
+}
+
+.livebattle-return-bar {
+    margin-top: 12px;
+}
