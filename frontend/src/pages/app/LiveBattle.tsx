@@ -15,6 +15,7 @@ export default function LiveBattle() {
     const [connected, setConnected] = useState(false);
     const [snapshot, setSnapshot] = useState<BattleSnapshot | null>(null);
     const [moves, setMoves] = useState<BattleMove[]>([]);
+    const movesRef = useRef<BattleMove[]>([]);
     const connRef = useRef<ReturnType<typeof connectBattle> | null>(null);
     const battleIdRef = useRef<number | null>(null);
     const [myUserId, setMyUserId] = useState<number | null>(null);
@@ -41,7 +42,11 @@ export default function LiveBattle() {
         c.onSnapshot((s) => {
             latestSnapshotRef.current = s;
             setSnapshot(s);
-            setMoves(s.moves || []);
+            setMoves(() => {
+                const next = s.moves || [];
+                movesRef.current = next;
+                return next;
+            });
             // 收到任何权威快照后，取消保底计时
             if (fallbackTimerRef.current) {
                 clearTimeout(fallbackTimerRef.current);
@@ -50,7 +55,24 @@ export default function LiveBattle() {
             pendingSeqRef.current = null;
         });
         c.onMove((m) => {
-            setMoves((prev) => [...prev, m]);
+            // 去重：若已包含该 seq，忽略
+            if (movesRef.current.some((mv) => mv.seq === m.seq)) {
+                return;
+            }
+            // 严格顺序：若不是上一个序号的下一步，立即拉取权威快照对齐
+            const lastSeq = movesRef.current.length ? movesRef.current[movesRef.current.length - 1].seq : 0;
+            if (m.seq !== lastSeq + 1) {
+                const id = battleIdRef.current;
+                if (id) {
+                    c.snapshot(id);
+                }
+                // 仍然先乐观接入，避免 UI 卡顿；随后 snapshot 会对齐
+            }
+            setMoves((prev) => {
+                const next = [...prev, m];
+                movesRef.current = next;
+                return next;
+            });
             // 启动保底计时：若短时间内未收到包含该步的 snapshot，则主动拉取一次
             pendingSeqRef.current = m.seq;
             if (fallbackTimerRef.current) {
@@ -109,10 +131,15 @@ export default function LiveBattle() {
         conn.snapshot(id);
     };
 
-    const handleAttemptMove = (from: { x: number; y: number }, to: { x: number; y: number }) => {
+    const handleAttemptMove = async (from: { x: number; y: number }, to: { x: number; y: number }) => {
         const id = Number(battleId);
         if (!id) return;
-        conn.move(id, from, to);
+        try {
+            await conn.move(id, from, to);
+        } catch {
+            // ACK 超时或失败：主动拉取一次权威快照自愈
+            conn.snapshot(id);
+        }
     };
 
     const handleCreate = async () => {
