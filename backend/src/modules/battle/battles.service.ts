@@ -43,17 +43,17 @@ export class BattlesService {
     { battleId: number; result: 'win' | 'lose' | 'draw' }[]
   >();
   // 已处理的客户端请求（用于走子幂等）
-  private processedRequests = new Map<
-    string,
-    { battleId: number; result: Move; ts: number }
-  >();
+  private processedRequests = new Map<string, { result: Move; ts: number }>();
   // TTL 定时器
   private waitingTtls = new Map<number, NodeJS.Timeout>();
   private disconnectTtls = new Map<number, NodeJS.Timeout>();
+  // 每局互斥锁，串行化对同一对局的修改
+  private readonly battleMutexes = new Map<number, SimpleMutex>();
 
   // TTL 配置（开发默认）
   private static readonly WAITING_TTL_MS = 10 * 60 * 1000; // 10min
   private static readonly DISCONNECT_TTL_MS = 15 * 60 * 1000; // 15min，无人在线时触发
+  private static readonly PROCESSED_REQ_TTL_MS = 5 * 60 * 1000; // 5min 去重记录 TTL
 
   constructor(
     private readonly jwt: JwtService,
@@ -144,60 +144,62 @@ export class BattlesService {
     move: Pick<Move, 'from' | 'to'>,
     clientRequestId?: string,
   ) {
-    if (clientRequestId) {
-      const hit = this.processedRequests.get(clientRequestId);
-      if (hit && hit.battleId === battleId) {
-        return hit.result;
+    // 去重键包含 battleId，避免跨房间冲突
+    const dedupeKey = clientRequestId
+      ? `${battleId}:${clientRequestId}`
+      : undefined;
+    if (dedupeKey) {
+      const hit = this.processedRequests.get(dedupeKey);
+      if (hit) return hit.result;
+    }
+
+    // 同一对局的并发互斥
+    const mutex = this.getBattleMutex(battleId);
+    return mutex.runExclusive(() => {
+      const b = this.getBattle(battleId);
+      if (b.status !== 'playing') throw new BadRequestException('当前不可走子');
+      const idx = b.players.indexOf(userId);
+      if (idx === -1) throw new UnauthorizedException('不在房间内');
+      if (idx !== b.turnIndex) throw new BadRequestException('未到你的回合');
+      // 权威校验与应用
+      const res = this.engine.validateAndApply(
+        b.board,
+        b.turn,
+        move.from,
+        move.to,
+      );
+      if (!('ok' in res) || !res.ok) {
+        throw new BadRequestException(res.reason || '非法走子');
       }
-    }
-    const b = this.getBattle(battleId);
-    if (b.status !== 'playing') throw new BadRequestException('当前不可走子');
-    const idx = b.players.indexOf(userId);
-    if (idx === -1) throw new UnauthorizedException('不在房间内');
-    if (idx !== b.turnIndex) throw new BadRequestException('未到你的回合');
-    // 权威校验与应用
-    const res = this.engine.validateAndApply(
-      b.board,
-      b.turn,
-      move.from,
-      move.to,
-    );
-    if (!('ok' in res) || !res.ok) {
-      throw new BadRequestException(res.reason || '非法走子');
-    }
-    b.board = res.board;
-    b.turn = res.nextTurn;
-    const m: Move = {
-      ...move,
-      by: userId,
-      seq: b.moves.length + 1,
-      ts: Date.now(),
-    };
-    b.moves.push(m);
-    // 同步 turnIndex
-    b.turnIndex = b.turn === 'red' ? 0 : 1;
-    // 胜负判定（如有）
-    if (res.winner) {
-      if (res.winner === 'draw') {
-        this.finish(b.id, { winnerId: null, reason: 'draw' });
-      } else {
-        const winnerId = res.winner === 'red' ? b.players[0] : b.players[1];
-        this.finish(b.id, { winnerId, reason: 'checkmate' });
-      }
-    }
-    if (clientRequestId) {
-      this.processedRequests.set(clientRequestId, {
-        battleId,
-        result: m,
+      b.board = res.board;
+      b.turn = res.nextTurn;
+      const m: Move = {
+        ...move,
+        by: userId,
+        seq: b.moves.length + 1,
         ts: Date.now(),
-      });
-      // 简单清理：超过500条时删除最早的100条
-      if (this.processedRequests.size > 500) {
-        const keys = Array.from(this.processedRequests.keys()).slice(0, 100);
-        keys.forEach((k) => this.processedRequests.delete(k));
+      };
+      b.moves.push(m);
+      // 同步 turnIndex
+      b.turnIndex = b.turn === 'red' ? 0 : 1;
+      // 胜负判定（如有）
+      if (res.winner) {
+        if (res.winner === 'draw') {
+          this.finish(b.id, { winnerId: null, reason: 'draw' });
+        } else {
+          const winnerId = res.winner === 'red' ? b.players[0] : b.players[1];
+          this.finish(b.id, { winnerId, reason: 'checkmate' });
+        }
       }
-    }
-    return m;
+      if (dedupeKey) {
+        this.processedRequests.set(dedupeKey, {
+          result: m,
+          ts: Date.now(),
+        });
+        this.cleanupProcessedRequests();
+      }
+      return m;
+    });
   }
 
   finish(
@@ -207,6 +209,9 @@ export class BattlesService {
     const b = this.getBattle(battleId);
     b.status = 'finished';
     b.winnerId = typeof result.winnerId === 'number' ? result.winnerId : null;
+    // 结束时统一清理相关 TTL
+    this.clearWaitingTtl(battleId);
+    this.clearDisconnectTtl(battleId);
     // 记录历史
     for (const pid of b.players) {
       const list = this.histories.get(pid) || [];
@@ -399,5 +404,59 @@ export class BattlesService {
     const h = this.disconnectTtls.get(battleId);
     if (h) clearTimeout(h);
     this.disconnectTtls.delete(battleId);
+  }
+
+  // 获取/创建指定对局的互斥锁
+  private getBattleMutex(battleId: number): SimpleMutex {
+    let m = this.battleMutexes.get(battleId);
+    if (!m) {
+      m = new SimpleMutex();
+      this.battleMutexes.set(battleId, m);
+    }
+    return m;
+  }
+
+  // 清理由于 TTL 过期或数量过多的去重记录
+  private cleanupProcessedRequests() {
+    const now = Date.now();
+    const ttl = BattlesService.PROCESSED_REQ_TTL_MS;
+    for (const [k, v] of this.processedRequests) {
+      if (now - v.ts > ttl) this.processedRequests.delete(k);
+    }
+    if (this.processedRequests.size > 500) {
+      const keys = Array.from(this.processedRequests.keys()).slice(0, 100);
+      keys.forEach((k) => this.processedRequests.delete(k));
+    }
+  }
+}
+
+// 轻量互斥锁，串行化执行同一对局的临界区
+class SimpleMutex {
+  private queue: Array<() => void> = [];
+  private locked = false;
+
+  async runExclusive<T>(fn: () => Promise<T> | T): Promise<T> {
+    const release = await this.acquire();
+    try {
+      return await fn();
+    } finally {
+      release();
+    }
+  }
+
+  private acquire(): Promise<() => void> {
+    return new Promise<() => void>((resolve) => {
+      const release = () => {
+        const next = this.queue.shift();
+        if (next) next();
+        else this.locked = false;
+      };
+      if (!this.locked) {
+        this.locked = true;
+        resolve(release);
+      } else {
+        this.queue.push(() => resolve(release));
+      }
+    });
   }
 }
