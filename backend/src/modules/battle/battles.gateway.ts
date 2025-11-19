@@ -1,4 +1,5 @@
 import { Logger } from '@nestjs/common';
+import { WsException } from '@nestjs/websockets';
 import {
   ConnectedSocket,
   MessageBody,
@@ -19,6 +20,14 @@ export class BattlesGateway
   implements OnGatewayConnection, OnGatewayDisconnect
 {
   private readonly logger = new Logger(BattlesGateway.name);
+  // 简易限流：每用户每房间每秒最多 3 次 move；heartbeat 最少 10s 一次
+  private static readonly MOVE_MAX_PER_SEC = 3;
+  private static readonly HEARTBEAT_MIN_MS = 10_000;
+  private readonly moveRate = new Map<
+    string,
+    { windowStart: number; count: number }
+  >();
+  private readonly heartbeatLastAt = new Map<string, number>();
 
   @WebSocketServer()
   server!: Server;
@@ -97,6 +106,18 @@ export class BattlesGateway
     @ConnectedSocket() client: Socket,
   ) {
     const userId = this.users.get(client) as number;
+    // 限流：同一用户在同一对局的每秒 move 次数
+    const rateKey = `${userId}:${body.battleId}`;
+    const now = Date.now();
+    const bucket = this.moveRate.get(rateKey);
+    if (bucket && now - bucket.windowStart < 1000) {
+      if (bucket.count >= BattlesGateway.MOVE_MAX_PER_SEC) {
+        throw new WsException('move rate limit exceeded');
+      }
+      bucket.count += 1;
+    } else {
+      this.moveRate.set(rateKey, { windowStart: now, count: 1 });
+    }
     const m = this.battles.move(
       userId,
       body.battleId,
@@ -132,8 +153,15 @@ export class BattlesGateway
     const userId = this.users.get(client);
     const battleId = body?.battleId;
     if (userId && battleId) {
+      // 限流：同一用户同一对局心跳至少间隔 HEARTBEAT_MIN_MS
+      const key = `${userId}:${battleId}`;
+      const now = Date.now();
+      const last = this.heartbeatLastAt.get(key) || 0;
+      if (now - last < BattlesGateway.HEARTBEAT_MIN_MS) {
+        return { ok: true, ts: now, limited: true };
+      }
+      this.heartbeatLastAt.set(key, now);
       const changed = this.battles.setOnline(battleId, userId, true);
-      // 条件推送：仅当在线状态发生变化时广播最新快照
       if (changed) {
         const snapshot = this.battles.snapshot(battleId);
         this.server.to(`battle:${battleId}`).emit('battle.snapshot', snapshot);

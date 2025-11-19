@@ -50,6 +50,12 @@ export class BattlesService {
   private disconnectTtls = new Map<number, NodeJS.Timeout>();
   // 每局互斥锁，串行化对同一对局的修改
   private readonly battleMutexes = new Map<number, SimpleMutex>();
+  // 基础指标
+  private readonly metricsData = {
+    movesTotal: 0,
+    waitingTtlCleaned: 0,
+    disconnectTtlTriggered: 0,
+  };
 
   // TTL 配置（开发默认）
   private static readonly WAITING_TTL_MS = 10 * 60 * 1000; // 10min
@@ -183,6 +189,7 @@ export class BattlesService {
         ts: Date.now(),
       };
       b.moves.push(m);
+      this.metricsData.movesTotal += 1;
       // 同步 turnIndex
       b.turnIndex = b.turn === 'red' ? 0 : 1;
       // 胜负判定（如有）
@@ -374,6 +381,7 @@ export class BattlesService {
         const filtered = list.filter((id) => id !== battleId);
         this.waitingByMode.set(b.mode, filtered);
         this.battles.delete(battleId);
+        this.metricsData.waitingTtlCleaned += 1;
       }
       this.clearWaitingTtl(battleId);
     }, BattlesService.WAITING_TTL_MS);
@@ -396,12 +404,18 @@ export class BattlesService {
       if ((b.onlineUserIds?.length || 0) === 0 && b.status !== 'finished') {
         // 判和并结束（保留历史）
         this.finish(battleId, { winnerId: null, reason: 'disconnect_ttl' });
+        this.metricsData.disconnectTtlTriggered += 1;
       }
       this.clearDisconnectTtl(battleId);
     }, BattlesService.DISCONNECT_TTL_MS);
     // 避免阻止进程退出
     h.unref?.();
     this.disconnectTtls.set(battleId, h);
+  }
+
+  // 可选对外查询指标（目前仅内部使用）
+  getMetrics() {
+    return { ...this.metricsData };
   }
 
   private clearDisconnectTtl(battleId: number) {
