@@ -15,6 +15,15 @@ export default function Profile() {
     const [newNickname, setNewNickname] = useState<string>('')
     const [saving, setSaving] = useState(false)
     const [uploading, setUploading] = useState(false)
+    const [showEdit, setShowEdit] = useState(false)
+    const fileInputId = 'avatar-upload-input'
+
+    function formatDate(iso?: string | Date | null) {
+        if (!iso) return '-'
+        const d = typeof iso === 'string' ? new Date(iso) : iso
+        if (Number.isNaN(d.getTime())) return '-'
+        return d.toLocaleString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
+    }
 
     useEffect(() => {
         (async () => {
@@ -34,13 +43,14 @@ export default function Profile() {
         await logout();
     };
 
-    const onSaveNickname = async () => {
+    const handleSaveProfile = async () => {
         if (!newNickname || saving) return
         setSaving(true)
         setError(null)
         try {
             const updated = await userApi.updateMe({ nickname: newNickname })
             setMe(updated)
+            setShowEdit(false)
         } catch (e) {
             setError(e instanceof Error ? e.message : '保存失败')
         } finally {
@@ -73,31 +83,70 @@ export default function Profile() {
                 {error && <p className="muted">{error}</p>}
 
                 {!loading && !error && me && (
-                    <div className="row-start gap-12">
-                        {me.avatarUrl ? (
-                            <img className="avatar-64" src={me.avatarUrl || ''} alt="avatar" />
-                        ) : (
-                            <div className="avatar-64" aria-label="avatar">
-                                {(me.nickname || me.phone || '?').charAt(0).toUpperCase()}
+                    <div style={{ display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
+                        {/* 左侧头像，仅展示 */}
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+                            {me.avatarUrl ? (
+                                <img className="avatar-64" src={me.avatarUrl || ''} alt="avatar" />
+                            ) : (
+                                <div className="avatar-64" aria-label="avatar">
+                                    {(me.nickname || me.phone || '?').charAt(0).toUpperCase()}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* 右侧信息，仅展示 */}
+                        <div style={{ minWidth: 220, flex: 1 }}>
+                            <div className="profile-meta">
+                                <div className="mt-6"><strong>昵称：</strong>{me.nickname || '-'}</div>
+                                <div className="mt-6"><strong>手机号：</strong>{me.phone || '-'}</div>
+                                <div className="mt-6"><strong>创建时间：</strong>{formatDate((me as any).createdAt)}</div>
                             </div>
-                        )}
-                        <div>
-                            <div>
-                                <strong>昵称：</strong>
-                                <input
-                                    value={newNickname}
-                                    onChange={(e) => setNewNickname(e.target.value)}
-                                    placeholder="输入新昵称"
-                                />
-                                <button className="btn-ghost mt-6" disabled={saving} onClick={onSaveNickname}>
-                                    {saving ? '保存中…' : '保存'}
-                                </button>
+
+                            <div className="mt-8">
+                                <button className="btn-ghost" onClick={() => setShowEdit(true)}>编辑我的个人资料</button>
                             </div>
-                            <div className="mt-6">
-                                <strong>头像：</strong>
-                                <label className="inline-block">
-                                    <span className="sr-only">选择头像图片</span>
+                        </div>
+                    </div>
+                )}
+
+                <button className="btn-ghost mt-8" onClick={onLogout}>退出登录</button>
+            </section>
+
+            {/* 编辑资料弹窗 */}
+            {showEdit && (
+                <div
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="edit-profile-title"
+                    style={{
+                        position: 'fixed',
+                        inset: 0,
+                        background: 'rgba(0,0,0,0.35)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        zIndex: 50,
+                        padding: 16,
+                    }}
+                >
+                    <div className="paper-card" style={{ width: '100%', maxWidth: 420, padding: 16, borderRadius: 10 }}>
+                        <h4 id="edit-profile-title" className="mt-0">编辑我的个人资料</h4>
+
+                        <div style={{ display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
+                            {/* 头像更换 */}
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+                                {me?.avatarUrl ? (
+                                    <img className="avatar-64" src={me.avatarUrl || ''} alt="avatar" />
+                                ) : (
+                                    <div className="avatar-64" aria-label="avatar">
+                                        {(me?.nickname || me?.phone || '?').charAt(0).toUpperCase()}
+                                    </div>
+                                )}
+                                <div>
                                     <input
+                                        id={fileInputId}
+                                        className="sr-only"
                                         aria-label="选择头像图片"
                                         title="选择头像图片"
                                         type="file"
@@ -105,16 +154,36 @@ export default function Profile() {
                                         onChange={onAvatarChange}
                                         disabled={uploading}
                                     />
-                                </label>
-                                {uploading && <span className="muted inline-block mt-6">上传中…</span>}
+                                    <label htmlFor={fileInputId} className="btn-ghost" style={{ padding: '6px 10px', fontSize: 14 }}>
+                                        {uploading ? '上传中…' : '更换头像'}
+                                    </label>
+                                </div>
                             </div>
-                            <div className="mt-6"><strong>手机号：</strong>{me.phone}</div>
+
+                            {/* 昵称编辑 */}
+                            <div style={{ minWidth: 220, flex: 1 }}>
+                                <div className="row-start" style={{ gap: 8 }}>
+                                    <strong>昵称：</strong>
+                                    <input
+                                        value={newNickname}
+                                        onChange={(e) => setNewNickname(e.target.value)}
+                                        placeholder="输入新昵称"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        {error && <div className="muted mt-6">{error}</div>}
+
+                        <div className="row-between mt-8" style={{ gap: 8 }}>
+                            <button className="btn-ghost" onClick={() => setShowEdit(false)}>取消</button>
+                            <button className="btn-primary" disabled={saving} onClick={handleSaveProfile}>
+                                {saving ? '保存中…' : '保存'}
+                            </button>
                         </div>
                     </div>
-                )}
-
-                <button className="btn-ghost mt-8" onClick={onLogout}>退出登录</button>
-            </section>
+                </div>
+            )}
         </div>
     );
 }

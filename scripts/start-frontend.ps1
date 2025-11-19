@@ -14,5 +14,19 @@ if (-not (Test-Path $envFile)) {
     Write-Host "[start-frontend] Created .env with default VITE_API_BASE=http://localhost:3000"
 }
 
+# Generate API types once from OpenAPI
+Write-Host "[start-frontend] Generating OpenAPI types..."
+npm run gen:api-types
+
+# Start OpenAPI types watch in background (keeps api.d.ts up-to-date)
+try {
+    $frontendPath = Get-Location
+    Write-Host "[start-frontend] Starting OpenAPI types watch in background..."
+    Start-Job -ScriptBlock { Set-Location -Path $using:frontendPath; npm run gen:api-types:watch } | Out-Null
+}
+catch {
+    Write-Warning "[start-frontend] Failed to start types watch job: $($_.Exception.Message)"
+}
+
 Write-Host "[start-frontend] Starting Vite dev server..."
 npm run dev

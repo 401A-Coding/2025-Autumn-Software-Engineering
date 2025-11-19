@@ -158,6 +158,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/boards/standard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get standard Xiangqi board definition */
+        get: operations["boardsStandard"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/boards": {
         parameters: {
             query?: never;
@@ -306,7 +323,8 @@ export interface paths {
         /** List my records */
         get: operations["recordsList"];
         put?: never;
-        post?: never;
+        /** Create a record */
+        post: operations["recordsCreate"];
         delete?: never;
         options?: never;
         head?: never;
@@ -327,7 +345,8 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        patch?: never;
+        /** Update record meta */
+        patch: operations["recordsUpdate"];
         trace?: never;
     };
     "/api/v1/records/{id}/share": {
@@ -398,6 +417,59 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/api/v1/records/{id}/bookmarks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Add bookmark/note */
+        post: operations["recordsBookmarkAdd"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/records/{id}/bookmarks/{bid}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete bookmark/note */
+        delete: operations["recordsBookmarkDelete"];
+        options?: never;
+        head?: never;
+        /** Update bookmark/note */
+        patch: operations["recordsBookmarkUpdate"];
+        trace?: never;
+    };
+    "/api/v1/records/prefs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get record retention preferences */
+        get: operations["recordsPrefsGet"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update record retention preferences */
+        patch: operations["recordsPrefsUpdate"];
         trace?: never;
     };
     "/api/v1/community/shares": {
@@ -492,7 +564,9 @@ export interface components {
             code: number;
             /** @example 参数错误 */
             message: string;
-            data?: unknown;
+            data?: null | {
+                details?: string[];
+            };
         };
         AuthRegisterRequest: {
             /**
@@ -608,7 +682,7 @@ export interface components {
                     side?: "red" | "black";
                 }[];
             };
-            rules?: Record<string, never>;
+            rules?: components["schemas"]["Rules"];
         };
         BoardTemplate: {
             /** @example 1 */
@@ -622,13 +696,13 @@ export interface components {
             name: string;
             description?: string | null;
             layout: Record<string, never>;
-            rules?: Record<string, never> | null;
+            rules?: components["schemas"]["Rules"];
         };
         BoardUpdateRequest: {
             name?: string;
             description?: string | null;
             layout?: Record<string, never>;
-            rules?: Record<string, never> | null;
+            rules?: components["schemas"]["Rules"];
         };
         ApiResponseBoardTemplates: {
             /** @example 0 */
@@ -636,6 +710,18 @@ export interface components {
             /** @example success */
             message?: string;
             data?: components["schemas"]["BoardTemplate"][];
+        };
+        ApiResponsePageBoardTemplates: {
+            /** @example 0 */
+            code?: number;
+            /** @example success */
+            message?: string;
+            data?: {
+                items?: components["schemas"]["BoardTemplate"][];
+                page?: number;
+                pageSize?: number;
+                total?: number;
+            };
         };
         ApiResponseBoardCreateResult: {
             /** @example 0 */
@@ -749,8 +835,84 @@ export interface components {
         Record: {
             id?: number;
             battleId?: number;
-            data?: Record<string, never>;
-            shared?: boolean;
+            opponent?: string | null;
+            /** Format: date-time */
+            startedAt?: string | null;
+            /** Format: date-time */
+            endedAt?: string | null;
+            /** @example red */
+            result?: string | null;
+            /** @example checkmate */
+            endReason?: string | null;
+            keyTags?: string[];
+            /** @default false */
+            favorite: boolean;
+            moves?: components["schemas"]["RecordMove"][];
+            bookmarks?: components["schemas"]["Bookmark"][];
+            /** @default false */
+            shared: boolean;
+            /** Format: date-time */
+            createdAt?: string | null;
+            /** Format: date-time */
+            updatedAt?: string | null;
+        };
+        RecordMove: {
+            moveIndex?: number;
+            from?: {
+                x?: number;
+                y?: number;
+            };
+            to?: {
+                x?: number;
+                y?: number;
+            };
+            piece?: {
+                type?: string;
+                /** @enum {string} */
+                side?: "red" | "black";
+            };
+            capturedType?: string | null;
+            capturedSide?: string | null;
+            timeSpentMs?: number | null;
+            san?: string | null;
+        };
+        Bookmark: {
+            id?: number;
+            step?: number;
+            label?: string | null;
+            note?: string | null;
+            /** Format: date-time */
+            createdAt?: string | null;
+            /** Format: date-time */
+            updatedAt?: string | null;
+        };
+        RecordCreateRequest: {
+            opponent?: string | null;
+            /** Format: date-time */
+            startedAt?: string | null;
+            /** Format: date-time */
+            endedAt?: string | null;
+            result?: string | null;
+            endReason?: string | null;
+            keyTags?: string[];
+            moves?: components["schemas"]["RecordMove"][];
+            bookmarks?: components["schemas"]["Bookmark"][];
+        };
+        RecordUpdateRequest: {
+            opponent?: string;
+            result?: string;
+            endReason?: string;
+            keyTags?: string[];
+        };
+        BookmarkCreateRequest: {
+            step: number;
+            label?: string | null;
+            note?: string | null;
+        };
+        BookmarkUpdateRequest: {
+            step?: number;
+            label?: string | null;
+            note?: string | null;
         };
         ShareRequest: {
             title?: string;
@@ -786,14 +948,100 @@ export interface components {
             message?: string;
             data?: components["schemas"]["Record"];
         };
+        ApiResponseBookmarkCreate: {
+            /** @example 0 */
+            code?: number;
+            /** @example success */
+            message?: string;
+            data?: {
+                id?: number;
+            };
+        };
         ApiResponseShareResult: {
             /** @example 0 */
             code?: number;
-            /** @example 分享成功 */
+            /** @example success */
             message?: string;
             data?: {
+                /** @example 9001 */
                 shareId?: number;
+                /** @example /shares/9001 */
+                url?: string | null;
             };
+        };
+        /** @description 自定义棋局规则（编辑器用），支持模板与图形化自定义 */
+        Rules: {
+            /** @default 1 */
+            ruleVersion: number;
+            /** @enum {string} */
+            layoutSource: "empty" | "standard" | "template";
+            templateRefId?: number | null;
+            /**
+             * @default relativeToSide
+             * @enum {string}
+             */
+            coordinateSystem: "relativeToSide" | "absolute";
+            /**
+             * @default analysis
+             * @enum {string}
+             */
+            mode: "analysis" | "localVersus";
+            pieceRules: {
+                [key: string]: components["schemas"]["PieceRuleConfig"];
+            };
+            notes?: string | null;
+            templatesUsed?: string[];
+        };
+        PieceRuleConfig: {
+            /** @enum {string} */
+            ruleType: "template" | "custom";
+            templateKey?: string | null;
+            movement?: components["schemas"]["MoveSpec"];
+            /**
+             * @default sameAsMove
+             * @enum {string}
+             */
+            captureMode: "sameAsMove" | "separate";
+            capture?: components["schemas"]["MoveSpec"];
+            constraints?: components["schemas"]["ConstraintsSpec"];
+        };
+        MoveSpec: {
+            rays?: components["schemas"]["RaySpec"][];
+            steps?: components["schemas"]["StepSpec"][];
+            gridMask?: number[][];
+            maxDestinations?: number;
+        };
+        RaySpec: {
+            directions?: ("N" | "S" | "E" | "W" | "NE" | "NW" | "SE" | "SW")[];
+            vectors?: number[][];
+            maxSteps?: number | null;
+            /** @default 0 */
+            requireScreensForMove: number;
+            /** @default 0 */
+            requireScreensForCapture: number;
+            /** @default true */
+            stopAtFirstBlocker: boolean;
+        };
+        StepSpec: {
+            offset?: number[];
+            requiredEmpty?: number[][];
+            /** @default true */
+            allowCapture: boolean;
+        };
+        ConstraintsSpec: {
+            /**
+             * @default none
+             * @enum {string}
+             */
+            palace: "none" | "insideOnly" | "outsideOnly";
+            /**
+             * @default none
+             * @enum {string}
+             */
+            river: "none" | "cannotCross" | "mustCross";
+            forwardOnlyBeforeRiver?: boolean;
+            enableSidewaysAfterRiver?: boolean;
+            allowBackwardAfterRiver?: boolean;
         };
         ApiResponseComments: {
             /** @example 0 */
@@ -858,6 +1106,25 @@ export interface components {
                 pageSize?: number;
                 total?: number;
             };
+        };
+        RecordPrefs: {
+            /** @example 30 */
+            keepLimit?: number;
+            /** @example true */
+            autoCleanEnabled?: boolean;
+            /** Format: date-time */
+            updatedAt?: string;
+        };
+        RecordPrefsPatch: {
+            keepLimit?: number;
+            autoCleanEnabled?: boolean;
+        };
+        ApiResponseRecordPrefs: {
+            /** @example 0 */
+            code?: number;
+            /** @example success */
+            message?: string;
+            data?: components["schemas"]["RecordPrefs"];
         };
     };
     responses: never;
@@ -1181,7 +1448,10 @@ export interface operations {
     };
     boardsTemplates: {
         parameters: {
-            query?: never;
+            query?: {
+                page?: number;
+                pageSize?: number;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -1194,7 +1464,27 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ApiResponseBoardTemplates"];
+                    "application/json": components["schemas"]["ApiResponsePageBoardTemplates"];
+                };
+            };
+        };
+    };
+    boardsStandard: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Standard board definition */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseBoard"];
                 };
             };
         };
@@ -1219,6 +1509,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ApiResponseBoardCreateResult"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
                 };
             };
         };
@@ -1312,6 +1611,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ApiResponseBoard"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
                 };
             };
         };
@@ -1438,6 +1746,7 @@ export interface operations {
             query?: {
                 page?: number;
                 pageSize?: number;
+                favorite?: boolean | null;
             };
             header?: never;
             path?: never;
@@ -1452,6 +1761,30 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ApiResponsePageRecords"];
+                };
+            };
+        };
+    };
+    recordsCreate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RecordCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseRecord"];
                 };
             };
         };
@@ -1474,6 +1807,32 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ApiResponseRecord"];
+                };
+            };
+        };
+    };
+    recordsUpdate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RecordUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseOk"];
                 };
             };
         };
@@ -1614,6 +1973,126 @@ export interface operations {
                 };
                 content: {
                     "application/octet-stream": string;
+                };
+            };
+        };
+    };
+    recordsBookmarkAdd: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BookmarkCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Added */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseBookmarkCreate"];
+                };
+            };
+        };
+    };
+    recordsBookmarkDelete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+                bid: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseOk"];
+                };
+            };
+        };
+    };
+    recordsBookmarkUpdate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+                bid: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BookmarkUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseOk"];
+                };
+            };
+        };
+    };
+    recordsPrefsGet: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Prefs */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseRecordPrefs"];
+                };
+            };
+        };
+    };
+    recordsPrefsUpdate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RecordPrefsPatch"];
+            };
+        };
+        responses: {
+            /** @description Updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseRecordPrefs"];
                 };
             };
         };

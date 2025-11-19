@@ -230,6 +230,24 @@ export class UserService {
     return { ...rest, nickname: username };
   }
 
+  // 基于 userId 获取当前用户信息（配合 JwtAuthGuard 使用）
+  async getMeByUserId(userId: number) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        username: true,
+        phone: true,
+        avatarUrl: true,
+        role: true,
+        createdAt: true,
+      },
+    });
+    if (!user) throw new UnauthorizedException('用户不存在');
+    const { username, ...rest } = user;
+    return { ...rest, nickname: username };
+  }
+
   // 更新当前用户信息（支持 nickname/password/avatarUrl）
   async updateMe(
     authorization: string | undefined,
@@ -256,6 +274,50 @@ export class UserService {
     try {
       const updated = await this.prisma.user.update({
         where: { id: payload.sub },
+        data,
+        select: {
+          id: true,
+          username: true,
+          phone: true,
+          avatarUrl: true,
+          role: true,
+          createdAt: true,
+        },
+      });
+      const { username, ...rest } = updated;
+      return { ...rest, nickname: username };
+    } catch (e: unknown) {
+      if (this.getPrismaErrorCode(e) === 'P2002')
+        throw new BadRequestException('昵称已被占用');
+      throw e;
+    }
+  }
+
+  // 基于 userId 更新当前用户信息（配合 JwtAuthGuard 使用）
+  async updateMeByUserId(
+    userId: number,
+    patch: { password?: string; avatarUrl?: string | null; nickname?: string },
+  ) {
+    const data: {
+      password?: string;
+      avatarUrl?: string | null;
+      username?: string;
+    } = {};
+    if (
+      typeof patch.nickname === 'string' &&
+      patch.nickname.trim().length > 0
+    ) {
+      data.username = patch.nickname.trim();
+    }
+    if (typeof patch.avatarUrl !== 'undefined') {
+      data.avatarUrl = patch.avatarUrl;
+    }
+    if (typeof patch.password === 'string' && patch.password.length > 0) {
+      data.password = await bcrypt.hash(patch.password, 10);
+    }
+    try {
+      const updated = await this.prisma.user.update({
+        where: { id: userId },
         data,
         select: {
           id: true,

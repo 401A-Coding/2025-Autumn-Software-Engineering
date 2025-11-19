@@ -6,6 +6,8 @@ import { load } from 'js-yaml';
 import swaggerUi from 'swagger-ui-express';
 import { Request, Response } from 'express';
 import { ValidationPipe } from '@nestjs/common/pipes/validation.pipe';
+import { ResponseEnvelopeInterceptor } from './common/interceptors/response-envelope.interceptor';
+import { GlobalExceptionFilter } from './common/filters/http-exception.filter';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -16,6 +18,9 @@ async function bootstrap() {
       transform: true, // 自动转换数据类型（如字符串转数字）
     }),
   );
+  // 全局统一响应包装与错误封装
+  app.useGlobalInterceptors(new ResponseEnvelopeInterceptor());
+  app.useGlobalFilters(new GlobalExceptionFilter());
   // 启用 CORS，便于前端在 Vite (默认 5173) 开发环境跨域访问
   app.enableCors({
     origin: [
@@ -23,6 +28,10 @@ async function bootstrap() {
       /http:\/\/127\.0\.0\.1:5173$/,
       /http:\/\/192\.168\.[0-9]+\.[0-9]+:5173$/,
       /http:\/\/10\.[0-9]+\.[0-9]+\.[0-9]+:5173$/,
+      /http:\/\/localhost:5174$/,
+      /http:\/\/127\.0\.0\.1:5174$/,
+      /http:\/\/192\.168\.[0-9]+\.[0-9]+:5174$/,
+      /http:\/\/10\.[0-9]+\.[0-9]+\.[0-9]+:5174$/,
     ],
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],

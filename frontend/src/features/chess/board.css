@@ -71,6 +71,17 @@
     box-shadow: inset 0 0 0 2px #e7d8b1;
 }
 
+/* Flip view for black at bottom */
+.board--flip {
+    transform: rotate(180deg);
+}
+
+/* Keep glyphs/text upright when board is flipped */
+.board--flip .piece,
+.board--flip .river-text {
+    transform: rotate(180deg);
+}
+
 /* Grid lines */
 .grid-h {
     position: absolute;
