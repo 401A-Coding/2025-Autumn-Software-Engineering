@@ -5,12 +5,14 @@ import { BattlesController } from './battles.controller';
 import { ChessEngineService } from './engine.service';
 import { JwtModule } from '@nestjs/jwt';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { MetricsModule } from '../metrics/metrics.module';
 
 @Module({
   imports: [
     JwtModule.register({
       secret: process.env.JWT_SECRET || 'dev-secret',
     }),
+    MetricsModule,
   ],
   controllers: [BattlesController],
   providers: [BattlesService, BattlesGateway, ChessEngineService, JwtAuthGuard],

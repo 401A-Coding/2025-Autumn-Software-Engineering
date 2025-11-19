@@ -2,10 +2,12 @@ import {
   Injectable,
   UnauthorizedException,
   BadRequestException,
+  Optional,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import type { Board, Side } from '../../shared/chess/types';
 import { ChessEngineService } from './engine.service';
+import { MetricsService } from '../metrics/metrics.service';
 
 export type BattleStatus = 'waiting' | 'playing' | 'finished';
 
@@ -65,6 +67,7 @@ export class BattlesService {
   constructor(
     private readonly jwt: JwtService,
     private readonly engine: ChessEngineService,
+    @Optional() private readonly metrics?: MetricsService,
   ) {}
 
   verifyBearer(authorization?: string) {
@@ -190,6 +193,7 @@ export class BattlesService {
       };
       b.moves.push(m);
       this.metricsData.movesTotal += 1;
+      this.metrics?.incMoves();
       // 同步 turnIndex
       b.turnIndex = b.turn === 'red' ? 0 : 1;
       // 胜负判定（如有）
@@ -382,6 +386,7 @@ export class BattlesService {
         this.waitingByMode.set(b.mode, filtered);
         this.battles.delete(battleId);
         this.metricsData.waitingTtlCleaned += 1;
+        this.metrics?.incWaitingTtlCleaned();
       }
       this.clearWaitingTtl(battleId);
     }, BattlesService.WAITING_TTL_MS);
@@ -405,6 +410,7 @@ export class BattlesService {
         // 判和并结束（保留历史）
         this.finish(battleId, { winnerId: null, reason: 'disconnect_ttl' });
         this.metricsData.disconnectTtlTriggered += 1;
+        this.metrics?.incDisconnectTtlTriggered();
       }
       this.clearDisconnectTtl(battleId);
     }, BattlesService.DISCONNECT_TTL_MS);
