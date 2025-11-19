@@ -29,6 +29,8 @@ export interface BattleState {
   // 权威棋盘与轮次
   board: Board;
   turn: Side; // 'red' | 'black'
+  // 在线用户（通过 WS join/断开维护）
+  onlineUserIds: number[];
 }
 
 @Injectable()
@@ -45,6 +47,13 @@ export class BattlesService {
     string,
     { battleId: number; result: Move; ts: number }
   >();
+  // TTL 定时器
+  private waitingTtls = new Map<number, NodeJS.Timeout>();
+  private disconnectTtls = new Map<number, NodeJS.Timeout>();
+
+  // TTL 配置（开发默认）
+  private static readonly WAITING_TTL_MS = 10 * 60 * 1000; // 10min
+  private static readonly DISCONNECT_TTL_MS = 15 * 60 * 1000; // 15min，无人在线时触发
 
   constructor(
     private readonly jwt: JwtService,
@@ -82,8 +91,10 @@ export class BattlesService {
       createdAt: Date.now(),
       board: this.engine.createInitialBoard(),
       turn: 'red',
+      onlineUserIds: [],
     };
     this.battles.set(id, state);
+    this.scheduleWaitingTtl(id);
     return { battleId: id, status: state.status };
   }
 
@@ -99,6 +110,8 @@ export class BattlesService {
     if (b.players.length >= 2) throw new BadRequestException('房间已满');
     b.players.push(userId);
     if (b.players.length === 2) b.status = 'playing';
+    // 进入对战后，清理等待 TTL
+    if (b.status === 'playing') this.clearWaitingTtl(b.id);
     return { battleId: b.id, status: b.status };
   }
 
@@ -121,6 +134,7 @@ export class BattlesService {
       turn: b.turn,
       createdAt: b.createdAt,
       winnerId: b.winnerId ?? null,
+      onlineUserIds: b.onlineUserIds,
     };
   }
 
@@ -270,6 +284,8 @@ export class BattlesService {
       const list = this.waitingByMode.get(b.mode) || [];
       const filtered = list.filter((id) => id !== battleId);
       this.waitingByMode.set(b.mode, filtered);
+      this.clearWaitingTtl(battleId);
+      this.clearDisconnectTtl(battleId);
       this.battles.delete(battleId);
       return { battleId, left: true };
     }
@@ -281,6 +297,10 @@ export class BattlesService {
         list.push(battleId);
         this.waitingByMode.set(b.mode, list);
       }
+      // 重新挂等待 TTL
+      this.scheduleWaitingTtl(battleId);
+      // 无人在线则考虑断线 TTL（通常剩下一人仍可能在线）
+      this.evaluateDisconnectTtl(battleId);
     }
     return { battleId, left: true };
   }
@@ -300,5 +320,84 @@ export class BattlesService {
       }
     }
     return undefined;
+  }
+
+  // 在线状态维护
+  setOnline(battleId: number, userId: number, online: boolean): boolean {
+    const b = this.battles.get(battleId);
+    if (!b) return false;
+    const set = new Set(b.onlineUserIds);
+    const had = set.has(userId);
+    if (online) set.add(userId);
+    else set.delete(userId);
+    const changed = had !== online;
+    if (changed) {
+      b.onlineUserIds = Array.from(set);
+    }
+    this.evaluateDisconnectTtl(battleId);
+    return changed;
+  }
+
+  private evaluateDisconnectTtl(battleId: number) {
+    const b = this.battles.get(battleId);
+    if (!b) return;
+    if (b.status === 'finished') {
+      this.clearDisconnectTtl(battleId);
+      return;
+    }
+    if ((b.onlineUserIds?.length || 0) === 0) {
+      // 无人在线，启动断线 TTL
+      this.scheduleDisconnectTtl(battleId);
+    } else {
+      // 有人在线，清理断线 TTL
+      this.clearDisconnectTtl(battleId);
+    }
+  }
+
+  private scheduleWaitingTtl(battleId: number) {
+    this.clearWaitingTtl(battleId);
+    const h = setTimeout(() => {
+      const b = this.battles.get(battleId);
+      if (!b) return;
+      if (b.status === 'waiting') {
+        // 从等待池清理并删除
+        const list = this.waitingByMode.get(b.mode) || [];
+        const filtered = list.filter((id) => id !== battleId);
+        this.waitingByMode.set(b.mode, filtered);
+        this.battles.delete(battleId);
+      }
+      this.clearWaitingTtl(battleId);
+    }, BattlesService.WAITING_TTL_MS);
+    // 避免阻止进程退出
+    h.unref?.();
+    this.waitingTtls.set(battleId, h);
+  }
+
+  private clearWaitingTtl(battleId: number) {
+    const h = this.waitingTtls.get(battleId);
+    if (h) clearTimeout(h);
+    this.waitingTtls.delete(battleId);
+  }
+
+  private scheduleDisconnectTtl(battleId: number) {
+    this.clearDisconnectTtl(battleId);
+    const h = setTimeout(() => {
+      const b = this.battles.get(battleId);
+      if (!b) return;
+      if ((b.onlineUserIds?.length || 0) === 0 && b.status !== 'finished') {
+        // 判和并结束（保留历史）
+        this.finish(battleId, { winnerId: null, reason: 'disconnect_ttl' });
+      }
+      this.clearDisconnectTtl(battleId);
+    }, BattlesService.DISCONNECT_TTL_MS);
+    // 避免阻止进程退出
+    h.unref?.();
+    this.disconnectTtls.set(battleId, h);
+  }
+
+  private clearDisconnectTtl(battleId: number) {
+    const h = this.disconnectTtls.get(battleId);
+    if (h) clearTimeout(h);
+    this.disconnectTtls.delete(battleId);
   }
 }

@@ -28,7 +28,15 @@ export default function LiveBattle() {
     const conn = useMemo(() => {
         const c = connectBattle();
         connRef.current = c;
-        c.socket.on('connect', () => setConnected(true));
+        c.socket.on('connect', () => {
+            setConnected(true);
+            // 重连自动 rejoin & snapshot
+            const id = battleIdRef.current;
+            if (id && id > 0) {
+                c.join(id);
+                c.snapshot(id);
+            }
+        });
         c.socket.on('disconnect', () => setConnected(false));
         c.onSnapshot((s) => {
             latestSnapshotRef.current = s;
@@ -161,6 +169,34 @@ export default function LiveBattle() {
         battleIdRef.current = typeof battleId === 'number' ? battleId : null;
     }, [battleId]);
 
+    // 心跳：进入房间且连接后启动 interval；离开或断开时清理
+    const heartbeatRef = useRef<number | null>(null);
+    useEffect(() => {
+        if (inRoom && connected && battleIdRef.current) {
+            // 先立即发送一次心跳以刷新在线状态
+            connRef.current?.heartbeat?.(battleIdRef.current);
+            if (heartbeatRef.current) {
+                clearInterval(heartbeatRef.current);
+            }
+            heartbeatRef.current = window.setInterval(() => {
+                if (battleIdRef.current) {
+                    connRef.current?.heartbeat?.(battleIdRef.current);
+                }
+            }, 20000); // 20s
+        } else {
+            if (heartbeatRef.current) {
+                clearInterval(heartbeatRef.current);
+                heartbeatRef.current = null;
+            }
+        }
+        return () => {
+            if (heartbeatRef.current) {
+                clearInterval(heartbeatRef.current);
+                heartbeatRef.current = null;
+            }
+        };
+    }, [inRoom, connected]);
+
     const copyRoomId = async () => {
         const id = battleIdRef.current;
         if (!id) return;
@@ -201,6 +237,14 @@ export default function LiveBattle() {
             setBattleId('');
             setJoinIdInput('');
             navigate('/app/online-lobby');
+        }
+    };
+
+    const handleReconnect = () => {
+        try {
+            connRef.current?.socket?.connect();
+        } catch {
+            // 忽略
         }
     };
 
@@ -283,7 +327,29 @@ export default function LiveBattle() {
                             <div className="livebattle-state-line">
                                 对局状态：{snapshot.status}{snapshot.status === 'waiting' && '（等待好友加入）'}
                             </div>
-                            <div className="muted livebattle-players-line">玩家：[{snapshot.players.join(', ')}] · 我：{myUserId ?? '-'}</div>
+                            {inRoom && !connected && (
+                                <div className="livebattle-disconnect-banner" role="status" aria-live="polite">
+                                    <span className="livebattle-dot-yellow" />
+                                    与服务器连接中断，正在尝试重连…
+                                    <button className="btn-ghost" onClick={handleReconnect}>重试连接</button>
+                                </div>
+                            )}
+                            <div className="muted livebattle-players-line">玩家（在线高亮） · 我：{myUserId ?? '-'}</div>
+                            <div className="livebattle-players-wrap">
+                                {snapshot.players.map(pid => {
+                                    const online = snapshot.onlineUserIds?.includes(pid);
+                                    return (
+                                        <div
+                                            key={pid}
+                                            data-testid={`player-pill-${pid}`}
+                                            className={"livebattle-player-pill" + (online ? " online" : "")}
+                                        >
+                                            <span className="livebattle-player-dot" />
+                                            <span>{pid}{pid === myUserId ? ' (我)' : ''}</span>
+                                        </div>
+                                    );
+                                })}
+                            </div>
                             {(snapshot.status !== 'waiting' || (snapshot.players?.length ?? 0) >= 2) ? (
                                 <div className="livebattle-board-wrapper">
                                     <OnlineBoard

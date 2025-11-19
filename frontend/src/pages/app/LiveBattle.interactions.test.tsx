@@ -19,14 +19,23 @@ type Snap = {
     turn: 'red' | 'black';
     createdAt: number;
     winnerId: number | null;
+    onlineUserIds?: number[];
 };
 
 let snapshotHandler: ((s: Snap) => void) | null = null;
+const emitMap: Record<string, unknown[]> = {};
+const socketOn = vi.fn();
+const socketEmit = vi.fn((event: string, payload?: unknown) => {
+    emitMap[event] = emitMap[event] || [];
+    emitMap[event].push(payload);
+});
+
 const mockConn = {
-    socket: { on: vi.fn(), close: vi.fn() },
+    socket: { on: socketOn, close: vi.fn(), emit: socketEmit },
     join: vi.fn(),
     snapshot: vi.fn(),
     move: vi.fn(),
+    heartbeat: vi.fn(),
     onSnapshot: (cb: (s: Snap) => void) => { snapshotHandler = cb; },
     onMove: vi.fn(),
     onPlayerJoin: vi.fn(),
@@ -69,12 +78,22 @@ describe('LiveBattle interactions', () => {
             turn: 'red',
             createdAt: Date.now(),
             winnerId: null,
+            onlineUserIds: [1],
         });
+        // 心跳在进入房间且连接建立后触发；模拟连接事件
+        // 触发 socket connect 回调
+        socketOn.mock.calls.forEach(call => {
+            const [event, handler] = call;
+            if (event === 'connect') handler();
+        });
+        await waitFor(() => expect(mockConn.heartbeat).toHaveBeenCalled());
 
-        // cancel button should appear
+        // player pill should appear with online highlight before cancellation
+        const pill = await screen.findByTestId('player-pill-1');
+        expect(pill.className).toMatch(/online/);
+        // cancel button should appear then click
         const cancelBtn = await screen.findByRole('button', { name: '取消匹配' });
         fireEvent.click(cancelBtn);
-
         await waitFor(() => expect(cancelMock).toHaveBeenCalledWith(123));
     });
 });

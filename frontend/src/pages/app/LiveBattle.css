@@ -73,6 +73,43 @@
     margin-top: 4px;
 }
 
+.livebattle-players-wrap {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 6px;
+}
+
+.livebattle-player-pill {
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: var(--muted-bg);
+    color: var(--text, #333);
+    font-size: 12px;
+    border: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    line-height: 1.2;
+}
+
+.livebattle-player-pill.online {
+    background: #27ae60;
+    color: #fff;
+    border-color: #1e874c;
+}
+
+.livebattle-player-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #bbb;
+}
+
+.livebattle-player-pill.online .livebattle-player-dot {
+    background: #fff;
+}
+
 .livebattle-board-wrapper {
     margin-top: 12px;
 }
@@ -83,4 +120,23 @@
 
 .livebattle-return-bar {
     margin-top: 12px;
+}
+
+.livebattle-disconnect-banner {
+    margin-top: 8px;
+    padding: 8px 12px;
+    border-radius: 6px;
+    background: #fff4e5;
+    color: #8a4b08;
+    border: 1px solid #f2c97d;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.livebattle-dot-yellow {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #f5a623;
 }

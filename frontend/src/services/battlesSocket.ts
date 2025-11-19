@@ -23,6 +23,7 @@ export type BattleSnapshot = {
     turn?: import('../features/chess/types').Side;
     createdAt: number;
     winnerId: number | null;
+    onlineUserIds?: number[];
 };
 
 export function connectBattle() {
@@ -56,10 +57,13 @@ export function connectBattle() {
         });
     };
     const snapshot = (battleId: number) => socket.emit('battle.snapshot', { battleId });
+    const heartbeat = (battleId: number, cb?: (ack: { ok: boolean; ts: number }) => void) => {
+        socket.emit('battle.heartbeat', { battleId }, cb);
+    };
 
     const onMove = (cb: (m: BattleMove) => void) => socket.on('battle.move', cb);
     const onSnapshot = (cb: (s: BattleSnapshot) => void) => socket.on('battle.snapshot', cb);
     const onPlayerJoin = (cb: (p: { userId: number }) => void) => socket.on('battle.player_join', cb);
 
-    return { socket, join, move, snapshot, onMove, onSnapshot, onPlayerJoin };
+    return { socket, join, move, snapshot, heartbeat, onMove, onSnapshot, onPlayerJoin };
 }

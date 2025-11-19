@@ -3,6 +3,7 @@ import {
   ConnectedSocket,
   MessageBody,
   OnGatewayConnection,
+  OnGatewayDisconnect,
   SubscribeMessage,
   WebSocketGateway,
   WebSocketServer,
@@ -14,7 +15,9 @@ import { BattlesService } from './battles.service';
   namespace: '/battle',
   cors: { origin: [/http:\/\/localhost:(5173|5174)$/] },
 })
-export class BattlesGateway implements OnGatewayConnection {
+export class BattlesGateway
+  implements OnGatewayConnection, OnGatewayDisconnect
+{
   private readonly logger = new Logger(BattlesGateway.name);
 
   @WebSocketServer()
@@ -23,6 +26,7 @@ export class BattlesGateway implements OnGatewayConnection {
   constructor(private readonly battles: BattlesService) {}
 
   private readonly users = new WeakMap<Socket, number>();
+  private readonly joinedBattle = new WeakMap<Socket, number>();
   handleConnection(client: Socket) {
     // augment socket data type
     try {
@@ -45,6 +49,21 @@ export class BattlesGateway implements OnGatewayConnection {
     }
   }
 
+  handleDisconnect(client: Socket) {
+    try {
+      const userId = this.users.get(client);
+      const battleId = this.joinedBattle.get(client);
+      if (userId && battleId) {
+        this.battles.setOnline(battleId, userId, false);
+        // 广播最新快照（在线状态变化）
+        const snapshot = this.battles.snapshot(battleId);
+        this.server.to(`battle:${battleId}`).emit('battle.snapshot', snapshot);
+      }
+    } catch {
+      // 忽略断开时的异常
+    }
+  }
+
   @SubscribeMessage('battle.join')
   async onJoin(
     @MessageBody() body: { battleId: number },
@@ -54,11 +73,15 @@ export class BattlesGateway implements OnGatewayConnection {
     const { battleId } = body || ({} as any);
     const res = this.battles.joinBattle(userId, battleId);
     await client.join(`battle:${battleId}`);
+    this.joinedBattle.set(client, battleId);
+    this.battles.setOnline(battleId, userId, true);
     const snapshot = this.battles.snapshot(battleId);
     // 回发给加入者 snapshot
     client.emit('battle.snapshot', snapshot);
     // 广播有人加入（给房间其他人）
     client.to(`battle:${battleId}`).emit('battle.player_join', { userId });
+    // 同步在线状态
+    this.server.to(`battle:${battleId}`).emit('battle.snapshot', snapshot);
     return res;
   }
 
@@ -99,5 +122,23 @@ export class BattlesGateway implements OnGatewayConnection {
     const snapshot = this.battles.snapshot(body.battleId);
     client.emit('battle.snapshot', snapshot);
     return snapshot;
+  }
+
+  @SubscribeMessage('battle.heartbeat')
+  onHeartbeat(
+    @MessageBody() body: { battleId: number },
+    @ConnectedSocket() client: Socket,
+  ) {
+    const userId = this.users.get(client);
+    const battleId = body?.battleId;
+    if (userId && battleId) {
+      const changed = this.battles.setOnline(battleId, userId, true);
+      // 条件推送：仅当在线状态发生变化时广播最新快照
+      if (changed) {
+        const snapshot = this.battles.snapshot(battleId);
+        this.server.to(`battle:${battleId}`).emit('battle.snapshot', snapshot);
+      }
+    }
+    return { ok: true, ts: Date.now() };
   }
 }
