@@ -83,9 +83,9 @@ export default function Profile() {
                 {error && <p className="muted">{error}</p>}
 
                 {!loading && !error && me && (
-                    <div style={{ display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
+                    <div className="row gap-16 align-center wrap">
                         {/* 左侧头像，仅展示 */}
-                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+                        <div className="col align-center gap-8">
                             {me.avatarUrl ? (
                                 <img className="avatar-64" src={me.avatarUrl || ''} alt="avatar" />
                             ) : (
@@ -96,7 +96,7 @@ export default function Profile() {
                         </div>
 
                         {/* 右侧信息，仅展示 */}
-                        <div style={{ minWidth: 220, flex: 1 }}>
+                        <div className="minw-220 flex-1">
                             <div className="profile-meta">
                                 <div className="mt-6"><strong>昵称：</strong>{me.nickname || '-'}</div>
                                 <div className="mt-6"><strong>手机号：</strong>{me.phone || '-'}</div>
@@ -119,23 +119,14 @@ export default function Profile() {
                     role="dialog"
                     aria-modal="true"
                     aria-labelledby="edit-profile-title"
-                    style={{
-                        position: 'fixed',
-                        inset: 0,
-                        background: 'rgba(0,0,0,0.35)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        zIndex: 50,
-                        padding: 16,
-                    }}
+                    className="modal-mask"
                 >
-                    <div className="paper-card" style={{ width: '100%', maxWidth: 420, padding: 16, borderRadius: 10 }}>
+                    <div className="paper-card modal-card mw-420">
                         <h4 id="edit-profile-title" className="mt-0">编辑我的个人资料</h4>
 
-                        <div style={{ display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
+                        <div className="row gap-16 align-center wrap">
                             {/* 头像更换 */}
-                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+                            <div className="col align-center gap-8">
                                 {me?.avatarUrl ? (
                                     <img className="avatar-64" src={me.avatarUrl || ''} alt="avatar" />
                                 ) : (
@@ -154,15 +145,15 @@ export default function Profile() {
                                         onChange={onAvatarChange}
                                         disabled={uploading}
                                     />
-                                    <label htmlFor={fileInputId} className="btn-ghost" style={{ padding: '6px 10px', fontSize: 14 }}>
+                                    <label htmlFor={fileInputId} className="btn-ghost btn-compact">
                                         {uploading ? '上传中…' : '更换头像'}
                                     </label>
                                 </div>
                             </div>
 
                             {/* 昵称编辑 */}
-                            <div style={{ minWidth: 220, flex: 1 }}>
-                                <div className="row-start" style={{ gap: 8 }}>
+                            <div className="minw-220 flex-1">
+                                <div className="row-start gap-8">
                                     <strong>昵称：</strong>
                                     <input
                                         value={newNickname}
@@ -175,7 +166,7 @@ export default function Profile() {
 
                         {error && <div className="muted mt-6">{error}</div>}
 
-                        <div className="row-between mt-8" style={{ gap: 8 }}>
+                        <div className="row-between mt-8 gap-8">
                             <button className="btn-ghost" onClick={() => setShowEdit(false)}>取消</button>
                             <button className="btn-primary" disabled={saving} onClick={handleSaveProfile}>
                                 {saving ? '保存中…' : '保存'}

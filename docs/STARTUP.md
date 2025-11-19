@@ -34,13 +34,12 @@ JWT_SECRET="your-strong-secret"
 ```
 
 推荐使用仓库内脚本一键启动：
-
-```powershell
-# 正常启动（不清库）
 ./scripts/start-backend.ps1
 
 # 如需重置开发库（会清空数据）
+
 ./scripts/start-backend.ps1 -ResetDb
+
 ```
 
 脚本会完成：
@@ -48,18 +47,45 @@ JWT_SECRET="your-strong-secret"
 - 安装依赖（如缺失）
 - 读取 backend/prisma/.env 并导出环境变量
 - 生成 Prisma Client
-- 应用数据库迁移
 - 以 watch 模式启动 NestJS（默认端口 3000）
 
 如需手动执行：
-
-```powershell
 cd backend
+
+## Metrics & Monitoring (optional)
+- Enable Prometheus endpoint by setting env var in backend (dev only recommended):
+  - `METRICS_ENABLED=true`
+- When enabled, backend exposes `GET /metrics` in Prometheus text format.
+- Example scrape config (prometheus.yml):
+  ```yaml
+  scrape_configs:
+    - job_name: backend
+      scrape_interval: 15s
+      static_configs:
+        - targets: ['localhost:3000']
+      metrics_path: /metrics
+  ```
+
+- Sample metrics exported:
+  - `battles_moves_total`
+  - `battles_waiting_ttl_cleaned_total`
+  - `battles_disconnect_ttl_triggered_total`
+- Quick check:
+
+  ```powershell
+  curl http://localhost:3000/metrics
+  ```
+
+- Grafana quick panel (Time series):
+  - Query example: `rate(battles_moves_total[5m])`
+  - Legend: `Moves per second`
+  - Min step: `15s`
+
 $env:DATABASE_URL="postgresql://postgres:postgres@127.0.0.1:5432/mydb?schema=public"
 npm install
-npx prisma generate
 npx prisma migrate dev --name init
 npm run start:dev
+
 ```
 
 备注：本项目已在 `src/main.ts` 启用 CORS，允许来自 Vite 开发服务器（5173）的跨域请求。

@@ -2,10 +2,13 @@ import {
   Injectable,
   UnauthorizedException,
   BadRequestException,
+  Optional,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import type { Board, Side } from '../../shared/chess/types';
+import { createHash } from 'node:crypto';
 import { ChessEngineService } from './engine.service';
+import { MetricsService } from '../metrics/metrics.service';
 
 export type BattleStatus = 'waiting' | 'playing' | 'finished';
 
@@ -15,6 +18,7 @@ export interface Move {
   by: number; // userId
   seq: number;
   ts: number;
+  stateHash?: string;
 }
 
 export interface BattleState {
@@ -26,6 +30,7 @@ export interface BattleState {
   turnIndex: 0 | 1; // 0=players[0], 1=players[1]
   createdAt: number;
   winnerId?: number | null;
+  finishReason?: string | null;
   // 权威棋盘与轮次
   board: Board;
   turn: Side; // 'red' | 'black'
@@ -43,22 +48,29 @@ export class BattlesService {
     { battleId: number; result: 'win' | 'lose' | 'draw' }[]
   >();
   // 已处理的客户端请求（用于走子幂等）
-  private processedRequests = new Map<
-    string,
-    { battleId: number; result: Move; ts: number }
-  >();
+  private processedRequests = new Map<string, { result: Move; ts: number }>();
   // TTL 定时器
   private waitingTtls = new Map<number, NodeJS.Timeout>();
   private disconnectTtls = new Map<number, NodeJS.Timeout>();
+  // 每局互斥锁，串行化对同一对局的修改
+  private readonly battleMutexes = new Map<number, SimpleMutex>();
+  // 基础指标
+  private readonly metricsData = {
+    movesTotal: 0,
+    waitingTtlCleaned: 0,
+    disconnectTtlTriggered: 0,
+  };
 
   // TTL 配置（开发默认）
   private static readonly WAITING_TTL_MS = 10 * 60 * 1000; // 10min
   private static readonly DISCONNECT_TTL_MS = 15 * 60 * 1000; // 15min，无人在线时触发
+  private static readonly PROCESSED_REQ_TTL_MS = 5 * 60 * 1000; // 5min 去重记录 TTL
 
   constructor(
     private readonly jwt: JwtService,
     private readonly engine: ChessEngineService,
-  ) {}
+    @Optional() private readonly metrics?: MetricsService,
+  ) { }
 
   verifyBearer(authorization?: string) {
     if (!authorization || !authorization.toLowerCase().startsWith('bearer ')) {
@@ -134,6 +146,9 @@ export class BattlesService {
       turn: b.turn,
       createdAt: b.createdAt,
       winnerId: b.winnerId ?? null,
+      finishReason: b.finishReason ?? null,
+      lastMove: b.moves.length ? b.moves[b.moves.length - 1] : null,
+      stateHash: this.computeStateHash(b),
       onlineUserIds: b.onlineUserIds,
     };
   }
@@ -144,60 +159,66 @@ export class BattlesService {
     move: Pick<Move, 'from' | 'to'>,
     clientRequestId?: string,
   ) {
-    if (clientRequestId) {
-      const hit = this.processedRequests.get(clientRequestId);
-      if (hit && hit.battleId === battleId) {
-        return hit.result;
+    // 去重键包含 battleId，避免跨房间冲突
+    const dedupeKey = clientRequestId
+      ? `${battleId}:${clientRequestId}`
+      : undefined;
+    if (dedupeKey) {
+      const hit = this.processedRequests.get(dedupeKey);
+      if (hit) return hit.result;
+    }
+
+    // 同一对局的并发互斥
+    const mutex = this.getBattleMutex(battleId);
+    return mutex.runExclusive(() => {
+      const b = this.getBattle(battleId);
+      if (b.status !== 'playing') throw new BadRequestException('当前不可走子');
+      const idx = b.players.indexOf(userId);
+      if (idx === -1) throw new UnauthorizedException('不在房间内');
+      if (idx !== b.turnIndex) throw new BadRequestException('未到你的回合');
+      // 权威校验与应用
+      const res = this.engine.validateAndApply(
+        b.board,
+        b.turn,
+        move.from,
+        move.to,
+      );
+      if (!('ok' in res) || !res.ok) {
+        throw new BadRequestException(res.reason || '非法走子');
       }
-    }
-    const b = this.getBattle(battleId);
-    if (b.status !== 'playing') throw new BadRequestException('当前不可走子');
-    const idx = b.players.indexOf(userId);
-    if (idx === -1) throw new UnauthorizedException('不在房间内');
-    if (idx !== b.turnIndex) throw new BadRequestException('未到你的回合');
-    // 权威校验与应用
-    const res = this.engine.validateAndApply(
-      b.board,
-      b.turn,
-      move.from,
-      move.to,
-    );
-    if (!('ok' in res) || !res.ok) {
-      throw new BadRequestException(res.reason || '非法走子');
-    }
-    b.board = res.board;
-    b.turn = res.nextTurn;
-    const m: Move = {
-      ...move,
-      by: userId,
-      seq: b.moves.length + 1,
-      ts: Date.now(),
-    };
-    b.moves.push(m);
-    // 同步 turnIndex
-    b.turnIndex = b.turn === 'red' ? 0 : 1;
-    // 胜负判定（如有）
-    if (res.winner) {
-      if (res.winner === 'draw') {
-        this.finish(b.id, { winnerId: null, reason: 'draw' });
-      } else {
-        const winnerId = res.winner === 'red' ? b.players[0] : b.players[1];
-        this.finish(b.id, { winnerId, reason: 'checkmate' });
-      }
-    }
-    if (clientRequestId) {
-      this.processedRequests.set(clientRequestId, {
-        battleId,
-        result: m,
+      b.board = res.board;
+      b.turn = res.nextTurn;
+      const m: Move = {
+        ...move,
+        by: userId,
+        seq: b.moves.length + 1,
         ts: Date.now(),
-      });
-      // 简单清理：超过500条时删除最早的100条
-      if (this.processedRequests.size > 500) {
-        const keys = Array.from(this.processedRequests.keys()).slice(0, 100);
-        keys.forEach((k) => this.processedRequests.delete(k));
+      };
+      b.moves.push(m);
+      this.metricsData.movesTotal += 1;
+      this.metrics?.incMoves();
+      // 同步 turnIndex
+      b.turnIndex = b.turn === 'red' ? 0 : 1;
+      // 附加最新 stateHash（给 ACK 与广播使用）
+      m.stateHash = this.computeStateHash(b);
+      // 胜负判定（如有）
+      if (res.winner) {
+        if (res.winner === 'draw') {
+          this.finish(b.id, { winnerId: null, reason: 'draw' });
+        } else {
+          const winnerId = res.winner === 'red' ? b.players[0] : b.players[1];
+          this.finish(b.id, { winnerId, reason: 'checkmate' });
+        }
       }
-    }
-    return m;
+      if (dedupeKey) {
+        this.processedRequests.set(dedupeKey, {
+          result: m,
+          ts: Date.now(),
+        });
+        this.cleanupProcessedRequests();
+      }
+      return m;
+    });
   }
 
   finish(
@@ -207,6 +228,10 @@ export class BattlesService {
     const b = this.getBattle(battleId);
     b.status = 'finished';
     b.winnerId = typeof result.winnerId === 'number' ? result.winnerId : null;
+    b.finishReason = result.reason ?? null;
+    // 结束时统一清理相关 TTL
+    this.clearWaitingTtl(battleId);
+    this.clearDisconnectTtl(battleId);
     // 记录历史
     for (const pid of b.players) {
       const list = this.histories.get(pid) || [];
@@ -365,6 +390,8 @@ export class BattlesService {
         const filtered = list.filter((id) => id !== battleId);
         this.waitingByMode.set(b.mode, filtered);
         this.battles.delete(battleId);
+        this.metricsData.waitingTtlCleaned += 1;
+        this.metrics?.incWaitingTtlCleaned();
       }
       this.clearWaitingTtl(battleId);
     }, BattlesService.WAITING_TTL_MS);
@@ -387,6 +414,8 @@ export class BattlesService {
       if ((b.onlineUserIds?.length || 0) === 0 && b.status !== 'finished') {
         // 判和并结束（保留历史）
         this.finish(battleId, { winnerId: null, reason: 'disconnect_ttl' });
+        this.metricsData.disconnectTtlTriggered += 1;
+        this.metrics?.incDisconnectTtlTriggered();
       }
       this.clearDisconnectTtl(battleId);
     }, BattlesService.DISCONNECT_TTL_MS);
@@ -395,9 +424,81 @@ export class BattlesService {
     this.disconnectTtls.set(battleId, h);
   }
 
+  // 可选对外查询指标（目前仅内部使用）
+  getMetrics() {
+    return { ...this.metricsData };
+  }
+
   private clearDisconnectTtl(battleId: number) {
     const h = this.disconnectTtls.get(battleId);
     if (h) clearTimeout(h);
     this.disconnectTtls.delete(battleId);
+  }
+
+  // 获取/创建指定对局的互斥锁
+  private getBattleMutex(battleId: number): SimpleMutex {
+    let m = this.battleMutexes.get(battleId);
+    if (!m) {
+      m = new SimpleMutex();
+      this.battleMutexes.set(battleId, m);
+    }
+    return m;
+  }
+
+  // 清理由于 TTL 过期或数量过多的去重记录
+  private cleanupProcessedRequests() {
+    const now = Date.now();
+    const ttl = BattlesService.PROCESSED_REQ_TTL_MS;
+    for (const [k, v] of this.processedRequests) {
+      if (now - v.ts > ttl) this.processedRequests.delete(k);
+    }
+    if (this.processedRequests.size > 500) {
+      const keys = Array.from(this.processedRequests.keys()).slice(0, 100);
+      keys.forEach((k) => this.processedRequests.delete(k));
+    }
+  }
+
+  // 计算当前局面哈希，用于客户端快速一致性校验
+  private computeStateHash(b: BattleState): string {
+    const payload = {
+      board: b.board,
+      turn: b.turn,
+      moves: b.moves.length,
+      status: b.status,
+      winnerId: b.winnerId ?? null,
+    };
+    const json = JSON.stringify(payload);
+    return createHash('sha1').update(json).digest('hex');
+  }
+}
+
+// 轻量互斥锁，串行化执行同一对局的临界区
+class SimpleMutex {
+  private queue: Array<() => void> = [];
+  private locked = false;
+
+  async runExclusive<T>(fn: () => Promise<T> | T): Promise<T> {
+    const release = await this.acquire();
+    try {
+      return await fn();
+    } finally {
+      release();
+    }
+  }
+
+  private acquire(): Promise<() => void> {
+    return new Promise<() => void>((resolve) => {
+      const release = () => {
+        const next = this.queue.shift();
+        if (next) next();
+        else this.locked = false;
+      };
+      if (!this.locked) {
+        this.locked = true;
+        resolve(release);
+      } else {
+        this.queue.push(() => resolve(release));
+      }
+    });
   }
 }

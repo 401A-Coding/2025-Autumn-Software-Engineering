@@ -9,6 +9,7 @@ export type BattleMove = {
     by: number;
     seq: number;
     ts: number;
+    stateHash?: string;
 };
 
 export type BattleSnapshot = {
@@ -23,6 +24,7 @@ export type BattleSnapshot = {
     turn?: import('../features/chess/types').Side;
     createdAt: number;
     winnerId: number | null;
+    stateHash?: string;
     onlineUserIds?: number[];
 };
 
@@ -33,7 +35,7 @@ export function connectBattle() {
         transports: ['websocket'],
     });
 
-    const join = (battleId: number) => socket.emit('battle.join', { battleId });
+    const join = (battleId: number, lastSeq?: number) => socket.emit('battle.join', { battleId, lastSeq });
     const move = (
         battleId: number,
         from: { x: number; y: number },
@@ -63,7 +65,8 @@ export function connectBattle() {
 
     const onMove = (cb: (m: BattleMove) => void) => socket.on('battle.move', cb);
     const onSnapshot = (cb: (s: BattleSnapshot) => void) => socket.on('battle.snapshot', cb);
+    const onReplay = (cb: (r: { battleId: number; fromSeq: number; moves: BattleMove[]; stateHash?: string }) => void) => socket.on('battle.replay', cb);
     const onPlayerJoin = (cb: (p: { userId: number }) => void) => socket.on('battle.player_join', cb);
 
-    return { socket, join, move, snapshot, heartbeat, onMove, onSnapshot, onPlayerJoin };
+    return { socket, join, move, snapshot, heartbeat, onMove, onSnapshot, onReplay, onPlayerJoin };
 }
