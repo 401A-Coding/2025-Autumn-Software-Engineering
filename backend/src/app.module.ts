@@ -4,11 +4,11 @@ import { AppService } from './app.service';
 import { PrismaModule } from './prisma/prisma.module';
 import { UserModule } from './modules/user/user.module';
 import { BattleModule } from './modules/battle/battle.module';
-import { BoardModule } from './modules/board/board.module';
-import { RecordModule } from './modules/record/record.module';
+// import { BoardModule } from './modules/board/board.module';
+// import { RecordModule } from './modules/record/record.module';
 
 @Module({
-  imports: [PrismaModule, UserModule, BoardModule,BattleModule, RecordModule],
+  imports: [PrismaModule, UserModule, BattleModule],
   controllers: [AppController],
   providers: [AppService],
 })
