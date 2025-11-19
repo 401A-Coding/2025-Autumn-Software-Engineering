@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react'
+import { useMemo } from 'react'
 import { createInitialBoard } from './types'
 import { movePiece } from './rules'
 import type { Side } from './types'
