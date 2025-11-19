@@ -55,6 +55,9 @@ export default function CustomBattle() {
     }, [])
 
     const handleBackToHome = () => {
+        // 在离开对局时清理本地的自定义设置，避免下一次进入时保留上次修改
+        localStorage.removeItem('customRuleSet')
+        localStorage.removeItem('placementBoard')
         navigate('/app/home')
     }
 

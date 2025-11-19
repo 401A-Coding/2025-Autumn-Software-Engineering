@@ -62,7 +62,11 @@ export const boardApi = {
       operations['boardsTemplates']['responses'][200]['content']['application/json']['data']
     >
     const res = await apiRequest<TemplatesData>('/api/v1/boards/templates')
-    return res.data
+    // OpenAPI may return either an array or a wrapper { items: [] }
+    const payload: any = res.data
+    if (Array.isArray(payload)) return payload
+    if (payload && Array.isArray(payload.items)) return payload.items
+    return []
   },
 
   /**
