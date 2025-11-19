@@ -180,7 +180,7 @@ export default function Board({ customRules: customRulesProp, initialBoard, onMo
                 </div>
             </div>
 
-            <div className="board" style={{ margin: '0 auto' }}>
+            <div className="board board-center">
                 {Array.from({ length: 10 }).map((_, row) => (
                     <div key={'h' + row} className={`grid-h row-${row}`} />
                 ))}

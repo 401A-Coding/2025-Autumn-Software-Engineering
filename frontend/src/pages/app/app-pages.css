@@ -19,6 +19,64 @@
     margin-top: 12px;
 }
 
+/* spacing & layout utilities */
+.pad-16 {
+    padding: 16px;
+}
+
+.mb-12 {
+    margin-bottom: 12px;
+}
+
+.fw-700 {
+    font-weight: 700;
+}
+
+.w-64 {
+    width: 64px;
+}
+
+.w-full {
+    width: 100%;
+}
+
+.mw-360 {
+    max-width: 360px;
+}
+
+.mw-420 {
+    max-width: 420px;
+}
+
+.flex-1 {
+    flex: 1;
+}
+
+.minw-220 {
+    min-width: 220px;
+}
+
+.gap-16 {
+    gap: 16px;
+}
+
+.wrap {
+    flex-wrap: wrap;
+}
+
+.justify-center {
+    justify-content: center;
+}
+
+.row-center {
+    display: flex;
+    justify-content: center;
+}
+
+.text-14 {
+    font-size: 14px;
+}
+
 /* Segmented control (slider/pill) */
 .segmented {
     position: relative;
@@ -214,4 +272,29 @@
     box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
     padding: 12px;
     width: 260px;
+}
+
+/* modal helpers */
+.modal-mask {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.35);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 50;
+    padding: 16px;
+}
+
+.modal-card {
+    width: 100%;
+    padding: 16px;
+    border-radius: 10px;
+    text-align: left;
+}
+
+/* buttons */
+.btn-compact {
+    padding: 6px 10px;
+    font-size: 14px;
 }

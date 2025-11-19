@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import type { Board, Side } from '../../shared/chess/types';
+import { createHash } from 'node:crypto';
 import { ChessEngineService } from './engine.service';
 import { MetricsService } from '../metrics/metrics.service';
 
@@ -17,6 +18,7 @@ export interface Move {
   by: number; // userId
   seq: number;
   ts: number;
+  stateHash?: string;
 }
 
 export interface BattleState {
@@ -68,7 +70,7 @@ export class BattlesService {
     private readonly jwt: JwtService,
     private readonly engine: ChessEngineService,
     @Optional() private readonly metrics?: MetricsService,
-  ) {}
+  ) { }
 
   verifyBearer(authorization?: string) {
     if (!authorization || !authorization.toLowerCase().startsWith('bearer ')) {
@@ -146,6 +148,7 @@ export class BattlesService {
       winnerId: b.winnerId ?? null,
       finishReason: b.finishReason ?? null,
       lastMove: b.moves.length ? b.moves[b.moves.length - 1] : null,
+      stateHash: this.computeStateHash(b),
       onlineUserIds: b.onlineUserIds,
     };
   }
@@ -196,6 +199,8 @@ export class BattlesService {
       this.metrics?.incMoves();
       // 同步 turnIndex
       b.turnIndex = b.turn === 'red' ? 0 : 1;
+      // 附加最新 stateHash（给 ACK 与广播使用）
+      m.stateHash = this.computeStateHash(b);
       // 胜负判定（如有）
       if (res.winner) {
         if (res.winner === 'draw') {
@@ -451,6 +456,19 @@ export class BattlesService {
       const keys = Array.from(this.processedRequests.keys()).slice(0, 100);
       keys.forEach((k) => this.processedRequests.delete(k));
     }
+  }
+
+  // 计算当前局面哈希，用于客户端快速一致性校验
+  private computeStateHash(b: BattleState): string {
+    const payload = {
+      board: b.board,
+      turn: b.turn,
+      moves: b.moves.length,
+      status: b.status,
+      winnerId: b.winnerId ?? null,
+    };
+    const json = JSON.stringify(payload);
+    return createHash('sha1').update(json).digest('hex');
   }
 }
 

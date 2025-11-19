@@ -17,8 +17,7 @@ import { BattlesService } from './battles.service';
   cors: { origin: [/http:\/\/localhost:(5173|5174)$/] },
 })
 export class BattlesGateway
-  implements OnGatewayConnection, OnGatewayDisconnect
-{
+  implements OnGatewayConnection, OnGatewayDisconnect {
   private readonly logger = new Logger(BattlesGateway.name);
   // 简易限流：每用户每房间每秒最多 3 次 move；heartbeat 最少 10s 一次
   private static readonly MOVE_MAX_PER_SEC = 3;
@@ -39,7 +38,7 @@ export class BattlesGateway
   @WebSocketServer()
   server!: Server;
 
-  constructor(private readonly battles: BattlesService) {}
+  constructor(private readonly battles: BattlesService) { }
 
   private readonly users = new WeakMap<Socket, number>();
   private readonly joinedBattle = new WeakMap<Socket, number>();
@@ -82,18 +81,38 @@ export class BattlesGateway
 
   @SubscribeMessage('battle.join')
   async onJoin(
-    @MessageBody() body: { battleId: number },
+    @MessageBody() body: { battleId: number; lastSeq?: number },
     @ConnectedSocket() client: Socket,
   ) {
     const userId = this.users.get(client) as number;
-    const { battleId } = body || ({} as any);
+    const { battleId, lastSeq } = body || ({} as any);
     const res = this.battles.joinBattle(userId, battleId);
     await client.join(`battle:${battleId}`);
     this.joinedBattle.set(client, battleId);
     this.battles.setOnline(battleId, userId, true);
     const snapshot = this.battles.snapshot(battleId);
-    // 回发给加入者 snapshot
+    // 回发给加入者 snapshot（基础权威状态）
     client.emit('battle.snapshot', snapshot);
+    // 如果提供 lastSeq，补发增量 moves（上限 30 步）
+    if (typeof lastSeq === 'number') {
+      try {
+        const b = this.battles.getBattle(battleId);
+        if (lastSeq >= 0 && lastSeq < b.moves.length) {
+          const MAX_REPLAY = 30;
+          const delta = b.moves.filter((m) => m.seq > lastSeq);
+          if (delta.length > 0 && delta.length <= MAX_REPLAY) {
+            client.emit('battle.replay', {
+              battleId,
+              fromSeq: lastSeq,
+              moves: delta,
+              stateHash: this.battles.snapshot(battleId).stateHash,
+            });
+          }
+        }
+      } catch {
+        // ignore
+      }
+    }
     // 广播有人加入（给房间其他人）
     client.to(`battle:${battleId}`).emit('battle.player_join', { userId });
     // 同步在线状态
