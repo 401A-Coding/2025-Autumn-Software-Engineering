@@ -63,39 +63,39 @@ export default function RecordReplay() {
     // 胜负标题与颜色
     const result = record.result
     let titleText = '平局'
-    let titleColor = '#666'
-    if (result === 'red') { titleText = '红方胜'; titleColor = '#b30000' }
-    else if (result === 'black') { titleText = '黑方胜'; titleColor = '#222' }
-    else if (!result) { titleText = '进行中'; titleColor = '#666' }
+    let titleClass = 'replay-title--draw'
+    if (result === 'red') { titleText = '红方胜'; titleClass = 'replay-title--red' }
+    else if (result === 'black') { titleText = '黑方胜'; titleClass = 'replay-title--black' }
+    else if (!result) { titleText = '进行中'; titleClass = 'replay-title--ongoing' }
 
     return (
         <div>
-            <section className="paper-card card-pad" style={{ position: 'relative' }}>
-                <h2 className="mt-0" style={{ color: titleColor }}>{titleText}</h2>
+            <section className="paper-card card-pad pos-rel">
+                <h2 className={`mt-0 ${titleClass}`}>{titleText}</h2>
 
-                <div className="muted" style={{ fontSize: 13 }}>
+                <div className="muted text-13">
                     开始：{new Date(record.startedAt).toLocaleString()} · 结束：{record.endedAt ? new Date(record.endedAt).toLocaleString() : '—'}
                 </div>
 
-                <div style={{ marginTop: 12 }}>
+                <div className="mt-12">
                     <BoardViewer moves={record.moves} step={step} />
                 </div>
 
                 {/* 步数控制 */}
-                <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div className="mt-12 row-start align-center gap-8">
                     <button className="btn-ghost" disabled={step <= 0} onClick={() => setStep(s => Math.max(0, s - 1))}>◀</button>
-                    <div style={{ minWidth: 80, textAlign: 'center' }}>{step}/{total}</div>
+                    <div className="minw-80 text-center">{step}/{total}</div>
                     <button className="btn-ghost" disabled={step >= total} onClick={() => setStep(s => Math.min(total, s + 1))}>▶</button>
                     <button className="btn-ghost" onClick={() => setStep(0)}>开局</button>
                     <button className="btn-ghost" onClick={() => setStep(total)}>终局</button>
                     <button className="btn-ghost" onClick={() => setIsPlaying(p => !p)}>{isPlaying ? '⏸ 暂停' : '▶ 自动'}</button>
-                    <div style={{ marginLeft: 'auto' }}>
+                    <div className="ml-auto">
                         <button className="btn-ghost" onClick={() => setShowSpeedSheet(true)}>修改播放速度</button>
                     </div>
                 </div>
 
                 {/* 书签操作：改为按钮 prompt 编辑 */}
-                <div style={{ marginTop: 16, display: 'flex', gap: 12 }}>
+                <div className="mt-16 row-start gap-12">
                     <button
                         className="btn-ghost"
                         onClick={() => {
@@ -107,23 +107,21 @@ export default function RecordReplay() {
                 </div>
 
                 {/* 已有书签 */}
-                <div style={{ marginTop: 16 }}>
+                <div className="mt-16">
                     <strong>书签：</strong>
                     {!(record.bookmarks && record.bookmarks.length) ? (
                         <span className="muted"> 无</span>
                     ) : (
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
+                        <div className="row-start wrap gap-6 mt-6">
                             {record.bookmarks!.map(b => (
-                                <div key={b.id} className="paper-card" style={{ padding: '4px 8px', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                                <div key={b.id} className="paper-card pad-4-8 inline-flex align-center gap-6">
                                     <button
-                                        className="btn-ghost"
-                                        style={{ padding: '2px 6px', fontSize: 12 }}
+                                        className="btn-ghost btn-xs"
                                         onClick={() => setStep(b.step)}
                                     >步 {b.step}{b.label ? ' · ' + b.label : ''}</button>
                                     <button
-                                        className="btn-ghost"
+                                        className="btn-ghost btn-xs"
                                         title="编辑"
-                                        style={{ padding: '2px 6px', fontSize: 12 }}
                                         onClick={() => {
                                             setEditingBm(b)
                                             setBmLabel(b.label || '')
@@ -131,10 +129,9 @@ export default function RecordReplay() {
                                         }}
                                     >✎</button>
                                     <button
-                                        className="btn-ghost"
+                                        className="btn-ghost btn-xs"
                                         aria-label="删除书签"
                                         title="删除"
-                                        style={{ padding: '2px 6px', fontSize: 12 }}
                                         onClick={() => {
                                             recordStore.removeBookmark(record.id, b.id)
                                             const updated = recordStore.get(record.id)
@@ -147,7 +144,7 @@ export default function RecordReplay() {
                     )}
                 </div>
 
-                <div style={{ marginTop: 24 }}>
+                <div className="mt-24">
                     <button className="btn-ghost" onClick={() => navigate('/app/history')}>返回列表</button>
                 </div>
             </section>
@@ -156,38 +153,25 @@ export default function RecordReplay() {
                     role="dialog"
                     aria-modal="true"
                     aria-label="书签编辑"
-                    style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.25)', zIndex: 60 }}
+                    className="modal-mask"
                     onClick={() => setShowBookmarkSheet(false)}
                 >
                     <div
-                        className="paper-card"
-                        style={{
-                            position: 'fixed',
-                            left: 0,
-                            right: 0,
-                            bottom: 0,
-                            margin: '0 auto',
-                            maxWidth: 520,
-                            borderTopLeftRadius: 12,
-                            borderTopRightRadius: 12,
-                            borderBottomLeftRadius: 0,
-                            borderBottomRightRadius: 0,
-                            padding: 16,
-                        }}
+                        className="paper-card sheet-bottom mw-520"
                         onClick={(e) => e.stopPropagation()}
                     >
-                        <div style={{ fontWeight: 600, marginBottom: 8 }}>{editingBm ? '编辑书签' : '添加书签'}</div>
-                        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                        <div className="fw-600 mb-8">{editingBm ? '编辑书签' : '添加书签'}</div>
+                        <div className="row-start gap-8 align-center">
                             <input
                                 placeholder="书签标签 (可留空)"
                                 value={bmLabel}
                                 onChange={(e) => setBmLabel(e.target.value)}
-                                style={{ flex: 1 }}
+                                className="flex-1"
                             />
                         </div>
-                        <div className="row-between" style={{ marginTop: 12, gap: 8 }}>
+                        <div className="row-between mt-12 gap-8">
                             <button className="btn-ghost" onClick={() => setShowBookmarkSheet(false)}>取消</button>
-                            <div style={{ display: 'flex', gap: 8 }}>
+                            <div className="row-start gap-8">
                                 {editingBm && (
                                     <button
                                         className="btn-ghost"
@@ -224,36 +208,25 @@ export default function RecordReplay() {
                     role="dialog"
                     aria-modal="true"
                     aria-label="播放速度"
-                    style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.25)', zIndex: 60 }}
+                    className="modal-mask"
                     onClick={() => setShowSpeedSheet(false)}
                 >
                     <div
-                        className="paper-card"
-                        style={{
-                            position: 'fixed',
-                            left: 0,
-                            right: 0,
-                            bottom: 0,
-                            margin: '0 auto',
-                            maxWidth: 520,
-                            borderTopLeftRadius: 12,
-                            borderTopRightRadius: 12,
-                            borderBottomLeftRadius: 0,
-                            borderBottomRightRadius: 0,
-                            padding: 16,
-                        }}
+                        className="paper-card sheet-bottom mw-520"
                         onClick={(e) => e.stopPropagation()}
                     >
-                        <div style={{ fontWeight: 600, marginBottom: 8 }}>修改播放速度</div>
-                        <div className="muted" style={{ fontSize: 12, marginBottom: 6 }}>以“秒/步”为单位，最小 1 秒</div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                            <span style={{ minWidth: 80 }}>速度：</span>
+                        <div className="fw-600 mb-8">修改播放速度</div>
+                        <div className="muted text-12 mb-6">以“秒/步”为单位，最小 1 秒</div>
+                        <div className="row-start align-center gap-8">
+                            <span className="minw-80">速度：</span>
                             <input
                                 type="number"
                                 min={1}
                                 step={1}
                                 defaultValue={Math.max(1, Math.round(intervalMs / 1000))}
-                                style={{ width: 100 }}
+                                className="w-100"
+                                placeholder="秒/步"
+                                title="播放速度（秒/步）"
                                 onKeyDown={(e) => {
                                     if (e.key === 'Enter') {
                                         const target = e.target as HTMLInputElement
@@ -265,7 +238,7 @@ export default function RecordReplay() {
                                 id="speed-input"
                             />
                         </div>
-                        <div className="row-between" style={{ marginTop: 12, gap: 8 }}>
+                        <div className="row-between mt-12 gap-8">
                             <button className="btn-ghost" onClick={() => setShowSpeedSheet(false)}>取消</button>
                             <button
                                 className="btn-primary"

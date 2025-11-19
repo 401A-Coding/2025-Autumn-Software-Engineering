@@ -7,21 +7,65 @@
     margin-top: 0;
 }
 
+.mt-16 {
+    margin-top: 16px;
+}
+
+.mt-24 {
+    margin-top: 24px;
+}
+
+.mb-6 {
+    margin-bottom: 6px;
+}
+
 .mt-6 {
     margin-top: 6px;
 }
 
 .mt-8 {
     margin-top: 8px;
+
+    .w-100 {
+        width: 100px;
+    }
+}
+
+.mw-520 {
+    max-width: 520px;
 }
 
 .mt-12 {
     margin-top: 12px;
+
+    .minw-80 {
+        min-width: 80px;
+    }
+}
+
+.gap-6 {
+    gap: 6px;
 }
 
 /* spacing & layout utilities */
 .pad-16 {
     padding: 16px;
+
+    .text-13 {
+        font-size: 13px;
+    }
+
+    .text-center {
+        text-align: center;
+    }
+
+    .ml-auto {
+        margin-left: auto;
+    }
+
+    .inline-flex {
+        display: inline-flex;
+    }
 }
 
 .mb-12 {
@@ -293,8 +337,44 @@
     text-align: left;
 }
 
+/* bottom sheet */
+.sheet-bottom {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    margin: 0 auto;
+    border-top-left-radius: 12px;
+    border-top-right-radius: 12px;
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+    padding: 16px;
+}
+
 /* buttons */
 .btn-compact {
     padding: 6px 10px;
     font-size: 14px;
+}
+
+.btn-xs {
+    padding: 2px 6px;
+    font-size: 12px;
+}
+
+/* RecordReplay specific helpers */
+.replay-title--red {
+    color: #b30000;
+}
+
+.replay-title--black {
+    color: #222;
+}
+
+.replay-title--draw {
+    color: #666;
+}
+
+.replay-title--ongoing {
+    color: #666;
 }
