@@ -26,6 +26,7 @@ export interface BattleState {
   turnIndex: 0 | 1; // 0=players[0], 1=players[1]
   createdAt: number;
   winnerId?: number | null;
+  finishReason?: string | null;
   // 权威棋盘与轮次
   board: Board;
   turn: Side; // 'red' | 'black'
@@ -134,6 +135,8 @@ export class BattlesService {
       turn: b.turn,
       createdAt: b.createdAt,
       winnerId: b.winnerId ?? null,
+      finishReason: b.finishReason ?? null,
+      lastMove: b.moves.length ? b.moves[b.moves.length - 1] : null,
       onlineUserIds: b.onlineUserIds,
     };
   }
@@ -209,6 +212,7 @@ export class BattlesService {
     const b = this.getBattle(battleId);
     b.status = 'finished';
     b.winnerId = typeof result.winnerId === 'number' ? result.winnerId : null;
+    b.finishReason = result.reason ?? null;
     // 结束时统一清理相关 TTL
     this.clearWaitingTtl(battleId);
     this.clearDisconnectTtl(battleId);
