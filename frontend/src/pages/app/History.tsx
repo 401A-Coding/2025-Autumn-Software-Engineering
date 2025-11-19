@@ -40,13 +40,15 @@ export default function History() {
                         {showSettings && (
                             <div className="settings-popover">
                                 <div className="row-start gap-12 align-center">
-                                    <label className="muted nowrap">保留条数</label>
+                                    <label className="muted nowrap" htmlFor="keepLimitInput">保留条数</label>
                                     <input
+                                        id="keepLimitInput"
                                         type="number"
                                         min={1}
                                         max={500}
                                         value={keepLimit}
                                         onChange={(e) => updateLimit(Number(e.target.value))}
+                                        placeholder="1-500"
                                         className="w-96"
                                     />
                                 </div>
