@@ -28,6 +28,13 @@ export class BattlesGateway
     { windowStart: number; count: number }
   >();
   private readonly heartbeatLastAt = new Map<string, number>();
+  // 周期性快照：每 N 步或每 T 秒（默认关闭）
+  private readonly snapshotEveryN = Number(
+    process.env.BATTLE_SNAPSHOT_EVERY_N || 0,
+  );
+  private readonly snapshotEveryMs =
+    Number(process.env.BATTLE_SNAPSHOT_EVERY_SECS || 0) * 1000;
+  private readonly lastSnapshotAt = new Map<number, number>();
 
   @WebSocketServer()
   server!: Server;
@@ -95,7 +102,7 @@ export class BattlesGateway
   }
 
   @SubscribeMessage('battle.move')
-  onMove(
+  async onMove(
     @MessageBody()
     body: {
       battleId: number;
@@ -118,7 +125,7 @@ export class BattlesGateway
     } else {
       this.moveRate.set(rateKey, { windowStart: now, count: 1 });
     }
-    const m = this.battles.move(
+    const m = await this.battles.move(
       userId,
       body.battleId,
       {
@@ -135,6 +142,24 @@ export class BattlesGateway
     if (b.status === 'finished') {
       const snapshot = this.battles.snapshot(body.battleId);
       this.server.to(room).emit('battle.snapshot', snapshot);
+      this.lastSnapshotAt.delete(body.battleId);
+      return m;
+    }
+    // 周期性快照：每 N 步或每 T 秒
+    if (this.snapshotEveryN > 0 && m.seq % this.snapshotEveryN === 0) {
+      const snapshot = this.battles.snapshot(body.battleId);
+      this.server.to(room).emit('battle.snapshot', snapshot);
+      this.lastSnapshotAt.set(body.battleId, Date.now());
+      return m;
+    }
+    if (this.snapshotEveryMs > 0) {
+      const now = Date.now();
+      const last = this.lastSnapshotAt.get(body.battleId) || 0;
+      if (now - last >= this.snapshotEveryMs) {
+        const snapshot = this.battles.snapshot(body.battleId);
+        this.server.to(room).emit('battle.snapshot', snapshot);
+        this.lastSnapshotAt.set(body.battleId, now);
+      }
     }
     return m;
   }
