@@ -153,33 +153,19 @@ export class BattlesGateway
       },
       body.clientRequestId,
     );
-    // 广播给房间：仅发送 move
+    // 广播给房间：发送 move + 每步最新快照
     const room = `battle:${body.battleId}`;
     this.server.to(room).emit('battle.move', m);
-    // 若对局已结束，则补发一次最终快照
-    const b = this.battles.getBattle(body.battleId);
-    if (b.status === 'finished') {
-      const snapshot = this.battles.snapshot(body.battleId);
-      this.server.to(room).emit('battle.snapshot', snapshot);
+
+    const snapshot = this.battles.snapshot(body.battleId);
+    this.server.to(room).emit('battle.snapshot', snapshot);
+    this.lastSnapshotAt.set(body.battleId, Date.now());
+
+    // 若对局已结束，清理快照时间记录
+    if (snapshot.status === 'finished') {
       this.lastSnapshotAt.delete(body.battleId);
-      return m;
     }
-    // 周期性快照：每 N 步或每 T 秒
-    if (this.snapshotEveryN > 0 && m.seq % this.snapshotEveryN === 0) {
-      const snapshot = this.battles.snapshot(body.battleId);
-      this.server.to(room).emit('battle.snapshot', snapshot);
-      this.lastSnapshotAt.set(body.battleId, Date.now());
-      return m;
-    }
-    if (this.snapshotEveryMs > 0) {
-      const now = Date.now();
-      const last = this.lastSnapshotAt.get(body.battleId) || 0;
-      if (now - last >= this.snapshotEveryMs) {
-        const snapshot = this.battles.snapshot(body.battleId);
-        this.server.to(room).emit('battle.snapshot', snapshot);
-        this.lastSnapshotAt.set(body.battleId, now);
-      }
-    }
+
     return m;
   }
 

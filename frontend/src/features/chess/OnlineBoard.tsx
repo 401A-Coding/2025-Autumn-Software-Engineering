@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import type { BattleMove } from '../../services/battlesSocket'
+import type { BattleMove, BattleSnapshot } from '../../services/battlesSocket'
 import type { Board, Pos, Side } from './types'
 import { createInitialBoard } from './types'
 import { generateLegalMoves, movePiece, checkGameOver, isInCheck } from './rules'
@@ -29,21 +29,43 @@ export type OnlineBoardProps = {
     myUserId?: number | null
     onAttemptMove: (from: Pos, to: Pos) => void
     winnerId?: number | null
-    // 新增：来自权威快照的棋盘与轮次
+    // 来自权威快照的棋盘与轮次
     authoritativeBoard?: Board
     authoritativeTurn?: Side
+    // 用于与本地 moves 对齐的快照 moves（可为空）
+    snapshotMoves?: BattleSnapshot['moves']
 }
 
-export default function OnlineBoard({ moves, turnIndex, players, myUserId, onAttemptMove, winnerId, authoritativeBoard, authoritativeTurn }: OnlineBoardProps) {
-    // 优先使用后端权威棋盘；若缺失则回退到从 moves 重建（兼容旧行为）
+export default function OnlineBoard({ moves, turnIndex, players, myUserId, onAttemptMove, winnerId, authoritativeBoard, authoritativeTurn, snapshotMoves }: OnlineBoardProps) {
+    // 优先使用权威快照棋盘；若快照落后，则在其基础上补推增量 moves；再不行退回全量 moves 推演
     const board = useMemo(() => {
-        if (authoritativeBoard) return authoritativeBoard
-        let b = createInitialBoard()
+        // 无权威棋盘：从初始局面 + 全量 moves 推演
+        if (!authoritativeBoard) {
+            let b = createInitialBoard()
+            for (const m of moves) {
+                b = movePiece(b, m.from as Pos, m.to as Pos)
+            }
+            return b
+        }
+
+        const snapMoves = snapshotMoves ?? []
+        const snapLast = snapMoves.length ? snapMoves[snapMoves.length - 1].seq : 0
+        const localLast = moves.length ? moves[moves.length - 1].seq : 0
+
+        // 若快照至少不比本地落后，直接使用快照棋盘
+        if (snapLast >= localLast) {
+            return authoritativeBoard
+        }
+
+        // 快照落后：从快照棋盘起步，用新增 moves 补齐
+        let b = authoritativeBoard
         for (const m of moves) {
-            b = movePiece(b, m.from as Pos, m.to as Pos)
+            if (m.seq > snapLast) {
+                b = movePiece(b, m.from as Pos, m.to as Pos)
+            }
         }
         return b
-    }, [authoritativeBoard, moves])
+    }, [authoritativeBoard, moves, snapshotMoves])
 
     // 当前手：优先使用权威 turn；否则使用 turnIndex 推断
     const turn: Side = authoritativeTurn ?? (turnIndex === 0 ? 'red' : 'black')
