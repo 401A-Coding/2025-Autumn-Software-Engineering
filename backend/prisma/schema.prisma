@@ -15,19 +15,24 @@ datasource db {
 
 // 用户与角色
 model User {
-  id            Int      @id @default(autoincrement())
-  username      String   @unique
-  phone         String   @unique
-  email         String?  @unique
-  password      String
-  avatarUrl     String?
-  bio           String?
-  rating        Int      @default(1200)
-  role          Role     @default(USER)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  refreshTokens String[] // 可选：如采用 Redis，可移除
-  Board         Board[]
+  id                    Int                    @id @default(autoincrement())
+  username              String                 @unique
+  phone                 String                 @unique
+  email                 String?                @unique
+  password              String
+  avatarUrl             String?
+  bio                   String?
+  rating                Int                    @default(1200)
+  role                  Role                   @default(USER)
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  refreshTokens         String[] // 可选：如采用 Redis，可移除
+  Board                 Board[]
+  records               Record[]
+  recordComments        RecordComment[]
+  recordFavorites       RecordFavorite[]
+  recordShares          RecordShare[]
+  userRecordPreferences UserRecordPreference[]
 }
 
 enum Role {
@@ -50,4 +55,117 @@ model Board {
 
   @@index([ownerId])
   @@index([isTemplate])
+}
+
+// 对局记录主表
+model Record {
+  id        Int              @id @default(autoincrement())
+  ownerId   Int? // 记录拥有者（创建者）
+  owner     User?            @relation(fields: [ownerId], references: [id])
+  opponent  String // 对手标识（可能是用户名或外部来源）
+  startedAt DateTime
+  endedAt   DateTime
+  result    String // 结果，如 win / lose / draw / abandon 等
+  endReason String // 结束原因，如 checkmate / timeout / resign
+  keyTags   String[] // 关键标签
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+  moves     Move[]
+  bookmarks Bookmark[]
+  comments  RecordComment[]
+  favorites RecordFavorite[]
+  shares    RecordShare[]
+
+  @@index([ownerId])
+  @@index([startedAt])
+}
+
+// 单步走子
+model Move {
+  id           Int      @id @default(autoincrement())
+  recordId     Int
+  record       Record   @relation(fields: [recordId], references: [id], onDelete: Cascade)
+  moveIndex    Int // 第几步（0-based）
+  fromX        Int
+  fromY        Int
+  toX          Int
+  toY          Int
+  pieceType    String // 例如 general / advisor / elephant / horse / rook / cannon / soldier
+  pieceSide    String // red / black
+  capturedType String? // 被吃子类型
+  capturedSide String? // 被吃子阵营
+  timeSpentMs  Int // 本步花费时间
+  san          String? // 标准走法记号（如果需要）
+  createdAt    DateTime @default(now())
+
+  @@unique([recordId, moveIndex])
+  @@index([recordId])
+}
+
+// 书签（关键局面标记）
+model Bookmark {
+  id        Int      @id @default(autoincrement())
+  recordId  Int
+  record    Record   @relation(fields: [recordId], references: [id], onDelete: Cascade)
+  step      Int // 对应 moveIndex
+  label     String
+  note      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([recordId, step])
+  @@index([recordId])
+}
+
+// 评论
+model RecordComment {
+  id        Int      @id @default(autoincrement())
+  recordId  Int
+  record    Record   @relation(fields: [recordId], references: [id], onDelete: Cascade)
+  authorId  Int?
+  author    User?    @relation(fields: [authorId], references: [id])
+  type      String   @default("static") // 评论类型，如 static / danmu
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([recordId])
+  @@index([authorId])
+}
+
+// 收藏（点赞 / 喜爱）
+model RecordFavorite {
+  id        Int      @id @default(autoincrement())
+  recordId  Int
+  record    Record   @relation(fields: [recordId], references: [id], onDelete: Cascade)
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@unique([recordId, userId])
+  @@index([userId])
+}
+
+// 分享事件（可用于统计分享次数或生成分享记录）
+model RecordShare {
+  id        Int      @id @default(autoincrement())
+  recordId  Int
+  record    Record   @relation(fields: [recordId], references: [id], onDelete: Cascade)
+  userId    Int?
+  user      User?    @relation(fields: [userId], references: [id])
+  title     String? // 分享标题
+  tags      String[] // 分享标签
+  createdAt DateTime @default(now())
+
+  @@index([recordId])
+  @@index([userId])
+}
+
+// 用户对局记录偏好设置（例如最多保留条数）
+model UserRecordPreference {
+  userId           Int      @id // 单用户一条
+  user             User     @relation(fields: [userId], references: [id])
+  retentionLimit   Int      @default(200) // 最大保留记录条数
+  autoCleanEnabled Boolean  @default(true) // 是否自动清理非收藏记录
+  updatedAt        DateTime @updatedAt
 }

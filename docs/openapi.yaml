@@ -1480,7 +1480,6 @@ components:
         capturedType: { type: string, nullable: true }
         capturedSide: { type: string, nullable: true }
         timeSpentMs: { type: integer, nullable: true }
-        san: { type: string, nullable: true }
     Bookmark:
       type: object
       properties:
