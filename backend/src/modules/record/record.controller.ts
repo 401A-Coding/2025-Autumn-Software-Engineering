@@ -77,11 +77,13 @@ export class RecordController {
     return this.recordService.removeBookmark(+id);
   }
 
+  // 个人对局记录保留条数设置
   @Get('prefs')
   getRetentionPrefs() {
     return this.recordService.getRetentionPrefs();
   }
 
+  // 个人对局记录保留条数修改
   @Patch('prefs')
   updateRetentionPrefs(@Body('prefs') prefs: any) {
     return this.recordService.updateRetentionPrefs(prefs);
