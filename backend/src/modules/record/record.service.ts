@@ -1,6 +1,5 @@
 import { Injectable, ForbiddenException, NotFoundException, BadRequestException } from '@nestjs/common';
 import { CreateRecordDto } from './dto/create-record.dto';
-import { UpdateRecordDto } from './dto/update-record.dto';
 import { PrismaService } from '../../prisma/prisma.service';
 
 type CreateMoveInput = {
@@ -107,6 +106,25 @@ export class RecordService {
         shares: true,
       },
     });
+  }
+
+  async findAllPaginated(page = 1, pageSize = 10) {
+    const take = Math.min(Math.max(pageSize, 1), 100);
+    const skip = (Math.max(page, 1) - 1) * take;
+    const [items, total] = await Promise.all([
+      this.prisma.record.findMany({
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take,
+        include: {
+          owner: { select: { id: true, username: true, avatarUrl: true } },
+          favorites: true,
+          shares: true,
+        },
+      }),
+      this.prisma.record.count(),
+    ]);
+    return { items, page: Math.max(page, 1), pageSize: take, total };
   }
 
   async findOne(id: number) {
