@@ -4,6 +4,9 @@ import { CreateRecordDto } from './dto/create-record.dto';
 import { UpdateRecordDto } from './dto/update-record.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { Request } from 'express';
+import { BookmarkCreateDto } from './dto/bookmark-create.dto';
+import { BookmarkUpdateDto } from './dto/bookmark-update.dto';
+import { BookmarkDeleteDto } from './dto/bookmark-delete.dto';
 
 @Controller('api/v1/records')
 export class RecordController {
@@ -26,11 +29,6 @@ export class RecordController {
   findOne(@Param('id') id: string) {
     return this.recordService.findOne(+id);
   }
-
-  // @Patch(':id')
-  // update(@Param('id') id: string, @Body() updateRecordDto: UpdateRecordDto) {
-  //   return this.recordService.update(+id, updateRecordDto);
-  // }
 
   @Delete(':id')
   @UseGuards(JwtAuthGuard)
@@ -81,23 +79,35 @@ export class RecordController {
 
   @Post(':id/bookmarks')
   @UseGuards(JwtAuthGuard)
-  addBookmark(@Param('id') id: string, @Req() req: Request & { user?: { sub: number } }) {
+  addBookmark(
+    @Param('id') id: string,
+    @Body() dto: BookmarkCreateDto,
+    @Req() req: Request & { user?: { sub: number } },
+  ) {
     const userId = req.user!.sub;
-    return this.recordService.addBookmark(userId, +id);
+    return this.recordService.addBookmark(userId, +id, dto.step, dto.label, dto.note);
   }
 
-  @Patch(':id/bookmarks')
+  @Patch(':id/bookmarks/:bid')
   @UseGuards(JwtAuthGuard)
-  updateBookmark(@Param('id') id: string, @Body('notes') notes: string, @Req() req: Request & { user?: { sub: number } }) {
+  updateBookmark(
+    @Param('id') id: string,
+    @Body() dto: BookmarkUpdateDto,
+    @Req() req: Request & { user?: { sub: number } },
+  ) {
     const userId = req.user!.sub;
-    return this.recordService.updateBookmark(userId, +id, notes);
+    return this.recordService.updateBookmark(userId, +id, dto.step, dto.note ?? '');
   }
 
-  @Delete(':id/bookmarks')
+  @Delete(':id/bookmarks/:bid')
   @UseGuards(JwtAuthGuard)
-  removeBookmark(@Param('id') id: string, @Req() req: Request & { user?: { sub: number } }) {
+  removeBookmark(
+    @Param('id') id: string,
+    @Body() dto: BookmarkDeleteDto,
+    @Req() req: Request & { user?: { sub: number } },
+  ) {
     const userId = req.user!.sub;
-    return this.recordService.removeBookmark(userId, +id);
+    return this.recordService.removeBookmark(userId, +id, dto.step);
   }
 
   // 个人对局记录保留条数设置
