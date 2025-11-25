@@ -70,55 +70,55 @@ export default function CustomBattle() {
 
     if (!ruleSet) {
         return (
-            <div style={{ padding: 20, textAlign: 'center' }}>
+            <div className="pad-20 text-center">
                 <p>加载规则中...</p>
             </div>
         )
     }
 
     return (
-        <div style={{ padding: 16 }}>
+        <div className="pad-16">
             {/* header */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 12 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <button className="btn-ghost" onClick={handleBackToHome} style={{ padding: '8px 12px' }}>← 返回首页</button>
-                    <div style={{ fontSize: 18, fontWeight: 700 }}>自定义对局</div>
+            <div className="row-between gap-12 wrap mb-12">
+                <div className="row align-center gap-12">
+                    <button className="btn-ghost" onClick={handleBackToHome}>← 返回首页</button>
+                    <div className="text-18 fw-700">自定义对局</div>
                 </div>
 
-                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                    <div style={{ padding: '6px 12px', background: '#eef2ff', borderRadius: 8, fontWeight: 600 }}>{ruleSet!.name || '自定义规则'}</div>
-                    <button className="btn-outline" onClick={handleEndGame} style={{ background: '#ef4444', color: 'white', padding: '8px 12px', borderRadius: 8 }}>结束对局</button>
+                <div className="row align-center gap-8">
+                    <div className="chip chip-info">{ruleSet.name || '自定义规则'}</div>
+                    <button className="btn-danger" onClick={handleEndGame}>结束对局</button>
                 </div>
             </div>
 
             {/* tips */}
-            <div style={{ marginBottom: 12, display: 'flex', gap: 12, flexDirection: 'column' }}>
-                <div style={{ padding: 10, background: '#fff7ed', borderRadius: 8, color: '#92400e' }}>
+            <div className="col gap-12 mb-12">
+                <div className="note-warn">
                     💡 "重新开始"将保留当前规则和棋盘，"结束对局"将清除所有自定义设置
                 </div>
-                {ruleSet!.description && (
-                    <div style={{ padding: 10, background: '#f0f9ff', borderRadius: 8, color: '#075985' }}>{ruleSet!.description}</div>
+                {ruleSet.description && (
+                    <div className="note-info">{ruleSet.description}</div>
                 )}
             </div>
 
             {/* 主体：棋盘 + 侧栏（在窄屏隐藏） */}
-            <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start', flexWrap: 'wrap' }}>
-                <div style={{ flex: '0 1 520px', display: 'flex', justifyContent: 'center', width: '100%' }}>
-                    <div>
-                        <Board customRules={ruleSet!} initialBoard={customBoard} />
+            <div className="row gap-16 align-start wrap">
+                <div className="board-area">
+                    <div className="board-area__inner">
+                        <Board customRules={ruleSet} initialBoard={customBoard} />
                     </div>
                 </div>
 
-                <aside style={{ flex: '1 1 260px', minWidth: 260, display: 'flex', flexDirection: 'column', gap: 12 }}>
-                    <div style={{ padding: 12, background: 'var(--muted-bg)', borderRadius: 8 }}>
-                        <div style={{ fontWeight: 700, marginBottom: 8 }}>规则摘要</div>
-                        <div style={{ fontSize: 13, color: '#374151' }}>{ruleSet!.name || '自定义规则'}</div>
+                <aside className="col gap-12 flex-1 minw-260">
+                    <div className="pad-12 bg-muted rounded-8">
+                        <div className="fw-700 mb-8">规则摘要</div>
+                        <div className="text-13 text-gray">{ruleSet.name || '自定义规则'}</div>
                     </div>
 
-                    <details style={{ padding: 12, background: 'var(--muted-bg)', borderRadius: 8 }}>
-                        <summary style={{ cursor: 'pointer', fontWeight: 600 }}>📋 详细规则配置</summary>
-                        <div style={{ marginTop: 8, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 8 }}>
-                            {Object.entries(ruleSet!.pieceRules).map(([pieceType, rule]) => {
+                    <details className="pad-12 bg-muted rounded-8">
+                        <summary className="cursor-pointer fw-600">📋 详细规则配置</summary>
+                        <div className="grid-auto-120 gap-8 mt-8">
+                            {Object.entries(ruleSet.pieceRules).map(([pieceType, rule]) => {
                                 if (!rule) return null
                                 const pieceNames: Record<string, string> = {
                                     general: '将/帅',
@@ -129,10 +129,11 @@ export default function CustomBattle() {
                                     cannon: '炮/炮',
                                     soldier: '兵/卒',
                                 }
+                                const movePatterns = rule?.movePatterns
                                 return (
-                                    <div key={pieceType} style={{ padding: 8, background: 'white', borderRadius: 6, fontSize: 12 }}>
-                                        <div style={{ fontWeight: 600 }}>{pieceNames[pieceType] || rule.name}</div>
-                                        <div style={{ fontSize: 11, color: '#6b7280' }}>{(rule as any).movePatterns ? `${(rule as any).movePatterns.length} 种走法` : ''}</div>
+                                    <div key={pieceType} className="pad-8 bg-white rounded-6 text-12">
+                                        <div className="fw-600">{pieceNames[pieceType] || rule.name}</div>
+                                        <div className="text-12 muted">{movePatterns ? `${movePatterns.length} 种走法` : ''}</div>
                                     </div>
                                 )
                             })}
@@ -142,9 +143,9 @@ export default function CustomBattle() {
             </div>
 
             {/* 操作栏 */}
-            <div style={{ marginTop: 16, display: 'flex', justifyContent: 'center', gap: 12 }}>
-                <button className="btn-ghost" onClick={() => window.location.reload()} style={{ padding: '10px 14px' }}>重新开始</button>
-                <button className="btn-primary" onClick={handleBackToHome} style={{ padding: '10px 14px' }}>返回首页</button>
+            <div className="row justify-center gap-12 mt-16">
+                <button className="btn-ghost btn-compact" onClick={() => window.location.reload()}>重新开始</button>
+                <button className="btn-primary btn-compact" onClick={handleBackToHome}>返回首页</button>
             </div>
         </div>
     )
