@@ -163,8 +163,9 @@ model RecordShare {
 
 // 用户对局记录偏好设置（例如最多保留条数）
 model UserRecordPreference {
-  userId         Int      @id // 单用户一条
-  user           User     @relation(fields: [userId], references: [id])
-  retentionLimit Int      @default(200) // 最大保留记录条数
-  updatedAt      DateTime @updatedAt
+  userId           Int      @id // 单用户一条
+  user             User     @relation(fields: [userId], references: [id])
+  retentionLimit   Int      @default(200) // 最大保留记录条数
+  autoCleanEnabled Boolean  @default(true) // 是否自动清理非收藏记录
+  updatedAt        DateTime @updatedAt
 }

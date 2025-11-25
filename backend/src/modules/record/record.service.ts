@@ -35,6 +35,7 @@ export class RecordService {
     // Enforce retention limit only for non-favorites
     const pref = await this.prisma.userRecordPreference.findUnique({ where: { userId } });
     const limit = pref?.retentionLimit ?? 30;
+    const autoClean = pref?.autoCleanEnabled ?? true;
 
     const movesInput: CreateMoveInput[] = (dto as any).moves ?? [];
     const bookmarksInput: CreateBookmarkInput[] = (dto as any).bookmarks ?? [];
@@ -78,20 +79,22 @@ export class RecordService {
       include: { moves: true, bookmarks: true },
     });
 
-    // Count non-favorite records for this user
-    const nonFavCount = await this.prisma.record.count({
-      where: { ownerId: userId, favorites: { none: { userId } } },
-    });
-    if (nonFavCount > limit) {
-      const toDelete = nonFavCount - limit;
-      const oldestNonFav = await this.prisma.record.findMany({
+    // Count and clean non-favorite records for this user if enabled
+    if (autoClean) {
+      const nonFavCount = await this.prisma.record.count({
         where: { ownerId: userId, favorites: { none: { userId } } },
-        orderBy: { createdAt: 'asc' },
-        take: toDelete,
-        select: { id: true },
       });
-      const ids = oldestNonFav.map((r) => r.id);
-      if (ids.length) await this.prisma.record.deleteMany({ where: { id: { in: ids } } });
+      if (nonFavCount > limit) {
+        const toDelete = nonFavCount - limit;
+        const oldestNonFav = await this.prisma.record.findMany({
+          where: { ownerId: userId, favorites: { none: { userId } } },
+          orderBy: { createdAt: 'asc' },
+          take: toDelete,
+          select: { id: true },
+        });
+        const ids = oldestNonFav.map((r) => r.id);
+        if (ids.length) await this.prisma.record.deleteMany({ where: { id: { in: ids } } });
+      }
     }
 
     return record;
@@ -274,17 +277,27 @@ export class RecordService {
 
   async getRetentionPrefs(userId: number) {
     const pref = await this.prisma.userRecordPreference.findUnique({ where: { userId } });
-    return { userId, retentionLimit: pref?.retentionLimit ?? 200 };
+    return { userId, retentionLimit: pref?.retentionLimit ?? 30, autoCleanEnabled: pref?.autoCleanEnabled ?? true };
   }
 
   async updateRetentionPrefs(userId: number, prefs: any) {
-    const limit = Number(prefs?.retentionLimit);
-    if (!Number.isFinite(limit) || limit <= 0) throw new BadRequestException('Invalid retentionLimit');
+    const updates: Record<string, any> = {};
+    if (prefs && 'retentionLimit' in prefs) {
+      const limit = Number(prefs.retentionLimit);
+      if (!Number.isFinite(limit) || limit <= 0) throw new BadRequestException('Invalid retentionLimit');
+      updates.retentionLimit = limit;
+    }
+    if (prefs && 'autoCleanEnabled' in prefs) {
+      const raw = prefs.autoCleanEnabled;
+      const val = typeof raw === 'boolean' ? raw : (typeof raw === 'string' ? raw.toLowerCase() === 'true' : undefined);
+      if (val === undefined) throw new BadRequestException('Invalid autoCleanEnabled');
+      updates.autoCleanEnabled = val;
+    }
     const updated = await this.prisma.userRecordPreference.upsert({
       where: { userId },
-      create: { userId, retentionLimit: limit },
-      update: { retentionLimit: limit },
+      create: { userId, retentionLimit: updates.retentionLimit ?? 30, autoCleanEnabled: updates.autoCleanEnabled ?? true },
+      update: updates,
     });
-    return { userId: updated.userId, retentionLimit: updated.retentionLimit };
+    return { userId: updated.userId, retentionLimit: updated.retentionLimit, autoCleanEnabled: updated.autoCleanEnabled };
   }
 }
