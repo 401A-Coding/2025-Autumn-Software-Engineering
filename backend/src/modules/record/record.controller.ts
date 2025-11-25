@@ -25,7 +25,7 @@ export class RecordController {
   }
 
   @Get(':id')
-  // 视业务是否需要公开对局详情，可选择加权限；这里默认公开
+  @UseGuards(JwtAuthGuard)
   findOne(@Param('id') id: string) {
     return this.recordService.findOne(+id);
   }
@@ -72,7 +72,7 @@ export class RecordController {
   }
 
   @Get(':id/export')
-  // 导出可公开；如需限制可加 @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard)
   exportRecord(@Param('id') id: string) {
     return this.recordService.exportRecord(+id);
   }
@@ -92,22 +92,23 @@ export class RecordController {
   @UseGuards(JwtAuthGuard)
   updateBookmark(
     @Param('id') id: string,
+    @Param('bid') bid: string,
     @Body() dto: BookmarkUpdateDto,
     @Req() req: Request & { user?: { sub: number } },
   ) {
     const userId = req.user!.sub;
-    return this.recordService.updateBookmark(userId, +id, dto.step, dto.note ?? '');
+    return this.recordService.updateBookmark(userId, +id, +bid, dto.label, dto.note);
   }
 
   @Delete(':id/bookmarks/:bid')
   @UseGuards(JwtAuthGuard)
   removeBookmark(
     @Param('id') id: string,
-    @Body() dto: BookmarkDeleteDto,
+    @Param('bid') bid: string,
     @Req() req: Request & { user?: { sub: number } },
   ) {
     const userId = req.user!.sub;
-    return this.recordService.removeBookmark(userId, +id, dto.step);
+    return this.recordService.removeBookmark(userId, +id, +bid);
   }
 
   // 个人对局记录保留条数设置

@@ -222,31 +222,28 @@ export class RecordService {
     });
   }
 
-  async updateBookmark(userId: number, id: number, step: number, notes: string) {
-    const record = await this.prisma.record.findUnique({ where: { id }, select: { ownerId: true } });
+  async updateBookmark(userId: number, recordId: number, bookmarkId: number, label?: string, note?: string) {
+    const record = await this.prisma.record.findUnique({ where: { id: recordId }, select: { ownerId: true } });
     if (!record) throw new NotFoundException('Record not found');
     if (record.ownerId !== userId) throw new ForbiddenException('Not allowed to modify bookmarks for this record');
-    if (!Number.isInteger(step) || step < 0) throw new BadRequestException('Invalid step');
-    try {
-      return await this.prisma.bookmark.update({
-        where: { recordId_step: { recordId: id, step } },
-        data: { note: notes ?? '' },
-      });
-    } catch {
-      throw new NotFoundException('Bookmark at step not found');
-    }
+    const bm = await this.prisma.bookmark.findUnique({ where: { id: bookmarkId }, select: { recordId: true } });
+    if (!bm || bm.recordId !== recordId) throw new NotFoundException('Bookmark not found');
+    return this.prisma.bookmark.update({
+      where: { id: bookmarkId },
+      data: {
+        ...(label !== undefined ? { label } : {}),
+        ...(note !== undefined ? { note } : {}),
+      },
+    });
   }
 
-  async removeBookmark(userId: number, id: number, step: number) {
-    const record = await this.prisma.record.findUnique({ where: { id }, select: { ownerId: true } });
+  async removeBookmark(userId: number, recordId: number, bookmarkId: number) {
+    const record = await this.prisma.record.findUnique({ where: { id: recordId }, select: { ownerId: true } });
     if (!record) throw new NotFoundException('Record not found');
     if (record.ownerId !== userId) throw new ForbiddenException('Not allowed to modify bookmarks for this record');
-    if (!Number.isInteger(step) || step < 0) throw new BadRequestException('Invalid step');
-    try {
-      await this.prisma.bookmark.delete({ where: { recordId_step: { recordId: id, step } } });
-    } catch {
-      // If not found, just return ok
-    }
+    const bm = await this.prisma.bookmark.findUnique({ where: { id: bookmarkId }, select: { recordId: true } });
+    if (!bm || bm.recordId !== recordId) return { ok: true };
+    await this.prisma.bookmark.delete({ where: { id: bookmarkId } });
     return { ok: true };
   }
 
