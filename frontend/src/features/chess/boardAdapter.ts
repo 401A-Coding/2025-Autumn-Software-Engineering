@@ -33,7 +33,6 @@ export function boardToApiFormat(board: Board, name?: string, description?: stri
     name: name || '自定义棋局',
     description: description || null,
     layout: { pieces },
-    rules: {},
   }
 }
 

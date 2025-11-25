@@ -549,3 +549,8 @@
 .btn-wide {
     min-width: 100px;
 }
+
+/* center board container */
+.board-center {
+    margin: 0 auto;
+}

@@ -17,10 +17,10 @@ type PlacementBoard = (Piece | null)[][]
  */
 export default function VisualRuleEditor() {
     const navigate = useNavigate()
-    
+
     // 三步流程状态
     const [currentStep, setCurrentStep] = useState<EditorStep>('choose-mode')
-    
+
     // 步骤1: 摆放棋子
     const [placementBoard, setPlacementBoard] = useState<PlacementBoard>(() => {
         // 尝试从 localStorage 加载自定义棋盘
@@ -32,15 +32,15 @@ export default function VisualRuleEditor() {
                 console.error('Failed to load saved board:', e)
             }
         }
-        // 如果没有保存的棋盘,使用标准象棋初始棋盘
+        // 如果没有保存的棋盘, 使用标准象棋初始棋盘进行摆放
         return createInitialBoard()
     })
     const [selectedPieceType, setSelectedPieceType] = useState<{ type: PieceType; side: Side } | null>(null)
-    
+
     // 步骤2&3: 选中的棋子类型和阵营
     const [editingPieceType, setEditingPieceType] = useState<PieceType>('rook')
     const [editingSide, setEditingSide] = useState<Side>('black')
-    
+
     // 步骤3: 规则编辑
     const [ruleSet, setRuleSet] = useState<CustomRuleSet>(() => {
         const savedRules = localStorage.getItem('customRuleSet')
@@ -55,7 +55,7 @@ export default function VisualRuleEditor() {
         }
         return standardChessRules
     })
-    
+
     // per-river-phase selections: pre / post
     const [editingRiverView, setEditingRiverView] = useState<'pre' | 'post'>('pre')
     const [selectedCellsPre, setSelectedCellsPre] = useState<Set<string>>(new Set())
@@ -69,9 +69,31 @@ export default function VisualRuleEditor() {
     // 过河阶段：用于编辑“过河前 / 过河后 / 同时”三种状态规则
     // 编辑器视图：过河前 or 过河后（UI 切换）
     // const [riverPhase, setRiverPhase] = useState<'pre' | 'post' | 'both'>('both')
-    const [selectedTemplate, setSelectedTemplate] = useState<MoveTemplateType | null>(null)
-    const [horseLegBlocked, setHorseLegBlocked] = useState(true)
-    const [elephantEyeBlocked, setElephantEyeBlocked] = useState(true)
+    const [selectedTemplatesPre, setSelectedTemplatesPre] = useState<Set<MoveTemplateType>>(new Set())
+    const [selectedTemplatesPost, setSelectedTemplatesPost] = useState<Set<MoveTemplateType>>(new Set())
+    const getCurrentSelectedTemplates = () => editingRiverView === 'pre' ? selectedTemplatesPre : selectedTemplatesPost
+    const setCurrentSelectedTemplates = (s: Set<MoveTemplateType>) => {
+        if (editingRiverView === 'pre') setSelectedTemplatesPre(s)
+        else setSelectedTemplatesPost(s)
+    }
+    // per-phase toggles for special blocking rules and cannon-capture behavior
+    const [horseLegBlockedPre, setHorseLegBlockedPre] = useState(true)
+    const [horseLegBlockedPost, setHorseLegBlockedPost] = useState(true)
+    const [elephantEyeBlockedPre, setElephantEyeBlockedPre] = useState(true)
+    const [elephantEyeBlockedPost, setElephantEyeBlockedPost] = useState(true)
+    const [useCannonCapturePre, setUseCannonCapturePre] = useState(false)
+    const [useCannonCapturePost, setUseCannonCapturePost] = useState(false)
+    const [allowDualCapturePre, setAllowDualCapturePre] = useState(false)
+    const [allowDualCapturePost, setAllowDualCapturePost] = useState(false)
+
+    const getCurrentHorseLegBlocked = () => editingRiverView === 'pre' ? horseLegBlockedPre : horseLegBlockedPost
+    const setCurrentHorseLegBlocked = (v: boolean) => { if (editingRiverView === 'pre') setHorseLegBlockedPre(v); else setHorseLegBlockedPost(v) }
+    const getCurrentElephantEyeBlocked = () => editingRiverView === 'pre' ? elephantEyeBlockedPre : elephantEyeBlockedPost
+    const setCurrentElephantEyeBlocked = (v: boolean) => { if (editingRiverView === 'pre') setElephantEyeBlockedPre(v); else setElephantEyeBlockedPost(v) }
+    const getCurrentUseCannonCapture = () => editingRiverView === 'pre' ? useCannonCapturePre : useCannonCapturePost
+    const setCurrentUseCannonCapture = (v: boolean) => { if (editingRiverView === 'pre') setUseCannonCapturePre(v); else setUseCannonCapturePost(v) }
+    const getCurrentAllowDualCapture = () => editingRiverView === 'pre' ? allowDualCapturePre : allowDualCapturePost
+    const setCurrentAllowDualCapture = (v: boolean) => { if (editingRiverView === 'pre') setAllowDualCapturePre(v); else setAllowDualCapturePost(v) }
     // display base used when showing templates (soldier templates should use red as base)
     const [templateDisplayBase, setTemplateDisplayBase] = useState<Side>('black')
 
@@ -86,8 +108,12 @@ export default function VisualRuleEditor() {
         soldier: '兵/兵',
     }
 
-    const centerRow = 4
-    const centerCol = 4
+    // 所有模板现在对任意棋子均可用；不再限制模板白名单
+
+    const gridRows = 17
+    const gridCols = 17
+    const centerRow = Math.floor(gridRows / 2)
+    const centerCol = Math.floor(gridCols / 2)
 
     // 步骤1: 处理棋盘点击（摆放棋子）
     const handlePlacementClick = (row: number, col: number) => {
@@ -100,7 +126,7 @@ export default function VisualRuleEditor() {
             }
             return
         }
-        
+
         const newBoard = placementBoard.map(r => [...r])
         newBoard[row][col] = {
             id: `${selectedPieceType.side}-${selectedPieceType.type}-${Date.now()}`,
@@ -122,71 +148,156 @@ export default function VisualRuleEditor() {
             // 立即以被点击的棋子类型/阵营为准计算 displayBase，避免 state 更新延迟导致显示错误
             const displayBase: Side = piece.type === 'soldier' ? 'red' : piece.side
             applyTemplateToBoard(defTpl, displayBase)
+
+            // 初始化 pre/post 的已选格和 pattern 映射：优先使用已有的 rules（ruleSet）
+            const existing = ruleSet.pieceRules?.[piece.type]?.movePatterns || []
+            const preSet = new Set<string>()
+            const postSet = new Set<string>()
+            const preMap: Record<string, MovePattern[]> = {}
+            const postMap: Record<string, MovePattern[]> = {}
+
+            const pushToMap = (map: Record<string, MovePattern[]>, key: string, pat: MovePattern) => {
+                if (!map[key]) map[key] = []
+                map[key].push(pat)
+            }
+
+            for (const pat of existing) {
+                // 判断是否为 pre/post/both
+                const conds = pat.conditions || []
+                let isPre = false
+                let isPost = false
+                for (const c of conds) {
+                    if ((c as any).notCrossedRiver) isPre = true
+                    if ((c as any).crossedRiver) isPost = true
+                }
+                // 若无明确 river 条件，则视为同时适用（both）
+                if (!isPre && !isPost) { isPre = true; isPost = true }
+
+                // 将 pattern 的 dx/dy 转换为编辑器格子坐标（考虑阵营方向）
+                const dx = pat.dx
+                const patternDy = pat.dy
+                const visualDy = piece.side === 'red' ? -patternDy : patternDy
+
+                if (pat.repeat) {
+                    // 重复模式：沿方向展开所有格子
+                    const stepX = dx === 0 ? 0 : (dx > 0 ? 1 : -1)
+                    const stepY = visualDy === 0 ? 0 : (visualDy > 0 ? 1 : -1)
+                    let r = centerRow + stepY
+                    let c = centerCol + stepX
+                    while (r >= 0 && r < gridRows && c >= 0 && c < gridCols) {
+                        const key = `${r}-${c}`
+                        if (isPre) {
+                            preSet.add(key)
+                            pushToMap(preMap, key, pat)
+                        }
+                        if (isPost) {
+                            postSet.add(key)
+                            pushToMap(postMap, key, pat)
+                        }
+                        r += stepY
+                        c += stepX
+                    }
+                } else {
+                    const row2 = centerRow + visualDy
+                    const col2 = centerCol + dx
+                    if (row2 >= 0 && row2 < gridRows && col2 >= 0 && col2 < gridCols && !(row2 === centerRow && col2 === centerCol)) {
+                        const key = `${row2}-${col2}`
+                        if (isPre) { preSet.add(key); pushToMap(preMap, key, pat) }
+                        if (isPost) { postSet.add(key); pushToMap(postMap, key, pat) }
+                    }
+                }
+            }
+
+            // 如果没有 post 特殊规则，则默认继承 pre 的配置（避免用户忘记在 post 中重复设置）
+            if (postSet.size === 0 && preSet.size > 0) {
+                for (const k of Array.from(preSet)) {
+                    postSet.add(k)
+                    postMap[k] = (preMap[k] || []).map(p => ({ ...p }))
+                }
+            }
+
+            setSelectedCellsPre(preSet)
+            setSelectedCellsPost(postSet)
+            setSelectedCellPatternsPre(preMap)
+            setSelectedCellPatternsPost(postMap)
         }
     }
 
-    
+
 
     // 模板应用
     // applyTemplateToBoard 接受可选的 displayBase 和 phase，用于避免在 handlePieceSelect 中出现 React state 更新延迟导致的显示不一致
     const applyTemplateToBoard = (tplId: MoveTemplateType, displayBase?: Side, phase?: 'pre' | 'post' | 'both') => {
-        setSelectedTemplate(tplId)
-        const tpl = moveTemplates[tplId]
-        const next = new Set<string>()
-        // 如果传入 displayBase，则使用传入值；否则按照原有逻辑：兵始终以红棋为模板显示；否则以当前编辑侧显示
+        // toggle template selection in current phase
+        const nextSet = new Set(getCurrentSelectedTemplates())
+        if (nextSet.has(tplId)) nextSet.delete(tplId)
+        else nextSet.add(tplId)
+        setCurrentSelectedTemplates(nextSet)
+
+        // effective display base
         const effectiveDisplayBase: Side = displayBase ?? (editingPieceType === 'soldier' ? 'red' : editingSide)
         setTemplateDisplayBase(effectiveDisplayBase)
 
-    const patternsMap: Record<string, MovePattern[]> = {}
-    tpl.patterns.forEach(p => {
-            // 根据 displayBase 调整 dy 的显示方向（内部 patterns 使用以黑方为“正向”的 dy）
-            const displayDy = (effectiveDisplayBase === 'red') ? -p.dy : p.dy
-            const stepX = p.dx === 0 ? 0 : (p.dx > 0 ? 1 : -1)
-            const stepY = displayDy === 0 ? 0 : (displayDy > 0 ? 1 : -1)
-            if (p.repeat) {
-                let r = centerRow + stepY
-                let c = centerCol + stepX
-                // 编辑器网格行数 0..8, 列 0..8
-                while (r >= 0 && r < 9 && c >= 0 && c < 9) {
-                    const key = `${r}-${c}`
-                    next.add(key)
-                    // 保存每个格子对应的原模板 pattern（以便保留条件）
-                    if (!patternsMap[key]) patternsMap[key] = []
-                    patternsMap[key].push(p)
-                    r += stepY
-                    c += stepX
+        // merge patterns from all selected templates
+        const patternsMap: Record<string, MovePattern[]> = {}
+        const nextCells = new Set<string>()
+
+        const pushToMap = (key: string, p: MovePattern) => {
+            if (!patternsMap[key]) patternsMap[key] = []
+            patternsMap[key].push(p)
+        }
+
+        const selectedIds = Array.from(nextSet)
+        for (const id of selectedIds) {
+            const tpl = (moveTemplates as any)[id as MoveTemplateType]
+            tpl.patterns.forEach((p: any) => {
+                const displayDy = (effectiveDisplayBase === 'red') ? -p.dy : p.dy
+                const stepX = p.dx === 0 ? 0 : (p.dx > 0 ? 1 : -1)
+                const stepY = displayDy === 0 ? 0 : (displayDy > 0 ? 1 : -1)
+                if (p.repeat) {
+                    let r = centerRow + stepY
+                    let c = centerCol + stepX
+                    while (r >= 0 && r < gridRows && c >= 0 && c < gridCols) {
+                        const key = `${r}-${c}`
+                        nextCells.add(key)
+                        pushToMap(key, p)
+                        r += stepY
+                        c += stepX
+                    }
+                } else {
+                    const row = centerRow + displayDy
+                    const col = centerCol + p.dx
+                    if (row >= 0 && row < gridRows && col >= 0 && col < gridCols && !(row === centerRow && col === centerCol)) {
+                        const key = `${row}-${col}`
+                        nextCells.add(key)
+                        pushToMap(key, p)
+                    }
                 }
-            } else {
-                const row = centerRow + displayDy
-                const col = centerCol + p.dx
-                if (row >= 0 && row < 9 && col >= 0 && col < 9 && !(row === centerRow && col === centerCol)) {
-                    const key = `${row}-${col}`
-                    next.add(key)
-                    if (!patternsMap[key]) patternsMap[key] = []
-                    patternsMap[key].push(p)
-                }
-            }
-        })
-    // 根据 phase 写入对应的 selectedCells/selectedCellPatterns（默认使用当前 editingRiverView）
-    const effectivePhase = phase ?? editingRiverView
-    if (effectivePhase === 'pre' || effectivePhase === 'both') {
-        setSelectedCellsPre(next)
-        setSelectedCellPatternsPre(patternsMap)
-    }
-    if (effectivePhase === 'post' || effectivePhase === 'both') {
-        setSelectedCellsPost(next)
-        setSelectedCellPatternsPost(patternsMap)
-    }
-        
-    const hasMoveOnly = tpl.patterns.every(p => p.moveOnly)
-        const hasCaptureOnly = tpl.patterns.every(p => p.captureOnly)
+            })
+        }
+
+        const effectivePhase = phase ?? editingRiverView
+        if (effectivePhase === 'pre' || effectivePhase === 'both') {
+            setSelectedCellsPre(nextCells)
+            setSelectedCellPatternsPre(patternsMap)
+        }
+        if (effectivePhase === 'post' || effectivePhase === 'both') {
+            setSelectedCellsPost(nextCells)
+            setSelectedCellPatternsPost(patternsMap)
+        }
+
+        // derive moveType/isRepeatable from merged patterns
+        const allPatterns = Object.values(patternsMap).flat()
+        const hasMoveOnly = allPatterns.length > 0 && allPatterns.every(p => p.moveOnly)
+        const hasCaptureOnly = allPatterns.length > 0 && allPatterns.every(p => p.captureOnly)
         if (hasMoveOnly) setMoveType('move')
         else if (hasCaptureOnly) setMoveType('capture')
         else setMoveType('both')
-        setIsRepeatable(!!tpl.patterns.find(p => p.repeat))
-        
-    if (tplId === 'knight-l') setHorseLegBlocked(true)
-    if (tplId === 'elephant-field') setElephantEyeBlocked(true)
+        setIsRepeatable(allPatterns.some(p => p.repeat))
+
+        // if any selected template implies special blocking, enable the toggle by default (for the current phase)
+        if (nextSet.has('knight-l')) setCurrentHorseLegBlocked(true)
+        if (nextSet.has('elephant-field')) setCurrentElephantEyeBlocked(true)
     }
 
     // 生成移动模式
@@ -196,6 +307,10 @@ export default function VisualRuleEditor() {
         // helper to process a phase's selections
         const processPhase = (phase: 'pre' | 'post', cells: Set<string>, cellPats: Record<string, MovePattern[]>) => {
             const injectRiverCond = phase === 'pre' ? { type: 'position' as const, notCrossedRiver: true } : { type: 'position' as const, crossedRiver: true }
+            const cannonEnabled = phase === 'pre' ? (useCannonCapturePre || allowDualCapturePre) : (useCannonCapturePost || allowDualCapturePost)
+            const allowDual = phase === 'pre' ? allowDualCapturePre : allowDualCapturePost
+            const horseBlocked = phase === 'pre' ? horseLegBlockedPre : horseLegBlockedPost
+            const elephantBlocked = phase === 'pre' ? elephantEyeBlockedPre : elephantEyeBlockedPost
             cells.forEach(cellKey => {
                 const [row, col] = cellKey.split('-').map(Number)
                 const dx = col - centerCol
@@ -206,14 +321,56 @@ export default function VisualRuleEditor() {
                 const tplPats = cellPats[cellKey]
                 if (tplPats && tplPats.length) {
                     for (const tplPat of tplPats) {
+                        // Templates are only suggestions — the visual editor's selected points are authoritative.
+                        // Determine `repeat` from the selection: if user selected multiple cells along the same
+                        // normalized direction, treat it as repeat; otherwise respect explicit tplPat.repeat or global isRepeatable.
+                        // fallback normalize
+                        const getNorm = (x: number, y: number) => {
+                            if (x === 0 && y === 0) return { x: 0, y: 0 }
+                            const ax = Math.abs(x), ay = Math.abs(y)
+                            let g = 1
+                            for (let i = Math.min(ax, ay); i > 1; i--) {
+                                if (ax % i === 0 && ay % i === 0) { g = i; break }
+                            }
+                            if (ax === 0) g = ay
+                            if (ay === 0) g = ax
+                            return { x: x / g, y: y / g }
+                        }
+                        const tplNorm = getNorm(dx, dy)
+                        let selectionIndicatesRepeat = false
+                        for (const otherKey of cells) {
+                            if (otherKey === cellKey) continue
+                            const [orow, ocol] = otherKey.split('-').map(Number)
+                            const odx = ocol - centerCol
+                            const ovisualDy = orow - centerRow
+                            const ody = editingSide === 'red' ? -ovisualDy : ovisualDy
+                            const onorm = getNorm(odx, ody)
+                            if (onorm.x === tplNorm.x && onorm.y === tplNorm.y) { selectionIndicatesRepeat = true; break }
+                        }
+
+                        const tplRepeat = tplPat.repeat ?? false
+                        const effectiveRepeat = selectionIndicatesRepeat || tplRepeat || isRepeatable
+
                         const base: MovePattern = {
                             dx,
                             dy,
-                            repeat: tplPat.repeat ?? isRepeatable,
-                            maxSteps: (tplPat.repeat ?? isRepeatable) ? 0 : 1,
+                            repeat: effectiveRepeat,
+                            maxSteps: effectiveRepeat ? 0 : 1,
                             moveOnly: tplPat.moveOnly ?? (moveType === 'move'),
                             captureOnly: tplPat.captureOnly ?? (moveType === 'capture'),
                             conditions: tplPat.conditions ? [...tplPat.conditions] : undefined,
+                        }
+
+                        // 如果启用了“炮式吃子”，则在为直线方向添加炮式吃子时，取消原有的吃子能力（仅保留移动），
+                        // 以达到“变成炮吃子后原来的吃子方式取消”的语义。
+                        if (cannonEnabled && (dx === 0 || dy === 0 || Math.abs(dx) === Math.abs(dy))) {
+                            // 如果启用了“炮式吃子”，并且没有选中“同时保留原吃子”，则把原有吃子改为仅移动
+                            if (!allowDual) {
+                                if (!base.moveOnly) {
+                                    base.moveOnly = true
+                                    base.captureOnly = false
+                                }
+                            }
                         }
 
                         // ensure river condition exists for this phase only if template didn't specify it
@@ -223,6 +380,28 @@ export default function VisualRuleEditor() {
                         }
 
                         patterns.push(base)
+
+                        // 如果启用了“炮型吃子”选项，并且此 pattern 允许吃子（不是纯移动），
+                        // 则为该方向添加一个额外的炮式吃子 pattern（只在直线方向有意义）。
+                        if (cannonEnabled && !(tplPat.moveOnly === true)) {
+                            // 仅在直线方向添加炮吃子行为（dx===0 || dy===0）
+                            if (dx === 0 || dy === 0 || Math.abs(dx) === Math.abs(dy)) {
+                                // 不重复添加已有的 obstacleCount 条件
+                                const existingPathCond = (tplPat.conditions || []).find((c: any) => c.type === 'path' && (c as any).obstacleCount !== undefined)
+                                if (!existingPathCond) {
+                                    const cannonCond = { type: 'path' as const, obstacleCount: 1 }
+                                    const cannonPattern: MovePattern = {
+                                        dx,
+                                        dy,
+                                        repeat: true,
+                                        maxSteps: 0,
+                                        captureOnly: true,
+                                        conditions: [...(tplPat.conditions || []), cannonCond],
+                                    }
+                                    patterns.push(cannonPattern)
+                                }
+                            }
+                        }
                     }
                     return
                 }
@@ -237,16 +416,25 @@ export default function VisualRuleEditor() {
                     captureOnly: moveType === 'capture',
                     conditions: [injectRiverCond as any],
                 }
+                // 如果启用了炮式吃子并且是直线方向，取消默认的吃子（保留移动）
+                if (cannonEnabled && (dx === 0 || dy === 0 || Math.abs(dx) === Math.abs(dy))) {
+                    if (!allowDual) {
+                        if (!base.moveOnly) {
+                            base.moveOnly = true
+                            base.captureOnly = false
+                        }
+                    }
+                }
                 // 如果是马/象/炮等需要额外阻塞判断的棋子，自动注入相应条件（除非模板已指定）
                 // 马的别马脚
-                if (editingPieceType === 'horse' && horseLegBlocked) {
+                if (editingPieceType === 'horse' && horseBlocked) {
                     const absDx = Math.abs(dx), absDy = Math.abs(dy)
                     if ((absDx === 2 && absDy === 1) || (absDx === 1 && absDy === 2)) {
                         base.conditions = [...(base.conditions || []), { type: 'path' as const, hasNoObstacle: true } as any]
                     }
                 }
                 // 象的塞象眼（田字）
-                if (editingPieceType === 'elephant' && elephantEyeBlocked) {
+                if (editingPieceType === 'elephant' && elephantBlocked) {
                     if (Math.abs(dx) === 2 && Math.abs(dy) === 2) {
                         base.conditions = [...(base.conditions || []), { type: 'position' as const, hasNoObstacle: true } as any]
                     }
@@ -267,19 +455,26 @@ export default function VisualRuleEditor() {
     // 应用规则并返回选择棋子界面
     const handleApplyRule = () => {
         const patterns = generateMovePatterns()
-        
+
         if (patterns.length === 0) {
             alert('请至少选择一个移动位置')
             return
         }
-        
-        // 保留已有 restrictions，但确保关键字段有安全默认值（例如 canJump 默认为 false）
+
+        // 保留已有 restrictions，但强制禁止越子（内核级规则）——编辑器不能开启跳子
         const prevRestrictions = ruleSet.pieceRules[editingPieceType]?.restrictions || {}
         const normalizedRestrictions = {
             ...prevRestrictions,
-            canJump: prevRestrictions.canJump ?? false,
+            // 绝对禁止越子：即使用户或旧数据里有 true，也要强制为 false
+            canJump: false,
             canCrossRiver: prevRestrictions.canCrossRiver ?? (editingPieceType === 'soldier' ? true : prevRestrictions.canCrossRiver),
         }
+
+        // 为防止可视化编辑意外引入跳子字段或其他运行时不允许的属性，清理 patterns
+        const sanitizedPatterns = patterns.map(p => {
+            const { jumpObstacle, ...rest } = p as any
+            return rest as MovePattern
+        })
 
         const updatedRuleSet = {
             ...ruleSet,
@@ -287,16 +482,16 @@ export default function VisualRuleEditor() {
                 ...ruleSet.pieceRules,
                 [editingPieceType]: {
                     name: pieceNames[editingPieceType],
-                    movePatterns: patterns,
+                    movePatterns: sanitizedPatterns,
                     restrictions: normalizedRestrictions,
                 },
             },
         }
-        
+
         setRuleSet(updatedRuleSet)
         // 保存到 localStorage
         localStorage.setItem('customRuleSet', JSON.stringify(updatedRuleSet))
-        
+
         // 返回选择棋子界面,清空当前选择（清空 pre/post 两侧）
         setSelectedCellsPre(new Set())
         setSelectedCellsPost(new Set())
@@ -361,30 +556,14 @@ export default function VisualRuleEditor() {
         ]
 
         return (
-            <div style={{ padding: '16px', maxWidth: '600px', margin: '0 auto' }}>
-                <h2 style={{ textAlign: 'center', marginBottom: '16px' }}>第一步：摆放棋子</h2>
-                
+            <div className="pad-16 mw-600 mx-auto">
+                <h2 className="text-center mb-16">第一步：摆放棋子</h2>
+
                 {/* 棋子选择器 */}
-                <div style={{ 
-                    display: 'grid', 
-                    gridTemplateColumns: 'repeat(7, 1fr)', 
-                    gap: '8px', 
-                    marginBottom: '16px',
-                    background: 'white',
-                    padding: '12px',
-                    borderRadius: '8px',
-                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                }}>
+                <div className="grid-7 gap-8 mb-16 card-surface">
                     <button
                         onClick={() => setSelectedPieceType(null)}
-                        style={{
-                            padding: '12px 8px',
-                            border: selectedPieceType === null ? '2px solid #3b82f6' : '1px solid #ccc',
-                            borderRadius: '6px',
-                            background: selectedPieceType === null ? '#eff6ff' : 'white',
-                            cursor: 'pointer',
-                            fontSize: '20px'
-                        }}
+                        className={`opt-btn opt-btn--icon ${selectedPieceType === null ? 'opt-btn--active' : ''}`}
                         title="点击已有棋子清除"
                     >
                         ❌
@@ -393,53 +572,22 @@ export default function VisualRuleEditor() {
                         <button
                             key={idx}
                             onClick={() => setSelectedPieceType({ type: opt.type, side: opt.side })}
-                            style={{
-                                padding: '12px 8px',
-                                border: selectedPieceType?.type === opt.type && selectedPieceType?.side === opt.side 
-                                    ? '2px solid #3b82f6' 
-                                    : '1px solid #ccc',
-                                borderRadius: '6px',
-                                background: selectedPieceType?.type === opt.type && selectedPieceType?.side === opt.side 
-                                    ? '#eff6ff' 
-                                    : 'white',
-                                cursor: 'pointer',
-                                fontSize: '18px',
-                                color: opt.side === 'red' ? '#dc2626' : '#1f2937'
-                            }}
+                            className={`opt-btn ${selectedPieceType?.type === opt.type && selectedPieceType?.side === opt.side ? 'opt-btn--active' : ''} text-18 ${opt.side === 'red' ? 'text-red' : 'text-gray-800'}`}
                         >
                             {opt.label}
                         </button>
                     ))}
                 </div>
 
-                {/* 棋盘 */}
-                <div style={{ 
-                    display: 'inline-block', 
-                    border: '3px solid #374151',
-                    borderRadius: '8px',
-                    overflow: 'hidden',
-                    boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-                    marginBottom: '16px'
-                }}>
+                {/* 棋盘（标准布局盘） */}
+                <div className="placement-board-frame mb-16 inline-block">
                     {placementBoard.map((row, rowIdx) => (
-                        <div key={rowIdx} style={{ display: 'flex' }}>
+                        <div key={rowIdx} className="placement-row">
                             {row.map((piece, colIdx) => (
                                 <div
                                     key={colIdx}
                                     onClick={() => handlePlacementClick(rowIdx, colIdx)}
-                                    style={{
-                                        width: 50,
-                                        height: 50,
-                                        border: '1px solid #9ca3af',
-                                        background: piece ? '#fef3c7' : 'white',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        cursor: 'pointer',
-                                        fontSize: '20px',
-                                        fontWeight: 'bold',
-                                        color: piece?.side === 'red' ? '#dc2626' : '#1f2937'
-                                    }}
+                                    className={`placement-cell placement-cell--hover ${piece ? 'placement-cell--occupied piece-cell' : ''} ${piece?.side === 'red' ? 'text-red' : 'text-gray-800'}`}
                                 >
                                     {piece && pieceNames[piece.type].split('/')[piece.side === 'red' ? 0 : 1]}
                                 </div>
@@ -448,23 +596,14 @@ export default function VisualRuleEditor() {
                     ))}
                 </div>
 
-                <div style={{ display: 'flex', gap: '12px' }}>
+                <div className="row gap-12">
                     <button
                         onClick={() => {
                             localStorage.removeItem('customRuleSet')
                             localStorage.removeItem('placementBoard')
                             navigate('/app/home')
                         }}
-                        style={{
-                            flex: 1,
-                            padding: '14px',
-                            background: '#6b7280',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '8px',
-                            fontSize: '16px',
-                            cursor: 'pointer'
-                        }}
+                        className="btn-lg btn-lg--slate flex-1"
                     >
                         返回
                     </button>
@@ -474,16 +613,7 @@ export default function VisualRuleEditor() {
                             localStorage.setItem('placementBoard', JSON.stringify(placementBoard))
                             setCurrentStep('select-piece')
                         }}
-                        style={{
-                            flex: 2,
-                            padding: '14px',
-                            background: '#3b82f6',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '8px',
-                            fontSize: '16px',
-                            cursor: 'pointer'
-                        }}
+                        className="btn-lg btn-lg--blue flex-2"
                     >
                         完成摆子，进入编辑 →
                     </button>
@@ -495,50 +625,20 @@ export default function VisualRuleEditor() {
     // 渲染步骤2: 选择要编辑的棋子
     const renderSelectPieceStep = () => {
         return (
-            <div style={{ padding: '16px', maxWidth: '600px', margin: '0 auto' }}>
-                <h2 style={{ textAlign: 'center', marginBottom: '16px' }}>第二步：选择要编辑规则的棋子</h2>
-                <p style={{ textAlign: 'center', color: '#6b7280', marginBottom: '16px' }}>
+            <div className="pad-16 mw-600 mx-auto">
+                <h2 className="text-center mb-16">第二步：选择要编辑规则的棋子</h2>
+                <p className="text-center mb-16 text-slate">
                     点击棋盘上的任意棋子，开始编辑它的移动规则
                 </p>
 
-                <div style={{ 
-                    display: 'inline-block', 
-                    border: '3px solid #374151',
-                    borderRadius: '8px',
-                    overflow: 'hidden',
-                    boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-                    marginBottom: '16px'
-                }}>
+                <div className="placement-board-frame mb-16 inline-block">
                     {placementBoard.map((row, rowIdx) => (
-                        <div key={rowIdx} style={{ display: 'flex' }}>
+                        <div key={rowIdx} className="placement-row">
                             {row.map((piece, colIdx) => (
                                 <div
                                     key={colIdx}
                                     onClick={() => handlePieceSelect(rowIdx, colIdx)}
-                                    style={{
-                                        width: 50,
-                                        height: 50,
-                                        border: '1px solid #9ca3af',
-                                        background: piece ? '#fef3c7' : 'white',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        cursor: piece ? 'pointer' : 'default',
-                                        fontSize: '20px',
-                                        fontWeight: 'bold',
-                                        color: piece?.side === 'red' ? '#dc2626' : '#1f2937',
-                                        transition: 'all 0.2s'
-                                    }}
-                                    onMouseEnter={(e) => {
-                                        if (piece) {
-                                            (e.currentTarget as HTMLDivElement).style.background = '#fde68a'
-                                        }
-                                    }}
-                                    onMouseLeave={(e) => {
-                                        if (piece) {
-                                            (e.currentTarget as HTMLDivElement).style.background = '#fef3c7'
-                                        }
-                                    }}
+                                    className={`placement-cell ${piece ? 'placement-cell--hover placement-cell--occupied cursor-pointer piece-cell' : 'cursor-default'} ${piece?.side === 'red' ? 'text-red' : 'text-gray-800'}`}
                                 >
                                     {piece && pieceNames[piece.type].split('/')[piece.side === 'red' ? 0 : 1]}
                                 </div>
@@ -547,35 +647,16 @@ export default function VisualRuleEditor() {
                     ))}
                 </div>
 
-                <div style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
+                <div className="row gap-12 mt-16">
                     <button
                         onClick={handleSaveAndStart}
-                        style={{
-                            flex: 2,
-                            padding: '14px',
-                            background: '#10b981',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '8px',
-                            fontSize: '16px',
-                            fontWeight: 'bold',
-                            cursor: 'pointer'
-                        }}
+                        className="btn-lg btn-lg--green flex-2"
                     >
                         💾 保存并开始对局
                     </button>
                     <button
                         onClick={() => setCurrentStep('choose-mode')}
-                        style={{
-                            flex: 1,
-                            padding: '14px',
-                            background: '#6b7280',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '8px',
-                            fontSize: '16px',
-                            cursor: 'pointer'
-                        }}
+                        className="btn-lg btn-lg--slate flex-1"
                     >
                         ← 返回
                     </button>
@@ -587,71 +668,37 @@ export default function VisualRuleEditor() {
     // 渲染初始选择：修改布局 or 修改规则
     const renderChooseModeStep = () => {
         return (
-            <div style={{ padding: '32px 16px', maxWidth: '500px', margin: '0 auto' }}>
-                <h1 style={{ textAlign: 'center', marginBottom: '16px', fontSize: '28px' }}>
+            <div className="pt-32 pad-16 mw-520 mx-auto">
+                <h1 className="text-center mb-16 text-28">
                     🎨 可视化规则编辑器
                 </h1>
-                <p style={{ textAlign: 'center', color: '#6b7280', marginBottom: '32px' }}>
+                <p className="text-center mb-32 text-slate">
                     请选择编辑模式
                 </p>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div className="col gap-16">
                     <button
                         onClick={() => setCurrentStep('place-pieces')}
-                        style={{
-                            padding: '24px',
-                            background: 'white',
-                            border: '2px solid #3b82f6',
-                            borderRadius: '12px',
-                            cursor: 'pointer',
-                            textAlign: 'left',
-                            boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-                            transition: 'all 0.2s'
-                        }}
-                        onMouseEnter={(e) => {
-                            (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(-2px)'
-                            ;(e.currentTarget as HTMLButtonElement).style.boxShadow = '0 6px 12px rgba(0,0,0,0.15)'
-                        }}
-                        onMouseLeave={(e) => {
-                            (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(0)'
-                            ;(e.currentTarget as HTMLButtonElement).style.boxShadow = '0 4px 6px rgba(0,0,0,0.1)'
-                        }}
+                        className="mode-card mode-card--layout"
                     >
-                        <div style={{ fontSize: '32px', marginBottom: '8px' }}>🏗️</div>
-                        <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#1f2937', marginBottom: '8px' }}>
+                        <div className="text-32 mb-8">🏗️</div>
+                        <div className="text-20 fw-700 text-gray mb-8">
                             修改布局
                         </div>
-                        <div style={{ fontSize: '14px', color: '#6b7280' }}>
+                        <div className="text-14 text-gray">
                             在棋盘上摆放棋子，自定义初始局面
                         </div>
                     </button>
 
                     <button
                         onClick={() => setCurrentStep('select-piece')}
-                        style={{
-                            padding: '24px',
-                            background: 'white',
-                            border: '2px solid #10b981',
-                            borderRadius: '12px',
-                            cursor: 'pointer',
-                            textAlign: 'left',
-                            boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-                            transition: 'all 0.2s'
-                        }}
-                        onMouseEnter={(e) => {
-                            (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(-2px)'
-                            ;(e.currentTarget as HTMLButtonElement).style.boxShadow = '0 6px 12px rgba(0,0,0,0.15)'
-                        }}
-                        onMouseLeave={(e) => {
-                            (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(0)'
-                            ;(e.currentTarget as HTMLButtonElement).style.boxShadow = '0 4px 6px rgba(0,0,0,0.1)'
-                        }}
+                        className="mode-card mode-card--rules"
                     >
-                        <div style={{ fontSize: '32px', marginBottom: '8px' }}>⚙️</div>
-                        <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#1f2937', marginBottom: '8px' }}>
+                        <div className="text-32 mb-8">⚙️</div>
+                        <div className="text-20 fw-700 text-gray mb-8">
                             修改规则
                         </div>
-                        <div style={{ fontSize: '14px', color: '#6b7280' }}>
+                        <div className="text-14 text-gray">
                             自定义棋子的移动规则和特殊能力
                         </div>
                     </button>
@@ -662,16 +709,7 @@ export default function VisualRuleEditor() {
                             localStorage.removeItem('placementBoard')
                             navigate('/app/home')
                         }}
-                        style={{
-                            marginTop: '16px',
-                            padding: '14px',
-                            background: '#6b7280',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '8px',
-                            fontSize: '16px',
-                            cursor: 'pointer'
-                        }}
+                        className="btn-lg btn-lg--slate mt-16"
                     >
                         返回主页
                     </button>
@@ -684,11 +722,10 @@ export default function VisualRuleEditor() {
     const renderEditRulesStep = () => {
         const renderRuleBoard = () => {
             const rows = []
-            const cellSize = 50
-            
-            for (let row = 0; row < 9; row++) {
+
+            for (let row = 0; row < gridRows; row++) {
                 const cells = []
-                for (let col = 0; col < 9; col++) {
+                for (let col = 0; col < gridCols; col++) {
                     const isCenter = row === centerRow && col === centerCol
                     const cellKey = `${row}-${col}`
                     const isSelectedPre = selectedCellsPre.has(cellKey)
@@ -696,199 +733,117 @@ export default function VisualRuleEditor() {
                     const isSelected = editingRiverView === 'pre' ? isSelectedPre : isSelectedPost
                     const otherSelected = editingRiverView === 'pre' ? isSelectedPost : isSelectedPre
 
-                    let bgColor = 'white'
-                    let cursor = 'pointer'
-                    if (isCenter) {
-                        bgColor = '#ef4444'
-                        cursor = 'not-allowed'
-                    } else if (isSelected) {
-                        bgColor = '#4ade80'
-                    } else if (otherSelected) {
-                        bgColor = '#fde68a' // indicate other-phase selection
+                    const cellClasses = ['rule-cell']
+                    if (!isCenter) {
+                        cellClasses.push('rule-cell--hover')
                     }
-                    
+                    if (isCenter) {
+                        cellClasses.push('rule-cell--center')
+                    }
+                    if (isSelected) {
+                        cellClasses.push('rule-cell--selected')
+                    }
+                    if (!isSelected && otherSelected && !isCenter) {
+                        cellClasses.push('rule-cell--other')
+                    }
+
                     cells.push(
                         <div
                             key={cellKey}
-                            style={{
-                                width: cellSize,
-                                height: cellSize,
-                                border: '1px solid #9ca3af',
-                                backgroundColor: bgColor,
-                                cursor: cursor,
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                position: 'relative',
-                                fontSize: '14px',
-                                fontWeight: 'bold',
-                                transition: 'all 0.2s',
-                            }}
+                            className={cellClasses.join(' ')}
                             onClick={() => !isCenter && handleRuleEditClick(row, col)}
-                            onMouseEnter={(e) => {
-                                if (!isCenter && !isSelected) {
-                                    (e.currentTarget as HTMLDivElement).style.backgroundColor = '#e5e7eb'
-                                }
-                            }}
-                            onMouseLeave={(e) => {
-                                if (!isCenter && !isSelected) {
-                                    (e.currentTarget as HTMLDivElement).style.backgroundColor = 'white'
-                                }
-                            }}
                         >
                             {isCenter && (
-                                <span style={{ color: 'white', fontSize: '16px' }}>
+                                <span className="text-white text-16 fw-600">
                                     {pieceNames[editingPieceType].split('/')[templateDisplayBase === 'red' ? 0 : 1]}
                                 </span>
                             )}
                             {isSelected && !isCenter && (
-                                // For soldiers, show the dot at the bottom of the cell; otherwise keep it centered
-                                <div style={{
-                                    position: 'absolute',
-                                    left: '50%',
-                                    // when editing a soldier place dot near bottom; otherwise center vertically
-                                    top: editingPieceType === 'soldier' ? undefined : '50%',
-                                    bottom: editingPieceType === 'soldier' ? 8 : undefined,
-                                    transform: editingPieceType === 'soldier' ? 'translateX(-50%)' : 'translate(-50%, -50%)',
-                                    width: 24,
-                                    height: 24,
-                                    backgroundColor: '#2563eb',
-                                    borderRadius: '50%',
-                                }} />
+                                <div className={`rule-dot ${editingPieceType === 'soldier' ? 'rule-dot--soldier' : ''}`} />
                             )}
                             {/* show small indicator if other phase has selection here */}
                             {!isSelected && otherSelected && !isCenter && (
-                                <div style={{
-                                    position: 'absolute',
-                                    right: 6,
-                                    bottom: 6,
-                                    width: 8,
-                                    height: 8,
-                                    backgroundColor: '#b91c1c',
-                                    borderRadius: '50%'
-                                }} />
+                                <div className="rule-indicator" />
                             )}
                         </div>
                     )
                 }
                 rows.push(
-                    <div key={row} style={{ display: 'flex' }}>
+                    <div key={row} className="row">
                         {cells}
                     </div>
                 )
             }
             return (
-                <div style={{ 
-                    display: 'inline-block', 
-                    border: '3px solid #374151',
-                    boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-                    borderRadius: '8px',
-                    overflow: 'hidden'
-                }}>
+                <div className="rule-board-frame">
                     {rows}
                 </div>
             )
         }
 
         return (
-            <div style={{ padding: '16px', maxWidth: '600px', margin: '0 auto' }}>
-                <h2 style={{ textAlign: 'center', marginBottom: '8px', fontSize: '20px' }}>
+            <div className="pad-16 mw-600 mx-auto">
+                <h2 className="text-center mb-8 text-20">
                     第三步：编辑 {pieceNames[editingPieceType]} 的规则
                 </h2>
-                <p style={{ textAlign: 'center', color: '#6b7280', fontSize: '14px', marginBottom: '16px' }}>
-                    已选择 <strong style={{ color: '#3b82f6' }}>{editingRiverView === 'pre' ? selectedCellsPre.size : selectedCellsPost.size}</strong> 个位置（{editingRiverView === 'pre' ? '过河前' : '过河后'}）
+                <p className="text-center text-14 mb-16 text-gray">
+                    已选择 <strong className="text-blue-600">{editingRiverView === 'pre' ? selectedCellsPre.size : selectedCellsPost.size}</strong> 个位置（{editingRiverView === 'pre' ? '过河前' : '过河后'}）
                 </p>
 
                 {/* 模板选择 */}
-                <div style={{ 
-                    background: 'white', 
-                    borderRadius: '8px', 
-                    padding: '12px',
-                    marginBottom: '12px',
-                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                }}>
-                    <h3 style={{ fontSize: '16px', marginBottom: '8px', marginTop: 0 }}>模板选择</h3>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '6px' }}>
+                <div className="card-surface mb-12">
+                    <h3 className="text-16 mb-8 mt-0">模板选择</h3>
+                    <div className="grid-2 gap-6">
                         {(Object.keys(moveTemplates) as MoveTemplateType[])
-                            .filter(id => {
-                                const isPawnTemplate = id === 'pawn-forward' || id === 'pawn-cross'
-                                if (isPawnTemplate) return editingPieceType === 'soldier'
-                                // 其他棋子正常显示模板（炮不会进入此分支）
-                                return true
-                            })
                             .map(id => (
                                 <button
                                     key={id}
                                     onClick={() => applyTemplateToBoard(id)}
-                                    style={{
-                                        padding: '8px',
-                                        borderRadius: '6px',
-                                        border: selectedTemplate === id ? '2px solid #3b82f6' : '1px solid #e5e7eb',
-                                        background: selectedTemplate === id ? '#eff6ff' : 'white',
-                                        textAlign: 'left',
-                                        cursor: 'pointer',
-                                        fontSize: '13px'
-                                    }}
+                                    className={`opt-btn text-left ${getCurrentSelectedTemplates().has(id as MoveTemplateType) ? 'opt-btn--active' : ''} text-13`}
                                 >
                                     {moveTemplates[id].icon} {moveTemplates[id].name}
                                 </button>
                             ))
                         }
                     </div>
-                    
+
                     {/* 特殊规则开关 */}
-                    {selectedTemplate === 'knight-l' && (
-                        <label style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8, fontSize: '14px', cursor: 'pointer' }}>
-                            <input type="checkbox" checked={horseLegBlocked} onChange={(e) => setHorseLegBlocked(e.target.checked)} />
+                    {getCurrentSelectedTemplates().has('knight-l' as MoveTemplateType) && (
+                        <label className="row gap-6 mt-8 text-14 cursor-pointer">
+                            <input type="checkbox" checked={getCurrentHorseLegBlocked()} onChange={(e) => setCurrentHorseLegBlocked(e.target.checked)} />
                             <span>别马脚</span>
                         </label>
                     )}
-                    {selectedTemplate === 'elephant-field' && (
-                        <label style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6, fontSize: '14px', cursor: 'pointer' }}>
-                            <input type="checkbox" checked={elephantEyeBlocked} onChange={(e) => setElephantEyeBlocked(e.target.checked)} />
+                    {getCurrentSelectedTemplates().has('elephant-field' as MoveTemplateType) && (
+                        <label className="row gap-6 mt-6 text-14 cursor-pointer">
+                            <input type="checkbox" checked={getCurrentElephantEyeBlocked()} onChange={(e) => setCurrentElephantEyeBlocked(e.target.checked)} />
                             <span>塞象眼</span>
                         </label>
                     )}
+                    <label className="row gap-6 mt-8 text-14 cursor-pointer">
+                        <input type="checkbox" checked={getCurrentUseCannonCapture()} onChange={(e) => setCurrentUseCannonCapture(e.target.checked)} />
+                        <span>将所选模板的吃子方式改为炮（隔子吃），移动方式保持不变</span>
+                    </label>
+                    <label className="row gap-6 mt-6 text-14 cursor-pointer">
+                        <input type="checkbox" checked={getCurrentAllowDualCapture()} onChange={(e) => { const v = e.target.checked; setCurrentAllowDualCapture(v); }} />
+                        <span>同时保留原始吃子规则与炮式吃子（两种吃子方式共存）</span>
+                    </label>
                     {/* 已移除“炮吃子需要炮架子”开关；请使用模板自带条件控制 */}
                 </div>
 
                 {/* 编辑模式 */}
-                <div style={{ 
-                    background: 'white', 
-                    borderRadius: '8px', 
-                    padding: '12px',
-                    marginBottom: '12px',
-                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                }}>
-                    <h3 style={{ fontSize: '16px', marginBottom: '8px', marginTop: 0 }}>编辑模式</h3>
-                    <div style={{ display: 'flex', gap: '8px' }}>
+                <div className="card-surface mb-12">
+                    <h3 className="text-16 mb-8 mt-0">编辑模式</h3>
+                    <div className="row gap-8">
                         <button
                             onClick={() => setEditMode('add')}
-                            style={{
-                                flex: 1,
-                                padding: '10px',
-                                borderRadius: '6px',
-                                border: 'none',
-                                background: editMode === 'add' ? '#10b981' : '#f3f4f6',
-                                color: editMode === 'add' ? 'white' : '#374151',
-                                cursor: 'pointer',
-                                fontSize: '14px'
-                            }}
+                            className={`seg-btn ${editMode === 'add' ? 'seg-btn--active' : ''}`}
                         >
                             ➕ 添加
                         </button>
                         <button
                             onClick={() => setEditMode('remove')}
-                            style={{
-                                flex: 1,
-                                padding: '10px',
-                                borderRadius: '6px',
-                                border: 'none',
-                                background: editMode === 'remove' ? '#ef4444' : '#f3f4f6',
-                                color: editMode === 'remove' ? 'white' : '#374151',
-                                cursor: 'pointer',
-                                fontSize: '14px'
-                            }}
+                            className={`seg-btn ${editMode === 'remove' ? 'seg-btn--active' : ''}`}
                         >
                             ➖ 删除
                         </button>
@@ -896,55 +851,32 @@ export default function VisualRuleEditor() {
                 </div>
 
                 {/* 过河阶段（替代旧的移动/吃子选择） */}
-                <div style={{ 
-                    background: 'white', 
-                    borderRadius: '8px', 
-                    padding: '12px',
-                    marginBottom: '12px',
-                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                }}>
-                    <h3 style={{ fontSize: '16px', marginBottom: '8px', marginTop: 0 }}>编辑视图</h3>
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                        <button onClick={() => setEditingRiverView('pre')} style={{ padding: 8, borderRadius: 6, background: editingRiverView === 'pre' ? '#3b82f6' : '#f3f4f6', color: editingRiverView === 'pre' ? 'white' : '#374151' }}>过河前</button>
-                        <button onClick={() => setEditingRiverView('post')} style={{ padding: 8, borderRadius: 6, background: editingRiverView === 'post' ? '#3b82f6' : '#f3f4f6', color: editingRiverView === 'post' ? 'white' : '#374151' }}>过河后</button>
+                <div className="card-surface mb-12">
+                    <h3 className="text-16 mb-8 mt-0">编辑视图</h3>
+                    <div className="row gap-8">
+                        <button onClick={() => { setEditingRiverView('pre'); }} className={`seg-btn ${editingRiverView === 'pre' ? 'seg-btn--active' : ''}`}>过河前</button>
+                        <button onClick={() => { setEditingRiverView('post'); }} className={`seg-btn ${editingRiverView === 'post' ? 'seg-btn--active' : ''}`}>过河后</button>
                     </div>
                 </div>
 
                 {/* 棋盘 */}
-                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '12px' }}>
+                <div className="row-center mb-12">
                     {renderRuleBoard()}
                 </div>
 
                 {/* 操作按钮 */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div className="col gap-8">
                     <button
                         onClick={handleApplyRule}
-                        style={{
-                            padding: '14px',
-                            background: '#10b981',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '8px',
-                            fontSize: '16px',
-                            cursor: 'pointer',
-                            fontWeight: 'bold'
-                        }}
+                        className="btn-lg btn-lg--green"
                     >
                         ✅ 保存此棋子规则
                     </button>
                     <button
                         onClick={() => editingRiverView === 'pre' ? setSelectedCellsPre(new Set()) : setSelectedCellsPost(new Set())}
-                        style={{
-                            padding: '12px',
-                            background: '#f59e0b',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '8px',
-                            fontSize: '14px',
-                            cursor: 'pointer'
-                        }}
+                        className="btn-lg btn-lg--amber text-14"
                     >
-                        �️ 清除选择
+                        ♻️ 清除选择
                     </button>
                     <button
                         onClick={() => {
@@ -952,15 +884,7 @@ export default function VisualRuleEditor() {
                             setSelectedCellsPre(new Set())
                             setSelectedCellsPost(new Set())
                         }}
-                        style={{
-                            padding: '12px',
-                            background: '#6b7280',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '8px',
-                            fontSize: '14px',
-                            cursor: 'pointer'
-                        }}
+                        className="btn-lg btn-lg--slate text-14"
                     >
                         ← 返回选择棋子
                     </button>
@@ -970,12 +894,7 @@ export default function VisualRuleEditor() {
     }
 
     return (
-        <div style={{ 
-            minHeight: '100vh', 
-            background: 'linear-gradient(135deg, #fef3c7 0%, #fed7aa 100%)',
-            paddingTop: '16px',
-            paddingBottom: '32px'
-        }}>
+        <div className="minh-100vh bg-editor-gradient pt-16 pb-32">
             {currentStep === 'choose-mode' && renderChooseModeStep()}
             {currentStep === 'place-pieces' && renderPlacementStep()}
             {currentStep === 'select-piece' && renderSelectPieceStep()}

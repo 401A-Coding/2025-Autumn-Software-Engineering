@@ -9,9 +9,9 @@ export default function Favorites() {
             <div className="row-between mb-8">
                 <h3 className="mt-0">收藏对局</h3>
                 <Segmented
-                    labels={["记录", "收藏"]}
-                    activeIndex={1}
-                    onChange={(i) => navigate(i === 0 ? '/app/history' : '/app/favorites')}
+                    options={[{ label: '记录', value: 'history' }, { label: '收藏', value: 'favorites' }]}
+                    value={'favorites'}
+                    onChange={(v) => navigate(v === 'history' ? '/app/history' : '/app/favorites')}
                 />
             </div>
 

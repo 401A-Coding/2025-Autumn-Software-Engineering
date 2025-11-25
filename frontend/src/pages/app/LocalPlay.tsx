@@ -44,14 +44,14 @@ export default function LocalPlay() {
         navigate('/app/home')
     }
     return (
-        <div style={{ padding: 16 }}>
+        <div className="pad-16">
             <div className="row-between mb-8">
                 <button className="btn-ghost" onClick={handleExitClick}>退出对局</button>
-                <div style={{ fontWeight: 700 }}>本地对战</div>
-                <div style={{ width: 64 }} />
+                <div className="fw-700">本地对战</div>
+                <div className="w-64" />
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'center' }}>
+            <div className="row-center">
                 <div>
                     <Board
                         onMove={(m) => setMoves((prev) => [...prev, m])}
@@ -62,7 +62,7 @@ export default function LocalPlay() {
                 </div>
             </div>
 
-            <div className="tip-box" style={{ marginTop: 12 }}>
+            <div className="tip-box">
                 💡 提示：退出对局时可选择保存当前对局；后续将对接后端保存与记录列表。
             </div>
 
@@ -71,34 +71,16 @@ export default function LocalPlay() {
                     role="dialog"
                     aria-modal="true"
                     aria-labelledby="exit-title"
-                    style={{
-                        position: 'fixed',
-                        inset: 0,
-                        background: 'rgba(0,0,0,0.35)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        zIndex: 50,
-                        padding: 16,
-                    }}
+                    className="modal-mask"
                 >
-                    <div
-                        className="paper-card"
-                        style={{
-                            width: '100%',
-                            maxWidth: 360,
-                            padding: 16,
-                            borderRadius: 10,
-                            textAlign: 'left',
-                        }}
-                    >
-                        <h4 id="exit-title" style={{ margin: '0 0 8px 0' }}>是否保存当前对局？</h4>
-                        <div className="muted" style={{ fontSize: 14, marginBottom: 12 }}>
+                    <div className="paper-card modal-card mw-360">
+                        <h4 id="exit-title" className="mt-0 mb-8">是否保存当前对局？</h4>
+                        <div className="muted text-14 mb-12">
                             保存后可在“历史记录”中查看与复盘。
                         </div>
-                        <div className="row-between" style={{ gap: 8 }}>
+                        <div className="row-between gap-8">
                             <button className="btn-ghost" onClick={handleCancel}>取消</button>
-                            <div style={{ display: 'flex', gap: 8 }}>
+                            <div className="row-start gap-8">
                                 <button className="btn-ghost" onClick={handleExitWithoutSave}>不保存退出</button>
                                 <button className="btn-primary" onClick={handleSaveAndExit}>保存并退出</button>
                             </div>

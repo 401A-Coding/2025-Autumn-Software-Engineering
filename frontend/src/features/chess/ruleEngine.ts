@@ -209,17 +209,43 @@ function generateMovesFromPattern(
 
             // 有目标：根据路径障碍数决定
             const need = obstacleCond.obstacleCount as number
-            const count = countObstaclesInPath(board, from, to)
-            if (count < need) {
+            const obstacles = listObstaclesInPath(board, from, to)
+            if (obstacles.length < need) {
                 // 未达到所需隔子数，继续扫描
                 continue
             }
-            if (count > need) {
+            if (obstacles.length > need) {
                 // 超过所需隔子数，停止扫描
                 break
             }
-            // 恰好等于所需隔子数：仅可吃到第一个敌子
-            if (target.side !== side) moves.push(to)
+
+            // 找到路径上的障碍位置（按 from->to 顺序），需要确保至少有一个障碍可以作为有效的"炮架子"：
+            // 该炮架子位置在逻辑上应该是当前棋子在没有障碍物阻挡时能够到达的位置（即满足 pattern 的其它条件，且从起点到该炮架子之间无其他障碍）。
+            let hasValidScreen = false
+            const filteredConditionsForScreen = pattern.conditions ? pattern.conditions.filter(c => (c as any).obstacleCount === undefined && (c.type !== 'target')) : undefined
+            for (const screen of obstacles) {
+                // 在一个假想的棋盘上把 screen 设为空，来验证该屏障格是否在逻辑上可达。
+                const boardWithoutScreen = board.map(r => r.slice())
+                if (boardWithoutScreen[screen.y] && boardWithoutScreen[screen.y][screen.x]) boardWithoutScreen[screen.y][screen.x] = null
+
+                // 确保从起点到 screen 之间没有其他障碍（screen 为唯一的阻挡）——在假想棋盘上检查
+                const beforeCount = countObstaclesInPath(boardWithoutScreen, from, screen)
+                if (beforeCount !== 0) continue
+
+                // 检查若尝试移动到 screen（在假想棋盘上）是否满足 pattern 的其它条件
+                if (checkMoveConditions(boardWithoutScreen, from, screen, filteredConditionsForScreen, side)) {
+                    hasValidScreen = true
+                    break
+                }
+            }
+
+            // 恰好等于所需隔子数且存在合法炮架子：仅可吃到第一个敌子
+            if (hasValidScreen && target.side !== side) {
+                const filteredConditions = pattern.conditions ? pattern.conditions.filter(c => (c as any).obstacleCount === undefined) : undefined
+                if (checkMoveConditions(board, from, to, filteredConditions, side)) {
+                    moves.push(to)
+                }
+            }
             break
         }
         return moves
@@ -328,12 +354,16 @@ function checkMoveConditions(
 
     if (!baseOk) return false
 
-    // 绝对禁止越子：对于跨度超过1格的直线/对角/马步等形状，必须通过形状感知的无阻碍检查
+    // 如果条件中声明了 obstacleCount（例如炮的隔子吃），则允许路径上有障碍，跳过下面的绝对无阻塞检查。
+    const hasObstacleCountCond = conditions?.some(c => (c as any).obstacleCount !== undefined)
+
+    // 绝对禁止越子（除非是带有 obstacleCount 条件的特殊规则）：
+    // 对于跨度超过1格的直线/对角/马步等形状，必须通过形状感知的无阻碍检查
     const dx = to.x - from.x
     const dy = to.y - from.y
     const adx = Math.abs(dx)
     const ady = Math.abs(dy)
-    if (Math.max(adx, ady) > 1) {
+    if (!hasObstacleCountCond && Math.max(adx, ady) > 1) {
         if (!hasNoObstacleBetween(board, from, to)) return false
     }
 
@@ -405,8 +435,101 @@ function countObstaclesInPath(board: Board, from: Pos, to: Pos): number {
         for (let x = from.x + step; x !== to.x; x += step) {
             if (board[from.y][x]) count++
         }
+    } else {
+        // 支持按形状计算障碍计数：
+        // - 对角线（adx === ady）：按对角线逐格统计（适用于对角线炮吃子）
+        // - 马的日字（2,1 或 1,2）：障碍位置为“马腿”格
+        // - 象的田字（2,2）：障碍位置为中点（象眼）
+        const dx = to.x - from.x
+        const dy = to.y - from.y
+        const adx = Math.abs(dx)
+        const ady = Math.abs(dy)
+
+        // 通用对角线计数：逐格沿对角线统计中间格子
+        if (adx === ady) {
+            const stepX = dx > 0 ? 1 : -1
+            const stepY = dy > 0 ? 1 : -1
+            let x = from.x + stepX
+            let y = from.y + stepY
+            while (x !== to.x && y !== to.y) {
+                if (board[y] && board[y][x]) count += 1
+                x += stepX
+                y += stepY
+            }
+        } else if ((adx === 2 && ady === 1) || (adx === 1 && ady === 2)) {
+            // 马腿
+            let legX = from.x
+            let legY = from.y
+            if (adx === 2 && ady === 1) {
+                legX = from.x + (dx > 0 ? 1 : -1)
+                legY = from.y
+            } else {
+                legX = from.x
+                legY = from.y + (dy > 0 ? 1 : -1)
+            }
+            if (board[legY] && board[legY][legX]) count += 1
+        } else if (adx === 2 && ady === 2) {
+            // 象眼（中点）
+            const midX = from.x + dx / 2
+            const midY = from.y + dy / 2
+            if (board[midY] && board[midY][midX]) count += 1
+        }
     }
     return count
+}
+
+/**
+ * 列举路径上的障碍物位置（按从 from 到 to 的顺序）。
+ * 对于马/象等形状，会返回对应的“马腿”或“象眼”位置；
+ * 对于直线/对角线，会返回路径中所有中间被占位的格子位置。
+ */
+function listObstaclesInPath(board: Board, from: Pos, to: Pos): Pos[] {
+    const obstacles: Pos[] = []
+    if (from.x === to.x) {
+        const step = from.y < to.y ? 1 : -1
+        for (let y = from.y + step; y !== to.y; y += step) {
+            if (board[y][from.x]) obstacles.push({ x: from.x, y })
+        }
+    } else if (from.y === to.y) {
+        const step = from.x < to.x ? 1 : -1
+        for (let x = from.x + step; x !== to.x; x += step) {
+            if (board[from.y][x]) obstacles.push({ x, y: from.y })
+        }
+    } else {
+        const dx = to.x - from.x
+        const dy = to.y - from.y
+        const adx = Math.abs(dx)
+        const ady = Math.abs(dy)
+        if (adx === ady) {
+            const stepX = dx > 0 ? 1 : -1
+            const stepY = dy > 0 ? 1 : -1
+            let x = from.x + stepX
+            let y = from.y + stepY
+            while (x !== to.x && y !== to.y) {
+                if (board[y][x]) obstacles.push({ x, y })
+                x += stepX
+                y += stepY
+            }
+        } else if ((adx === 2 && ady === 1) || (adx === 1 && ady === 2)) {
+            // 马腿
+            let legX = from.x
+            let legY = from.y
+            if (adx === 2 && ady === 1) {
+                legX = from.x + (dx > 0 ? 1 : -1)
+                legY = from.y
+            } else {
+                legX = from.x
+                legY = from.y + (dy > 0 ? 1 : -1)
+            }
+            if (board[legY] && board[legY][legX]) obstacles.push({ x: legX, y: legY })
+        } else if (adx === 2 && ady === 2) {
+            // 象眼（中点）
+            const midX = from.x + dx / 2
+            const midY = from.y + dy / 2
+            if (board[midY] && board[midY][midX]) obstacles.push({ x: midX, y: midY })
+        }
+    }
+    return obstacles
 }
 
 /**

@@ -14,16 +14,16 @@ import { inBounds } from './types'
 export interface RuleDefinition {
   // pattern模式组合: "row+col" | "cross1" | "diag1" | "forward"
   pattern?: string
-  
+
   // 特殊模式: "cannon" (炮的跳吃逻辑)
   special?: 'cannon'
-  
+
   // 前进限制
   forward?: { max: number }
-  
+
   // 离散偏移量
   offsets?: { dr: number; dc: number }[]
-  
+
   // 射线方向 [[dr,dc], ...]
   rays?: [number, number][]
 }
@@ -35,16 +35,16 @@ export interface RuleDefinition {
 export interface ConditionalRules {
   // 基础规则(必须)
   base: RuleDefinition
-  
+
   // 过河前规则(可选覆盖)
   beforeRiver?: Partial<RuleDefinition>
-  
+
   // 过河后规则(可选覆盖)
   afterRiver?: Partial<RuleDefinition>
-  
+
   // 宫内规则(可选覆盖)
   inPalace?: Partial<RuleDefinition>
-  
+
   // 宫外规则(可选覆盖)
   outPalace?: Partial<RuleDefinition>
 }
@@ -91,7 +91,7 @@ export function resolveRule(
   const inPalaceNow = inPalace(row, col, isRed)
 
   // 从base开始,逐层应用条件覆盖
-  let effective = { ...rule.base }
+  const effective = { ...rule.base }
 
   // 河流条件
   if (beforeRiver && rule.beforeRiver) {
@@ -125,17 +125,17 @@ export function generateConditionalMoves(
   side: Side
 ): Pos[] {
   const isRed = side === 'red'
-  
+
   // 解析最终生效规则
   const effective = resolveRule(rule, from.y, from.x, isRed)
-  
+
   const moves: Pos[] = []
 
   // 辅助函数: 添加单个位置(检查边界和敌我方)
   const add = (row: number, col: number) => {
     if (!inBounds(col, row)) return
     const target = board[row][col]
-    
+
     if (!target) {
       // 空格可走
       moves.push({ x: col, y: row })
@@ -151,10 +151,10 @@ export function generateConditionalMoves(
   const ray = (dr: number, dc: number) => {
     let row = from.y + dr
     let col = from.x + dc
-    
+
     while (inBounds(col, row)) {
       const target = board[row][col]
-      
+
       if (!target) {
         moves.push({ x: col, y: row })
       } else {
@@ -164,7 +164,7 @@ export function generateConditionalMoves(
         }
         break // 射线终止
       }
-      
+
       row += dr
       col += dc
     }
@@ -173,15 +173,15 @@ export function generateConditionalMoves(
   // 1) 特殊模式: 炮逻辑
   if (effective.special === 'cannon') {
     const dirs: [number, number][] = [[-1, 0], [1, 0], [0, -1], [0, 1]]
-    
+
     for (const [dr, dc] of dirs) {
       let row = from.y + dr
       let col = from.x + dc
       let metFirst = false // 是否遇到第一个棋子
-      
+
       while (inBounds(col, row)) {
         const target = board[row][col]
-        
+
         if (!metFirst) {
           if (!target) {
             // 空格可走
@@ -199,7 +199,7 @@ export function generateConditionalMoves(
             break // 无论能否吃,都终止
           }
         }
-        
+
         row += dr
         col += dc
       }
@@ -287,7 +287,7 @@ export function generateConditionalMoves(
   if (effective.forward) {
     const dir = isRed ? -1 : 1 // 红向上(-1), 黑向下(+1)
     const max = effective.forward.max || 1
-    
+
     for (let i = 1; i <= max; i++) {
       add(from.y + dir * i, from.x)
     }

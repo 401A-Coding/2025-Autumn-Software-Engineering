@@ -62,7 +62,17 @@ export const boardApi = {
       operations['boardsTemplates']['responses'][200]['content']['application/json']['data']
     >
     const res = await apiRequest<TemplatesData>('/api/v1/boards/templates')
-    return res.data
+    // API may return either an array or a paginated object { items: [] }
+    const data: unknown = res.data
+    if (Array.isArray(data)) {
+      return data as BoardTemplate[]
+    }
+    if (data && typeof data === 'object' && 'items' in (data as Record<string, unknown>)) {
+      const items = (data as Record<string, unknown>)['items']
+      if (Array.isArray(items)) return items as BoardTemplate[]
+    }
+    // fallback to empty array to satisfy the declared return type
+    return []
   },
 
   /**
@@ -214,6 +224,30 @@ export const battleApi = {
       `/api/v1/battles/history?page=${page}&pageSize=${pageSize}`
     )
     return res.data
+  },
+
+  /** 取消等待匹配（仅单人等待房间创建者） */
+  async cancel(battleId: number): Promise<{ battleId: number; cancelled: boolean }> {
+    const res = await apiRequest<{ battleId: number; cancelled: boolean }>(
+      '/api/v1/battles/cancel',
+      {
+        method: 'POST',
+        body: JSON.stringify({ battleId }),
+      }
+    );
+    return res.data;
+  },
+
+  /** 离开房间（幂等） */
+  async leave(battleId: number): Promise<{ battleId: number; left: boolean; reason?: string }> {
+    const res = await apiRequest<{ battleId: number; left: boolean; reason?: string }>(
+      '/api/v1/battles/leave',
+      {
+        method: 'POST',
+        body: JSON.stringify({ battleId }),
+      }
+    );
+    return res.data;
   },
 }
 
