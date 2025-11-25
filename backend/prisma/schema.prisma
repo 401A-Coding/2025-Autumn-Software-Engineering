@@ -124,6 +124,7 @@ model RecordComment {
   record    Record   @relation(fields: [recordId], references: [id], onDelete: Cascade)
   authorId  Int?
   author    User?    @relation(fields: [authorId], references: [id])
+  type      String   @default("static") // 评论类型，如 static / danmu
   content   String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -152,6 +153,8 @@ model RecordShare {
   record    Record   @relation(fields: [recordId], references: [id], onDelete: Cascade)
   userId    Int?
   user      User?    @relation(fields: [userId], references: [id])
+  title     String? // 分享标题
+  tags      String[] // 分享标签
   createdAt DateTime @default(now())
 
   @@index([recordId])

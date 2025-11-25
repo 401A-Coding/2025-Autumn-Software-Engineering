@@ -1,7 +1,7 @@
 import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Req, Query } from '@nestjs/common';
 import { RecordService } from './record.service';
 import { CreateRecordDto } from './dto/create-record.dto';
-import { UpdateRecordDto } from './dto/update-record.dto';
+// import { UpdateRecordDto } from './dto/update-record.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { Request } from 'express';
 import { BookmarkCreateDto } from './dto/bookmark-create.dto';
@@ -16,7 +16,7 @@ export class RecordController {
   @UseGuards(JwtAuthGuard)
   create(@Body() createRecordDto: CreateRecordDto, @Req() req: Request & { user?: { sub: number } }) {
     const userId = req.user!.sub;
-    return this.recordService.create(userId, createRecordDto);
+    return this.recordService.create(userId, createRecordDto).then((record) => ({ code: 0, message: 'success', data: { id: record.id, createdAt: record.createdAt } }));
   }
 
   @Get()
@@ -24,63 +24,79 @@ export class RecordController {
   findAll(
     @Query('page') page?: string,
     @Query('pageSize') pageSize?: string,
+    @Query('favorite') favorite?: string,
+    @Query('result') result?: string,
+    @Req() req?: Request & { user?: { sub: number } },
   ) {
     const p = page ? parseInt(page, 10) : 1;
     const ps = pageSize ? parseInt(pageSize, 10) : 10;
-    return this.recordService.findAllPaginated(p, ps);
+    const fav = typeof favorite === 'string' ? (favorite.toLowerCase() === 'true' ? true : favorite.toLowerCase() === 'false' ? false : undefined) : undefined;
+    const userId = req!.user!.sub;
+    return this.recordService.findAllPaginated(userId, p, ps, fav, result).then((res) => ({ code: 0, message: 'success', data: res }));
   }
 
   @Get(':id')
   @UseGuards(JwtAuthGuard)
-  findOne(@Param('id') id: string) {
-    return this.recordService.findOne(+id);
+  findOne(@Param('id') id: string, @Req() req: Request & { user?: { sub: number } }) {
+    const userId = req.user!.sub;
+    return this.recordService.findOne(userId, +id).then((data) => ({ code: 0, message: 'success', data }));
   }
 
   @Delete(':id')
   @UseGuards(JwtAuthGuard)
   remove(@Param('id') id: string, @Req() req: Request & { user?: { sub: number } }) {
     const userId = req.user!.sub;
-    return this.recordService.remove(userId, +id);
+    return this.recordService.remove(userId, +id).then(() => ({ code: 0, message: 'success', data: {} }));
   }
 
   @Post(':id/share')
   @UseGuards(JwtAuthGuard)
-  shareRecord(@Param('id') id: string, @Req() req: Request & { user?: { sub: number } }) {
+  shareRecord(
+    @Param('id') id: string,
+    @Body('title') title: string | undefined,
+    @Body('tags') tags: string[] | undefined,
+    @Req() req: Request & { user?: { sub: number } },
+  ) {
     const userId = req.user!.sub;
-    return this.recordService.shareRecord(userId, +id);
+    return this.recordService.shareRecord(userId, +id, title, tags).then((share) => ({ code: 0, message: 'success', data: { shareId: share.id } }));
   }
 
   @Post(':id/favorite')
   @UseGuards(JwtAuthGuard)
   favoriteRecord(@Param('id') id: string, @Req() req: Request & { user?: { sub: number } }) {
     const userId = req.user!.sub;
-    return this.recordService.favoriteRecord(userId, +id);
+    return this.recordService.favoriteRecord(userId, +id).then(() => ({ code: 0, message: 'success', data: {} }));
   }
 
   @Delete(':id/favorite')
   @UseGuards(JwtAuthGuard)
   unfavoriteRecord(@Param('id') id: string, @Req() req: Request & { user?: { sub: number } }) {
     const userId = req.user!.sub;
-    return this.recordService.unfavoriteRecord(userId, +id);
+    return this.recordService.unfavoriteRecord(userId, +id).then(() => ({ code: 0, message: 'success', data: {} }));
   }
 
   @Get(':id/comments')
   // 评论列表可公开浏览
   getComments(@Param('id') id: string) {
-    return this.recordService.getComments(+id);
+    return this.recordService.getComments(+id).then((data) => ({ code: 0, message: 'success', data }));
   }
 
   @Post(':id/comments')
   @UseGuards(JwtAuthGuard)
-  addComment(@Param('id') id: string, @Body('comment') comment: string, @Req() req: Request & { user?: { sub: number } }) {
+  addComment(
+    @Param('id') id: string,
+    @Body('type') type: string | undefined,
+    @Body('content') content: string,
+    @Req() req: Request & { user?: { sub: number } },
+  ) {
     const userId = req.user!.sub;
-    return this.recordService.addComment(userId, +id, comment);
+    return this.recordService.addComment(userId, +id, type, content).then((c) => ({ code: 0, message: 'success', data: { commentId: c.id } }));
   }
 
   @Get(':id/export')
   @UseGuards(JwtAuthGuard)
   exportRecord(@Param('id') id: string) {
-    return this.recordService.exportRecord(+id);
+    return this.recordService.exportRecord(+id).then((data) => ({ code: 0, message: 'success', data }));
   }
 
   @Post(':id/bookmarks')
@@ -91,7 +107,7 @@ export class RecordController {
     @Req() req: Request & { user?: { sub: number } },
   ) {
     const userId = req.user!.sub;
-    return this.recordService.addBookmark(userId, +id, dto.step, dto.label, dto.note);
+    return this.recordService.addBookmark(userId, +id, dto.step, dto.label, dto.note).then((bm) => ({ code: 0, message: 'success', data: { id: bm.id } }));
   }
 
   @Patch(':id/bookmarks/:bid')
@@ -103,7 +119,7 @@ export class RecordController {
     @Req() req: Request & { user?: { sub: number } },
   ) {
     const userId = req.user!.sub;
-    return this.recordService.updateBookmark(userId, +id, +bid, dto.label, dto.note);
+    return this.recordService.updateBookmark(userId, +id, +bid, dto.label, dto.note).then(() => ({ code: 0, message: 'success', data: {} }));
   }
 
   @Delete(':id/bookmarks/:bid')
@@ -114,7 +130,7 @@ export class RecordController {
     @Req() req: Request & { user?: { sub: number } },
   ) {
     const userId = req.user!.sub;
-    return this.recordService.removeBookmark(userId, +id, +bid);
+    return this.recordService.removeBookmark(userId, +id, +bid).then(() => ({ code: 0, message: 'success', data: {} }));
   }
 
   // 个人对局记录保留条数设置
@@ -122,7 +138,7 @@ export class RecordController {
   @UseGuards(JwtAuthGuard)
   getRetentionPrefs(@Req() req: Request & { user?: { sub: number } }) {
     const userId = req.user!.sub;
-    return this.recordService.getRetentionPrefs(userId);
+    return this.recordService.getRetentionPrefs(userId).then((data) => ({ code: 0, message: 'success', data }));
   }
 
   // 个人对局记录保留条数修改
@@ -130,7 +146,7 @@ export class RecordController {
   @UseGuards(JwtAuthGuard)
   updateRetentionPrefs(@Body('prefs') prefs: any, @Req() req: Request & { user?: { sub: number } }) {
     const userId = req.user!.sub;
-    return this.recordService.updateRetentionPrefs(userId, prefs);
+    return this.recordService.updateRetentionPrefs(userId, prefs).then((data) => ({ code: 0, message: 'success', data }));
   }
 
 }

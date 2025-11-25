@@ -32,10 +32,9 @@ export class RecordService {
       throw new BadRequestException('Missing required record fields');
     }
 
-    // Enforce retention limit (delete oldest if exceeding)
+    // Enforce retention limit only for non-favorites
     const pref = await this.prisma.userRecordPreference.findUnique({ where: { userId } });
-    const limit = pref?.retentionLimit ?? 200;
-    const existingCount = await this.prisma.record.count({ where: { ownerId: userId } });
+    const limit = pref?.retentionLimit ?? 30;
 
     const movesInput: CreateMoveInput[] = (dto as any).moves ?? [];
     const bookmarksInput: CreateBookmarkInput[] = (dto as any).bookmarks ?? [];
@@ -79,18 +78,20 @@ export class RecordService {
       include: { moves: true, bookmarks: true },
     });
 
-    if (existingCount + 1 > limit) {
-      const toDelete = existingCount + 1 - limit;
-      const oldest = await this.prisma.record.findMany({
-        where: { ownerId: userId },
+    // Count non-favorite records for this user
+    const nonFavCount = await this.prisma.record.count({
+      where: { ownerId: userId, favorites: { none: { userId } } },
+    });
+    if (nonFavCount > limit) {
+      const toDelete = nonFavCount - limit;
+      const oldestNonFav = await this.prisma.record.findMany({
+        where: { ownerId: userId, favorites: { none: { userId } } },
         orderBy: { createdAt: 'asc' },
         take: toDelete,
         select: { id: true },
       });
-      const ids = oldest.map((r) => r.id);
-      if (ids.length) {
-        await this.prisma.record.deleteMany({ where: { id: { in: ids } } });
-      }
+      const ids = oldestNonFav.map((r) => r.id);
+      if (ids.length) await this.prisma.record.deleteMany({ where: { id: { in: ids } } });
     }
 
     return record;
@@ -108,11 +109,16 @@ export class RecordService {
     });
   }
 
-  async findAllPaginated(page = 1, pageSize = 10) {
+  async findAllPaginated(userId: number, page = 1, pageSize = 10, favorite?: boolean, result?: string) {
     const take = Math.min(Math.max(pageSize, 1), 100);
     const skip = (Math.max(page, 1) - 1) * take;
+    const where: any = { ownerId: userId };
+    if (favorite === true) where.favorites = { some: { userId } };
+    if (favorite === false) where.favorites = { none: { userId } };
+    if (result) where.result = result;
     const [items, total] = await Promise.all([
       this.prisma.record.findMany({
+        where,
         orderBy: { createdAt: 'desc' },
         skip,
         take,
@@ -122,14 +128,14 @@ export class RecordService {
           shares: true,
         },
       }),
-      this.prisma.record.count(),
+      this.prisma.record.count({ where }),
     ]);
     return { items, page: Math.max(page, 1), pageSize: take, total };
   }
 
-  async findOne(id: number) {
-    const record = await this.prisma.record.findUnique({
-      where: { id },
+  async findOne(userId: number, id: number) {
+    const record = await this.prisma.record.findFirst({
+      where: { id, ownerId: userId },
       include: {
         owner: { select: { id: true, username: true, avatarUrl: true } },
         moves: true,
@@ -154,10 +160,10 @@ export class RecordService {
     return { ok: true };
   }
 
-  async shareRecord(userId: number, id: number) {
+  async shareRecord(userId: number, id: number, title?: string | null, tags?: string[]) {
     const exists = await this.prisma.record.findUnique({ where: { id }, select: { id: true } });
     if (!exists) throw new NotFoundException('Record not found');
-    return this.prisma.recordShare.create({ data: { recordId: id, userId } });
+    return this.prisma.recordShare.create({ data: { recordId: id, userId, title: title ?? null, tags: tags ?? [] } });
   }
 
   async favoriteRecord(userId: number, id: number) {
@@ -191,12 +197,13 @@ export class RecordService {
     });
   }
 
-  async addComment(userId: number, id: number, comment: string) {
-    if (!comment?.trim()) throw new BadRequestException('Comment must not be empty');
+  async addComment(userId: number, id: number, type: string | undefined, content: string) {
+    const trimmed = content?.trim();
+    if (!trimmed) throw new BadRequestException('Comment must not be empty');
     const exists = await this.prisma.record.findUnique({ where: { id }, select: { id: true } });
     if (!exists) throw new NotFoundException('Record not found');
     return this.prisma.recordComment.create({
-      data: { recordId: id, authorId: userId, content: comment.trim() },
+      data: { recordId: id, authorId: userId, type: type ?? 'static', content: trimmed },
     });
   }
 
