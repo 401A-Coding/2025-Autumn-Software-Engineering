@@ -11,8 +11,9 @@ export class RecordController {
 
   @Post()
   @UseGuards(JwtAuthGuard)
-  create(@Body() createRecordDto: CreateRecordDto) {
-    return this.recordService.create(createRecordDto);
+  create(@Body() createRecordDto: CreateRecordDto, @Req() req: Request & { user?: { sub: number } }) {
+    const userId = req.user!.sub;
+    return this.recordService.create(userId, createRecordDto);
   }
 
   @Get()
@@ -33,26 +34,30 @@ export class RecordController {
 
   @Delete(':id')
   @UseGuards(JwtAuthGuard)
-  remove(@Param('id') id: string) {
-    return this.recordService.remove(+id);
+  remove(@Param('id') id: string, @Req() req: Request & { user?: { sub: number } }) {
+    const userId = req.user!.sub;
+    return this.recordService.remove(userId, +id);
   }
 
   @Post(':id/share')
   @UseGuards(JwtAuthGuard)
-  shareRecord(@Param('id') id: string) {
-    return this.recordService.shareRecord(+id);
+  shareRecord(@Param('id') id: string, @Req() req: Request & { user?: { sub: number } }) {
+    const userId = req.user!.sub;
+    return this.recordService.shareRecord(userId, +id);
   }
 
   @Post(':id/favorite')
   @UseGuards(JwtAuthGuard)
-  favoriteRecord(@Param('id') id: string) {
-    return this.recordService.favoriteRecord(+id);
+  favoriteRecord(@Param('id') id: string, @Req() req: Request & { user?: { sub: number } }) {
+    const userId = req.user!.sub;
+    return this.recordService.favoriteRecord(userId, +id);
   }
 
   @Delete(':id/favorite')
   @UseGuards(JwtAuthGuard)
-  unfavoriteRecord(@Param('id') id: string) {
-    return this.recordService.unfavoriteRecord(+id);
+  unfavoriteRecord(@Param('id') id: string, @Req() req: Request & { user?: { sub: number } }) {
+    const userId = req.user!.sub;
+    return this.recordService.unfavoriteRecord(userId, +id);
   }
 
   @Get(':id/comments')
@@ -63,8 +68,9 @@ export class RecordController {
 
   @Post(':id/comments')
   @UseGuards(JwtAuthGuard)
-  addComment(@Param('id') id: string, @Body('comment') comment: string) {
-    return this.recordService.addComment(+id, comment);
+  addComment(@Param('id') id: string, @Body('comment') comment: string, @Req() req: Request & { user?: { sub: number } }) {
+    const userId = req.user!.sub;
+    return this.recordService.addComment(userId, +id, comment);
   }
 
   @Get(':id/export')
@@ -75,34 +81,39 @@ export class RecordController {
 
   @Post(':id/bookmarks')
   @UseGuards(JwtAuthGuard)
-  addBookmark(@Param('id') id: string) {
-    return this.recordService.addBookmark(+id);
+  addBookmark(@Param('id') id: string, @Req() req: Request & { user?: { sub: number } }) {
+    const userId = req.user!.sub;
+    return this.recordService.addBookmark(userId, +id);
   }
 
   @Patch(':id/bookmarks')
   @UseGuards(JwtAuthGuard)
-  updateBookmark(@Param('id') id: string, @Body('notes') notes: string) {
-    return this.recordService.updateBookmark(+id, notes);
+  updateBookmark(@Param('id') id: string, @Body('notes') notes: string, @Req() req: Request & { user?: { sub: number } }) {
+    const userId = req.user!.sub;
+    return this.recordService.updateBookmark(userId, +id, notes);
   }
 
   @Delete(':id/bookmarks')
   @UseGuards(JwtAuthGuard)
-  removeBookmark(@Param('id') id: string) {
-    return this.recordService.removeBookmark(+id);
+  removeBookmark(@Param('id') id: string, @Req() req: Request & { user?: { sub: number } }) {
+    const userId = req.user!.sub;
+    return this.recordService.removeBookmark(userId, +id);
   }
 
   // 个人对局记录保留条数设置
   @Get('prefs')
   @UseGuards(JwtAuthGuard)
-  getRetentionPrefs() {
-    return this.recordService.getRetentionPrefs();
+  getRetentionPrefs(@Req() req: Request & { user?: { sub: number } }) {
+    const userId = req.user!.sub;
+    return this.recordService.getRetentionPrefs(userId);
   }
 
   // 个人对局记录保留条数修改
   @Patch('prefs')
   @UseGuards(JwtAuthGuard)
-  updateRetentionPrefs(@Body('prefs') prefs: any) {
-    return this.recordService.updateRetentionPrefs(prefs);
+  updateRetentionPrefs(@Body('prefs') prefs: any, @Req() req: Request & { user?: { sub: number } }) {
+    const userId = req.user!.sub;
+    return this.recordService.updateRetentionPrefs(userId, prefs);
   }
 
 }

@@ -4,67 +4,67 @@ import { UpdateRecordDto } from './dto/update-record.dto';
 
 @Injectable()
 export class RecordService {
-  create(createRecordDto: CreateRecordDto) {
-    return 'This action adds a new record';
+  create(userId: number, createRecordDto: CreateRecordDto) {
+    return { msg: 'Create record', userId, dto: createRecordDto };
   }
 
   findAll() {
-    return `This action returns all record`;
+    return { msg: 'List records' };
   }
 
   findOne(id: number) {
-    return `This action returns a #${id} record`;
+    return { msg: 'Get record detail', id };
   }
 
-  // update(id: number, updateRecordDto: UpdateRecordDto) {
-  //   return `This action updates a #${id} record`;
+  // update(userId: number, id: number, updateRecordDto: UpdateRecordDto) {
+  //   return { msg: 'Update record', userId, id, dto: updateRecordDto };
   // }
 
-  remove(id: number) {
-    return `This action removes a #${id} record`;
+  remove(userId: number, id: number) {
+    return { msg: 'Remove record', userId, id };
   }
 
-  shareRecord(id: number) {
-    return `This action shares a #${id} record`;
+  shareRecord(userId: number, id: number) {
+    return { msg: 'Share record', userId, id };
   }
 
-  favoriteRecord(id: number) {
-    return `This action favorites a #${id} record`;
+  favoriteRecord(userId: number, id: number) {
+    return { msg: 'Favorite record', userId, id };
   }
 
-  unfavoriteRecord(id: number) {
-    return `This action unfavorites a #${id} record`;
+  unfavoriteRecord(userId: number, id: number) {
+    return { msg: 'Unfavorite record', userId, id };
   }
 
   getComments(id: number) {
-    return `This action gets comments for record #${id}`;
+    return { msg: 'Get comments', id };
   }
 
-  addComment(id: number, comment: string) {
-    return `This action adds a comment to record #${id}: ${comment}`;
+  addComment(userId: number, id: number, comment: string) {
+    return { msg: 'Add comment', userId, id, comment };
   }
 
   exportRecord(id: number) {
-    return `This action exports record #${id}`;
+    return { msg: 'Export record', id };
   }
 
-  addBookmark(id: number) {
-    return `This action adds a bookmark to record #${id}`;
+  addBookmark(userId: number, id: number) {
+    return { msg: 'Add bookmark', userId, id };
   }
 
-  updateBookmark(id: number, notes: string) {
-    return `This action updates a bookmark for record #${id} with notes: ${notes}`;
+  updateBookmark(userId: number, id: number, notes: string) {
+    return { msg: 'Update bookmark', userId, id, notes };
   }
 
-  removeBookmark(id: number) {
-    return `This action removes a bookmark from record #${id}`;
+  removeBookmark(userId: number, id: number) {
+    return { msg: 'Remove bookmark', userId, id };
   }
 
-  getRetentionPrefs() {
-    return `This action gets retention preferences`;
+  getRetentionPrefs(userId: number) {
+    return { msg: 'Get retention prefs', userId };
   }
 
-  updateRetentionPrefs(prefs: any) {
-    return `This action updates retention preferences: ${JSON.stringify(prefs)}`;
+  updateRetentionPrefs(userId: number, prefs: any) {
+    return { msg: 'Update retention prefs', userId, prefs };
   }
 }
