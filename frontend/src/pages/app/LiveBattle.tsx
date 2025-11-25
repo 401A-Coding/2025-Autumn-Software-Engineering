@@ -41,13 +41,24 @@ export default function LiveBattle() {
         });
         c.socket.on('disconnect', () => setConnected(false));
         c.onSnapshot((s) => {
+            console.log('[WS] snapshot', s);
             latestSnapshotRef.current = s;
             setSnapshot(s);
-            setMoves(() => {
-                const next = s.moves || [];
-                movesRef.current = next;
-                return next;
+
+            // snapshot 主要用于纠偏：仅当服务端 moves 更新得更“新”时才用它覆盖本地
+            setMoves((prev) => {
+                const snapMoves = s.moves || [];
+                const prevLast = prev.length ? prev[prev.length - 1].seq : 0;
+                const snapLast = snapMoves.length ? snapMoves[snapMoves.length - 1].seq : 0;
+
+                if (snapLast > prevLast) {
+                    movesRef.current = snapMoves;
+                    return snapMoves;
+                }
+
+                return prev;
             });
+
             // 收到任何权威快照后，取消保底计时
             if (fallbackTimerRef.current) {
                 clearTimeout(fallbackTimerRef.current);
@@ -56,6 +67,7 @@ export default function LiveBattle() {
             pendingSeqRef.current = null;
         });
         c.onMove((m) => {
+            console.log('[WS] move', m);
             // 去重：若已包含该 seq，忽略
             if (movesRef.current.some((mv) => mv.seq === m.seq)) {
                 return;
@@ -156,8 +168,8 @@ export default function LiveBattle() {
         if (!id) return;
         try {
             await conn.move(id, from, to);
-        } catch {
-            // ACK 超时或失败：主动拉取一次权威快照自愈
+        } catch (e) {
+            console.error('[MOVE ERROR]', e);
             conn.snapshot(id);
         }
     };
@@ -295,6 +307,10 @@ export default function LiveBattle() {
         }
     };
 
+    useEffect(() => {
+        (window as any).battleDebug = { snapshot, moves };
+    }, [snapshot, moves]);
+
     return (
         <div className="card-pad">
             <h2>在线对战</h2>
@@ -407,6 +423,7 @@ export default function LiveBattle() {
                                         winnerId={snapshot.winnerId}
                                         authoritativeBoard={snapshot.board}
                                         authoritativeTurn={snapshot.turn}
+                                        snapshotMoves={snapshot.moves}
                                         onAttemptMove={handleAttemptMove}
                                     />
                                 </div>
@@ -423,6 +440,7 @@ export default function LiveBattle() {
                     {!snapshot && (
                         <div className="empty-center livebattle-board-wrapper">
                             <div>
+                        // 调试：在浏览器控制台可通过 window.battleDebug 查看当前 snapshot 与 moves
                                 正在加载房间状态
                                 <span className="loading-dots"><span></span><span></span><span></span></span>
                             </div>
