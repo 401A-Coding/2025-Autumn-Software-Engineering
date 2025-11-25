@@ -22,10 +22,10 @@ export class RecordController {
     return this.recordService.findOne(+id);
   }
 
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateRecordDto: UpdateRecordDto) {
-    return this.recordService.update(+id, updateRecordDto);
-  }
+  // @Patch(':id')
+  // update(@Param('id') id: string, @Body() updateRecordDto: UpdateRecordDto) {
+  //   return this.recordService.update(+id, updateRecordDto);
+  // }
 
   @Delete(':id')
   remove(@Param('id') id: string) {

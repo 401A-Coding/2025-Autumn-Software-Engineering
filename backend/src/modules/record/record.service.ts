@@ -16,9 +16,9 @@ export class RecordService {
     return `This action returns a #${id} record`;
   }
 
-  update(id: number, updateRecordDto: UpdateRecordDto) {
-    return `This action updates a #${id} record`;
-  }
+  // update(id: number, updateRecordDto: UpdateRecordDto) {
+  //   return `This action updates a #${id} record`;
+  // }
 
   remove(id: number) {
     return `This action removes a #${id} record`;
