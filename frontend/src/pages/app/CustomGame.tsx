@@ -48,13 +48,16 @@ export default function CustomGame() {
         }))
     }
 
+    const selectedRule = customRules[selectedPiece]
+    const moveCount = selectedRule?.moves.length ?? 0
+
     return (
-        <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+        <div className="pad-16">
+            <div className="row-between mb-8">
                 <button className="btn-ghost" onClick={() => navigate('/app/home')}>
                     返回首页
                 </button>
-                <div style={{ display: 'flex', gap: 8 }}>
+                <div className="row gap-8">
                     <button className="btn-ghost" onClick={() => setShowRuleEditor(!showRuleEditor)}>
                         {showRuleEditor ? '隐藏' : '显示'}规则设置
                     </button>
@@ -62,14 +65,12 @@ export default function CustomGame() {
             </div>
 
             {showRuleEditor && (
-                <div className="paper-card" style={{ padding: 16, marginBottom: 12 }}>
-                    <h3 style={{ marginTop: 0 }}>自定义规则</h3>
-                    
-                    <div style={{ marginBottom: 16 }}>
-                        <label style={{ display: 'block', marginBottom: 8, fontWeight: 600 }}>
-                            预设规则：
-                        </label>
-                        <div style={{ display: 'flex', gap: 8 }}>
+                <div className="paper-card pad-16 mb-12">
+                    <h3 className="mt-0">自定义规则</h3>
+
+                    <div className="mb-16">
+                        <p className="fw-600 mb-8">预设规则：</p>
+                        <div className="row gap-8">
                             <button className="btn-ghost" onClick={() => handleLoadPreset('default')}>
                                 标准规则
                             </button>
@@ -79,17 +80,14 @@ export default function CustomGame() {
                         </div>
                     </div>
 
-                    <div style={{ marginBottom: 16 }}>
-                        <label style={{ display: 'block', marginBottom: 8, fontWeight: 600 }}>
-                            选择棋子：
-                        </label>
-                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    <div className="mb-16">
+                        <p className="fw-600 mb-8">选择棋子：</p>
+                        <div className="row gap-8 wrap">
                             {(Object.keys(pieceNames) as PieceType[]).map(piece => (
                                 <button
                                     key={piece}
-                                    className={selectedPiece === piece ? 'btn-primary' : 'btn-ghost'}
+                                    className={`${selectedPiece === piece ? 'btn-primary' : 'btn-ghost'} minw-80`}
                                     onClick={() => setSelectedPiece(piece)}
-                                    style={{ minWidth: 80 }}
                                 >
                                     {pieceNames[piece]}
                                 </button>
@@ -97,25 +95,25 @@ export default function CustomGame() {
                         </div>
                     </div>
 
-                    {selectedPiece && customRules[selectedPiece] && (
-                        <div className="paper-card" style={{ padding: 12, background: 'var(--muted-bg)' }}>
-                            <h4 style={{ marginTop: 0 }}>{pieceNames[selectedPiece]} 的规则</h4>
-                            
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                                <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    {selectedPiece && selectedRule && (
+                        <div className="paper-card pad-12 bg-muted rounded-8">
+                            <h4 className="mt-0">{pieceNames[selectedPiece]} 的规则</h4>
+
+                            <div className="col gap-12">
+                                <label className="row align-center gap-8">
                                     <input
                                         type="checkbox"
-                                        checked={customRules[selectedPiece]?.canJump || false}
+                                        checked={selectedRule.canJump || false}
                                         onChange={() => handleToggleRule(selectedPiece, 'canJump')}
                                     />
                                     可以跳过其他棋子
                                 </label>
 
                                 {(selectedPiece === 'elephant' || selectedPiece === 'soldier') && (
-                                    <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                    <label className="row align-center gap-8">
                                         <input
                                             type="checkbox"
-                                            checked={customRules[selectedPiece]?.canCrossBorder || false}
+                                            checked={selectedRule.canCrossBorder || false}
                                             onChange={() => handleToggleRule(selectedPiece, 'canCrossBorder')}
                                         />
                                         可以过河
@@ -123,43 +121,43 @@ export default function CustomGame() {
                                 )}
 
                                 {(selectedPiece === 'general' || selectedPiece === 'advisor') && (
-                                    <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                    <label className="row align-center gap-8">
                                         <input
                                             type="checkbox"
-                                            checked={customRules[selectedPiece]?.palaceOnly || false}
+                                            checked={selectedRule.palaceOnly || false}
                                             onChange={() => handleToggleRule(selectedPiece, 'palaceOnly')}
                                         />
                                         限制在九宫内
                                     </label>
                                 )}
 
-                                <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                <label className="row align-center gap-8">
                                     最大移动距离：
                                     <input
                                         type="number"
                                         min="0"
                                         max="10"
-                                        value={customRules[selectedPiece]?.maxRange || 0}
+                                        value={selectedRule.maxRange || 0}
                                         onChange={(e) => handleMaxRangeChange(selectedPiece, parseInt(e.target.value) || 0)}
-                                        style={{ width: 60, padding: 4 }}
+                                        className="w-60 pad-4"
                                     />
-                                    <span style={{ fontSize: 14, color: 'var(--muted)' }}>
+                                    <span className="text-14 muted">
                                         (0 = 无限制)
                                     </span>
                                 </label>
 
-                                <div style={{ fontSize: 14, color: 'var(--muted)', marginTop: 8 }}>
+                                <div className="text-14 muted mt-8">
                                     <strong>当前移动模式：</strong>
-                                    <ul style={{ margin: '6px 0', paddingLeft: 20 }}>
-                                        {customRules[selectedPiece]?.moves.slice(0, 4).map((move, i) => (
+                                    <ul className="list-plain">
+                                        {selectedRule.moves.slice(0, 4).map((move, i) => (
                                             <li key={i}>
                                                 ({move.dx > 0 ? '+' : ''}{move.dx}, {move.dy > 0 ? '+' : ''}{move.dy})
                                                 {move.repeat && ' (可重复)'}
                                                 {move.condition && ` (${move.condition})`}
                                             </li>
                                         ))}
-                                        {customRules[selectedPiece]?.moves.length! > 4 && (
-                                            <li>...共 {customRules[selectedPiece]?.moves.length} 种走法</li>
+                                        {moveCount > 4 && (
+                                            <li>...共 {moveCount} 种走法</li>
                                         )}
                                     </ul>
                                 </div>

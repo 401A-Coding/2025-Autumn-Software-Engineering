@@ -17,10 +17,10 @@ type PlacementBoard = (Piece | null)[][]
  */
 export default function VisualRuleEditor() {
     const navigate = useNavigate()
-    
+
     // 三步流程状态
     const [currentStep, setCurrentStep] = useState<EditorStep>('choose-mode')
-    
+
     // 步骤1: 摆放棋子
     const [placementBoard, setPlacementBoard] = useState<PlacementBoard>(() => {
         // 尝试从 localStorage 加载自定义棋盘
@@ -36,11 +36,11 @@ export default function VisualRuleEditor() {
         return createInitialBoard()
     })
     const [selectedPieceType, setSelectedPieceType] = useState<{ type: PieceType; side: Side } | null>(null)
-    
+
     // 步骤2&3: 选中的棋子类型和阵营
     const [editingPieceType, setEditingPieceType] = useState<PieceType>('rook')
     const [editingSide, setEditingSide] = useState<Side>('black')
-    
+
     // 步骤3: 规则编辑
     const [ruleSet, setRuleSet] = useState<CustomRuleSet>(() => {
         const savedRules = localStorage.getItem('customRuleSet')
@@ -55,7 +55,7 @@ export default function VisualRuleEditor() {
         }
         return standardChessRules
     })
-    
+
     // per-river-phase selections: pre / post
     const [editingRiverView, setEditingRiverView] = useState<'pre' | 'post'>('pre')
     const [selectedCellsPre, setSelectedCellsPre] = useState<Set<string>>(new Set())
@@ -126,7 +126,7 @@ export default function VisualRuleEditor() {
             }
             return
         }
-        
+
         const newBoard = placementBoard.map(r => [...r])
         newBoard[row][col] = {
             id: `${selectedPieceType.side}-${selectedPieceType.type}-${Date.now()}`,
@@ -223,7 +223,7 @@ export default function VisualRuleEditor() {
         }
     }
 
-    
+
 
     // 模板应用
     // applyTemplateToBoard 接受可选的 displayBase 和 phase，用于避免在 handlePieceSelect 中出现 React state 更新延迟导致的显示不一致
@@ -455,12 +455,12 @@ export default function VisualRuleEditor() {
     // 应用规则并返回选择棋子界面
     const handleApplyRule = () => {
         const patterns = generateMovePatterns()
-        
+
         if (patterns.length === 0) {
             alert('请至少选择一个移动位置')
             return
         }
-        
+
         // 保留已有 restrictions，但强制禁止越子（内核级规则）——编辑器不能开启跳子
         const prevRestrictions = ruleSet.pieceRules[editingPieceType]?.restrictions || {}
         const normalizedRestrictions = {
@@ -487,11 +487,11 @@ export default function VisualRuleEditor() {
                 },
             },
         }
-        
+
         setRuleSet(updatedRuleSet)
         // 保存到 localStorage
         localStorage.setItem('customRuleSet', JSON.stringify(updatedRuleSet))
-        
+
         // 返回选择棋子界面,清空当前选择（清空 pre/post 两侧）
         setSelectedCellsPre(new Set())
         setSelectedCellsPost(new Set())
@@ -556,30 +556,14 @@ export default function VisualRuleEditor() {
         ]
 
         return (
-            <div style={{ padding: '16px', maxWidth: '600px', margin: '0 auto' }}>
-                <h2 style={{ textAlign: 'center', marginBottom: '16px' }}>第一步：摆放棋子</h2>
-                
+            <div className="pad-16 mw-600 mx-auto">
+                <h2 className="text-center mb-16">第一步：摆放棋子</h2>
+
                 {/* 棋子选择器 */}
-                <div style={{ 
-                    display: 'grid', 
-                    gridTemplateColumns: 'repeat(7, 1fr)', 
-                    gap: '8px', 
-                    marginBottom: '16px',
-                    background: 'white',
-                    padding: '12px',
-                    borderRadius: '8px',
-                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                }}>
+                <div className="grid-7 gap-8 mb-16 card-surface">
                     <button
                         onClick={() => setSelectedPieceType(null)}
-                        style={{
-                            padding: '12px 8px',
-                            border: selectedPieceType === null ? '2px solid #3b82f6' : '1px solid #ccc',
-                            borderRadius: '6px',
-                            background: selectedPieceType === null ? '#eff6ff' : 'white',
-                            cursor: 'pointer',
-                            fontSize: '20px'
-                        }}
+                        className={`opt-btn opt-btn--icon ${selectedPieceType === null ? 'opt-btn--active' : ''}`}
                         title="点击已有棋子清除"
                     >
                         ❌
@@ -588,53 +572,22 @@ export default function VisualRuleEditor() {
                         <button
                             key={idx}
                             onClick={() => setSelectedPieceType({ type: opt.type, side: opt.side })}
-                            style={{
-                                padding: '12px 8px',
-                                border: selectedPieceType?.type === opt.type && selectedPieceType?.side === opt.side 
-                                    ? '2px solid #3b82f6' 
-                                    : '1px solid #ccc',
-                                borderRadius: '6px',
-                                background: selectedPieceType?.type === opt.type && selectedPieceType?.side === opt.side 
-                                    ? '#eff6ff' 
-                                    : 'white',
-                                cursor: 'pointer',
-                                fontSize: '18px',
-                                color: opt.side === 'red' ? '#dc2626' : '#1f2937'
-                            }}
+                            className={`opt-btn ${selectedPieceType?.type === opt.type && selectedPieceType?.side === opt.side ? 'opt-btn--active' : ''} text-18 ${opt.side === 'red' ? 'text-red' : 'text-gray-800'}`}
                         >
                             {opt.label}
                         </button>
                     ))}
                 </div>
 
-                {/* 棋盘 */}
-                <div style={{ 
-                    display: 'inline-block', 
-                    border: '3px solid #374151',
-                    borderRadius: '8px',
-                    overflow: 'hidden',
-                    boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-                    marginBottom: '16px'
-                }}>
+                {/* 棋盘（标准布局盘） */}
+                <div className="placement-board-frame mb-16 inline-block">
                     {placementBoard.map((row, rowIdx) => (
-                        <div key={rowIdx} style={{ display: 'flex' }}>
+                        <div key={rowIdx} className="placement-row">
                             {row.map((piece, colIdx) => (
                                 <div
                                     key={colIdx}
                                     onClick={() => handlePlacementClick(rowIdx, colIdx)}
-                                    style={{
-                                            width: 50,
-                                            aspectRatio: '1 / 1',
-                                            border: '1px solid #9ca3af',
-                                            background: piece ? '#fef3c7' : 'white',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'center',
-                                            cursor: 'pointer',
-                                            fontSize: '20px',
-                                            fontWeight: 'bold',
-                                            color: piece?.side === 'red' ? '#dc2626' : '#1f2937'
-                                        }}
+                                    className={`placement-cell placement-cell--hover ${piece ? 'placement-cell--occupied piece-cell' : ''} ${piece?.side === 'red' ? 'text-red' : 'text-gray-800'}`}
                                 >
                                     {piece && pieceNames[piece.type].split('/')[piece.side === 'red' ? 0 : 1]}
                                 </div>
@@ -643,23 +596,14 @@ export default function VisualRuleEditor() {
                     ))}
                 </div>
 
-                <div style={{ display: 'flex', gap: '12px' }}>
+                <div className="row gap-12">
                     <button
                         onClick={() => {
                             localStorage.removeItem('customRuleSet')
                             localStorage.removeItem('placementBoard')
                             navigate('/app/home')
                         }}
-                        style={{
-                            flex: 1,
-                            padding: '14px',
-                            background: '#6b7280',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '8px',
-                            fontSize: '16px',
-                            cursor: 'pointer'
-                        }}
+                        className="btn-lg btn-lg--slate flex-1"
                     >
                         返回
                     </button>
@@ -669,16 +613,7 @@ export default function VisualRuleEditor() {
                             localStorage.setItem('placementBoard', JSON.stringify(placementBoard))
                             setCurrentStep('select-piece')
                         }}
-                        style={{
-                            flex: 2,
-                            padding: '14px',
-                            background: '#3b82f6',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '8px',
-                            fontSize: '16px',
-                            cursor: 'pointer'
-                        }}
+                        className="btn-lg btn-lg--blue flex-2"
                     >
                         完成摆子，进入编辑 →
                     </button>
@@ -690,50 +625,20 @@ export default function VisualRuleEditor() {
     // 渲染步骤2: 选择要编辑的棋子
     const renderSelectPieceStep = () => {
         return (
-            <div style={{ padding: '16px', maxWidth: '600px', margin: '0 auto' }}>
-                <h2 style={{ textAlign: 'center', marginBottom: '16px' }}>第二步：选择要编辑规则的棋子</h2>
-                <p style={{ textAlign: 'center', color: '#6b7280', marginBottom: '16px' }}>
+            <div className="pad-16 mw-600 mx-auto">
+                <h2 className="text-center mb-16">第二步：选择要编辑规则的棋子</h2>
+                <p className="text-center mb-16 text-slate">
                     点击棋盘上的任意棋子，开始编辑它的移动规则
                 </p>
 
-                <div style={{ 
-                    display: 'inline-block', 
-                    border: '3px solid #374151',
-                    borderRadius: '8px',
-                    overflow: 'hidden',
-                    boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-                    marginBottom: '16px'
-                }}>
+                <div className="placement-board-frame mb-16 inline-block">
                     {placementBoard.map((row, rowIdx) => (
-                        <div key={rowIdx} style={{ display: 'flex' }}>
+                        <div key={rowIdx} className="placement-row">
                             {row.map((piece, colIdx) => (
                                 <div
                                     key={colIdx}
                                     onClick={() => handlePieceSelect(rowIdx, colIdx)}
-                                    style={{
-                                        width: 50,
-                                        aspectRatio: '1 / 1',
-                                        border: '1px solid #9ca3af',
-                                        background: piece ? '#fef3c7' : 'white',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        cursor: piece ? 'pointer' : 'default',
-                                        fontSize: '20px',
-                                        fontWeight: 'bold',
-                                        color: piece?.side === 'red' ? '#dc2626' : '#1f2937',
-                                        transition: 'all 0.2s'
-                                    }}
-                                    onMouseEnter={(e) => {
-                                        if (piece) {
-                                            (e.currentTarget as HTMLDivElement).style.background = '#fde68a'
-                                        }
-                                    }}
-                                    onMouseLeave={(e) => {
-                                        if (piece) {
-                                            (e.currentTarget as HTMLDivElement).style.background = '#fef3c7'
-                                        }
-                                    }}
+                                    className={`placement-cell ${piece ? 'placement-cell--hover placement-cell--occupied cursor-pointer piece-cell' : 'cursor-default'} ${piece?.side === 'red' ? 'text-red' : 'text-gray-800'}`}
                                 >
                                     {piece && pieceNames[piece.type].split('/')[piece.side === 'red' ? 0 : 1]}
                                 </div>
@@ -742,35 +647,16 @@ export default function VisualRuleEditor() {
                     ))}
                 </div>
 
-                <div style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
+                <div className="row gap-12 mt-16">
                     <button
                         onClick={handleSaveAndStart}
-                        style={{
-                            flex: 2,
-                            padding: '14px',
-                            background: '#10b981',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '8px',
-                            fontSize: '16px',
-                            fontWeight: 'bold',
-                            cursor: 'pointer'
-                        }}
+                        className="btn-lg btn-lg--green flex-2"
                     >
                         💾 保存并开始对局
                     </button>
                     <button
                         onClick={() => setCurrentStep('choose-mode')}
-                        style={{
-                            flex: 1,
-                            padding: '14px',
-                            background: '#6b7280',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '8px',
-                            fontSize: '16px',
-                            cursor: 'pointer'
-                        }}
+                        className="btn-lg btn-lg--slate flex-1"
                     >
                         ← 返回
                     </button>
@@ -782,71 +668,37 @@ export default function VisualRuleEditor() {
     // 渲染初始选择：修改布局 or 修改规则
     const renderChooseModeStep = () => {
         return (
-            <div style={{ padding: '32px 16px', maxWidth: '500px', margin: '0 auto' }}>
-                <h1 style={{ textAlign: 'center', marginBottom: '16px', fontSize: '28px' }}>
+            <div className="pt-32 pad-16 mw-520 mx-auto">
+                <h1 className="text-center mb-16 text-28">
                     🎨 可视化规则编辑器
                 </h1>
-                <p style={{ textAlign: 'center', color: '#6b7280', marginBottom: '32px' }}>
+                <p className="text-center mb-32 text-slate">
                     请选择编辑模式
                 </p>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div className="col gap-16">
                     <button
                         onClick={() => setCurrentStep('place-pieces')}
-                        style={{
-                            padding: '24px',
-                            background: 'white',
-                            border: '2px solid #3b82f6',
-                            borderRadius: '12px',
-                            cursor: 'pointer',
-                            textAlign: 'left',
-                            boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-                            transition: 'all 0.2s'
-                        }}
-                        onMouseEnter={(e) => {
-                            (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(-2px)'
-                            ;(e.currentTarget as HTMLButtonElement).style.boxShadow = '0 6px 12px rgba(0,0,0,0.15)'
-                        }}
-                        onMouseLeave={(e) => {
-                            (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(0)'
-                            ;(e.currentTarget as HTMLButtonElement).style.boxShadow = '0 4px 6px rgba(0,0,0,0.1)'
-                        }}
+                        className="mode-card mode-card--layout"
                     >
-                        <div style={{ fontSize: '32px', marginBottom: '8px' }}>🏗️</div>
-                        <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#1f2937', marginBottom: '8px' }}>
+                        <div className="text-32 mb-8">🏗️</div>
+                        <div className="text-20 fw-700 text-gray mb-8">
                             修改布局
                         </div>
-                        <div style={{ fontSize: '14px', color: '#6b7280' }}>
+                        <div className="text-14 text-gray">
                             在棋盘上摆放棋子，自定义初始局面
                         </div>
                     </button>
 
                     <button
                         onClick={() => setCurrentStep('select-piece')}
-                        style={{
-                            padding: '24px',
-                            background: 'white',
-                            border: '2px solid #10b981',
-                            borderRadius: '12px',
-                            cursor: 'pointer',
-                            textAlign: 'left',
-                            boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-                            transition: 'all 0.2s'
-                        }}
-                        onMouseEnter={(e) => {
-                            (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(-2px)'
-                            ;(e.currentTarget as HTMLButtonElement).style.boxShadow = '0 6px 12px rgba(0,0,0,0.15)'
-                        }}
-                        onMouseLeave={(e) => {
-                            (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(0)'
-                            ;(e.currentTarget as HTMLButtonElement).style.boxShadow = '0 4px 6px rgba(0,0,0,0.1)'
-                        }}
+                        className="mode-card mode-card--rules"
                     >
-                        <div style={{ fontSize: '32px', marginBottom: '8px' }}>⚙️</div>
-                        <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#1f2937', marginBottom: '8px' }}>
+                        <div className="text-32 mb-8">⚙️</div>
+                        <div className="text-20 fw-700 text-gray mb-8">
                             修改规则
                         </div>
-                        <div style={{ fontSize: '14px', color: '#6b7280' }}>
+                        <div className="text-14 text-gray">
                             自定义棋子的移动规则和特殊能力
                         </div>
                     </button>
@@ -857,16 +709,7 @@ export default function VisualRuleEditor() {
                             localStorage.removeItem('placementBoard')
                             navigate('/app/home')
                         }}
-                        style={{
-                            marginTop: '16px',
-                            padding: '14px',
-                            background: '#6b7280',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '8px',
-                            fontSize: '16px',
-                            cursor: 'pointer'
-                        }}
+                        className="btn-lg btn-lg--slate mt-16"
                     >
                         返回主页
                     </button>
@@ -879,8 +722,7 @@ export default function VisualRuleEditor() {
     const renderEditRulesStep = () => {
         const renderRuleBoard = () => {
             const rows = []
-            const cellSize = 50
-            
+
             for (let row = 0; row < gridRows; row++) {
                 const cells = []
                 for (let col = 0; col < gridCols; col++) {
@@ -891,158 +733,98 @@ export default function VisualRuleEditor() {
                     const isSelected = editingRiverView === 'pre' ? isSelectedPre : isSelectedPost
                     const otherSelected = editingRiverView === 'pre' ? isSelectedPost : isSelectedPre
 
-                    let bgColor = 'white'
-                    let cursor = 'pointer'
-                    if (isCenter) {
-                        bgColor = '#ef4444'
-                        cursor = 'not-allowed'
-                    } else if (isSelected) {
-                        bgColor = '#4ade80'
-                    } else if (otherSelected) {
-                        bgColor = '#fde68a' // indicate other-phase selection
+                    const cellClasses = ['rule-cell']
+                    if (!isCenter) {
+                        cellClasses.push('rule-cell--hover')
                     }
-                    
+                    if (isCenter) {
+                        cellClasses.push('rule-cell--center')
+                    }
+                    if (isSelected) {
+                        cellClasses.push('rule-cell--selected')
+                    }
+                    if (!isSelected && otherSelected && !isCenter) {
+                        cellClasses.push('rule-cell--other')
+                    }
+
                     cells.push(
                         <div
                             key={cellKey}
-                            style={{
-                                width: cellSize,
-                                aspectRatio: '1 / 1',
-                                border: '1px solid #9ca3af',
-                                backgroundColor: bgColor,
-                                cursor: cursor,
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                position: 'relative',
-                                fontSize: '14px',
-                                fontWeight: 'bold',
-                                transition: 'all 0.2s',
-                            }}
+                            className={cellClasses.join(' ')}
                             onClick={() => !isCenter && handleRuleEditClick(row, col)}
-                            onMouseEnter={(e) => {
-                                if (!isCenter && !isSelected) {
-                                    (e.currentTarget as HTMLDivElement).style.backgroundColor = '#e5e7eb'
-                                }
-                            }}
-                            onMouseLeave={(e) => {
-                                if (!isCenter && !isSelected) {
-                                    (e.currentTarget as HTMLDivElement).style.backgroundColor = 'white'
-                                }
-                            }}
                         >
                             {isCenter && (
-                                <span style={{ color: 'white', fontSize: '16px' }}>
+                                <span className="text-white text-16 fw-600">
                                     {pieceNames[editingPieceType].split('/')[templateDisplayBase === 'red' ? 0 : 1]}
                                 </span>
                             )}
                             {isSelected && !isCenter && (
-                                // For soldiers, show the dot at the bottom of the cell; otherwise keep it centered
-                                <div style={{
-                                    position: 'absolute',
-                                    left: '50%',
-                                    // when editing a soldier place dot near bottom; otherwise center vertically
-                                    top: editingPieceType === 'soldier' ? undefined : '50%',
-                                    bottom: editingPieceType === 'soldier' ? 6 : undefined,
-                                    transform: editingPieceType === 'soldier' ? 'translateX(-50%)' : 'translate(-50%, -50%)',
-                                    width: 12,
-                                    height: 12,
-                                    backgroundColor: '#2563eb',
-                                    borderRadius: '50%',
-                                }} />
+                                <div className={`rule-dot ${editingPieceType === 'soldier' ? 'rule-dot--soldier' : ''}`} />
                             )}
                             {/* show small indicator if other phase has selection here */}
                             {!isSelected && otherSelected && !isCenter && (
-                                <div style={{
-                                    position: 'absolute',
-                                    right: 6,
-                                    bottom: 6,
-                                    width: 8,
-                                    height: 8,
-                                    backgroundColor: '#b91c1c',
-                                    borderRadius: '50%'
-                                }} />
+                                <div className="rule-indicator" />
                             )}
                         </div>
                     )
                 }
                 rows.push(
-                    <div key={row} style={{ display: 'flex' }}>
+                    <div key={row} className="row">
                         {cells}
                     </div>
                 )
             }
             return (
-                <div style={{ 
-                    display: 'inline-block', 
-                    border: '3px solid #374151',
-                    boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-                    borderRadius: '8px',
-                    overflow: 'hidden'
-                }}>
+                <div className="rule-board-frame">
                     {rows}
                 </div>
             )
         }
 
         return (
-            <div style={{ padding: '16px', maxWidth: '600px', margin: '0 auto' }}>
-                <h2 style={{ textAlign: 'center', marginBottom: '8px', fontSize: '20px' }}>
+            <div className="pad-16 mw-600 mx-auto">
+                <h2 className="text-center mb-8 text-20">
                     第三步：编辑 {pieceNames[editingPieceType]} 的规则
                 </h2>
-                <p style={{ textAlign: 'center', color: '#6b7280', fontSize: '14px', marginBottom: '16px' }}>
-                    已选择 <strong style={{ color: '#3b82f6' }}>{editingRiverView === 'pre' ? selectedCellsPre.size : selectedCellsPost.size}</strong> 个位置（{editingRiverView === 'pre' ? '过河前' : '过河后'}）
+                <p className="text-center text-14 mb-16 text-gray">
+                    已选择 <strong className="text-blue-600">{editingRiverView === 'pre' ? selectedCellsPre.size : selectedCellsPost.size}</strong> 个位置（{editingRiverView === 'pre' ? '过河前' : '过河后'}）
                 </p>
 
                 {/* 模板选择 */}
-                <div style={{ 
-                    background: 'white', 
-                    borderRadius: '8px', 
-                    padding: '12px',
-                    marginBottom: '12px',
-                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                }}>
-                    <h3 style={{ fontSize: '16px', marginBottom: '8px', marginTop: 0 }}>模板选择</h3>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '6px' }}>
+                <div className="card-surface mb-12">
+                    <h3 className="text-16 mb-8 mt-0">模板选择</h3>
+                    <div className="grid-2 gap-6">
                         {(Object.keys(moveTemplates) as MoveTemplateType[])
                             .map(id => (
                                 <button
                                     key={id}
                                     onClick={() => applyTemplateToBoard(id)}
-                                    style={{
-                                        padding: '8px',
-                                        borderRadius: '6px',
-                                        border: getCurrentSelectedTemplates().has(id as MoveTemplateType) ? '2px solid #3b82f6' : '1px solid #e5e7eb',
-                                        background: getCurrentSelectedTemplates().has(id as MoveTemplateType) ? '#eff6ff' : 'white',
-                                        textAlign: 'left',
-                                        cursor: 'pointer',
-                                        fontSize: '13px'
-                                    }}
+                                    className={`opt-btn text-left ${getCurrentSelectedTemplates().has(id as MoveTemplateType) ? 'opt-btn--active' : ''} text-13`}
                                 >
                                     {moveTemplates[id].icon} {moveTemplates[id].name}
                                 </button>
                             ))
                         }
                     </div>
-                    
+
                     {/* 特殊规则开关 */}
                     {getCurrentSelectedTemplates().has('knight-l' as MoveTemplateType) && (
-                        <label style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8, fontSize: '14px', cursor: 'pointer' }}>
+                        <label className="row gap-6 mt-8 text-14 cursor-pointer">
                             <input type="checkbox" checked={getCurrentHorseLegBlocked()} onChange={(e) => setCurrentHorseLegBlocked(e.target.checked)} />
                             <span>别马脚</span>
                         </label>
                     )}
                     {getCurrentSelectedTemplates().has('elephant-field' as MoveTemplateType) && (
-                        <label style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6, fontSize: '14px', cursor: 'pointer' }}>
+                        <label className="row gap-6 mt-6 text-14 cursor-pointer">
                             <input type="checkbox" checked={getCurrentElephantEyeBlocked()} onChange={(e) => setCurrentElephantEyeBlocked(e.target.checked)} />
                             <span>塞象眼</span>
                         </label>
                     )}
-                    <label style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8, fontSize: '14px', cursor: 'pointer' }}>
+                    <label className="row gap-6 mt-8 text-14 cursor-pointer">
                         <input type="checkbox" checked={getCurrentUseCannonCapture()} onChange={(e) => setCurrentUseCannonCapture(e.target.checked)} />
                         <span>将所选模板的吃子方式改为炮（隔子吃），移动方式保持不变</span>
                     </label>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6, fontSize: '14px', cursor: 'pointer' }}>
+                    <label className="row gap-6 mt-6 text-14 cursor-pointer">
                         <input type="checkbox" checked={getCurrentAllowDualCapture()} onChange={(e) => { const v = e.target.checked; setCurrentAllowDualCapture(v); }} />
                         <span>同时保留原始吃子规则与炮式吃子（两种吃子方式共存）</span>
                     </label>
@@ -1050,42 +832,18 @@ export default function VisualRuleEditor() {
                 </div>
 
                 {/* 编辑模式 */}
-                <div style={{ 
-                    background: 'white', 
-                    borderRadius: '8px', 
-                    padding: '12px',
-                    marginBottom: '12px',
-                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                }}>
-                    <h3 style={{ fontSize: '16px', marginBottom: '8px', marginTop: 0 }}>编辑模式</h3>
-                    <div style={{ display: 'flex', gap: '8px' }}>
+                <div className="card-surface mb-12">
+                    <h3 className="text-16 mb-8 mt-0">编辑模式</h3>
+                    <div className="row gap-8">
                         <button
                             onClick={() => setEditMode('add')}
-                            style={{
-                                flex: 1,
-                                padding: '10px',
-                                borderRadius: '6px',
-                                border: 'none',
-                                background: editMode === 'add' ? '#10b981' : '#f3f4f6',
-                                color: editMode === 'add' ? 'white' : '#374151',
-                                cursor: 'pointer',
-                                fontSize: '14px'
-                            }}
+                            className={`seg-btn ${editMode === 'add' ? 'seg-btn--active' : ''}`}
                         >
                             ➕ 添加
                         </button>
                         <button
                             onClick={() => setEditMode('remove')}
-                            style={{
-                                flex: 1,
-                                padding: '10px',
-                                borderRadius: '6px',
-                                border: 'none',
-                                background: editMode === 'remove' ? '#ef4444' : '#f3f4f6',
-                                color: editMode === 'remove' ? 'white' : '#374151',
-                                cursor: 'pointer',
-                                fontSize: '14px'
-                            }}
+                            className={`seg-btn ${editMode === 'remove' ? 'seg-btn--active' : ''}`}
                         >
                             ➖ 删除
                         </button>
@@ -1093,55 +851,32 @@ export default function VisualRuleEditor() {
                 </div>
 
                 {/* 过河阶段（替代旧的移动/吃子选择） */}
-                <div style={{ 
-                    background: 'white', 
-                    borderRadius: '8px', 
-                    padding: '12px',
-                    marginBottom: '12px',
-                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                }}>
-                    <h3 style={{ fontSize: '16px', marginBottom: '8px', marginTop: 0 }}>编辑视图</h3>
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                        <button onClick={() => { setEditingRiverView('pre'); }} style={{ padding: 8, borderRadius: 6, background: editingRiverView === 'pre' ? '#3b82f6' : '#f3f4f6', color: editingRiverView === 'pre' ? 'white' : '#374151' }}>过河前</button>
-                        <button onClick={() => { setEditingRiverView('post'); }} style={{ padding: 8, borderRadius: 6, background: editingRiverView === 'post' ? '#3b82f6' : '#f3f4f6', color: editingRiverView === 'post' ? 'white' : '#374151' }}>过河后</button>
+                <div className="card-surface mb-12">
+                    <h3 className="text-16 mb-8 mt-0">编辑视图</h3>
+                    <div className="row gap-8">
+                        <button onClick={() => { setEditingRiverView('pre'); }} className={`seg-btn ${editingRiverView === 'pre' ? 'seg-btn--active' : ''}`}>过河前</button>
+                        <button onClick={() => { setEditingRiverView('post'); }} className={`seg-btn ${editingRiverView === 'post' ? 'seg-btn--active' : ''}`}>过河后</button>
                     </div>
                 </div>
 
                 {/* 棋盘 */}
-                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '12px' }}>
+                <div className="row-center mb-12">
                     {renderRuleBoard()}
                 </div>
 
                 {/* 操作按钮 */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div className="col gap-8">
                     <button
                         onClick={handleApplyRule}
-                        style={{
-                            padding: '14px',
-                            background: '#10b981',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '8px',
-                            fontSize: '16px',
-                            cursor: 'pointer',
-                            fontWeight: 'bold'
-                        }}
+                        className="btn-lg btn-lg--green"
                     >
                         ✅ 保存此棋子规则
                     </button>
                     <button
                         onClick={() => editingRiverView === 'pre' ? setSelectedCellsPre(new Set()) : setSelectedCellsPost(new Set())}
-                        style={{
-                            padding: '12px',
-                            background: '#f59e0b',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '8px',
-                            fontSize: '14px',
-                            cursor: 'pointer'
-                        }}
+                        className="btn-lg btn-lg--amber text-14"
                     >
-                        �️ 清除选择
+                        ♻️ 清除选择
                     </button>
                     <button
                         onClick={() => {
@@ -1149,15 +884,7 @@ export default function VisualRuleEditor() {
                             setSelectedCellsPre(new Set())
                             setSelectedCellsPost(new Set())
                         }}
-                        style={{
-                            padding: '12px',
-                            background: '#6b7280',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '8px',
-                            fontSize: '14px',
-                            cursor: 'pointer'
-                        }}
+                        className="btn-lg btn-lg--slate text-14"
                     >
                         ← 返回选择棋子
                     </button>
@@ -1167,12 +894,7 @@ export default function VisualRuleEditor() {
     }
 
     return (
-        <div style={{ 
-            minHeight: '100vh', 
-            background: 'linear-gradient(135deg, #fef3c7 0%, #fed7aa 100%)',
-            paddingTop: '16px',
-            paddingBottom: '32px'
-        }}>
+        <div className="minh-100vh bg-editor-gradient pt-16 pb-32">
             {currentStep === 'choose-mode' && renderChooseModeStep()}
             {currentStep === 'place-pieces' && renderPlacementStep()}
             {currentStep === 'select-piece' && renderSelectPieceStep()}
