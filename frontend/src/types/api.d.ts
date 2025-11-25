@@ -874,7 +874,6 @@ export interface components {
             capturedType?: string | null;
             capturedSide?: string | null;
             timeSpentMs?: number | null;
-            san?: string | null;
         };
         Bookmark: {
             id?: number;

@@ -1123,7 +1123,6 @@ model Move {
   capturedType String?
   capturedSide String?
   timeSpentMs  Int?
-  san          String?
   record       Record   @relation(fields: [recordId], references: [id])
   @@unique([recordId, moveIndex])
 }
