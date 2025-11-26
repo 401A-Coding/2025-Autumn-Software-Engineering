@@ -668,6 +668,43 @@ paths:
               schema:
                 $ref: "#/components/schemas/ApiResponseBattle"
 
+  /api/v1/battles/resign:
+    post:
+      tags: [Battles]
+      summary: Resign current battle
+      operationId: battlesResign
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [battleId]
+              properties:
+                battleId:
+                  type: integer
+                  example: 501
+      responses:
+        "200":
+          description: Resigned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseBattle"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseError"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseError"
   /api/v1/records:
     get:
       tags: [Records]

@@ -72,7 +72,7 @@ export class BattlesService {
     private readonly jwt: JwtService,
     private readonly engine: ChessEngineService,
     @Optional() private readonly metrics?: MetricsService,
-  ) { }
+  ) {}
 
   verifyBearer(authorization?: string) {
     if (!authorization || !authorization.toLowerCase().startsWith('bearer ')) {
@@ -267,6 +267,22 @@ export class BattlesService {
     return { battleId: b.id, ...result };
   }
 
+  // 主动认输：当前对局中玩家请求直接判负
+  resign(userId: number, battleId: number) {
+    const b = this.getBattle(battleId);
+    if (b.status !== 'playing') {
+      throw new BadRequestException('当前不可认输');
+    }
+    if (!b.players.includes(userId)) {
+      throw new UnauthorizedException('不在房间内');
+    }
+    const opponent = b.players.find((id) => id !== userId) ?? null;
+    return this.finish(battleId, {
+      winnerId: opponent,
+      reason: 'resign',
+    });
+  }
+
   quickMatch(userId: number, mode = 'pvp') {
     const selfWaiting = this.findUserWaiting(userId, mode);
     if (selfWaiting) {
@@ -436,11 +452,24 @@ export class BattlesService {
     const h = setTimeout(() => {
       const b = this.battles.get(battleId);
       if (!b) return;
-      if ((b.onlineUserIds?.length || 0) === 0 && b.status !== 'finished') {
-        // 判和并结束（保留历史）
-        this.finish(battleId, { winnerId: null, reason: 'disconnect_ttl' });
-        this.metricsData.disconnectTtlTriggered += 1;
-        this.metrics?.incDisconnectTtlTriggered();
+      if (b.status !== 'finished') {
+        const online = b.onlineUserIds ?? [];
+        let winnerId: number | null | undefined;
+        if (online.length === 1) {
+          // 只剩一人在线：判该玩家胜
+          winnerId = online[0];
+        } else if (online.length === 0) {
+          // 双方都不在线：维持原有行为，判和
+          winnerId = null;
+        }
+        if (winnerId !== undefined) {
+          this.finish(battleId, {
+            winnerId,
+            reason: 'disconnect_ttl',
+          });
+          this.metricsData.disconnectTtlTriggered += 1;
+          this.metrics?.incDisconnectTtlTriggered();
+        }
       }
       this.clearDisconnectTtl(battleId);
     }, BattlesService.DISCONNECT_TTL_MS);

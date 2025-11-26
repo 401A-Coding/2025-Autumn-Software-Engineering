@@ -280,15 +280,40 @@ export default function LiveBattle() {
             navigate('/app/online-lobby');
             return;
         }
-        const ok = window.confirm('确认退出对局？');
+
+        const id = battleIdRef.current;
+        if (!id) {
+            navigate('/app/online-lobby');
+            return;
+        }
+
+        // 若对局尚未开始（waiting 且玩家不足 2 个），使用 leave/cancel 语义上的“取消房间”
+        const isNotStarted = snapshot?.status === 'waiting' && (snapshot.players?.length ?? 0) < 2;
+        if (isNotStarted) {
+            const okCancel = window.confirm('当前对局尚未开始，确认取消房间？');
+            if (!okCancel) return;
+            try {
+                try { await battleApi.leave(id); } catch { /* 忽略错误，继续本地清理 */ }
+                connRef.current?.socket?.close();
+            } finally {
+                setSnapshot(null);
+                setMoves([]);
+                setBattleId('');
+                setJoinIdInput('');
+                navigate('/app/online-lobby');
+            }
+            return;
+        }
+
+        // 已经开始的对局：退出 = 认输
+        const ok = window.confirm('确认退出对局？退出将视为本方认输，并判负。');
         if (!ok) return;
         try {
-            // 先调用 REST 兜底离开，幂等返回
-            const id = battleIdRef.current;
-            if (id) {
-                try { await battleApi.leave(id); } catch { /* 忽略错误，继续本地清理 */ }
+            try {
+                await battleApi.resign(id);
+            } catch {
+                // 若认输接口异常，避免卡住用户，仍然允许本地退出
             }
-            // 然后关闭连接并清理本地状态
             connRef.current?.socket?.close();
         } finally {
             setSnapshot(null);

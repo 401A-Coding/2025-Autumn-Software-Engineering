@@ -17,7 +17,8 @@ import { BattlesService } from './battles.service';
   cors: { origin: [/http:\/\/localhost:(5173|5174)$/] },
 })
 export class BattlesGateway
-  implements OnGatewayConnection, OnGatewayDisconnect {
+  implements OnGatewayConnection, OnGatewayDisconnect
+{
   private readonly logger = new Logger(BattlesGateway.name);
   // 简易限流：每用户每房间每秒最多 3 次 move；heartbeat 最少 10s 一次
   private static readonly MOVE_MAX_PER_SEC = 3;
@@ -38,7 +39,7 @@ export class BattlesGateway
   @WebSocketServer()
   server!: Server;
 
-  constructor(private readonly battles: BattlesService) { }
+  constructor(private readonly battles: BattlesService) {}
 
   private readonly users = new WeakMap<Socket, number>();
   private readonly joinedBattle = new WeakMap<Socket, number>();

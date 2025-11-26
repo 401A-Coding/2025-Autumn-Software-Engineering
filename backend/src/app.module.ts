@@ -9,8 +9,15 @@ import { RecordModule } from './modules/record/record.module';
 import { MetricsModule } from './modules/metrics/metrics.module';
 
 @Module({
-  imports: [PrismaModule, UserModule, BattleModule, MetricsModule,BoardModule, RecordModule],
+  imports: [
+    PrismaModule,
+    UserModule,
+    BattleModule,
+    MetricsModule,
+    BoardModule,
+    RecordModule,
+  ],
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule { }
+export class AppModule {}

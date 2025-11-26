@@ -15,4 +15,4 @@ import { JwtAuthGuard } from 'src/common/guards/jwt-auth.guard';
   controllers: [RecordController],
   providers: [RecordService, JwtAuthGuard],
 })
-export class RecordModule { }
+export class RecordModule {}

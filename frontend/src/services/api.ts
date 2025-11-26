@@ -249,6 +249,20 @@ export const battleApi = {
     );
     return res.data;
   },
+
+  /** 认输当前对局 */
+  async resign(battleId: number): Promise<
+    NonNullable<operations['battlesResign']['responses'][200]['content']['application/json']['data']>
+  > {
+    type ResignData = NonNullable<
+      operations['battlesResign']['responses'][200]['content']['application/json']['data']
+    >
+    const res = await apiRequest<ResignData>('/api/v1/battles/resign', {
+      method: 'POST',
+      body: JSON.stringify({ battleId }),
+    })
+    return res.data
+  },
 }
 
 /**
