@@ -25,17 +25,19 @@ export interface BattleState {
   id: number;
   mode: string;
   status: BattleStatus;
-  players: number[]; // [red, black]
+  players: number[];
   moves: Move[];
-  turnIndex: 0 | 1; // 0=players[0], 1=players[1]
+  turnIndex: 0 | 1;
   createdAt: number;
   winnerId?: number | null;
   finishReason?: string | null;
-  // 权威棋盘与轮次
   board: Board;
-  turn: Side; // 'red' | 'black'
-  // 在线用户（通过 WS join/断开维护）
+  turn: Side;
   onlineUserIds: number[];
+  // 新增 ↓
+  source: 'match' | 'room';
+  visibility: 'match' | 'private' | 'public';
+  ownerId?: number;
 }
 
 @Injectable()
@@ -85,13 +87,26 @@ export class BattlesService {
     }
   }
 
-  createBattle(creatorId: number, mode = 'pvp') {
-    // 若该用户在该模式已有单人等待房间，直接复用避免重复创建
-    const reuse = this.findUserWaiting(creatorId, mode);
+  createBattle(
+    creatorId: number,
+    mode = 'pvp',
+    opts?: {
+      source?: 'match' | 'room';
+      visibility?: 'match' | 'private' | 'public';
+    },
+  ) {
+    const source = opts?.source ?? 'room';
+    const visibility =
+      opts?.visibility ?? (source === 'match' ? 'match' : 'private');
+
+    // 只有自建房才复用自己的等待房
+    const reuse =
+      source === 'room' ? this.findUserWaiting(creatorId, mode) : undefined;
     if (reuse) {
       const b = this.battles.get(reuse)!;
       return { battleId: b.id, status: b.status };
     }
+
     const id = this.nextId++;
     const state: BattleState = {
       id,
@@ -104,6 +119,9 @@ export class BattlesService {
       board: this.engine.createInitialBoard(),
       turn: 'red',
       onlineUserIds: [],
+      source,
+      visibility,
+      ownerId: creatorId,
     };
     this.battles.set(id, state);
     this.scheduleWaitingTtl(id);
@@ -150,6 +168,10 @@ export class BattlesService {
       lastMove: b.moves.length ? b.moves[b.moves.length - 1] : null,
       stateHash: this.computeStateHash(b),
       onlineUserIds: b.onlineUserIds,
+      // 新增 ↓
+      source: b.source,
+      visibility: b.visibility,
+      ownerId: b.ownerId ?? null,
     };
   }
 
@@ -246,12 +268,11 @@ export class BattlesService {
   }
 
   quickMatch(userId: number, mode = 'pvp') {
-    // 先看自己是否已有等待房间（可能前端重复点击）
     const selfWaiting = this.findUserWaiting(userId, mode);
     if (selfWaiting) {
       return { battleId: selfWaiting };
     }
-    // 尝试匹配等待中的房间
+
     const pool = this.waitingByMode.get(mode) || [];
     while (pool.length) {
       const bid = pool.shift()!;
@@ -262,8 +283,12 @@ export class BattlesService {
         return { battleId: bid };
       }
     }
-    // 无可匹配→创建并进入等待
-    const { battleId } = this.createBattle(userId, mode);
+
+    // 仅为匹配创建 match 对局并加入匹配池
+    const { battleId } = this.createBattle(userId, mode, {
+      source: 'match',
+      visibility: 'match',
+    });
     const list = this.waitingByMode.get(mode) || [];
     list.push(battleId);
     this.waitingByMode.set(mode, list);
