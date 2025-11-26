@@ -1,4 +1,4 @@
-import { Logger } from '@nestjs/common';
+import { Logger, Optional } from '@nestjs/common';
 import { WsException } from '@nestjs/websockets';
 import {
   ConnectedSocket,
@@ -11,14 +11,14 @@ import {
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { BattlesService } from './battles.service';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 
 @WebSocketGateway({
   namespace: '/battle',
   cors: { origin: [/http:\/\/localhost:(5173|5174)$/] },
 })
 export class BattlesGateway
-  implements OnGatewayConnection, OnGatewayDisconnect
-{
+  implements OnGatewayConnection, OnGatewayDisconnect {
   private readonly logger = new Logger(BattlesGateway.name);
   // 简易限流：每用户每房间每秒最多 3 次 move；heartbeat 最少 10s 一次
   private static readonly MOVE_MAX_PER_SEC = 3;
@@ -39,7 +39,21 @@ export class BattlesGateway
   @WebSocketServer()
   server!: Server;
 
-  constructor(private readonly battles: BattlesService) {}
+  constructor(
+    private readonly battles: BattlesService,
+    @Optional() private readonly events?: EventEmitter2,
+  ) {
+    // 监听对局结束事件，向房间广播最新 snapshot
+    this.events?.on('battle.finished', (payload: { battleId: number }) => {
+      const { battleId } = payload;
+      try {
+        const snapshot = this.battles.snapshot(battleId);
+        this.server.to(`battle:${battleId}`).emit('battle.snapshot', snapshot);
+      } catch {
+        // 房间可能已被删除，忽略错误
+      }
+    });
+  }
 
   private readonly users = new WeakMap<Socket, number>();
   private readonly joinedBattle = new WeakMap<Socket, number>();

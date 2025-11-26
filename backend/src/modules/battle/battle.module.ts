@@ -6,6 +6,7 @@ import { ChessEngineService } from './engine.service';
 import { JwtModule } from '@nestjs/jwt';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { MetricsModule } from '../metrics/metrics.module';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 
 @Module({
   imports: [
@@ -13,9 +14,10 @@ import { MetricsModule } from '../metrics/metrics.module';
       secret: process.env.JWT_SECRET || 'dev-secret',
     }),
     MetricsModule,
+    EventEmitterModule.forRoot(),
   ],
   controllers: [BattlesController],
   providers: [BattlesService, BattlesGateway, ChessEngineService, JwtAuthGuard],
   exports: [BattlesService],
 })
-export class BattleModule {}
+export class BattleModule { }

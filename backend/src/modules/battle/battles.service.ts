@@ -4,6 +4,7 @@ import {
   BadRequestException,
   Optional,
 } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { JwtService } from '@nestjs/jwt';
 import type { Board, Side } from '../../shared/chess/types';
 import { createHash } from 'node:crypto';
@@ -72,7 +73,8 @@ export class BattlesService {
     private readonly jwt: JwtService,
     private readonly engine: ChessEngineService,
     @Optional() private readonly metrics?: MetricsService,
-  ) {}
+    @Optional() private readonly events?: EventEmitter2,
+  ) { }
 
   verifyBearer(authorization?: string) {
     if (!authorization || !authorization.toLowerCase().startsWith('bearer ')) {
@@ -264,6 +266,8 @@ export class BattlesService {
       list.unshift({ battleId: b.id, result: r });
       this.histories.set(pid, list.slice(0, 200));
     }
+    // 广播对局结束事件，方便 Gateway 推送最新 snapshot
+    this.events?.emit('battle.finished', { battleId: b.id });
     return { battleId: b.id, ...result };
   }
 
