@@ -367,10 +367,12 @@ export default function LiveBattle() {
                 <div className="mt-2">
                     {/* 醒目的房间号徽章 */}
                     <div className="livebattle-room-bar">
-                        <div className="livebattle-room-badge">
-                            房间号：{battleId}
-                        </div>
-                        <button className="btn-ghost" onClick={copyRoomId}>复制</button>
+                        {snapshot?.source === 'room' && (
+                            <>
+                                <div className="livebattle-room-badge">房间号：{battleId}</div>
+                                <button className="btn-ghost" onClick={copyRoomId}>复制</button>
+                            </>
+                        )}
                         <button className="btn-ghost livebattle-exit" onClick={handleExit}>退出对局</button>
                         {snapshot?.status === 'waiting' && snapshot.players.length === 1 && snapshot.players[0] === myUserId && (
                             <button className="btn-ghost livebattle-cancel" onClick={async () => {
@@ -384,11 +386,30 @@ export default function LiveBattle() {
                                 }
                             }}>取消匹配</button>
                         )}
+                        {snapshot?.source === 'room' &&
+                            snapshot.status === 'waiting' &&
+                            snapshot.ownerId === myUserId && (
+                                <button className="btn-ghost livebattle-cancel" onClick={async () => {
+                                    const ok = window.confirm('确认取消房间？');
+                                    if (!ok) return;
+                                    try {
+                                        await battleApi.cancel(Number(battleId));
+                                        setBattleId('');
+                                        setSnapshot(null);
+                                        navigate('/app/online-lobby');
+                                    } catch (e) {
+                                        alert('取消失败: ' + (e instanceof Error ? e.message : String(e)));
+                                    }
+                                }}>
+                                    取消房间
+                                </button>
+                            )}
                     </div>
                     {snapshot && (
                         <>
                             <div className="livebattle-state-line">
-                                对局状态：{snapshot.status}{snapshot.status === 'waiting' && '（等待好友加入）'}
+                                对局类型：{snapshot.source === 'room' ? '好友房' : '快速匹配'}
+                                · 状态：{snapshot.status === 'waiting' ? '等待中' : '对局中'}
                             </div>
                             {inRoom && !connected && (
                                 <div className="livebattle-disconnect-banner" role="status" aria-live="polite">

@@ -14,7 +14,7 @@ import { Request } from 'express';
 
 @Controller('api/v1/battles')
 export class BattlesController {
-  constructor(private readonly battles: BattlesService) {}
+  constructor(private readonly battles: BattlesService) { }
 
   @Post()
   @UseGuards(JwtAuthGuard)
@@ -22,7 +22,10 @@ export class BattlesController {
     @Body() body: { mode?: string },
     @Req() req: Request & { user?: { sub: number } },
   ) {
-    return this.battles.createBattle(req.user!.sub, body.mode || 'pvp');
+    return this.battles.createBattle(req.user!.sub, body.mode || 'pvp', {
+      source: 'room',
+      visibility: 'private', // 默认私密房，只能通过房间号/链接进入
+    });
   }
 
   @Post('join')

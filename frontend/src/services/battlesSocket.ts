@@ -1,4 +1,5 @@
 import { io, Socket } from 'socket.io-client';
+import type { Board, Side } from '../features/chess/types';
 
 const base = import.meta.env.VITE_API_BASE || 'http://localhost:3000';
 
@@ -19,13 +20,18 @@ export type BattleSnapshot = {
     players: number[];
     moves: BattleMove[];
     turnIndex: 0 | 1;
-    // 后端权威棋盘与轮次（接入后端引擎后返回）
-    board?: import('../features/chess/types').Board;
-    turn?: import('../features/chess/types').Side;
+    board: Board;
+    turn: Side;
     createdAt: number;
     winnerId: number | null;
-    stateHash?: string;
-    onlineUserIds?: number[];
+    finishReason: string | null;
+    lastMove: BattleMove | null;
+    stateHash: string;
+    onlineUserIds: number[];
+    // 新增 ↓
+    source: 'match' | 'room';
+    visibility: 'match' | 'private' | 'public';
+    ownerId: number | null;
 };
 
 export function connectBattle() {
