@@ -199,20 +199,6 @@ export default function OnlineBoard({ moves, turnIndex, players, myUserId, onAtt
                 )))}
             </div>
 
-            {/* 游戏结束提示（简单版） */}
-            {gameOver && (
-                <div className="gameover-mask">
-                    <div className="paper-card gameover-card">
-                        <div className={`gameover-title ${turn === 'red' ? 'turn-black' : 'turn-red'}`}>
-                            对局已结束
-                        </div>
-                        <div className="gameover-actions">
-                            <button className="btn-ghost btn-wide" disabled>查看棋局</button>
-                            <button className="btn-primary btn-wide" disabled>重新开始</button>
-                        </div>
-                    </div>
-                </div>
-            )}
         </div>
     )
 }

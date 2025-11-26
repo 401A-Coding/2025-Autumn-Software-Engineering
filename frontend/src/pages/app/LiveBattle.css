@@ -140,3 +140,49 @@
     border-radius: 50%;
     background: #f5a623;
 }
+
+.livebattle-end-banner {
+    margin-top: 8px;
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    animation: livebattle-fade-in 0.25s ease-out;
+    border: 1px solid transparent;
+}
+
+.livebattle-end-win {
+    background: #e8f8f0;
+    color: #0b7a3b;
+    border-color: #9be7b0;
+}
+
+.livebattle-end-lose {
+    background: #fdecea;
+    color: #b3261e;
+    border-color: #f5b5ae;
+}
+
+.livebattle-end-draw {
+    background: #f4f6fb;
+    color: #44546a;
+    border-color: #ccd5f2;
+}
+
+.livebattle-end-info {
+    background: var(--muted-bg);
+    color: var(--text, #333);
+    border-color: var(--border);
+}
+
+@keyframes livebattle-fade-in {
+    from {
+        opacity: 0;
+        transform: translateY(-4px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}

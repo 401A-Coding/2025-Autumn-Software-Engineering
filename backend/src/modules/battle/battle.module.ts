@@ -20,4 +20,4 @@ import { EventEmitterModule } from '@nestjs/event-emitter';
   providers: [BattlesService, BattlesGateway, ChessEngineService, JwtAuthGuard],
   exports: [BattlesService],
 })
-export class BattleModule { }
+export class BattleModule {}

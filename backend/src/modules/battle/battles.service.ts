@@ -74,7 +74,7 @@ export class BattlesService {
     private readonly engine: ChessEngineService,
     @Optional() private readonly metrics?: MetricsService,
     @Optional() private readonly events?: EventEmitter2,
-  ) { }
+  ) {}
 
   verifyBearer(authorization?: string) {
     if (!authorization || !authorization.toLowerCase().startsWith('bearer ')) {
