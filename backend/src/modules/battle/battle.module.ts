@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { BattlesService } from './battles.service';
 import { BattlesGateway } from './battles.gateway';
 import { BattlesController } from './battles.controller';
@@ -6,6 +6,8 @@ import { ChessEngineService } from './engine.service';
 import { JwtModule } from '@nestjs/jwt';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { MetricsModule } from '../metrics/metrics.module';
+import { EventEmitterModule } from '@nestjs/event-emitter';
+import { RecordModule } from '../record/record.module';
 
 @Module({
   imports: [
@@ -13,9 +15,11 @@ import { MetricsModule } from '../metrics/metrics.module';
       secret: process.env.JWT_SECRET || 'dev-secret',
     }),
     MetricsModule,
+    EventEmitterModule.forRoot(),
+    forwardRef(() => RecordModule),
   ],
   controllers: [BattlesController],
   providers: [BattlesService, BattlesGateway, ChessEngineService, JwtAuthGuard],
   exports: [BattlesService],
 })
-export class BattleModule {}
+export class BattleModule { }

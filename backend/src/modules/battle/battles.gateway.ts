@@ -1,4 +1,4 @@
-import { Logger } from '@nestjs/common';
+import { Logger, Optional } from '@nestjs/common';
 import { WsException } from '@nestjs/websockets';
 import {
   ConnectedSocket,
@@ -11,13 +11,15 @@ import {
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { BattlesService } from './battles.service';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 
 @WebSocketGateway({
   namespace: '/battle',
   cors: { origin: [/http:\/\/localhost:(5173|5174)$/] },
 })
 export class BattlesGateway
-  implements OnGatewayConnection, OnGatewayDisconnect {
+  implements OnGatewayConnection, OnGatewayDisconnect
+{
   private readonly logger = new Logger(BattlesGateway.name);
   // 简易限流：每用户每房间每秒最多 3 次 move；heartbeat 最少 10s 一次
   private static readonly MOVE_MAX_PER_SEC = 3;
@@ -38,7 +40,21 @@ export class BattlesGateway
   @WebSocketServer()
   server!: Server;
 
-  constructor(private readonly battles: BattlesService) { }
+  constructor(
+    private readonly battles: BattlesService,
+    @Optional() private readonly events?: EventEmitter2,
+  ) {
+    // 监听对局结束事件，向房间广播最新 snapshot
+    this.events?.on('battle.finished', (payload: { battleId: number }) => {
+      const { battleId } = payload;
+      try {
+        const snapshot = this.battles.snapshot(battleId);
+        this.server.to(`battle:${battleId}`).emit('battle.snapshot', snapshot);
+      } catch {
+        // 房间可能已被删除，忽略错误
+      }
+    });
+  }
 
   private readonly users = new WeakMap<Socket, number>();
   private readonly joinedBattle = new WeakMap<Socket, number>();
@@ -153,33 +169,19 @@ export class BattlesGateway
       },
       body.clientRequestId,
     );
-    // 广播给房间：仅发送 move
+    // 广播给房间：发送 move + 每步最新快照
     const room = `battle:${body.battleId}`;
     this.server.to(room).emit('battle.move', m);
-    // 若对局已结束，则补发一次最终快照
-    const b = this.battles.getBattle(body.battleId);
-    if (b.status === 'finished') {
-      const snapshot = this.battles.snapshot(body.battleId);
-      this.server.to(room).emit('battle.snapshot', snapshot);
+
+    const snapshot = this.battles.snapshot(body.battleId);
+    this.server.to(room).emit('battle.snapshot', snapshot);
+    this.lastSnapshotAt.set(body.battleId, Date.now());
+
+    // 若对局已结束，清理快照时间记录
+    if (snapshot.status === 'finished') {
       this.lastSnapshotAt.delete(body.battleId);
-      return m;
     }
-    // 周期性快照：每 N 步或每 T 秒
-    if (this.snapshotEveryN > 0 && m.seq % this.snapshotEveryN === 0) {
-      const snapshot = this.battles.snapshot(body.battleId);
-      this.server.to(room).emit('battle.snapshot', snapshot);
-      this.lastSnapshotAt.set(body.battleId, Date.now());
-      return m;
-    }
-    if (this.snapshotEveryMs > 0) {
-      const now = Date.now();
-      const last = this.lastSnapshotAt.get(body.battleId) || 0;
-      if (now - last >= this.snapshotEveryMs) {
-        const snapshot = this.battles.snapshot(body.battleId);
-        this.server.to(room).emit('battle.snapshot', snapshot);
-        this.lastSnapshotAt.set(body.battleId, now);
-      }
-    }
+
     return m;
   }
 

@@ -22,7 +22,10 @@ export class BattlesController {
     @Body() body: { mode?: string },
     @Req() req: Request & { user?: { sub: number } },
   ) {
-    return this.battles.createBattle(req.user!.sub, body.mode || 'pvp');
+    return this.battles.createBattle(req.user!.sub, body.mode || 'pvp', {
+      source: 'room',
+      visibility: 'private', // 默认私密房，只能通过房间号/链接进入
+    });
   }
 
   @Post('join')
@@ -67,6 +70,15 @@ export class BattlesController {
     @Req() req: Request & { user?: { sub: number } },
   ) {
     return this.battles.leaveBattle(req.user!.sub, body.battleId);
+  }
+
+  @Post('resign')
+  @UseGuards(JwtAuthGuard)
+  resign(
+    @Body() body: { battleId: number },
+    @Req() req: Request & { user?: { sub: number } },
+  ) {
+    return this.battles.resign(req.user!.sub, body.battleId);
   }
 
   @Get('history')

@@ -1,25 +1,25 @@
 import { Type } from 'class-transformer';
 import {
-    ArrayMinSize,
-    IsArray,
-    IsDate,
-    IsInt,
-    IsNotEmpty,
-    IsOptional,
-    IsString,
-    Min,
-    ValidateNested,
-    IsIn,
+  ArrayMinSize,
+  IsArray,
+  IsDate,
+  IsInt,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  Min,
+  ValidateNested,
+  IsIn,
 } from 'class-validator';
 
 class PosDto {
-    @IsInt()
-    @Min(0)
-    x!: number;
+  @IsInt()
+  @Min(0)
+  x!: number;
 
-    @IsInt()
-    @Min(0)
-    y!: number;
+  @IsInt()
+  @Min(0)
+  y!: number;
 }
 
 class PieceDto {
@@ -44,29 +44,29 @@ class PieceDto {
 }
 
 class MoveDto {
-    @IsInt()
-    @Min(0)
-    moveIndex!: number;
+  @IsInt()
+  @Min(0)
+  moveIndex!: number;
 
-    @ValidateNested()
-    @Type(() => PosDto)
-    from!: PosDto;
+  @ValidateNested()
+  @Type(() => PosDto)
+  from!: PosDto;
 
-    @ValidateNested()
-    @Type(() => PosDto)
-    to!: PosDto;
+  @ValidateNested()
+  @Type(() => PosDto)
+  to!: PosDto;
 
-    @ValidateNested()
-    @Type(() => PieceDto)
-    piece!: PieceDto;
+  @ValidateNested()
+  @Type(() => PieceDto)
+  piece!: PieceDto;
 
-    @IsOptional()
-    @IsString()
-    capturedType?: string;
+  @IsOptional()
+  @IsString()
+  capturedType?: string;
 
-    @IsOptional()
-    @IsString()
-    capturedSide?: string; // typically 'red' | 'black'
+  @IsOptional()
+  @IsString()
+  capturedSide?: string; // typically 'red' | 'black'
 
     @IsOptional()
     @IsInt()

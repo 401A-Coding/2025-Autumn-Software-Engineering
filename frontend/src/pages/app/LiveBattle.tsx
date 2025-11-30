@@ -14,6 +14,9 @@ export default function LiveBattle() {
     const [joinIdInput, setJoinIdInput] = useState<string>('');
     const [connected, setConnected] = useState(false);
     const [snapshot, setSnapshot] = useState<BattleSnapshot | null>(null);
+    const [endMessage, setEndMessage] = useState<string | null>(null);
+    const [endKind, setEndKind] = useState<'win' | 'lose' | 'draw' | 'info' | null>(null);
+    const [endCountdown, setEndCountdown] = useState<number | null>(null);
     const [moves, setMoves] = useState<BattleMove[]>([]);
     const movesRef = useRef<BattleMove[]>([]);
     const connRef = useRef<ReturnType<typeof connectBattle> | null>(null);
@@ -41,13 +44,130 @@ export default function LiveBattle() {
         });
         c.socket.on('disconnect', () => setConnected(false));
         c.onSnapshot((s) => {
+            console.log('[WS] snapshot', s, 'myUserId=', myUserId);
             latestSnapshotRef.current = s;
             setSnapshot(s);
-            setMoves(() => {
-                const next = s.moves || [];
-                movesRef.current = next;
-                return next;
+
+            // 若对局结束，给出一次性的结束提示（尽量使用 myUserId 判别阵营；缺失时也给基础提示）
+            if (s.status === 'finished') {
+                console.log('[WS] finished snapshot', {
+                    myUserId,
+                    players: s.players,
+                    winnerId: s.winnerId,
+                    finishReason: s.finishReason,
+                });
+
+                const iAmRed = myUserId != null && s.players[0] === myUserId;
+                const iAmBlack = myUserId != null && s.players[1] === myUserId;
+                const iAmPlayer = iAmRed || iAmBlack;
+
+                if (!iAmPlayer) {
+                    // 观战或尚未获取到当前用户信息：给出基础结束提示，避免完全无反馈
+                    setEndMessage('对局已结束，可在「历史对局」中查看记录。');
+                    setEndKind('info');
+                    if (battleIdRef.current) {
+                        setEndCountdown(3);
+                    }
+                    // 后续仍会通过 snapshot/moves 驱动棋盘状态
+                } else if (myUserId) {
+                    console.log('[WS] finished as player, computing end message');
+                    let msg = '对局已结束。';
+                    let kind: 'win' | 'lose' | 'draw' | 'info' = 'info';
+
+                    const baseByWinner = () => {
+                        if (s.winnerId == null) {
+                            kind = 'draw';
+                            msg = '对局已结束，双方打成平局。';
+                            return;
+                        }
+                        if (s.winnerId === myUserId) {
+                            kind = 'win';
+                            msg = '对局已结束，您已获胜。';
+                        } else {
+                            kind = 'lose';
+                            msg = '对局已结束，您已落败。';
+                        }
+                    };
+
+                    switch (s.finishReason) {
+                        case 'resign': {
+                            if (s.winnerId === myUserId) {
+                                kind = 'win';
+                                msg = '对局已结束，对手已认输，您获得胜利。';
+                            } else if (s.winnerId != null) {
+                                kind = 'lose';
+                                msg = '您已认输，对局结束，本局记为落败。';
+                            } else {
+                                baseByWinner();
+                            }
+                            break;
+                        }
+                        case 'checkmate': {
+                            baseByWinner();
+                            if (s.winnerId === myUserId) msg = '将死对手！恭喜您获胜。';
+                            if (s.winnerId != null && s.winnerId !== myUserId) msg = '您已被将死，本局落败。';
+                            break;
+                        }
+                        case 'timeout': {
+                            if (s.winnerId === myUserId) {
+                                kind = 'win';
+                                msg = '对手超时未操作，本局判您获胜。';
+                            } else if (s.winnerId != null) {
+                                kind = 'lose';
+                                msg = '您因超时未操作，本局记为落败。';
+                            } else {
+                                kind = 'draw';
+                                msg = '双方超时，本局以平局结束。';
+                            }
+                            break;
+                        }
+                        case 'disconnect_ttl': {
+                            if (s.winnerId === myUserId) {
+                                kind = 'win';
+                                msg = '对手长时间离线，本局判您获胜。';
+                            } else if (s.winnerId != null) {
+                                kind = 'lose';
+                                msg = '您长时间离线，本局记为落败。';
+                            } else {
+                                kind = 'draw';
+                                msg = '玩家长时间离线，本局以平局结束。';
+                            }
+                            break;
+                        }
+                        case 'draw_agreed': {
+                            kind = 'draw';
+                            msg = '双方同意和棋，本局以平局结束。';
+                            break;
+                        }
+                        default: {
+                            baseByWinner();
+                        }
+                    }
+
+                    // 结束时提示用户可在历史对局中查看并复盘
+                    setEndMessage(msg + ' 本局已自动保存到历史记录，可在「历史对局」中复盘。');
+                    setEndKind(kind);
+                    // 若当前仍在房间内，则启动 3 秒倒计时自动返回大厅
+                    if (battleIdRef.current) {
+                        setEndCountdown(3);
+                    }
+                }
+            }
+
+            // snapshot 主要用于纠偏：仅当服务端 moves 更新得更“新”时才用它覆盖本地
+            setMoves((prev) => {
+                const snapMoves = s.moves || [];
+                const prevLast = prev.length ? prev[prev.length - 1].seq : 0;
+                const snapLast = snapMoves.length ? snapMoves[snapMoves.length - 1].seq : 0;
+
+                if (snapLast > prevLast) {
+                    movesRef.current = snapMoves;
+                    return snapMoves;
+                }
+
+                return prev;
             });
+
             // 收到任何权威快照后，取消保底计时
             if (fallbackTimerRef.current) {
                 clearTimeout(fallbackTimerRef.current);
@@ -56,6 +176,7 @@ export default function LiveBattle() {
             pendingSeqRef.current = null;
         });
         c.onMove((m) => {
+            console.log('[WS] move', m);
             // 去重：若已包含该 seq，忽略
             if (movesRef.current.some((mv) => mv.seq === m.seq)) {
                 return;
@@ -115,7 +236,7 @@ export default function LiveBattle() {
             }
         });
         return c;
-    }, []);
+    }, [myUserId]);
 
     useEffect(() => {
         return () => {
@@ -128,8 +249,10 @@ export default function LiveBattle() {
         (async () => {
             try {
                 const me = await userApi.getMe();
+                console.log('[ME] got user', me);
                 setMyUserId(me.id as number);
-            } catch {
+            } catch (e) {
+                console.error('[ME] getMe failed', e);
                 setMyUserId(null);
             }
         })();
@@ -156,8 +279,8 @@ export default function LiveBattle() {
         if (!id) return;
         try {
             await conn.move(id, from, to);
-        } catch {
-            // ACK 超时或失败：主动拉取一次权威快照自愈
+        } catch (e) {
+            console.error('[MOVE ERROR]', e);
             conn.snapshot(id);
         }
     };
@@ -268,22 +391,46 @@ export default function LiveBattle() {
             navigate('/app/online-lobby');
             return;
         }
-        const ok = window.confirm('确认退出对局？');
+
+        const id = battleIdRef.current;
+        if (!id) {
+            navigate('/app/online-lobby');
+            return;
+        }
+
+        // 若对局尚未开始（waiting 且玩家不足 2 个），使用 leave/cancel 语义上的“取消房间”
+        const isNotStarted = snapshot?.status === 'waiting' && (snapshot.players?.length ?? 0) < 2;
+        if (isNotStarted) {
+            const okCancel = window.confirm('当前对局尚未开始，确认取消房间？');
+            if (!okCancel) return;
+            try {
+                try { await battleApi.leave(id); } catch { /* 忽略错误，继续本地清理 */ }
+                connRef.current?.socket?.close();
+            } finally {
+                setSnapshot(null);
+                setMoves([]);
+                setBattleId('');
+                setJoinIdInput('');
+                navigate('/app/online-lobby');
+            }
+            return;
+        }
+
+        // 已经开始的对局：退出 = 认输
+        const ok = window.confirm('确认退出对局？退出将视为本方认输，并判负。');
         if (!ok) return;
         try {
-            // 先调用 REST 兜底离开，幂等返回
-            const id = battleIdRef.current;
-            if (id) {
-                try { await battleApi.leave(id); } catch { /* 忽略错误，继续本地清理 */ }
+            try {
+                await battleApi.resign(id);
+            } catch {
+                // 若认输接口异常，避免卡住用户，仍然允许本地退出
             }
-            // 然后关闭连接并清理本地状态
             connRef.current?.socket?.close();
         } finally {
-            setSnapshot(null);
-            setMoves([]);
-            setBattleId('');
-            setJoinIdInput('');
-            navigate('/app/online-lobby');
+            // 退出方本地也给出认输提示，并启动倒计时返回大厅
+            setEndMessage('您已认输，对局结束，本局记为落败。');
+            setEndKind('lose');
+            setEndCountdown(3);
         }
     };
 
@@ -295,9 +442,99 @@ export default function LiveBattle() {
         }
     };
 
+    useEffect(() => {
+        (window as any).battleDebug = { snapshot, moves };
+    }, [snapshot, moves]);
+
+    // 结束后的 3 秒倒计时自动返回大厅
+    useEffect(() => {
+        if (endCountdown === null) return;
+        if (endCountdown <= 0) {
+            setSnapshot(null);
+            setMoves([]);
+            setBattleId('');
+            setJoinIdInput('');
+            navigate('/app/online-lobby');
+            return;
+        }
+        const t = window.setTimeout(() => {
+            setEndCountdown((prev) => (prev === null ? null : prev - 1));
+        }, 1000);
+        return () => window.clearTimeout(t);
+    }, [endCountdown, navigate]);
+
+    // 兜底：在对局未结束时，每 10 秒通过 REST 拉一次 snapshot，防止偶发漏掉 WS 广播
+    useEffect(() => {
+        if (!inRoom || !battleIdRef.current) return;
+        if (snapshot?.status === 'finished') return;
+        const id = battleIdRef.current;
+        const timer = window.setInterval(async () => {
+            if (!id) return;
+            try {
+                const data = await battleApi.snapshot(id);
+                if (!data) return;
+                // 仅当服务端状态“更新”时才覆盖本地
+                const next = data as unknown as BattleSnapshot;
+                const currentLast = snapshot?.moves?.length
+                    ? snapshot.moves[snapshot.moves.length - 1].seq
+                    : 0;
+                const nextLast = next.moves?.length
+                    ? next.moves[next.moves.length - 1].seq
+                    : 0;
+                if (nextLast >= currentLast && next.stateHash !== snapshot?.stateHash) {
+                    latestSnapshotRef.current = next;
+                    setSnapshot(next);
+                    setMoves((prev) => {
+                        const snapMoves = next.moves || [];
+                        const prevLast = prev.length ? prev[prev.length - 1].seq : 0;
+                        const snapLast = snapMoves.length ? snapMoves[snapMoves.length - 1].seq : 0;
+                        if (snapLast > prevLast) {
+                            movesRef.current = snapMoves;
+                            return snapMoves;
+                        }
+                        return prev;
+                    });
+                }
+            } catch {
+                // 忽略兜底轮询错误
+            }
+        }, 10000);
+        return () => window.clearInterval(timer);
+    }, [inRoom, snapshot]);
+
     return (
         <div className="card-pad">
             <h2>在线对战</h2>
+            {endMessage && (
+                <div
+                    className={
+                        'livebattle-end-banner' +
+                        (endKind ? ` livebattle-end-${endKind}` : '')
+                    }
+                    role="status"
+                    aria-live="polite"
+                >
+                    <div>{endMessage}</div>
+                    <div className="livebattle-end-sub">
+                        {endCountdown !== null && endCountdown > 0
+                            ? `${endCountdown} 秒后自动返回，对局记录可在「历史对局」中查看。`
+                            : '对局记录可在「历史对局」中查看。'}
+                        <button
+                            className="btn-link livebattle-end-link"
+                            type="button"
+                            onClick={() => {
+                                setSnapshot(null);
+                                setMoves([]);
+                                setBattleId('');
+                                setJoinIdInput('');
+                                navigate('/app/online-lobby');
+                            }}
+                        >
+                            立即返回大厅
+                        </button>
+                    </div>
+                </div>
+            )}
             <div className="muted livebattle-conn-status">连接状态：{connected ? '已连接' : '未连接'}</div>
 
             {/* 未进入房间：显示加入/创建/匹配（根据 action 裁剪） */}
@@ -351,10 +588,12 @@ export default function LiveBattle() {
                 <div className="mt-2">
                     {/* 醒目的房间号徽章 */}
                     <div className="livebattle-room-bar">
-                        <div className="livebattle-room-badge">
-                            房间号：{battleId}
-                        </div>
-                        <button className="btn-ghost" onClick={copyRoomId}>复制</button>
+                        {snapshot?.source === 'room' && (
+                            <>
+                                <div className="livebattle-room-badge">房间号：{battleId}</div>
+                                <button className="btn-ghost" onClick={copyRoomId}>复制</button>
+                            </>
+                        )}
                         <button className="btn-ghost livebattle-exit" onClick={handleExit}>退出对局</button>
                         {snapshot?.status === 'waiting' && snapshot.players.length === 1 && snapshot.players[0] === myUserId && (
                             <button className="btn-ghost livebattle-cancel" onClick={async () => {
@@ -368,11 +607,35 @@ export default function LiveBattle() {
                                 }
                             }}>取消匹配</button>
                         )}
+                        {snapshot?.source === 'room' &&
+                            snapshot.status === 'waiting' &&
+                            snapshot.ownerId === myUserId && (
+                                <button className="btn-ghost livebattle-cancel" onClick={async () => {
+                                    const ok = window.confirm('确认取消房间？');
+                                    if (!ok) return;
+                                    try {
+                                        await battleApi.cancel(Number(battleId));
+                                        setBattleId('');
+                                        setSnapshot(null);
+                                        navigate('/app/online-lobby');
+                                    } catch (e) {
+                                        alert('取消失败: ' + (e instanceof Error ? e.message : String(e)));
+                                    }
+                                }}>
+                                    取消房间
+                                </button>
+                            )}
                     </div>
                     {snapshot && (
                         <>
                             <div className="livebattle-state-line">
-                                对局状态：{snapshot.status}{snapshot.status === 'waiting' && '（等待好友加入）'}
+                                对局类型：{snapshot.source === 'room' ? '好友房' : '快速匹配'}
+                                · 状态：
+                                {snapshot.status === 'waiting'
+                                    ? '等待中'
+                                    : snapshot.status === 'finished'
+                                        ? '已结束'
+                                        : '对局中'}
                             </div>
                             {inRoom && !connected && (
                                 <div className="livebattle-disconnect-banner" role="status" aria-live="polite">
@@ -407,6 +670,7 @@ export default function LiveBattle() {
                                         winnerId={snapshot.winnerId}
                                         authoritativeBoard={snapshot.board}
                                         authoritativeTurn={snapshot.turn}
+                                        snapshotMoves={snapshot.moves}
                                         onAttemptMove={handleAttemptMove}
                                     />
                                 </div>
@@ -423,6 +687,7 @@ export default function LiveBattle() {
                     {!snapshot && (
                         <div className="empty-center livebattle-board-wrapper">
                             <div>
+                        // 调试：在浏览器控制台可通过 window.battleDebug 查看当前 snapshot 与 moves
                                 正在加载房间状态
                                 <span className="loading-dots"><span></span><span></span><span></span></span>
                             </div>

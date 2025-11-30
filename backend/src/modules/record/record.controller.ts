@@ -1,4 +1,15 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Req, Query } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  UseGuards,
+  Req,
+  Query,
+} from '@nestjs/common';
 import { RecordService } from './record.service';
 import { CreateRecordDto } from './dto/create-record.dto';
 // import { UpdateRecordDto } from './dto/update-record.dto';
@@ -10,11 +21,14 @@ import { BookmarkDeleteDto } from './dto/bookmark-delete.dto';
 
 @Controller('api/v1/records')
 export class RecordController {
-  constructor(private readonly recordService: RecordService) { }
+  constructor(private readonly recordService: RecordService) {}
 
   @Post()
   @UseGuards(JwtAuthGuard)
-  create(@Body() createRecordDto: CreateRecordDto, @Req() req: Request & { user?: { sub: number } }) {
+  create(
+    @Body() createRecordDto: CreateRecordDto,
+    @Req() req: Request & { user?: { sub: number } },
+  ) {
     const userId = req.user!.sub;
     // 返回完整的 record，以与前端 OpenAPI 契约对齐
     return this.recordService.create(userId, createRecordDto).then((record) => ({ code: 0, message: 'success', data: record }));
@@ -31,23 +45,42 @@ export class RecordController {
   ) {
     const p = page ? parseInt(page, 10) : 1;
     const ps = pageSize ? parseInt(pageSize, 10) : 10;
-    const fav = typeof favorite === 'string' ? (favorite.toLowerCase() === 'true' ? true : favorite.toLowerCase() === 'false' ? false : undefined) : undefined;
+    const fav =
+      typeof favorite === 'string'
+        ? favorite.toLowerCase() === 'true'
+          ? true
+          : favorite.toLowerCase() === 'false'
+            ? false
+            : undefined
+        : undefined;
     const userId = req!.user!.sub;
-    return this.recordService.findAllPaginated(userId, p, ps, fav, result).then((res) => ({ code: 0, message: 'success', data: res }));
+    return this.recordService
+      .findAllPaginated(userId, p, ps, fav, result)
+      .then((res) => ({ code: 0, message: 'success', data: res }));
   }
 
   @Get(':id')
   @UseGuards(JwtAuthGuard)
-  findOne(@Param('id') id: string, @Req() req: Request & { user?: { sub: number } }) {
+  findOne(
+    @Param('id') id: string,
+    @Req() req: Request & { user?: { sub: number } },
+  ) {
     const userId = req.user!.sub;
-    return this.recordService.findOne(userId, +id).then((data) => ({ code: 0, message: 'success', data }));
+    return this.recordService
+      .findOne(userId, +id)
+      .then((data) => ({ code: 0, message: 'success', data }));
   }
 
   @Delete(':id')
   @UseGuards(JwtAuthGuard)
-  remove(@Param('id') id: string, @Req() req: Request & { user?: { sub: number } }) {
+  remove(
+    @Param('id') id: string,
+    @Req() req: Request & { user?: { sub: number } },
+  ) {
     const userId = req.user!.sub;
-    return this.recordService.remove(userId, +id).then(() => ({ code: 0, message: 'success', data: {} }));
+    return this.recordService
+      .remove(userId, +id)
+      .then(() => ({ code: 0, message: 'success', data: {} }));
   }
 
   @Post(':id/share')
@@ -59,27 +92,45 @@ export class RecordController {
     @Req() req: Request & { user?: { sub: number } },
   ) {
     const userId = req.user!.sub;
-    return this.recordService.shareRecord(userId, +id, title, tags).then((share) => ({ code: 0, message: 'success', data: { shareId: share.id } }));
+    return this.recordService
+      .shareRecord(userId, +id, title, tags)
+      .then((share) => ({
+        code: 0,
+        message: 'success',
+        data: { shareId: share.id },
+      }));
   }
 
   @Post(':id/favorite')
   @UseGuards(JwtAuthGuard)
-  favoriteRecord(@Param('id') id: string, @Req() req: Request & { user?: { sub: number } }) {
+  favoriteRecord(
+    @Param('id') id: string,
+    @Req() req: Request & { user?: { sub: number } },
+  ) {
     const userId = req.user!.sub;
-    return this.recordService.favoriteRecord(userId, +id).then(() => ({ code: 0, message: 'success', data: {} }));
+    return this.recordService
+      .favoriteRecord(userId, +id)
+      .then(() => ({ code: 0, message: 'success', data: {} }));
   }
 
   @Delete(':id/favorite')
   @UseGuards(JwtAuthGuard)
-  unfavoriteRecord(@Param('id') id: string, @Req() req: Request & { user?: { sub: number } }) {
+  unfavoriteRecord(
+    @Param('id') id: string,
+    @Req() req: Request & { user?: { sub: number } },
+  ) {
     const userId = req.user!.sub;
-    return this.recordService.unfavoriteRecord(userId, +id).then(() => ({ code: 0, message: 'success', data: {} }));
+    return this.recordService
+      .unfavoriteRecord(userId, +id)
+      .then(() => ({ code: 0, message: 'success', data: {} }));
   }
 
   @Get(':id/comments')
   // 评论列表可公开浏览
   getComments(@Param('id') id: string) {
-    return this.recordService.getComments(+id).then((data) => ({ code: 0, message: 'success', data }));
+    return this.recordService
+      .getComments(+id)
+      .then((data) => ({ code: 0, message: 'success', data }));
   }
 
   @Post(':id/comments')
@@ -91,13 +142,21 @@ export class RecordController {
     @Req() req: Request & { user?: { sub: number } },
   ) {
     const userId = req.user!.sub;
-    return this.recordService.addComment(userId, +id, type, content).then((c) => ({ code: 0, message: 'success', data: { commentId: c.id } }));
+    return this.recordService
+      .addComment(userId, +id, type, content)
+      .then((c) => ({
+        code: 0,
+        message: 'success',
+        data: { commentId: c.id },
+      }));
   }
 
   @Get(':id/export')
   @UseGuards(JwtAuthGuard)
   exportRecord(@Param('id') id: string) {
-    return this.recordService.exportRecord(+id).then((data) => ({ code: 0, message: 'success', data }));
+    return this.recordService
+      .exportRecord(+id)
+      .then((data) => ({ code: 0, message: 'success', data }));
   }
 
   @Post(':id/bookmarks')
@@ -108,7 +167,9 @@ export class RecordController {
     @Req() req: Request & { user?: { sub: number } },
   ) {
     const userId = req.user!.sub;
-    return this.recordService.addBookmark(userId, +id, dto.step, dto.label, dto.note).then((bm) => ({ code: 0, message: 'success', data: { id: bm.id } }));
+    return this.recordService
+      .addBookmark(userId, +id, dto.step, dto.label, dto.note)
+      .then((bm) => ({ code: 0, message: 'success', data: { id: bm.id } }));
   }
 
   @Patch(':id/bookmarks/:bid')
@@ -120,7 +181,9 @@ export class RecordController {
     @Req() req: Request & { user?: { sub: number } },
   ) {
     const userId = req.user!.sub;
-    return this.recordService.updateBookmark(userId, +id, +bid, dto.label, dto.note).then(() => ({ code: 0, message: 'success', data: {} }));
+    return this.recordService
+      .updateBookmark(userId, +id, +bid, dto.label, dto.note)
+      .then(() => ({ code: 0, message: 'success', data: {} }));
   }
 
   @Delete(':id/bookmarks/:bid')
@@ -131,7 +194,9 @@ export class RecordController {
     @Req() req: Request & { user?: { sub: number } },
   ) {
     const userId = req.user!.sub;
-    return this.recordService.removeBookmark(userId, +id, +bid).then(() => ({ code: 0, message: 'success', data: {} }));
+    return this.recordService
+      .removeBookmark(userId, +id, +bid)
+      .then(() => ({ code: 0, message: 'success', data: {} }));
   }
 
   // 个人对局记录保留条数设置
@@ -159,5 +224,4 @@ export class RecordController {
       data: { keepLimit: (data as any).retentionLimit, autoCleanEnabled: (data as any).autoCleanEnabled }
     }));
   }
-
 }

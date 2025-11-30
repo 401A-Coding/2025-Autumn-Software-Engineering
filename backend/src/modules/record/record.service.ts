@@ -1,4 +1,9 @@
-import { Injectable, ForbiddenException, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  ForbiddenException,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { CreateRecordDto } from './dto/create-record.dto';
 import { PrismaService } from '../../prisma/prisma.service';
 
@@ -24,7 +29,7 @@ type CreateBookmarkInput = {
 
 @Injectable()
 export class RecordService {
-  constructor(private readonly prisma: PrismaService) { }
+  constructor(private readonly prisma: PrismaService) {}
 
   async create(userId: number, dto: CreateRecordDto) {
     // 基础校验（放宽 result / endReason；moves 可为空）
@@ -33,7 +38,9 @@ export class RecordService {
     }
 
     // Enforce retention limit only for non-favorites
-    const pref = await this.prisma.userRecordPreference.findUnique({ where: { userId } });
+    const pref = await this.prisma.userRecordPreference.findUnique({
+      where: { userId },
+    });
     const limit = pref?.retentionLimit ?? 30;
     const autoClean = pref?.autoCleanEnabled ?? true;
 
@@ -93,7 +100,8 @@ export class RecordService {
           select: { id: true },
         });
         const ids = oldestNonFav.map((r) => r.id);
-        if (ids.length) await this.prisma.record.deleteMany({ where: { id: { in: ids } } });
+        if (ids.length)
+          await this.prisma.record.deleteMany({ where: { id: { in: ids } } });
       }
     }
 
@@ -112,7 +120,13 @@ export class RecordService {
     });
   }
 
-  async findAllPaginated(userId: number, page = 1, pageSize = 10, favorite?: boolean, result?: string) {
+  async findAllPaginated(
+    userId: number,
+    page = 1,
+    pageSize = 10,
+    favorite?: boolean,
+    result?: string,
+  ) {
     const take = Math.min(Math.max(pageSize, 1), 100);
     const skip = (Math.max(page, 1) - 1) * take;
     const where: any = { ownerId: userId };
@@ -145,7 +159,9 @@ export class RecordService {
         bookmarks: true,
         comments: {
           orderBy: { createdAt: 'asc' },
-          include: { author: { select: { id: true, username: true, avatarUrl: true } } },
+          include: {
+            author: { select: { id: true, username: true, avatarUrl: true } },
+          },
         },
         favorites: true,
         shares: true,
@@ -156,21 +172,38 @@ export class RecordService {
   }
 
   async remove(userId: number, id: number) {
-    const record = await this.prisma.record.findUnique({ where: { id }, select: { ownerId: true } });
+    const record = await this.prisma.record.findUnique({
+      where: { id },
+      select: { ownerId: true },
+    });
     if (!record) throw new NotFoundException('Record not found');
-    if (record.ownerId !== userId) throw new ForbiddenException('Not allowed to delete this record');
+    if (record.ownerId !== userId)
+      throw new ForbiddenException('Not allowed to delete this record');
     await this.prisma.record.delete({ where: { id } });
     return { ok: true };
   }
 
-  async shareRecord(userId: number, id: number, title?: string | null, tags?: string[]) {
-    const exists = await this.prisma.record.findUnique({ where: { id }, select: { id: true } });
+  async shareRecord(
+    userId: number,
+    id: number,
+    title?: string | null,
+    tags?: string[],
+  ) {
+    const exists = await this.prisma.record.findUnique({
+      where: { id },
+      select: { id: true },
+    });
     if (!exists) throw new NotFoundException('Record not found');
-    return this.prisma.recordShare.create({ data: { recordId: id, userId, title: title ?? null, tags: tags ?? [] } });
+    return this.prisma.recordShare.create({
+      data: { recordId: id, userId, title: title ?? null, tags: tags ?? [] },
+    });
   }
 
   async favoriteRecord(userId: number, id: number) {
-    const exists = await this.prisma.record.findUnique({ where: { id }, select: { id: true } });
+    const exists = await this.prisma.record.findUnique({
+      where: { id },
+      select: { id: true },
+    });
     if (!exists) throw new NotFoundException('Record not found');
     return this.prisma.recordFavorite.upsert({
       where: { recordId_userId: { recordId: id, userId } },
@@ -191,22 +224,40 @@ export class RecordService {
   }
 
   async getComments(id: number) {
-    const exists = await this.prisma.record.findUnique({ where: { id }, select: { id: true } });
+    const exists = await this.prisma.record.findUnique({
+      where: { id },
+      select: { id: true },
+    });
     if (!exists) throw new NotFoundException('Record not found');
     return this.prisma.recordComment.findMany({
       where: { recordId: id },
       orderBy: { createdAt: 'asc' },
-      include: { author: { select: { id: true, username: true, avatarUrl: true } } },
+      include: {
+        author: { select: { id: true, username: true, avatarUrl: true } },
+      },
     });
   }
 
-  async addComment(userId: number, id: number, type: string | undefined, content: string) {
+  async addComment(
+    userId: number,
+    id: number,
+    type: string | undefined,
+    content: string,
+  ) {
     const trimmed = content?.trim();
     if (!trimmed) throw new BadRequestException('Comment must not be empty');
-    const exists = await this.prisma.record.findUnique({ where: { id }, select: { id: true } });
+    const exists = await this.prisma.record.findUnique({
+      where: { id },
+      select: { id: true },
+    });
     if (!exists) throw new NotFoundException('Record not found');
     return this.prisma.recordComment.create({
-      data: { recordId: id, authorId: userId, type: type ?? 'static', content: trimmed },
+      data: {
+        recordId: id,
+        authorId: userId,
+        type: type ?? 'static',
+        content: trimmed,
+      },
     });
   }
 
@@ -232,11 +283,24 @@ export class RecordService {
     };
   }
 
-  async addBookmark(userId: number, id: number, step: number, label?: string, note?: string) {
-    const record = await this.prisma.record.findUnique({ where: { id }, select: { ownerId: true } });
+  async addBookmark(
+    userId: number,
+    id: number,
+    step: number,
+    label?: string,
+    note?: string,
+  ) {
+    const record = await this.prisma.record.findUnique({
+      where: { id },
+      select: { ownerId: true },
+    });
     if (!record) throw new NotFoundException('Record not found');
-    if (record.ownerId !== userId) throw new ForbiddenException('Not allowed to modify bookmarks for this record');
-    if (!Number.isInteger(step) || step < 0) throw new BadRequestException('Invalid step');
+    if (record.ownerId !== userId)
+      throw new ForbiddenException(
+        'Not allowed to modify bookmarks for this record',
+      );
+    if (!Number.isInteger(step) || step < 0)
+      throw new BadRequestException('Invalid step');
     const moveExists = await this.prisma.move.findUnique({
       where: { recordId_moveIndex: { recordId: id, moveIndex: step } },
       select: { id: true },
@@ -245,17 +309,38 @@ export class RecordService {
     // Upsert to avoid duplicate error on unique(recordId, step)
     return this.prisma.bookmark.upsert({
       where: { recordId_step: { recordId: id, step } },
-      create: { recordId: id, step, label: label ?? 'bookmark', note: note ?? '' },
+      create: {
+        recordId: id,
+        step,
+        label: label ?? 'bookmark',
+        note: note ?? '',
+      },
       update: { label: label ?? 'bookmark', note: note ?? '' },
     });
   }
 
-  async updateBookmark(userId: number, recordId: number, bookmarkId: number, label?: string, note?: string) {
-    const record = await this.prisma.record.findUnique({ where: { id: recordId }, select: { ownerId: true } });
+  async updateBookmark(
+    userId: number,
+    recordId: number,
+    bookmarkId: number,
+    label?: string,
+    note?: string,
+  ) {
+    const record = await this.prisma.record.findUnique({
+      where: { id: recordId },
+      select: { ownerId: true },
+    });
     if (!record) throw new NotFoundException('Record not found');
-    if (record.ownerId !== userId) throw new ForbiddenException('Not allowed to modify bookmarks for this record');
-    const bm = await this.prisma.bookmark.findUnique({ where: { id: bookmarkId }, select: { recordId: true } });
-    if (!bm || bm.recordId !== recordId) throw new NotFoundException('Bookmark not found');
+    if (record.ownerId !== userId)
+      throw new ForbiddenException(
+        'Not allowed to modify bookmarks for this record',
+      );
+    const bm = await this.prisma.bookmark.findUnique({
+      where: { id: bookmarkId },
+      select: { recordId: true },
+    });
+    if (!bm || bm.recordId !== recordId)
+      throw new NotFoundException('Bookmark not found');
     return this.prisma.bookmark.update({
       where: { id: bookmarkId },
       data: {
@@ -266,10 +351,19 @@ export class RecordService {
   }
 
   async removeBookmark(userId: number, recordId: number, bookmarkId: number) {
-    const record = await this.prisma.record.findUnique({ where: { id: recordId }, select: { ownerId: true } });
+    const record = await this.prisma.record.findUnique({
+      where: { id: recordId },
+      select: { ownerId: true },
+    });
     if (!record) throw new NotFoundException('Record not found');
-    if (record.ownerId !== userId) throw new ForbiddenException('Not allowed to modify bookmarks for this record');
-    const bm = await this.prisma.bookmark.findUnique({ where: { id: bookmarkId }, select: { recordId: true } });
+    if (record.ownerId !== userId)
+      throw new ForbiddenException(
+        'Not allowed to modify bookmarks for this record',
+      );
+    const bm = await this.prisma.bookmark.findUnique({
+      where: { id: bookmarkId },
+      select: { recordId: true },
+    });
     if (!bm || bm.recordId !== recordId) return { ok: true };
     await this.prisma.bookmark.delete({ where: { id: bookmarkId } });
     return { ok: true };
@@ -296,15 +390,29 @@ export class RecordService {
     }
     if (prefs && 'autoCleanEnabled' in prefs) {
       const raw = prefs.autoCleanEnabled;
-      const val = typeof raw === 'boolean' ? raw : (typeof raw === 'string' ? raw.toLowerCase() === 'true' : undefined);
-      if (val === undefined) throw new BadRequestException('Invalid autoCleanEnabled');
+      const val =
+        typeof raw === 'boolean'
+          ? raw
+          : typeof raw === 'string'
+            ? raw.toLowerCase() === 'true'
+            : undefined;
+      if (val === undefined)
+        throw new BadRequestException('Invalid autoCleanEnabled');
       updates.autoCleanEnabled = val;
     }
     const updated = await this.prisma.userRecordPreference.upsert({
       where: { userId },
-      create: { userId, retentionLimit: updates.retentionLimit ?? 30, autoCleanEnabled: updates.autoCleanEnabled ?? true },
+      create: {
+        userId,
+        retentionLimit: updates.retentionLimit ?? 30,
+        autoCleanEnabled: updates.autoCleanEnabled ?? true,
+      },
       update: updates,
     });
-    return { userId: updated.userId, retentionLimit: updated.retentionLimit, autoCleanEnabled: updated.autoCleanEnabled };
+    return {
+      userId: updated.userId,
+      retentionLimit: updated.retentionLimit,
+      autoCleanEnabled: updated.autoCleanEnabled,
+    };
   }
 }

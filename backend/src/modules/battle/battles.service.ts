@@ -4,11 +4,13 @@ import {
   BadRequestException,
   Optional,
 } from '@nestjs/common';
+import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 import { JwtService } from '@nestjs/jwt';
 import type { Board, Side } from '../../shared/chess/types';
 import { createHash } from 'node:crypto';
 import { ChessEngineService } from './engine.service';
 import { MetricsService } from '../metrics/metrics.service';
+import { RecordService } from '../record/record.service';
 
 export type BattleStatus = 'waiting' | 'playing' | 'finished';
 
@@ -25,17 +27,19 @@ export interface BattleState {
   id: number;
   mode: string;
   status: BattleStatus;
-  players: number[]; // [red, black]
+  players: number[];
   moves: Move[];
-  turnIndex: 0 | 1; // 0=players[0], 1=players[1]
+  turnIndex: 0 | 1;
   createdAt: number;
   winnerId?: number | null;
   finishReason?: string | null;
-  // 权威棋盘与轮次
   board: Board;
-  turn: Side; // 'red' | 'black'
-  // 在线用户（通过 WS join/断开维护）
+  turn: Side;
   onlineUserIds: number[];
+  // 新增 ↓
+  source: 'match' | 'room';
+  visibility: 'match' | 'private' | 'public';
+  ownerId?: number;
 }
 
 @Injectable()
@@ -70,6 +74,8 @@ export class BattlesService {
     private readonly jwt: JwtService,
     private readonly engine: ChessEngineService,
     @Optional() private readonly metrics?: MetricsService,
+    @Optional() private readonly events?: EventEmitter2,
+    @Optional() private readonly records?: RecordService,
   ) { }
 
   verifyBearer(authorization?: string) {
@@ -85,13 +91,26 @@ export class BattlesService {
     }
   }
 
-  createBattle(creatorId: number, mode = 'pvp') {
-    // 若该用户在该模式已有单人等待房间，直接复用避免重复创建
-    const reuse = this.findUserWaiting(creatorId, mode);
+  createBattle(
+    creatorId: number,
+    mode = 'pvp',
+    opts?: {
+      source?: 'match' | 'room';
+      visibility?: 'match' | 'private' | 'public';
+    },
+  ) {
+    const source = opts?.source ?? 'room';
+    const visibility =
+      opts?.visibility ?? (source === 'match' ? 'match' : 'private');
+
+    // 只有自建房才复用自己的等待房
+    const reuse =
+      source === 'room' ? this.findUserWaiting(creatorId, mode) : undefined;
     if (reuse) {
       const b = this.battles.get(reuse)!;
       return { battleId: b.id, status: b.status };
     }
+
     const id = this.nextId++;
     const state: BattleState = {
       id,
@@ -104,6 +123,9 @@ export class BattlesService {
       board: this.engine.createInitialBoard(),
       turn: 'red',
       onlineUserIds: [],
+      source,
+      visibility,
+      ownerId: creatorId,
     };
     this.battles.set(id, state);
     this.scheduleWaitingTtl(id);
@@ -150,6 +172,10 @@ export class BattlesService {
       lastMove: b.moves.length ? b.moves[b.moves.length - 1] : null,
       stateHash: this.computeStateHash(b),
       onlineUserIds: b.onlineUserIds,
+      // 新增 ↓
+      source: b.source,
+      visibility: b.visibility,
+      ownerId: b.ownerId ?? null,
     };
   }
 
@@ -242,16 +268,67 @@ export class BattlesService {
       list.unshift({ battleId: b.id, result: r });
       this.histories.set(pid, list.slice(0, 200));
     }
+    // 广播对局结束事件，方便 Gateway 推送最新 snapshot 与记录创建
+    this.events?.emit('battle.finished', { battleId: b.id });
     return { battleId: b.id, ...result };
   }
 
+  // 监听对局结束事件，自动创建云端记录（record）
+  @OnEvent('battle.finished')
+  async handleBattleFinished(payload: { battleId: number }) {
+    if (!this.records) return;
+    const b = this.battles.get(payload.battleId);
+    if (!b) return;
+    // 目前只为双方玩家各落一份记录，后续可扩展观战者等
+    const resultMap = new Map<number, 'win' | 'lose' | 'draw'>();
+    for (const pid of b.players) {
+      let r: 'win' | 'lose' | 'draw' = 'draw';
+      if (b.winnerId && b.players.includes(b.winnerId)) {
+        r = pid === b.winnerId ? 'win' : 'lose';
+      }
+      resultMap.set(pid, r);
+    }
+    // 对每个玩家各写一条记录
+    for (const pid of b.players) {
+      const opponentId = b.players.find((id) => id !== pid) ?? null;
+      const result = resultMap.get(pid) ?? 'draw';
+      try {
+        await this.records.create(pid, {
+          opponent: opponentId ? String(opponentId) : '对手',
+          startedAt: new Date(b.createdAt).toISOString(),
+          endedAt: new Date().toISOString(),
+          result,
+          endReason: b.finishReason ?? 'other',
+          keyTags: [],
+        } as any);
+      } catch {
+        // 记录失败不影响对战流程
+      }
+    }
+  }
+
+  // 主动认输：当前对局中玩家请求直接判负
+  resign(userId: number, battleId: number) {
+    const b = this.getBattle(battleId);
+    if (b.status !== 'playing') {
+      throw new BadRequestException('当前不可认输');
+    }
+    if (!b.players.includes(userId)) {
+      throw new UnauthorizedException('不在房间内');
+    }
+    const opponent = b.players.find((id) => id !== userId) ?? null;
+    return this.finish(battleId, {
+      winnerId: opponent,
+      reason: 'resign',
+    });
+  }
+
   quickMatch(userId: number, mode = 'pvp') {
-    // 先看自己是否已有等待房间（可能前端重复点击）
     const selfWaiting = this.findUserWaiting(userId, mode);
     if (selfWaiting) {
       return { battleId: selfWaiting };
     }
-    // 尝试匹配等待中的房间
+
     const pool = this.waitingByMode.get(mode) || [];
     while (pool.length) {
       const bid = pool.shift()!;
@@ -262,8 +339,12 @@ export class BattlesService {
         return { battleId: bid };
       }
     }
-    // 无可匹配→创建并进入等待
-    const { battleId } = this.createBattle(userId, mode);
+
+    // 仅为匹配创建 match 对局并加入匹配池
+    const { battleId } = this.createBattle(userId, mode, {
+      source: 'match',
+      visibility: 'match',
+    });
     const list = this.waitingByMode.get(mode) || [];
     list.push(battleId);
     this.waitingByMode.set(mode, list);
@@ -411,11 +492,24 @@ export class BattlesService {
     const h = setTimeout(() => {
       const b = this.battles.get(battleId);
       if (!b) return;
-      if ((b.onlineUserIds?.length || 0) === 0 && b.status !== 'finished') {
-        // 判和并结束（保留历史）
-        this.finish(battleId, { winnerId: null, reason: 'disconnect_ttl' });
-        this.metricsData.disconnectTtlTriggered += 1;
-        this.metrics?.incDisconnectTtlTriggered();
+      if (b.status !== 'finished') {
+        const online = b.onlineUserIds ?? [];
+        let winnerId: number | null | undefined;
+        if (online.length === 1) {
+          // 只剩一人在线：判该玩家胜
+          winnerId = online[0];
+        } else if (online.length === 0) {
+          // 双方都不在线：维持原有行为，判和
+          winnerId = null;
+        }
+        if (winnerId !== undefined) {
+          this.finish(battleId, {
+            winnerId,
+            reason: 'disconnect_ttl',
+          });
+          this.metricsData.disconnectTtlTriggered += 1;
+          this.metrics?.incDisconnectTtlTriggered();
+        }
       }
       this.clearDisconnectTtl(battleId);
     }, BattlesService.DISCONNECT_TTL_MS);

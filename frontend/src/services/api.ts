@@ -249,6 +249,31 @@ export const battleApi = {
     );
     return res.data;
   },
+
+  /** 认输当前对局 */
+  async resign(battleId: number): Promise<
+    NonNullable<operations['battlesResign']['responses'][200]['content']['application/json']['data']>
+  > {
+    type ResignData = NonNullable<
+      operations['battlesResign']['responses'][200]['content']['application/json']['data']
+    >
+    const res = await apiRequest<ResignData>('/api/v1/battles/resign', {
+      method: 'POST',
+      body: JSON.stringify({ battleId }),
+    })
+    return res.data
+  },
+
+  /** 获取当前对局最新快照（用于兜底轮询） */
+  async snapshot(battleId: number): Promise<
+    NonNullable<operations['battlesGet']['responses'][200]['content']['application/json']['data']>
+  > {
+    type GetData = NonNullable<
+      operations['battlesGet']['responses'][200]['content']['application/json']['data']
+    >
+    const res = await apiRequest<GetData>(`/api/v1/battles/${battleId}`)
+    return res.data
+  },
 }
 
 /**
