@@ -4,12 +4,13 @@ import {
   BadRequestException,
   Optional,
 } from '@nestjs/common';
-import { EventEmitter2 } from '@nestjs/event-emitter';
+import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 import { JwtService } from '@nestjs/jwt';
 import type { Board, Side } from '../../shared/chess/types';
 import { createHash } from 'node:crypto';
 import { ChessEngineService } from './engine.service';
 import { MetricsService } from '../metrics/metrics.service';
+import { RecordService } from '../record/record.service';
 
 export type BattleStatus = 'waiting' | 'playing' | 'finished';
 
@@ -74,7 +75,8 @@ export class BattlesService {
     private readonly engine: ChessEngineService,
     @Optional() private readonly metrics?: MetricsService,
     @Optional() private readonly events?: EventEmitter2,
-  ) {}
+    @Optional() private readonly records?: RecordService,
+  ) { }
 
   verifyBearer(authorization?: string) {
     if (!authorization || !authorization.toLowerCase().startsWith('bearer ')) {
@@ -266,9 +268,43 @@ export class BattlesService {
       list.unshift({ battleId: b.id, result: r });
       this.histories.set(pid, list.slice(0, 200));
     }
-    // 广播对局结束事件，方便 Gateway 推送最新 snapshot
+    // 广播对局结束事件，方便 Gateway 推送最新 snapshot 与记录创建
     this.events?.emit('battle.finished', { battleId: b.id });
     return { battleId: b.id, ...result };
+  }
+
+  // 监听对局结束事件，自动创建云端记录（record）
+  @OnEvent('battle.finished')
+  async handleBattleFinished(payload: { battleId: number }) {
+    if (!this.records) return;
+    const b = this.battles.get(payload.battleId);
+    if (!b) return;
+    // 目前只为双方玩家各落一份记录，后续可扩展观战者等
+    const resultMap = new Map<number, 'win' | 'lose' | 'draw'>();
+    for (const pid of b.players) {
+      let r: 'win' | 'lose' | 'draw' = 'draw';
+      if (b.winnerId && b.players.includes(b.winnerId)) {
+        r = pid === b.winnerId ? 'win' : 'lose';
+      }
+      resultMap.set(pid, r);
+    }
+    // 对每个玩家各写一条记录
+    for (const pid of b.players) {
+      const opponentId = b.players.find((id) => id !== pid) ?? null;
+      const result = resultMap.get(pid) ?? 'draw';
+      try {
+        await this.records.create(pid, {
+          opponent: opponentId ? String(opponentId) : '对手',
+          startedAt: new Date(b.createdAt).toISOString(),
+          endedAt: new Date().toISOString(),
+          result,
+          endReason: b.finishReason ?? 'other',
+          keyTags: [],
+        } as any);
+      } catch {
+        // 记录失败不影响对战流程
+      }
+    }
   }
 
   // 主动认输：当前对局中玩家请求直接判负
