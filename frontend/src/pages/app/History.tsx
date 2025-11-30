@@ -2,27 +2,53 @@ import { useEffect, useState } from 'react'
 import Segmented from '../../components/Segmented'
 import './app-pages.css'
 import { recordStore } from '../../features/records/recordStore'
-import { useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { recordsApi } from '../../services/api'
 
 export default function History() {
     const [keepLimit, setKeepLimit] = useState<number>(30)
     const [tab, setTab] = useState<'records' | 'favorites'>('records')
     const [showSettings, setShowSettings] = useState(false)
+    const [list, setList] = useState<any[]>([])
+    const [loading, setLoading] = useState(true)
+
+    async function refresh() {
+        setLoading(true)
+        try {
+            const records = await recordStore.list()
+            setList(records)
+        } catch (e) {
+            const records = await (recordStore.list() as Promise<any[]>)
+            setList(records)
+        } finally {
+            setLoading(false)
+        }
+    }
 
     useEffect(() => {
-        const saved = localStorage.getItem('record.keepLimit')
-        if (saved) {
-            const n = parseInt(saved, 10)
-            if (!Number.isNaN(n)) setKeepLimit(n)
-        }
+        let mounted = true
+            ; (async () => {
+                try {
+                    const prefs = await recordsApi.prefs.get()
+                    if (mounted && prefs) {
+                        setKeepLimit((prefs as any).keepLimit ?? 30)
+                    }
+                } catch (_) {
+                    // 后端不可用时，使用默认值
+                    setKeepLimit(30)
+                }
+                await refresh()
+            })()
+        return () => { mounted = false }
     }, [])
 
     function updateLimit(n: number) {
         const v = Math.max(1, Math.min(500, Math.floor(n)))
         setKeepLimit(v)
-        localStorage.setItem('record.keepLimit', String(v))
+        // try to persist to backend
+        recordsApi.prefs.update({ keepLimit: v }).catch(() => { })
     }
+
     return (
         <div>
             <section className="paper-card card-pad pos-rel">
@@ -55,6 +81,7 @@ export default function History() {
                                 <div className="muted mt-6 text-12">
                                     超过此数量的“非收藏”记录将自动清理（默认 30，范围 1-500）
                                 </div>
+
                             </div>
                         )}
                     </div>
@@ -67,19 +94,25 @@ export default function History() {
                         onChange={(v: string) => setTab(v as 'records' | 'favorites')}
                     />
                 </div>
-                {tab === 'records' ? <RecordsList filter="all" /> : <RecordsList filter="favorite" />}
+                {tab === 'records' ? <RecordsList filter="all" list={list} loading={loading} onRefresh={refresh} /> : <RecordsList filter="favorite" list={list} loading={loading} onRefresh={refresh} />}
             </section>
         </div>
     );
 }
 
-function RecordsList({ filter }: { filter: 'all' | 'favorite' }) {
+function RecordsList({ filter, list, loading, onRefresh }: { filter: 'all' | 'favorite', list: any[], loading: boolean, onRefresh: () => Promise<void> }) {
     const navigate = useNavigate()
-    const list = useMemo(() => recordStore.list(), [])
     const filtered = filter === 'favorite' ? list.filter(r => r.favorite) : list
 
-    if (filtered.length === 0) {
+    if (loading) return <div className="muted">加载中...</div>
+
+    if (!filtered || filtered.length === 0) {
         return <div className="empty-box">暂无{filter === 'favorite' ? '收藏' : '记录'}</div>
+    }
+
+    async function toggleAndRefresh(r: any) {
+        await recordStore.toggleFavorite(r.id, !r.favorite)
+        await onRefresh()
     }
 
     return (
@@ -94,7 +127,7 @@ function RecordsList({ filter }: { filter: 'all' | 'favorite' }) {
                     </div>
                     <div className="row-start gap-8">
                         <button className="btn-ghost" onClick={() => navigate(`/app/record/${r.id}`)}>复盘</button>
-                        <button className="btn-ghost" onClick={() => { recordStore.toggleFavorite(r.id, !r.favorite); location.reload() }}>{r.favorite ? '取消收藏' : '收藏'}</button>
+                        <button className="btn-ghost" onClick={() => { toggleAndRefresh(r) }}>{r.favorite ? '取消收藏' : '收藏'}</button>
                     </div>
                 </div>
             ))}

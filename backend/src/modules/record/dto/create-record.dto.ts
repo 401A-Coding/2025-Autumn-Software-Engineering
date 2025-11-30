@@ -23,20 +23,20 @@ class PosDto {
 }
 
 class PieceDto {
+    @IsOptional()
     @IsString()
     @IsIn(
         [
-            'general', // 将/帅
-            'advisor', // 士/仕
-            'elephant', // 象/相
-            'horse', // 马
-            'chariot', // 车
-            'cannon', // 炮
-            'soldier', // 卒/兵
+            'general',
+            'advisor',
+            'elephant',
+            'horse',
+            'chariot',
+            'cannon',
+            'soldier',
         ]
     )
-    @IsNotEmpty()
-    type!: string;
+    type?: string;
 
     @IsString()
     @IsIn(['red', 'black'])
@@ -68,35 +68,24 @@ class MoveDto {
     @IsString()
     capturedSide?: string; // typically 'red' | 'black'
 
+    @IsOptional()
     @IsInt()
     @Min(0)
-    timeSpentMs!: number;
+    timeSpentMs?: number;
 }
 
 class BookmarkDto {
     @IsInt()
     @Min(0)
-    id!: number;
-
-    @IsInt()
-    @Min(0)
     step!: number;
 
+    @IsOptional()
     @IsString()
-    @IsNotEmpty()
-    label!: string;
+    label?: string;
 
+    @IsOptional()
     @IsString()
-    @IsNotEmpty()
-    note!: string;
-
-    @Type(() => Date)
-    @IsDate()
-    createdAt!: Date;
-
-    @Type(() => Date)
-    @IsDate()
-    updatedAt!: Date;
+    note?: string;
 }
 
 export class CreateRecordDto {
@@ -113,12 +102,12 @@ export class CreateRecordDto {
     endedAt!: Date;
 
     @IsString()
-    @IsNotEmpty()
-    result!: string;
+    @IsOptional()
+    result?: string;
 
+    @IsOptional()
     @IsString()
-    @IsNotEmpty()
-    endReason!: string;
+    endReason?: string;
 
     @IsArray()
     @ArrayMinSize(0)
@@ -126,7 +115,7 @@ export class CreateRecordDto {
     keyTags!: string[];
 
     @IsArray()
-    @ArrayMinSize(1)
+    @ArrayMinSize(0)
     @ValidateNested({ each: true })
     @Type(() => MoveDto)
     moves!: MoveDto[];

@@ -25,13 +25,15 @@ export default function RecordReplay() {
 
     useEffect(() => {
         if (!id) return
-        const r = recordStore.get(id)
-        if (!r) {
-            setRecord(null)
-        } else {
-            setRecord(r)
-            setStep(r.moves.length) // 默认展示最终局面
-        }
+            ; (async () => {
+                const r = await recordStore.get(id)
+                if (!r) {
+                    setRecord(null)
+                } else {
+                    setRecord(r)
+                    setStep(r.moves.length) // 默认展示最终局面
+                }
+            })()
     }, [id])
 
     // 自动播放（保持 hooks 顺序稳定）
@@ -82,7 +84,7 @@ export default function RecordReplay() {
                 </div>
 
                 {/* 步数控制 */}
-                <div className="mt-12 row-start align-center gap-8">
+                <div className="mt-12 inline-controls">
                     <button className="btn-ghost" disabled={step <= 0} onClick={() => setStep(s => Math.max(0, s - 1))}>◀</button>
                     <div className="minw-80 text-center">{step}/{total}</div>
                     <button className="btn-ghost" disabled={step >= total} onClick={() => setStep(s => Math.min(total, s + 1))}>▶</button>
@@ -132,9 +134,9 @@ export default function RecordReplay() {
                                         className="btn-ghost btn-xs"
                                         aria-label="删除书签"
                                         title="删除"
-                                        onClick={() => {
-                                            recordStore.removeBookmark(record.id, b.id)
-                                            const updated = recordStore.get(record.id)
+                                        onClick={async () => {
+                                            await recordStore.removeBookmark(record.id, b.id)
+                                            const updated = await recordStore.get(record.id)
                                             if (updated) setRecord(updated)
                                         }}
                                     >✕</button>
@@ -175,9 +177,9 @@ export default function RecordReplay() {
                                 {editingBm && (
                                     <button
                                         className="btn-ghost"
-                                        onClick={() => {
-                                            recordStore.removeBookmark(record.id, editingBm.id)
-                                            const updated = recordStore.get(record.id)
+                                        onClick={async () => {
+                                            await recordStore.removeBookmark(record.id, editingBm.id)
+                                            const updated = await recordStore.get(record.id)
                                             if (updated) setRecord(updated)
                                             setShowBookmarkSheet(false)
                                         }}
@@ -185,14 +187,14 @@ export default function RecordReplay() {
                                 )}
                                 <button
                                     className="btn-primary"
-                                    onClick={() => {
+                                    onClick={async () => {
                                         const trimmed = bmLabel.trim()
                                         if (editingBm) {
-                                            recordStore.updateBookmark(record.id, editingBm.id, trimmed ? trimmed : undefined)
+                                            await recordStore.updateBookmark(record.id, editingBm.id, trimmed ? trimmed : undefined)
                                         } else {
-                                            recordStore.addBookmark(record.id, step, trimmed ? trimmed : undefined)
+                                            await recordStore.addBookmark(record.id, step, trimmed ? trimmed : undefined)
                                         }
-                                        const updated = recordStore.get(record.id)
+                                        const updated = await recordStore.get(record.id)
                                         if (updated) setRecord(updated)
                                         setShowBookmarkSheet(false)
                                     }}

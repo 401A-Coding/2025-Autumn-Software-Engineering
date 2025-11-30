@@ -16,7 +16,8 @@ export class RecordController {
   @UseGuards(JwtAuthGuard)
   create(@Body() createRecordDto: CreateRecordDto, @Req() req: Request & { user?: { sub: number } }) {
     const userId = req.user!.sub;
-    return this.recordService.create(userId, createRecordDto).then((record) => ({ code: 0, message: 'success', data: { id: record.id, createdAt: record.createdAt } }));
+    // 返回完整的 record，以与前端 OpenAPI 契约对齐
+    return this.recordService.create(userId, createRecordDto).then((record) => ({ code: 0, message: 'success', data: record }));
   }
 
   @Get()
@@ -138,15 +139,25 @@ export class RecordController {
   @UseGuards(JwtAuthGuard)
   getRetentionPrefs(@Req() req: Request & { user?: { sub: number } }) {
     const userId = req.user!.sub;
-    return this.recordService.getRetentionPrefs(userId).then((data) => ({ code: 0, message: 'success', data }));
+    // 将后端字段映射为 keepLimit 以与前端契约一致
+    return this.recordService.getRetentionPrefs(userId).then((data) => ({
+      code: 0,
+      message: 'success',
+      data: { keepLimit: (data as any).retentionLimit ?? 30, autoCleanEnabled: (data as any).autoCleanEnabled ?? true, updatedAt: (data as any).updatedAt }
+    }));
   }
 
   // 个人对局记录保留条数修改
   @Patch('prefs')
   @UseGuards(JwtAuthGuard)
-  updateRetentionPrefs(@Body('prefs') prefs: any, @Req() req: Request & { user?: { sub: number } }) {
+  updateRetentionPrefs(@Body() prefs: any, @Req() req: Request & { user?: { sub: number } }) {
     const userId = req.user!.sub;
-    return this.recordService.updateRetentionPrefs(userId, prefs).then((data) => ({ code: 0, message: 'success', data }));
+    // 接受 { keepLimit?: number, autoCleanEnabled?: boolean } 直接体
+    return this.recordService.updateRetentionPrefs(userId, prefs).then((data) => ({
+      code: 0,
+      message: 'success',
+      data: { keepLimit: (data as any).retentionLimit, autoCleanEnabled: (data as any).autoCleanEnabled }
+    }));
   }
 
 }
