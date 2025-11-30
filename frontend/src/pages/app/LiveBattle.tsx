@@ -144,7 +144,8 @@ export default function LiveBattle() {
                         }
                     }
 
-                    setEndMessage(msg);
+                    // 结束时提示用户可在历史对局中查看并复盘
+                    setEndMessage(msg + ' 本局已自动保存到历史记录，可在「历史对局」中复盘。');
                     setEndKind(kind);
                     // 若当前仍在房间内，则启动 3 秒倒计时自动返回大厅
                     if (battleIdRef.current) {
