@@ -1,119 +1,214 @@
-import type { ChessRecord, Bookmark, Note } from './types'
-
-const LS_KEY = 'records.list.v1'
-const KEEP_LIMIT_KEY = 'record.keepLimit'
+import type { ChessRecord, Bookmark, Note, MoveRecord } from './types'
+import { recordsApi } from '../../services/api'
+import type { components } from '../../types/api'
 
 function uid() {
     return `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
 }
 
-function loadAll(): ChessRecord[] {
+function getCurrentUserId(): string | null {
     try {
-        const raw = localStorage.getItem(LS_KEY)
-        if (!raw) return []
-        const list = JSON.parse(raw) as ChessRecord[]
-        if (!Array.isArray(list)) return []
-        return list
+        const token = localStorage.getItem('token')
+        if (!token) return null
+        const seg = token.split('.')[1]
+        if (!seg) return null
+        const b64 = seg.replace(/-/g, '+').replace(/_/g, '/')
+        const pad = b64.length % 4
+        const padded = pad ? b64 + '='.repeat(4 - pad) : b64
+        const json = atob(padded)
+        const payload = JSON.parse(json)
+        const uid = payload.sub || payload.userId || payload.id
+        return uid != null ? String(uid) : null
     } catch {
-        return []
+        return null
     }
 }
 
-function saveAll(list: ChessRecord[]) {
-    localStorage.setItem(LS_KEY, JSON.stringify(list))
-}
-
-function getKeepLimit(): number {
-    const saved = localStorage.getItem(KEEP_LIMIT_KEY)
-    const n = saved ? parseInt(saved, 10) : 30
-    if (Number.isNaN(n)) return 30
-    return Math.min(500, Math.max(1, Math.floor(n)))
-}
-
 export const recordStore = {
-    list(): ChessRecord[] {
-        const list = loadAll()
-        return list.sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime())
+    async list(): Promise<ChessRecord[]> {
+        // Pure server source; no local cache
+        const page = await recordsApi.list(1, 500)
+        let items: any[] = []
+        const data = page as any
+        if (Array.isArray(data)) items = data
+        else if (data && Array.isArray(data.items)) items = data.items
+        else items = []
+        const me = getCurrentUserId()
+        const mapped: ChessRecord[] = (items as any[]).map(it => ({
+            id: String(it.id),
+            startedAt: it.startedAt || new Date().toISOString(),
+            endedAt: it.endedAt || undefined,
+            opponent: it.opponent || undefined,
+            result: it.result as any,
+            keyTags: it.keyTags || [],
+            favorite: Array.isArray((it as any).favorites) ? (me != null ? (it as any).favorites.some((f: any) => String(f.userId) === me) : ((it as any).favorites.length > 0)) : !!(it as any).favorite,
+            moves: (it.moves || []).map((m: any) => ({
+                from: { x: m.from?.x ?? m.fromX ?? 0, y: m.from?.y ?? m.fromY ?? 0 },
+                to: { x: m.to?.x ?? m.toX ?? 0, y: m.to?.y ?? m.toY ?? 0 },
+                turn: (m.piece?.side as any) ?? (m.pieceSide as any) ?? (m.piece_side as any) ?? 'red',
+                ts: Date.now(),
+            })),
+            bookmarks: (it.bookmarks || []).map((b: any) => ({ id: String(b.id), step: b.step || 0, label: b.label || undefined })),
+            notes: [],
+        }))
+        return mapped.sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime())
     },
 
-    get(id: string): ChessRecord | undefined {
-        return loadAll().find(r => r.id === id)
-    },
-
-    saveNew(partial: Omit<ChessRecord, 'id'>): ChessRecord {
-        const list = loadAll()
-        const rec: ChessRecord = { id: uid(), ...partial }
-        list.push(rec)
-        // 应用保留策略
-        const keep = getKeepLimit()
-        const nonFav = list
-            .filter(r => !r.favorite)
-            .sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime())
-        const toRemove = nonFav.slice(keep) // 超出的
-        if (toRemove.length) {
-            const toRemoveIds = new Set(toRemove.map(r => r.id))
-            const after = list.filter(r => !(toRemoveIds.has(r.id) && !r.favorite))
-            saveAll(after)
+    async get(id: string): Promise<ChessRecord | undefined> {
+        try {
+            const data = await recordsApi.get(Number(id))
+            if (!data) return undefined
+            const it = data as any
+            const me = getCurrentUserId()
+            const rec: ChessRecord = {
+                id: String(it.id),
+                startedAt: it.startedAt || new Date().toISOString(),
+                endedAt: it.endedAt || undefined,
+                opponent: it.opponent || undefined,
+                result: it.result as any,
+                keyTags: it.keyTags || [],
+                favorite: Array.isArray((it as any).favorites) ? (me != null ? (it as any).favorites.some((f: any) => String(f.userId) === me) : ((it as any).favorites.length > 0)) : !!(it as any).favorite,
+                moves: (it.moves || []).map((m: any) => ({
+                    from: { x: m.from?.x ?? m.fromX ?? 0, y: m.from?.y ?? m.fromY ?? 0 },
+                    to: { x: m.to?.x ?? m.toX ?? 0, y: m.to?.y ?? m.toY ?? 0 },
+                    turn: (m.piece?.side as any) ?? (m.pieceSide as any) ?? (m.piece_side as any) ?? 'red',
+                    ts: Date.now(),
+                })),
+                bookmarks: (it.bookmarks || []).map((b: any) => ({ id: String(b.id), step: b.step || 0, label: b.label || undefined })),
+                notes: [],
+            }
             return rec
-        }
-        saveAll(list)
-        return rec
-    },
-
-    toggleFavorite(id: string, fav: boolean) {
-        const list = loadAll()
-        const idx = list.findIndex(r => r.id === id)
-        if (idx >= 0) {
-            list[idx].favorite = fav
-            saveAll(list)
+        } catch (e) {
+            return undefined
         }
     },
 
-    addBookmark(id: string, step: number, label?: string): Bookmark | undefined {
-        const list = loadAll()
-        const idx = list.findIndex(r => r.id === id)
-        if (idx < 0) return
-        const bm: Bookmark = { id: uid(), step, label }
-        list[idx].bookmarks = [...(list[idx].bookmarks || []), bm]
-        saveAll(list)
-        return bm
+    async saveNew(partial: Omit<ChessRecord, 'id'>): Promise<{ record: ChessRecord; savedToServer: boolean }> {
+        // prepare server payload
+        const body: components['schemas']['RecordCreateRequest'] = {
+            opponent: partial.opponent,
+            startedAt: partial.startedAt,
+            endedAt: partial.endedAt,
+            result: partial.result as any,
+            keyTags: partial.keyTags,
+            moves: (partial.moves || []).map((m: MoveRecord, idx) => ({
+                moveIndex: idx,
+                from: { x: m.from.x, y: m.from.y },
+                to: { x: m.to.x, y: m.to.y },
+                piece: { side: m.turn },
+            })),
+            bookmarks: (partial.bookmarks || []).map(b => ({ step: b.step, label: b.label })),
+        }
+
+        let created: any = null
+        let savedToServer = false
+        // 如果没有 token 则跳过服务器保存，直接本地保存
+        const token = localStorage.getItem('token')
+        if (token) {
+            try {
+                created = await recordsApi.create(body)
+                savedToServer = !!created
+            } catch (e) {
+                // 后端保存失败（未登录或网络问题），将降级为仅本地保存
+                created = null
+                savedToServer = false
+            }
+        }
+
+        const rec: ChessRecord = {
+            id: String((created as any)?.id ?? uid()),
+            startedAt: (created as any).startedAt ?? partial.startedAt,
+            endedAt: (created as any).endedAt ?? partial.endedAt,
+            opponent: (created as any).opponent ?? partial.opponent,
+            result: (created as any).result ?? partial.result,
+            keyTags: (created as any).keyTags ?? partial.keyTags ?? [],
+            favorite: !!(created as any).favorite,
+            moves: ((created as any).moves || (partial.moves || [])).map((mv: any, idx: number) => ({
+                from: { x: mv.from?.x ?? partial.moves?.[idx]?.from.x ?? 0, y: mv.from?.y ?? partial.moves?.[idx]?.from.y ?? 0 },
+                to: { x: mv.to?.x ?? partial.moves?.[idx]?.to.x ?? 0, y: mv.to?.y ?? partial.moves?.[idx]?.to.y ?? 0 },
+                turn: (mv.piece?.side as any) ?? (mv.pieceSide as any) ?? partial.moves?.[idx]?.turn ?? 'red',
+                ts: (partial.moves && partial.moves[idx] && partial.moves[idx].ts) || Date.now(),
+            })),
+            bookmarks: ((created as any).bookmarks || (partial.bookmarks || [])).map((b: any) => ({
+                id: String(b.id ?? uid()),
+                step: b.step ?? 0,
+                label: b.label ?? undefined,
+            })),
+            notes: partial.notes || [],
+        }
+
+        return { record: rec, savedToServer }
     },
 
-    updateBookmark(id: string, bookmarkId: string, label?: string) {
-        const list = loadAll()
-        const idx = list.findIndex(r => r.id === id)
-        if (idx < 0) return
-        const rec = list[idx]
-        if (!rec.bookmarks) return
-        const bIdx = rec.bookmarks.findIndex(b => b.id === bookmarkId)
-        if (bIdx < 0) return
-        rec.bookmarks[bIdx] = { ...rec.bookmarks[bIdx], label }
-        saveAll(list)
+    async toggleFavorite(id: string, fav: boolean) {
+        try {
+            const nid = Number(id)
+            if (fav) {
+                await recordsApi.favorite(nid)
+            } else {
+                await recordsApi.unfavorite(nid)
+            }
+        } catch (e) {
+            // ignore server error
+        }
+        // no local mutation; rely on next list() pull
     },
 
-    removeBookmark(id: string, bookmarkId: string) {
-        const list = loadAll()
-        const idx = list.findIndex(r => r.id === id)
-        if (idx < 0) return
-        list[idx].bookmarks = (list[idx].bookmarks || []).filter(b => b.id !== bookmarkId)
-        saveAll(list)
+    async addBookmark(id: string, step: number, label?: string): Promise<Bookmark | undefined> {
+        try {
+            const nid = Number(id)
+            const res = await recordsApi.bookmarks.add(nid, { step, label })
+            const bid = res?.id ?? undefined
+            const bm: Bookmark = { id: String(bid ?? uid()), step, label }
+            return bm
+        } catch (e) {
+            return undefined
+        }
     },
 
-    addNote(id: string, step: number, text: string): Note | undefined {
-        const list = loadAll()
-        const idx = list.findIndex(r => r.id === id)
-        if (idx < 0) return
-        const note: Note = { id: uid(), step, text, ts: Date.now() }
-        list[idx].notes = [...(list[idx].notes || []), note]
-        saveAll(list)
-        return note
+    async updateBookmark(id: string, bookmarkId: string, label?: string) {
+        try {
+            const nid = Number(id)
+            const bid = Number(bookmarkId)
+            await recordsApi.bookmarks.update(nid, bid, { label })
+        } catch (e) {
+            // ignore
+        }
+        // no local mutation
     },
 
-    removeNote(id: string, noteId: string) {
-        const list = loadAll()
-        const idx = list.findIndex(r => r.id === id)
-        if (idx < 0) return
-        list[idx].notes = (list[idx].notes || []).filter(n => n.id !== noteId)
-        saveAll(list)
+    async removeBookmark(id: string, bookmarkId: string) {
+        try {
+            const nid = Number(id)
+            const bid = Number(bookmarkId)
+            await recordsApi.bookmarks.remove(nid, bid)
+        } catch (e) {
+            // ignore
+        }
+        // no local mutation
+    },
+
+    async addNote(id: string, step: number, text: string): Promise<Note | undefined> {
+        try {
+            // use bookmarks endpoint with note field to add a note
+            const nid = Number(id)
+            const res = await recordsApi.bookmarks.add(nid, { step, note: text })
+            const bid = res?.id ?? undefined
+            const note: Note = { id: String(bid ?? uid()), step, text, ts: Date.now() }
+            return note
+        } catch (e) {
+            return undefined
+        }
+    },
+
+    async removeNote(id: string, noteId: string) {
+        try {
+            const nid = Number(id)
+            const bid = Number(noteId)
+            await recordsApi.bookmarks.remove(nid, bid)
+        } catch (e) {
+            // ignore
+        }
+        // no local mutation
     },
 }

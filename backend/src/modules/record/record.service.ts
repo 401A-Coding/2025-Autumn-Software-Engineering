@@ -32,14 +32,8 @@ export class RecordService {
   constructor(private readonly prisma: PrismaService) {}
 
   async create(userId: number, dto: CreateRecordDto) {
-    // Basic validation of required fields
-    if (
-      !dto?.opponent ||
-      !dto?.startedAt ||
-      !dto?.endedAt ||
-      !dto?.result ||
-      !dto?.endReason
-    ) {
+    // 基础校验（放宽 result / endReason；moves 可为空）
+    if (!dto?.opponent || !dto?.startedAt || !dto?.endedAt) {
       throw new BadRequestException('Missing required record fields');
     }
 
@@ -50,8 +44,8 @@ export class RecordService {
     const limit = pref?.retentionLimit ?? 30;
     const autoClean = pref?.autoCleanEnabled ?? true;
 
-    const movesInput: CreateMoveInput[] = (dto as any).moves ?? [];
-    const bookmarksInput: CreateBookmarkInput[] = (dto as any).bookmarks ?? [];
+    const movesInput = (dto as any).moves ?? [];
+    const bookmarksInput = (dto as any).bookmarks ?? [];
 
     const record = await this.prisma.record.create({
       data: {
@@ -59,34 +53,34 @@ export class RecordService {
         opponent: dto.opponent,
         startedAt: new Date(dto.startedAt),
         endedAt: new Date(dto.endedAt),
-        result: dto.result,
-        endReason: dto.endReason,
+        result: dto.result ?? 'unknown',
+        endReason: dto.endReason ?? 'unknown',
         keyTags: dto.keyTags ?? [],
-        moves: movesInput?.length
+        moves: (Array.isArray(movesInput) && movesInput.length > 0)
           ? {
-              create: movesInput.map((m) => ({
-                moveIndex: m.moveIndex,
-                fromX: m.fromX,
-                fromY: m.fromY,
-                toX: m.toX,
-                toY: m.toY,
-                pieceType: m.pieceType,
-                pieceSide: m.pieceSide,
-                capturedType: m.capturedType ?? null,
-                capturedSide: m.capturedSide ?? null,
-                timeSpentMs: m.timeSpentMs,
-                san: m.san ?? null,
-              })),
-            }
+            create: movesInput.map((m: any) => ({
+              moveIndex: m.moveIndex,
+              fromX: m.from?.x ?? m.fromX ?? 0,
+              fromY: m.from?.y ?? m.fromY ?? 0,
+              toX: m.to?.x ?? m.toX ?? 0,
+              toY: m.to?.y ?? m.toY ?? 0,
+              pieceType: m.piece?.type ?? m.pieceType ?? 'unknown',
+              pieceSide: m.piece?.side ?? m.pieceSide ?? 'red',
+              capturedType: m.capturedType ?? null,
+              capturedSide: m.capturedSide ?? null,
+              timeSpentMs: m.timeSpentMs ?? 0,
+              san: m.san ?? null,
+            })),
+          }
           : undefined,
-        bookmarks: bookmarksInput?.length
+        bookmarks: (Array.isArray(bookmarksInput) && bookmarksInput.length > 0)
           ? {
-              create: bookmarksInput.map((b) => ({
-                step: b.step,
-                label: b.label,
-                note: b.note,
-              })),
-            }
+            create: bookmarksInput.map((b: any) => ({
+              step: b.step,
+              label: b.label ?? 'bookmark',
+              note: b.note ?? '',
+            })),
+          }
           : undefined,
       },
       include: { moves: true, bookmarks: true },
@@ -376,22 +370,22 @@ export class RecordService {
   }
 
   async getRetentionPrefs(userId: number) {
-    const pref = await this.prisma.userRecordPreference.findUnique({
-      where: { userId },
-    });
+    const pref = await this.prisma.userRecordPreference.findUnique({ where: { userId } });
     return {
       userId,
       retentionLimit: pref?.retentionLimit ?? 30,
       autoCleanEnabled: pref?.autoCleanEnabled ?? true,
+      updatedAt: (pref as any)?.updatedAt,
     };
   }
 
   async updateRetentionPrefs(userId: number, prefs: any) {
     const updates: Record<string, any> = {};
-    if (prefs && 'retentionLimit' in prefs) {
-      const limit = Number(prefs.retentionLimit);
-      if (!Number.isFinite(limit) || limit <= 0)
-        throw new BadRequestException('Invalid retentionLimit');
+    // 接收 keepLimit 或 retentionLimit，统一映射为 retentionLimit
+    if (prefs && ('keepLimit' in prefs || 'retentionLimit' in prefs)) {
+      const rawLimit = 'keepLimit' in prefs ? prefs.keepLimit : prefs.retentionLimit;
+      const limit = Number(rawLimit);
+      if (!Number.isFinite(limit) || limit <= 0) throw new BadRequestException('Invalid retentionLimit');
       updates.retentionLimit = limit;
     }
     if (prefs && 'autoCleanEnabled' in prefs) {

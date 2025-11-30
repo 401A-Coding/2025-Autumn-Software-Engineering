@@ -33,7 +33,7 @@ export default function BoardViewer({ moves, step }: { moves: MoveRecord[]; step
     }, [moves, step])
 
     return (
-        <div className="board">
+        <div className="board board-center">
             {Array.from({ length: 10 }).map((_, row) => (
                 <div key={'h' + row} className={`grid-h row-${row}`} />
             ))}

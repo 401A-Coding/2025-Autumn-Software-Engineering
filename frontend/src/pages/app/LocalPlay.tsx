@@ -10,6 +10,7 @@ export default function LocalPlay() {
     const [showExitConfirm, setShowExitConfirm] = useState(false)
     const [moves, setMoves] = useState<MoveRecord[]>([])
     const [startedAt] = useState<string>(new Date().toISOString())
+    const [saving, setSaving] = useState(false)
 
     function handleExitClick() {
         setShowExitConfirm(true)
@@ -24,7 +25,7 @@ export default function LocalPlay() {
         navigate('/app/home')
     }
 
-    function persistRecord(result?: 'red' | 'black' | 'draw') {
+    async function persistRecord(result?: 'red' | 'black' | 'draw'): Promise<boolean> {
         const rec: Omit<ChessRecord, 'id'> = {
             startedAt,
             endedAt: new Date().toISOString(),
@@ -36,12 +37,33 @@ export default function LocalPlay() {
             bookmarks: [],
             notes: [],
         }
-        recordStore.saveNew(rec)
+        setSaving(true)
+        try {
+            const res = await recordStore.saveNew(rec)
+            if (!res.savedToServer) {
+                // server 保存失败（例如未登录或网络异常），提醒用户但已本地保存
+                // 这里使用简单 alert 提示，UI 后续可替换为更友好的通知组件
+                alert('对局已保存在本地，未能同步到服务器（未登录或网络问题）。')
+            }
+            return res.savedToServer
+        } catch (e) {
+            console.error('保存对局到后端/本地失败：', e)
+            return false
+        } finally {
+            setSaving(false)
+        }
     }
 
-    function handleSaveAndExit() {
-        persistRecord(undefined)
-        navigate('/app/home')
+    async function handleSaveAndExit() {
+        // 即便保存失败也应导航退出，不让用户被卡住
+        try {
+            await persistRecord(undefined)
+        } catch (e) {
+            // persistRecord 内部已捕获错误，但保底处理
+            console.error(e)
+        }
+        // 跳转到历史页面，用户可立即查看刚保存的对局
+        navigate('/app/history')
     }
     return (
         <div className="pad-16">
@@ -82,7 +104,7 @@ export default function LocalPlay() {
                             <button className="btn-ghost" onClick={handleCancel}>取消</button>
                             <div className="row-start gap-8">
                                 <button className="btn-ghost" onClick={handleExitWithoutSave}>不保存退出</button>
-                                <button className="btn-primary" onClick={handleSaveAndExit}>保存并退出</button>
+                                <button className="btn-primary" onClick={handleSaveAndExit} disabled={saving}>{saving ? '保存中...' : '保存并退出'}</button>
                             </div>
                         </div>
                     </div>

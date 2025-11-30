@@ -280,6 +280,21 @@ export const battleApi = {
  * 记录相关 API
  */
 export const recordsApi = {
+  /** 创建记录 */
+  async create(
+    body: components['schemas']['RecordCreateRequest']
+  ): Promise<
+    NonNullable<operations['recordsCreate']['responses'][200]['content']['application/json']['data']>
+  > {
+    type CreateData = NonNullable<
+      operations['recordsCreate']['responses'][200]['content']['application/json']['data']
+    >
+    const res = await apiRequest<CreateData>('/api/v1/records', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    })
+    return res.data
+  },
   /** 列出我的记录（分页） */
   async list(page = 1, pageSize = 20): Promise<
     NonNullable<operations['recordsList']['responses'][200]['content']['application/json']['data']>
@@ -301,6 +316,23 @@ export const recordsApi = {
       operations['recordsGet']['responses'][200]['content']['application/json']['data']
     >
     const res = await apiRequest<GetData>(`/api/v1/records/${id}`)
+    return res.data
+  },
+
+  /** 更新记录（结果、标签等） */
+  async update(
+    id: number,
+    body: components['schemas']['RecordUpdateRequest']
+  ): Promise<
+    NonNullable<operations['recordsUpdate']['responses'][200]['content']['application/json']['data']>
+  > {
+    type UpdateData = NonNullable<
+      operations['recordsUpdate']['responses'][200]['content']['application/json']['data']
+    >
+    const res = await apiRequest<UpdateData>(`/api/v1/records/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    })
     return res.data
   },
 
@@ -342,6 +374,71 @@ export const recordsApi = {
       method: 'DELETE',
     })
     return res.data
+  },
+
+  bookmarks: {
+    /** 为记录添加书签 */
+    async add(id: number, body: components['schemas']['BookmarkCreateRequest']) {
+      type AddBmData = NonNullable<
+        operations['recordsBookmarkAdd']['responses'][200]['content']['application/json']['data']
+      >
+      const res = await apiRequest<AddBmData>(`/api/v1/records/${id}/bookmarks`, {
+        method: 'POST',
+        body: JSON.stringify(body),
+      })
+      return res.data
+    },
+
+    /** 更新书签 */
+    async update(
+      id: number,
+      bookmarkId: number,
+      body: components['schemas']['BookmarkUpdateRequest']
+    ) {
+      type UpdateBmData = NonNullable<
+        operations['recordsBookmarkUpdate']['responses'][200]['content']['application/json']['data']
+      >
+      const res = await apiRequest<UpdateBmData>(
+        `/api/v1/records/${id}/bookmarks/${bookmarkId}`,
+        {
+          method: 'PATCH',
+          body: JSON.stringify(body),
+        }
+      )
+      return res.data
+    },
+
+    /** 删除书签 */
+    async remove(id: number, bookmarkId: number): Promise<void> {
+      type RemoveBmData =
+        operations['recordsBookmarkDelete']['responses'][200]['content']['application/json']['data']
+      await apiRequest<RemoveBmData>(`/api/v1/records/${id}/bookmarks/${bookmarkId}`, {
+        method: 'DELETE',
+      })
+    },
+  },
+
+  prefs: {
+    async get(): Promise<
+      NonNullable<operations['recordsPrefsGet']['responses'][200]['content']['application/json']['data']>
+    > {
+      type PrefsData = NonNullable<
+        operations['recordsPrefsGet']['responses'][200]['content']['application/json']['data']
+      >
+      const res = await apiRequest<PrefsData>('/api/v1/records/prefs')
+      return res.data
+    },
+
+    async update(body: components['schemas']['RecordPrefsPatch']) {
+      type UpdatePrefsData = NonNullable<
+        operations['recordsPrefsUpdate']['responses'][200]['content']['application/json']['data']
+      >
+      const res = await apiRequest<UpdatePrefsData>('/api/v1/records/prefs', {
+        method: 'PATCH',
+        body: JSON.stringify(body),
+      })
+      return res.data
+    },
   },
 
   comments: {
