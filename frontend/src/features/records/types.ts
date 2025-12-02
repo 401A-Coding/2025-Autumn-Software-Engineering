@@ -13,6 +13,7 @@ export type Bookmark = {
     id: string
     step: number // 第几步后（应用完该步）
     label?: string
+    note?: string
 }
 
 export type Note = {

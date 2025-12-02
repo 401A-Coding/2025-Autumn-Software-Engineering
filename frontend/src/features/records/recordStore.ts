@@ -48,7 +48,7 @@ export const recordStore = {
                 turn: (m.piece?.side as any) ?? (m.pieceSide as any) ?? (m.piece_side as any) ?? 'red',
                 ts: Date.now(),
             })),
-            bookmarks: (it.bookmarks || []).map((b: any) => ({ id: String(b.id), step: b.step || 0, label: b.label || undefined })),
+            bookmarks: (it.bookmarks || []).map((b: any) => ({ id: String(b.id), step: b.step || 0, label: b.label || undefined, note: b.note || undefined })),
             notes: [],
         }))
         return mapped.sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime())
@@ -74,7 +74,7 @@ export const recordStore = {
                     turn: (m.piece?.side as any) ?? (m.pieceSide as any) ?? (m.piece_side as any) ?? 'red',
                     ts: Date.now(),
                 })),
-                bookmarks: (it.bookmarks || []).map((b: any) => ({ id: String(b.id), step: b.step || 0, label: b.label || undefined })),
+                bookmarks: (it.bookmarks || []).map((b: any) => ({ id: String(b.id), step: b.step || 0, label: b.label || undefined, note: b.note || undefined })),
                 notes: [],
             }
             return rec
@@ -97,7 +97,7 @@ export const recordStore = {
                 to: { x: m.to.x, y: m.to.y },
                 piece: { side: m.turn },
             })),
-            bookmarks: (partial.bookmarks || []).map(b => ({ step: b.step, label: b.label })),
+            bookmarks: (partial.bookmarks || []).map(b => ({ step: b.step, label: b.label, note: (b as any).note })),
         }
 
         let created: any = null
@@ -133,6 +133,7 @@ export const recordStore = {
                 id: String(b.id ?? uid()),
                 step: b.step ?? 0,
                 label: b.label ?? undefined,
+                note: b.note || undefined,
             })),
             notes: partial.notes || [],
         }
@@ -154,10 +155,10 @@ export const recordStore = {
         // no local mutation; rely on next list() pull
     },
 
-    async addBookmark(id: string, step: number, label?: string): Promise<Bookmark | undefined> {
+    async addBookmark(id: string, step: number, label?: string, note?: string): Promise<Bookmark | undefined> {
         try {
             const nid = Number(id)
-            const res = await recordsApi.bookmarks.add(nid, { step, label })
+            const res = await recordsApi.bookmarks.add(nid, { step, label, note })
             const bid = res?.id ?? undefined
             const bm: Bookmark = { id: String(bid ?? uid()), step, label }
             return bm
@@ -166,11 +167,11 @@ export const recordStore = {
         }
     },
 
-    async updateBookmark(id: string, bookmarkId: string, label?: string) {
+    async updateBookmark(id: string, bookmarkId: string, label?: string, note?: string) {
         try {
             const nid = Number(id)
             const bid = Number(bookmarkId)
-            await recordsApi.bookmarks.update(nid, bid, { label })
+            await recordsApi.bookmarks.update(nid, bid, { label, note })
         } catch (e) {
             // ignore
         }
