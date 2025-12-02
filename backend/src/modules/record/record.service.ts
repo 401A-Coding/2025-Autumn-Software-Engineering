@@ -29,7 +29,7 @@ type CreateBookmarkInput = {
 
 @Injectable()
 export class RecordService {
-  constructor(private readonly prisma: PrismaService) { }
+  constructor(private readonly prisma: PrismaService) {}
 
   async create(userId: number, dto: CreateRecordDto) {
     // 基础校验（放宽 result / endReason；moves 可为空）
@@ -56,32 +56,34 @@ export class RecordService {
         result: dto.result ?? 'unknown',
         endReason: dto.endReason ?? 'unknown',
         keyTags: dto.keyTags ?? [],
-        moves: (Array.isArray(movesInput) && movesInput.length > 0)
-          ? {
-            create: movesInput.map((m: any) => ({
-              moveIndex: m.moveIndex,
-              fromX: m.from?.x ?? m.fromX ?? 0,
-              fromY: m.from?.y ?? m.fromY ?? 0,
-              toX: m.to?.x ?? m.toX ?? 0,
-              toY: m.to?.y ?? m.toY ?? 0,
-              pieceType: m.piece?.type ?? m.pieceType ?? 'unknown',
-              pieceSide: m.piece?.side ?? m.pieceSide ?? 'red',
-              capturedType: m.capturedType ?? null,
-              capturedSide: m.capturedSide ?? null,
-              timeSpentMs: m.timeSpentMs ?? 0,
-              san: m.san ?? null,
-            })),
-          }
-          : undefined,
-        bookmarks: (Array.isArray(bookmarksInput) && bookmarksInput.length > 0)
-          ? {
-            create: bookmarksInput.map((b: any) => ({
-              step: b.step,
-              label: b.label ?? 'bookmark',
-              note: b.note ?? '',
-            })),
-          }
-          : undefined,
+        moves:
+          Array.isArray(movesInput) && movesInput.length > 0
+            ? {
+                create: movesInput.map((m: any) => ({
+                  moveIndex: m.moveIndex,
+                  fromX: m.from?.x ?? m.fromX ?? 0,
+                  fromY: m.from?.y ?? m.fromY ?? 0,
+                  toX: m.to?.x ?? m.toX ?? 0,
+                  toY: m.to?.y ?? m.toY ?? 0,
+                  pieceType: m.piece?.type ?? m.pieceType ?? 'unknown',
+                  pieceSide: m.piece?.side ?? m.pieceSide ?? 'red',
+                  capturedType: m.capturedType ?? null,
+                  capturedSide: m.capturedSide ?? null,
+                  timeSpentMs: m.timeSpentMs ?? 0,
+                  san: m.san ?? null,
+                })),
+              }
+            : undefined,
+        bookmarks:
+          Array.isArray(bookmarksInput) && bookmarksInput.length > 0
+            ? {
+                create: bookmarksInput.map((b: any) => ({
+                  step: b.step,
+                  label: b.label ?? 'bookmark',
+                  note: b.note ?? '',
+                })),
+              }
+            : undefined,
       },
       include: { moves: true, bookmarks: true },
     });
@@ -177,7 +179,13 @@ export class RecordService {
       },
     });
     if (!record) throw new NotFoundException('Record not found');
-    return { ...record, result: (record as any).result === 'unknown' ? 'unfinished' : (record as any).result } as any;
+    return {
+      ...record,
+      result:
+        (record as any).result === 'unknown'
+          ? 'unfinished'
+          : (record as any).result,
+    } as any;
   }
 
   async remove(userId: number, id: number) {
@@ -311,8 +319,11 @@ export class RecordService {
     if (!Number.isInteger(step) || step < 0)
       throw new BadRequestException('Invalid step');
     // Allow bookmarking the final position: step can equal moves.length
-    const movesCount = await this.prisma.move.count({ where: { recordId: id } });
-    if (step < 0 || step > movesCount) throw new BadRequestException('Invalid step');
+    const movesCount = await this.prisma.move.count({
+      where: { recordId: id },
+    });
+    if (step < 0 || step > movesCount)
+      throw new BadRequestException('Invalid step');
     // Upsert to avoid duplicate error on unique(recordId, step)
     return this.prisma.bookmark.upsert({
       where: { recordId_step: { recordId: id, step } },
@@ -377,7 +388,9 @@ export class RecordService {
   }
 
   async getRetentionPrefs(userId: number) {
-    const pref = await this.prisma.userRecordPreference.findUnique({ where: { userId } });
+    const pref = await this.prisma.userRecordPreference.findUnique({
+      where: { userId },
+    });
     return {
       userId,
       retentionLimit: pref?.retentionLimit ?? 30,
@@ -390,9 +403,11 @@ export class RecordService {
     const updates: Record<string, any> = {};
     // 接收 keepLimit 或 retentionLimit，统一映射为 retentionLimit
     if (prefs && ('keepLimit' in prefs || 'retentionLimit' in prefs)) {
-      const rawLimit = 'keepLimit' in prefs ? prefs.keepLimit : prefs.retentionLimit;
+      const rawLimit =
+        'keepLimit' in prefs ? prefs.keepLimit : prefs.retentionLimit;
       const limit = Number(rawLimit);
-      if (!Number.isFinite(limit) || limit <= 0) throw new BadRequestException('Invalid retentionLimit');
+      if (!Number.isFinite(limit) || limit <= 0)
+        throw new BadRequestException('Invalid retentionLimit');
       updates.retentionLimit = limit;
     }
     if (prefs && 'autoCleanEnabled' in prefs) {

@@ -23,24 +23,22 @@ class PosDto {
 }
 
 class PieceDto {
-    @IsOptional()
-    @IsString()
-    @IsIn(
-        [
-            'general',
-            'advisor',
-            'elephant',
-            'horse',
-            'chariot',
-            'cannon',
-            'soldier',
-        ]
-    )
-    type?: string;
+  @IsOptional()
+  @IsString()
+  @IsIn([
+    'general',
+    'advisor',
+    'elephant',
+    'horse',
+    'chariot',
+    'cannon',
+    'soldier',
+  ])
+  type?: string;
 
-    @IsString()
-    @IsIn(['red', 'black'])
-    side!: 'red' | 'black';
+  @IsString()
+  @IsIn(['red', 'black'])
+  side!: 'red' | 'black';
 }
 
 class MoveDto {
@@ -68,61 +66,61 @@ class MoveDto {
   @IsString()
   capturedSide?: string; // typically 'red' | 'black'
 
-    @IsOptional()
-    @IsInt()
-    @Min(0)
-    timeSpentMs?: number;
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  timeSpentMs?: number;
 }
 
 class BookmarkDto {
-    @IsInt()
-    @Min(0)
-    step!: number;
+  @IsInt()
+  @Min(0)
+  step!: number;
 
-    @IsOptional()
-    @IsString()
-    label?: string;
+  @IsOptional()
+  @IsString()
+  label?: string;
 
-    @IsOptional()
-    @IsString()
-    note?: string;
+  @IsOptional()
+  @IsString()
+  note?: string;
 }
 
 export class CreateRecordDto {
-    @IsString()
-    @IsNotEmpty()
-    opponent!: string;
+  @IsString()
+  @IsNotEmpty()
+  opponent!: string;
 
-    @Type(() => Date)
-    @IsDate()
-    startedAt!: Date;
+  @Type(() => Date)
+  @IsDate()
+  startedAt!: Date;
 
-    @Type(() => Date)
-    @IsDate()
-    endedAt!: Date;
+  @Type(() => Date)
+  @IsDate()
+  endedAt!: Date;
 
-    @IsString()
-    @IsOptional()
-    result?: string;
+  @IsString()
+  @IsOptional()
+  result?: string;
 
-    @IsOptional()
-    @IsString()
-    endReason?: string;
+  @IsOptional()
+  @IsString()
+  endReason?: string;
 
-    @IsArray()
-    @ArrayMinSize(0)
-    @IsString({ each: true })
-    keyTags!: string[];
+  @IsArray()
+  @ArrayMinSize(0)
+  @IsString({ each: true })
+  keyTags!: string[];
 
-    @IsArray()
-    @ArrayMinSize(0)
-    @ValidateNested({ each: true })
-    @Type(() => MoveDto)
-    moves!: MoveDto[];
+  @IsArray()
+  @ArrayMinSize(0)
+  @ValidateNested({ each: true })
+  @Type(() => MoveDto)
+  moves!: MoveDto[];
 
-    @IsOptional()
-    @IsArray()
-    @ValidateNested({ each: true })
-    @Type(() => BookmarkDto)
-    bookmarks?: BookmarkDto[];
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => BookmarkDto)
+  bookmarks?: BookmarkDto[];
 }

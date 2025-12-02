@@ -229,6 +229,12 @@ export class BattlesService {
       m.stateHash = this.computeStateHash(b);
       // 胜负判定（如有）
       if (res.winner) {
+        console.log(
+          '[battle.move] winner detected',
+          res.winner,
+          'battleId',
+          b.id,
+        );
         if (res.winner === 'draw') {
           this.finish(b.id, { winnerId: null, reason: 'draw' });
         } else {
@@ -251,6 +257,7 @@ export class BattlesService {
     battleId: number,
     result: { winnerId?: number | null; reason?: string },
   ) {
+    console.log('[battle.finish] ENTER', battleId, result);
     const b = this.getBattle(battleId);
     b.status = 'finished';
     b.winnerId = typeof result.winnerId === 'number' ? result.winnerId : null;
@@ -269,40 +276,61 @@ export class BattlesService {
       this.histories.set(pid, list.slice(0, 200));
     }
     // 广播对局结束事件，方便 Gateway 推送最新 snapshot 与记录创建
+    console.log('[battle.finish] before emit', !!this.events);
     this.events?.emit('battle.finished', { battleId: b.id });
+    console.log('[battle.finish] after emit');
     return { battleId: b.id, ...result };
   }
 
   // 监听对局结束事件，自动创建云端记录（record）
   @OnEvent('battle.finished')
   async handleBattleFinished(payload: { battleId: number }) {
+    console.log(
+      '[battle.finished] creating records for battle',
+      payload.battleId,
+      'records exists =',
+      !!this.records,
+    );
     if (!this.records) return;
     const b = this.battles.get(payload.battleId);
     if (!b) return;
     // 目前只为双方玩家各落一份记录，后续可扩展观战者等
-    const resultMap = new Map<number, 'win' | 'lose' | 'draw'>();
-    for (const pid of b.players) {
-      let r: 'win' | 'lose' | 'draw' = 'draw';
-      if (b.winnerId && b.players.includes(b.winnerId)) {
-        r = pid === b.winnerId ? 'win' : 'lose';
-      }
-      resultMap.set(pid, r);
+    // 统一存储为棋方结果：'red' | 'black' | 'draw'
+    let gameResult: 'red' | 'black' | 'draw' = 'draw';
+    if (b.winnerId !== null && typeof b.winnerId !== 'undefined') {
+      if (b.players[0] === b.winnerId) gameResult = 'red';
+      else if (b.players[1] === b.winnerId) gameResult = 'black';
     }
+
+    // 将对局内存中的 moves 映射为 Record 模块可接受的结构
+    const movesPayload = b.moves.map((mv, idx) => ({
+      moveIndex: idx,
+      from: { x: mv.from.x, y: mv.from.y },
+      to: { x: mv.to.x, y: mv.to.y },
+      piece: {
+        side: mv.by === b.players[0] ? 'red' : 'black',
+      },
+    }));
     // 对每个玩家各写一条记录
     for (const pid of b.players) {
       const opponentId = b.players.find((id) => id !== pid) ?? null;
-      const result = resultMap.get(pid) ?? 'draw';
       try {
         await this.records.create(pid, {
           opponent: opponentId ? String(opponentId) : '对手',
           startedAt: new Date(b.createdAt).toISOString(),
           endedAt: new Date().toISOString(),
-          result,
+          result: gameResult,
           endReason: b.finishReason ?? 'other',
           keyTags: [],
+          moves: movesPayload,
+          bookmarks: [],
         } as any);
-      } catch {
-        // 记录失败不影响对战流程
+      } catch (e) {
+        console.error(
+          '[battle.finished] record create failed for user',
+          pid,
+          e,
+        );
       }
     }
   }
