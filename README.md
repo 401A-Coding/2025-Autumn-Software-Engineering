@@ -243,7 +243,19 @@ scripts/
 
 ## 四、项目现状
 
-所有目录均为空。
+- 仓库已包含前端（Vite + React + TS）、后端（NestJS + Prisma + JWT）、AI 子服务（FastAPI 骨架）与基础设施（Docker Compose）的基础代码与脚手架，可在本地启动开发环境。
+- 数据库统一为 PostgreSQL，本地通过 `infra/docker/docker-compose.yml` 启动；Prisma 模型与迁移已就绪（见 `backend/prisma/schema.prisma` 与 `backend/prisma/migrations/*`）。
+- 后端（NestJS + Prisma）：
+   - 已实现基于「手机号 + 密码」的注册与登录（JWT + 刷新令牌），`CORS` 放开本地 Vite 开发域（5173）。
+   - 模块已包含 `user`、`board`、`battle`、`record`、`metrics` 等；统一响应封装与异常处理已启用，路由与契约参考 `docs/API_SPEC.md` 与模块内 `controller/service`。
+   - 迁移记录完整，脚本支持快速启动与（开发环境）重置。
+- 前端（Vite + React + TypeScript）：
+   - 登录、注册已对接后端 `/user/login` 与 `/user/register`；登录后 `accessToken` 存入 `localStorage.token`，`/app/*` 路由由 `ProtectedRoute` 护航。
+   - 棋盘、对战、记录等功能组件与页面位于 `src/features/*`；统一 API 封装见 `src/services/api.ts` 与 `src/lib/http.ts`，后端基地址由 `VITE_API_BASE` 控制。
+- AI 子服务（FastAPI）：
+   - 目录结构与入口 `ai-service/app/main.py` 已就绪；目前为占位与演示用途，尚未与后端形成稳定 HTTP 契约与集成。
+- 运维与脚本：
+   - 提供 macOS 与 Windows 启动脚本：`scripts/start-all.*`、`start-backend.*`、`start-frontend.*`；后端环境变量集中在 `backend/prisma/.env`，前端 `.env` 使用 `VITE_API_BASE`。
 
 ## 五、开发规范
 
