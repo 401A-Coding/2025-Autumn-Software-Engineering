@@ -205,9 +205,10 @@ export function generateLegalMoves(board: Board, from: Pos, side: Side): Pos[] {
         }
         // 兵不后退
         if (piece.type === 'soldier') {
-            const dir = piece.side === 'red' ? -1 : 1
-            const dy = to.y - from.y
-            if (dy === -dir) return false // 后退
+                const dir = piece.side === 'red' ? -1 : 1
+                const dy = to.y - from.y
+                // 禁止任何反向（后退）移动：若 dy 与 forward 方向相反则为后退
+                if (dy * dir < 0) return false // 后退
             if (dy === 0 && Math.abs(to.x - from.x) !== 1) return false // 横移仅一步
             if (dy !== 0 && to.x !== from.x) return false // 纵向移动不横移
         }

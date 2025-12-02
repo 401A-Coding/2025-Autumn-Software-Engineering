@@ -5,6 +5,8 @@ import { createInitialBoard } from '../../features/chess/types'
 import type { CustomRuleSet, MovePattern } from '../../features/chess/ruleEngine'
 import { standardChessRules } from '../../features/chess/rulePresets'
 import { moveTemplates, getDefaultTemplateForPiece, type MoveTemplateType } from '../../features/chess/moveTemplates'
+import { boardStore } from '../../features/boards/boardStore'
+ 
 
 type EditorStep = 'choose-mode' | 'place-pieces' | 'select-piece' | 'edit-rules'
 type PlacementBoard = (Piece | null)[][]
@@ -17,6 +19,8 @@ type PlacementBoard = (Piece | null)[][]
  */
 export default function VisualRuleEditor() {
     const navigate = useNavigate()
+
+    // 模板由独立页面管理；编辑器顶部提供快速跳转
 
     // 三步流程状态
     const [currentStep, setCurrentStep] = useState<EditorStep>('choose-mode')
@@ -145,6 +149,9 @@ export default function VisualRuleEditor() {
             setCurrentStep('edit-rules')
             // 加载该棋子的默认模板（并按阵营显示）
             const defTpl = getDefaultTemplateForPiece(piece.type)
+            // 清除之前保留的模板选择，避免遗留模板（如直线无限）影响当前棋子
+            setSelectedTemplatesPre(new Set())
+            setSelectedTemplatesPost(new Set())
             // 立即以被点击的棋子类型/阵营为准计算 displayBase，避免 state 更新延迟导致显示错误
             const displayBase: Side = piece.type === 'soldier' ? 'red' : piece.side
             applyTemplateToBoard(defTpl, displayBase)
@@ -337,7 +344,8 @@ export default function VisualRuleEditor() {
                             return { x: x / g, y: y / g }
                         }
                         const tplNorm = getNorm(dx, dy)
-                        let selectionIndicatesRepeat = false
+                        // 统计在相同归一方向上被选中的格子数（包括当前格）
+                        let selectedStepsCount = 1
                         for (const otherKey of cells) {
                             if (otherKey === cellKey) continue
                             const [orow, ocol] = otherKey.split('-').map(Number)
@@ -345,19 +353,25 @@ export default function VisualRuleEditor() {
                             const ovisualDy = orow - centerRow
                             const ody = editingSide === 'red' ? -ovisualDy : ovisualDy
                             const onorm = getNorm(odx, ody)
-                            if (onorm.x === tplNorm.x && onorm.y === tplNorm.y) { selectionIndicatesRepeat = true; break }
+                            if (onorm.x === tplNorm.x && onorm.y === tplNorm.y) { selectedStepsCount++ }
                         }
 
                         const tplRepeat = tplPat.repeat ?? false
-                        const effectiveRepeat = selectionIndicatesRepeat || tplRepeat || isRepeatable
+                        // 只有模板自身或全局 isRepeatable 才会产生无限 repeat
+                        const effectiveRepeat = tplRepeat || isRepeatable
+
+                        // moveType（编辑器全局选择）应优先于模板的 moveOnly/captureOnly
+                        const moveOnlyVal = moveType === 'move' ? true : moveType === 'capture' ? false : (tplPat.moveOnly ?? false)
+                        const captureOnlyVal = moveType === 'capture' ? true : moveType === 'move' ? false : (tplPat.captureOnly ?? false)
 
                         const base: MovePattern = {
                             dx,
                             dy,
                             repeat: effectiveRepeat,
-                            maxSteps: effectiveRepeat ? 0 : 1,
-                            moveOnly: tplPat.moveOnly ?? (moveType === 'move'),
-                            captureOnly: tplPat.captureOnly ?? (moveType === 'capture'),
+                            // 若为无限 repeat 则 maxSteps=0，否则使用用户选中的步数（若用户选了多格则放行为多步），默认 1
+                            maxSteps: effectiveRepeat ? 0 : (selectedStepsCount > 1 ? selectedStepsCount : 1),
+                            moveOnly: moveOnlyVal,
+                            captureOnly: captureOnlyVal,
                             conditions: tplPat.conditions ? [...tplPat.conditions] : undefined,
                         }
 
@@ -383,7 +397,8 @@ export default function VisualRuleEditor() {
 
                         // 如果启用了“炮型吃子”选项，并且此 pattern 允许吃子（不是纯移动），
                         // 则为该方向添加一个额外的炮式吃子 pattern（只在直线方向有意义）。
-                        if (cannonEnabled && !(tplPat.moveOnly === true)) {
+                        const tplAllowsCapture = !(moveOnlyVal === true)
+                        if (cannonEnabled && tplAllowsCapture) {
                             // 仅在直线方向添加炮吃子行为（dx===0 || dy===0）
                             if (dx === 0 || dy === 0 || Math.abs(dx) === Math.abs(dy)) {
                                 // 不重复添加已有的 obstacleCount 条件
@@ -498,6 +513,19 @@ export default function VisualRuleEditor() {
         setSelectedCellPatternsPre({})
         setSelectedCellPatternsPost({})
         setCurrentStep('select-piece')
+    }
+
+    // 保存当前布局+规则为模板
+    const handleSaveTemplate = () => {
+        try {
+            const name = window.prompt('为模板输入一个名称：', `模板 ${new Date().toLocaleString()}`)
+            if (!name) return
+            const saved = boardStore.saveNew({ name, board: placementBoard, ruleSet })
+            alert(`已保存模板：${saved.name}`)
+        } catch (e) {
+            console.error('保存模板失败', e)
+            alert('保存模板失败，请查看控制台')
+        }
     }
 
     // 保存并开始对局
@@ -872,6 +900,7 @@ export default function VisualRuleEditor() {
                     >
                         ✅ 保存此棋子规则
                     </button>
+                    
                     <button
                         onClick={() => editingRiverView === 'pre' ? setSelectedCellsPre(new Set()) : setSelectedCellsPost(new Set())}
                         className="btn-lg btn-lg--amber text-14"
@@ -893,8 +922,19 @@ export default function VisualRuleEditor() {
         )
     }
 
+    // 模板管理已移至独立页面：/app/templates
+
     return (
         <div className="minh-100vh bg-editor-gradient pt-16 pb-32">
+            <div className="pad-12 card-surface mb-12 mw-960 mx-auto">
+                <div className="row-between">
+                    <div className="fw-700">模板</div>
+                    <div className="row gap-8">
+                        <button className="btn-ghost btn-compact" onClick={() => navigate('/app/templates')}>管理模板</button>
+                        <button className="btn-ghost btn-compact" onClick={handleSaveTemplate}>保存为模板</button>
+                    </div>
+                </div>
+            </div>
             {currentStep === 'choose-mode' && renderChooseModeStep()}
             {currentStep === 'place-pieces' && renderPlacementStep()}
             {currentStep === 'select-piece' && renderSelectPieceStep()}

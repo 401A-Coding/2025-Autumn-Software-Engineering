@@ -1,8 +1,10 @@
-import { useEffect, useState } from 'react'
+﻿import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Board from '../../features/chess/Board'
 import type { CustomRuleSet } from '../../features/chess/ruleEngine'
 import { standardChessRules } from '../../features/chess/rulePresets'
+import { recordStore } from '../../features/records/recordStore'
+import type { MoveRecord, ChessRecord } from '../../features/records/types'
 
 export default function CustomBattle() {
     const navigate = useNavigate()
@@ -53,6 +55,28 @@ export default function CustomBattle() {
             }
         }
     }, [])
+
+    // 用于保存对局的临时记录
+    const [moves, setMoves] = useState<MoveRecord[]>([])
+    const [startedAt] = useState<string>(new Date().toISOString())
+
+    const persistRecord = (result?: 'red' | 'black' | 'draw') => {
+        console.log('persistRecord called, moves:', moves.length)
+        const rec: Omit<ChessRecord, 'id'> = {
+            startedAt,
+            endedAt: new Date().toISOString(),
+            opponent: '本地',
+            result,
+            keyTags: [],
+            favorite: false,
+            moves,
+            bookmarks: [],
+            notes: [],
+        }
+        recordStore.saveNew(rec)
+        // 给用户轻提示
+        try { alert('对局已保存到本地记录') } catch { /* ignore */ }
+    }
 
     const handleBackToHome = () => {
         // 在离开对局时清理本地的自定义设置，避免下一次进入时保留上次修改
@@ -105,7 +129,12 @@ export default function CustomBattle() {
             <div className="row gap-16 align-start wrap">
                 <div className="board-area">
                     <div className="board-area__inner">
-                        <Board customRules={ruleSet} initialBoard={customBoard} />
+                        <Board
+                            customRules={ruleSet}
+                            initialBoard={customBoard}
+                            onMove={(m) => setMoves(prev => [...prev, m])}
+                            onGameOver={(winner) => persistRecord(winner || undefined)}
+                        />
                     </div>
                 </div>
 
@@ -145,8 +174,10 @@ export default function CustomBattle() {
             {/* 操作栏 */}
             <div className="row justify-center gap-12 mt-16">
                 <button className="btn-ghost btn-compact" onClick={() => window.location.reload()}>重新开始</button>
+                <button className="btn-secondary btn-compact" onClick={() => persistRecord()}>💾 保存对局</button>
                 <button className="btn-primary btn-compact" onClick={handleBackToHome}>返回首页</button>
             </div>
+            <div className="text-center text-12 muted mt-8">动作数: {moves.length}</div>
         </div>
     )
 }
