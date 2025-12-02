@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import BoardViewer from '../../features/chess/BoardViewer'
 import { recordStore } from '../../features/records/recordStore'
 import type { ChessRecord, Bookmark } from '../../features/records/types'
+// 书签即评论，统一用 bookmarks 展示
 import './app-pages.css'
 
 export default function RecordReplay() {
@@ -36,6 +37,10 @@ export default function RecordReplay() {
             })()
     }, [id])
 
+    function jumpToBookmarkStep(bm: Bookmark) {
+        setStep(Math.max(0, Math.min(bm.step, total)))
+    }
+
     // 自动播放（保持 hooks 顺序稳定）
     useEffect(() => {
         if (!isPlaying) return
@@ -68,7 +73,7 @@ export default function RecordReplay() {
     let titleClass = 'replay-title--draw'
     if (result === 'red') { titleText = '红方胜'; titleClass = 'replay-title--red' }
     else if (result === 'black') { titleText = '黑方胜'; titleClass = 'replay-title--black' }
-    else if (!result) { titleText = '进行中'; titleClass = 'replay-title--ongoing' }
+    else if (!result || (record as any)?.result === 'unfinished') { titleText = '未结束'; titleClass = 'replay-title--ongoing' }
 
     return (
         <div>
@@ -78,6 +83,14 @@ export default function RecordReplay() {
                 <div className="muted text-13">
                     开始：{new Date(record.startedAt).toLocaleString()} · 结束：{record.endedAt ? new Date(record.endedAt).toLocaleString() : '—'}
                 </div>
+
+                {/* 未结束时提供选择操作 */}
+                {(!record.result || (record as any).result === 'unfinished') && (
+                    <div className="mt-12 row-start gap-8">
+                        <button className="btn-primary" onClick={() => {/* 回顾对局：保持当前复盘视图 */ }}>回顾对局</button>
+                        <button className="btn-ghost" onClick={() => {/* 继续对战：占位，后续实现跳转或恢复对局 */ }}>继续对战</button>
+                    </div>
+                )}
 
                 <div className="mt-12">
                     <BoardViewer moves={record.moves} step={step} />
@@ -110,7 +123,7 @@ export default function RecordReplay() {
 
                 {/* 已有书签 */}
                 <div className="mt-16">
-                    <strong>书签：</strong>
+                    <strong>书签 / 评论：</strong>
                     {!(record.bookmarks && record.bookmarks.length) ? (
                         <span className="muted"> 无</span>
                     ) : (
@@ -119,8 +132,12 @@ export default function RecordReplay() {
                                 <div key={b.id} className="paper-card pad-4-8 inline-flex align-center gap-6">
                                     <button
                                         className="btn-ghost btn-xs"
-                                        onClick={() => setStep(b.step)}
+                                        onClick={() => jumpToBookmarkStep(b)}
+                                        title={b.note ? b.note : undefined}
                                     >步 {b.step}{b.label ? ' · ' + b.label : ''}</button>
+                                    {b.note && (
+                                        <span className="text-12 muted">{b.note}</span>
+                                    )}
                                     <button
                                         className="btn-ghost btn-xs"
                                         title="编辑"
@@ -145,6 +162,8 @@ export default function RecordReplay() {
                         </div>
                     )}
                 </div>
+
+                {/* 评论与书签合并展示，见上方书签列表 */}
 
                 <div className="mt-24">
                     <button className="btn-ghost" onClick={() => navigate('/app/history')}>返回列表</button>
@@ -190,9 +209,9 @@ export default function RecordReplay() {
                                     onClick={async () => {
                                         const trimmed = bmLabel.trim()
                                         if (editingBm) {
-                                            await recordStore.updateBookmark(record.id, editingBm.id, trimmed ? trimmed : undefined)
+                                            await recordStore.updateBookmark(record.id, editingBm.id, trimmed ? trimmed : undefined, bmLabel ? bmLabel : undefined)
                                         } else {
-                                            await recordStore.addBookmark(record.id, step, trimmed ? trimmed : undefined)
+                                            await recordStore.addBookmark(record.id, step, trimmed ? trimmed : undefined, bmLabel ? bmLabel : undefined)
                                         }
                                         const updated = await recordStore.get(record.id)
                                         if (updated) setRecord(updated)

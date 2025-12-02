@@ -29,7 +29,7 @@ type CreateBookmarkInput = {
 
 @Injectable()
 export class RecordService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   async create(userId: number, dto: CreateRecordDto) {
     // 基础校验（放宽 result / endReason；moves 可为空）
@@ -110,7 +110,7 @@ export class RecordService {
 
   async findAll() {
     // Basic list, newest first. Can be extended to paginate/filter later.
-    return this.prisma.record.findMany({
+    const items = await this.prisma.record.findMany({
       orderBy: { createdAt: 'desc' },
       include: {
         owner: { select: { id: true, username: true, avatarUrl: true } },
@@ -118,6 +118,11 @@ export class RecordService {
         shares: true,
       },
     });
+    // Normalize ongoing records: treat 'unknown' as 'unfinished' for UI
+    return items.map((r: any) => ({
+      ...r,
+      result: r.result === 'unknown' ? 'unfinished' : r.result,
+    }));
   }
 
   async findAllPaginated(
@@ -133,7 +138,7 @@ export class RecordService {
     if (favorite === true) where.favorites = { some: { userId } };
     if (favorite === false) where.favorites = { none: { userId } };
     if (result) where.result = result;
-    const [items, total] = await Promise.all([
+    const [rawItems, total] = await Promise.all([
       this.prisma.record.findMany({
         where,
         orderBy: { createdAt: 'desc' },
@@ -147,6 +152,10 @@ export class RecordService {
       }),
       this.prisma.record.count({ where }),
     ]);
+    const items = rawItems.map((r: any) => ({
+      ...r,
+      result: r.result === 'unknown' ? 'unfinished' : r.result,
+    }));
     return { items, page: Math.max(page, 1), pageSize: take, total };
   }
 
@@ -168,7 +177,7 @@ export class RecordService {
       },
     });
     if (!record) throw new NotFoundException('Record not found');
-    return record;
+    return { ...record, result: (record as any).result === 'unknown' ? 'unfinished' : (record as any).result } as any;
   }
 
   async remove(userId: number, id: number) {
@@ -301,11 +310,9 @@ export class RecordService {
       );
     if (!Number.isInteger(step) || step < 0)
       throw new BadRequestException('Invalid step');
-    const moveExists = await this.prisma.move.findUnique({
-      where: { recordId_moveIndex: { recordId: id, moveIndex: step } },
-      select: { id: true },
-    });
-    if (!moveExists) throw new NotFoundException('Move step not found');
+    // Allow bookmarking the final position: step can equal moves.length
+    const movesCount = await this.prisma.move.count({ where: { recordId: id } });
+    if (step < 0 || step > movesCount) throw new BadRequestException('Invalid step');
     // Upsert to avoid duplicate error on unique(recordId, step)
     return this.prisma.bookmark.upsert({
       where: { recordId_step: { recordId: id, step } },
