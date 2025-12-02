@@ -5,6 +5,8 @@ export type SavedBoard = {
     createdAt: string
     board: any
     ruleSet?: any
+    // optional server id if this template has been uploaded
+    serverId?: number
 }
 
 const KEY = 'saved.boards.v1'
