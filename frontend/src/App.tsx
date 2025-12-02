@@ -13,6 +13,7 @@ import LocalPlay from './pages/app/LocalPlay.tsx'
 import CustomRuleEditor from './pages/app/CustomRuleEditor.tsx'
 import CustomBattle from './pages/app/CustomBattle.tsx'
 import VisualRuleEditor from './pages/app/VisualRuleEditor.tsx'
+import TemplateManager from './pages/app/TemplateManager.tsx'
 import LiveBattle from './pages/app/LiveBattle.tsx'
 import RecordReplay from './pages/app/RecordReplay.tsx'
 
@@ -30,6 +31,7 @@ function App() {
           <Route path="play" element={<LocalPlay />} />
           <Route path="custom-editor" element={<CustomRuleEditor />} />
           <Route path="visual-editor" element={<VisualRuleEditor />} />
+          <Route path="templates" element={<TemplateManager />} />
           <Route path="custom-battle" element={<CustomBattle />} />
           <Route path="fun" element={<Fun />} />
           <Route path="history" element={<History />} />
