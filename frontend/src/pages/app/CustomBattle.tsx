@@ -1,8 +1,11 @@
 ﻿import { useEffect, useState } from 'react'
+import { useLocation } from 'react-router-dom'
 import { useNavigate } from 'react-router-dom'
 import Board from '../../features/chess/Board'
 import type { CustomRuleSet } from '../../features/chess/ruleEngine'
 import { standardChessRules } from '../../features/chess/rulePresets'
+import { recordsApi, boardApi } from '../../services/api'
+import { apiBoardToLocalFormat } from '../../features/chess/boardAdapter'
 import { recordStore } from '../../features/records/recordStore'
 import type { MoveRecord, ChessRecord } from '../../features/records/types'
 
@@ -11,56 +14,50 @@ export default function CustomBattle() {
     const [ruleSet, setRuleSet] = useState<CustomRuleSet | null>(null)
     const [customBoard, setCustomBoard] = useState<any>(null)
 
+    const location: any = useLocation()
     useEffect(() => {
-        // 从 localStorage 加载自定义规则
-        const savedRules = localStorage.getItem('customRuleSet')
-        if (savedRules) {
+        const state = location?.state || {}
+        // 优先使用路由 state 传入的布局与规则（来自模板管理或编辑器）
+        if (state.rules) {
             try {
-                const loadedRules = JSON.parse(savedRules) as CustomRuleSet
-                // 深度合并每个棋子的规则：以标准规则为基础，逐个棋子合并用户配置，
-                // 这样可以确保像炮的 captureRules.capturePattern 等子字段不会被整块覆盖而丢失。
-                const mergedPieceRules: CustomRuleSet['pieceRules'] = { ...standardChessRules.pieceRules }
-                if (loadedRules.pieceRules) {
-                    for (const [ptype, prule] of Object.entries(loadedRules.pieceRules)) {
-                        const std = standardChessRules.pieceRules[ptype as keyof typeof standardChessRules.pieceRules]
-                        mergedPieceRules[ptype as keyof typeof mergedPieceRules] = {
-                            // 若标准存在，先拷贝标准的字段
-                            ...(std || {}),
-                            // 再在同层级覆盖用户提供的字段
-                            ...(prule || {}),
-                        } as any
-                    }
-                }
-                const mergedRules: CustomRuleSet = {
-                    ...loadedRules,
-                    pieceRules: mergedPieceRules,
-                }
-                setRuleSet(mergedRules)
+                setRuleSet(state.rules as CustomRuleSet)
             } catch (e) {
-                console.error('Failed to load custom rules:', e)
+                console.error('Invalid rules in navigation state', e)
                 setRuleSet(standardChessRules)
             }
         } else {
             setRuleSet(standardChessRules)
         }
 
-        // 从 localStorage 加载自定义棋盘布局
-        const savedBoard = localStorage.getItem('placementBoard')
-        if (savedBoard) {
-            try {
-                const loadedBoard = JSON.parse(savedBoard)
-                setCustomBoard(loadedBoard)
-            } catch (e) {
-                console.error('Failed to load custom board:', e)
+        if (state.layout) {
+            setCustomBoard(state.layout)
+            return
+        }
+
+        // 如果没有通过路由 state 提供布局，尝试从查询参数读取 boardId 并从后端拉取
+        const params = new URLSearchParams(location.search || '')
+        const boardIdStr = params.get('boardId')
+        if (boardIdStr) {
+            const id = Number(boardIdStr)
+            if (!Number.isNaN(id)) {
+                ;(async () => {
+                    try {
+                        const apiBoard = await boardApi.get(id)
+                        // 将 API 格式转换为本地二维数组
+                        setCustomBoard(apiBoardToLocalFormat(apiBoard as any))
+                    } catch (e) {
+                        console.error('Failed to load board from server', e)
+                    }
+                })()
             }
         }
-    }, [])
+    }, [location])
 
     // 用于保存对局的临时记录
     const [moves, setMoves] = useState<MoveRecord[]>([])
     const [startedAt] = useState<string>(new Date().toISOString())
 
-    const persistRecord = (result?: 'red' | 'black' | 'draw') => {
+    const persistRecord = async (result?: 'red' | 'black' | 'draw') => {
         console.log('persistRecord called, moves:', moves.length)
         const rec: Omit<ChessRecord, 'id'> = {
             startedAt,
@@ -73,22 +70,30 @@ export default function CustomBattle() {
             bookmarks: [],
             notes: [],
         }
-        recordStore.saveNew(rec)
-        // 给用户轻提示
-        try { alert('对局已保存到本地记录') } catch { /* ignore */ }
+
+        try {
+            // Use recordStore.saveNew which will attempt server save if token exists,
+            // otherwise fall back to local-only saving. This centralizes save logic and
+            // avoids direct 401 errors from calling recordsApi.create here.
+            const { record, savedToServer } = await recordStore.saveNew(rec)
+            if (savedToServer) {
+                alert('对局已保存到服务器')
+            } else {
+                alert('对局已保存在本地（未登录或服务器不可用）')
+            }
+        } catch (e) {
+            console.error('failed to save record', e)
+            alert('保存对局失败，请查看控制台')
+        }
     }
 
     const handleBackToHome = () => {
-        // 在离开对局时清理本地的自定义设置，避免下一次进入时保留上次修改
-        localStorage.removeItem('customRuleSet')
-        localStorage.removeItem('placementBoard')
+        // 直接返回主页（不再清理 localStorage，因为不再使用）
         navigate('/app/home')
     }
 
     const handleEndGame = () => {
-        // 清除自定义规则和棋盘配置
-        localStorage.removeItem('customRuleSet')
-        localStorage.removeItem('placementBoard')
+        // 直接返回主页
         navigate('/app/home')
     }
 
