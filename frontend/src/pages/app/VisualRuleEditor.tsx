@@ -1,11 +1,11 @@
 import { useState } from 'react'
+import { useLocation } from 'react-router-dom'
 import { useNavigate } from 'react-router-dom'
 import type { PieceType, Piece, Side } from '../../features/chess/types'
 import { createInitialBoard } from '../../features/chess/types'
 import type { CustomRuleSet, MovePattern } from '../../features/chess/ruleEngine'
 import { standardChessRules } from '../../features/chess/rulePresets'
 import { moveTemplates, getDefaultTemplateForPiece, type MoveTemplateType } from '../../features/chess/moveTemplates'
-import { boardStore } from '../../features/boards/boardStore'
  
 
 type EditorStep = 'choose-mode' | 'place-pieces' | 'select-piece' | 'edit-rules'
@@ -26,17 +26,17 @@ export default function VisualRuleEditor() {
     const [currentStep, setCurrentStep] = useState<EditorStep>('choose-mode')
 
     // 步骤1: 摆放棋子
+    const location = useLocation()
+    const stateAny: any = (location && (location as any).state) || {}
     const [placementBoard, setPlacementBoard] = useState<PlacementBoard>(() => {
-        // 尝试从 localStorage 加载自定义棋盘
-        const savedBoard = localStorage.getItem('placementBoard')
-        if (savedBoard) {
+        // 不再使用 localStorage 持久化；优先使用路由 state 的布局（由模板管理导入），否则使用初始棋盘
+        if (stateAny.layout) {
             try {
-                return JSON.parse(savedBoard)
+                return stateAny.layout as PlacementBoard
             } catch (e) {
-                console.error('Failed to load saved board:', e)
+                console.error('Invalid layout in navigation state', e)
             }
         }
-        // 如果没有保存的棋盘, 使用标准象棋初始棋盘进行摆放
         return createInitialBoard()
     })
     const [selectedPieceType, setSelectedPieceType] = useState<{ type: PieceType; side: Side } | null>(null)
@@ -47,14 +47,12 @@ export default function VisualRuleEditor() {
 
     // 步骤3: 规则编辑
     const [ruleSet, setRuleSet] = useState<CustomRuleSet>(() => {
-        const savedRules = localStorage.getItem('customRuleSet')
-        if (savedRules) {
+        // 不再使用 localStorage 持久化；优先使用路由 state 中传入的 rules（由模板管理导入）
+        if (stateAny.rules) {
             try {
-                // 不再与 standardChessRules 合并 — 如果用户已保存规则，则保持原样加载
-                const loadedRules = JSON.parse(savedRules) as CustomRuleSet
-                return loadedRules
+                return stateAny.rules as CustomRuleSet
             } catch (e) {
-                console.error('Failed to load saved rules:', e)
+                console.error('Invalid rules in navigation state', e)
             }
         }
         return standardChessRules
@@ -504,8 +502,6 @@ export default function VisualRuleEditor() {
         }
 
         setRuleSet(updatedRuleSet)
-        // 保存到 localStorage
-        localStorage.setItem('customRuleSet', JSON.stringify(updatedRuleSet))
 
         // 返回选择棋子界面,清空当前选择（清空 pre/post 两侧）
         setSelectedCellsPre(new Set())
@@ -516,12 +512,24 @@ export default function VisualRuleEditor() {
     }
 
     // 保存当前布局+规则为模板
-    const handleSaveTemplate = () => {
+    const handleSaveTemplate = async () => {
         try {
             const name = window.prompt('为模板输入一个名称：', `模板 ${new Date().toLocaleString()}`)
             if (!name) return
-            const saved = boardStore.saveNew({ name, board: placementBoard, ruleSet })
-            alert(`已保存模板：${saved.name}`)
+            // 通过后端保存模板（不再在前端本地保存）
+            const { boardToApiFormat } = await import('../../features/chess/boardAdapter')
+            const { boardApi } = await import('../../services/api')
+            const payload = boardToApiFormat(placementBoard, name, '')
+            // 标记为模板（后端端点会接受 rules 字段）
+            // @ts-ignore
+            payload.rules = ruleSet
+            try {
+                const res = await boardApi.create(payload as any)
+                alert(`已上传模板到服务器，ID: ${(res as any).boardId}`)
+            } catch (e: any) {
+                console.error('保存到服务器失败', e)
+                alert(`保存到服务器失败：${e?.message || e}`)
+            }
         } catch (e) {
             console.error('保存模板失败', e)
             alert('保存模板失败，请查看控制台')
@@ -530,8 +538,8 @@ export default function VisualRuleEditor() {
 
     // 保存并开始对局
     const handleSaveAndStart = () => {
-        localStorage.setItem('customRuleSet', JSON.stringify(ruleSet))
-        navigate('/app/custom-battle')
+        // 不再将规则写入 localStorage，改为通过路由 state 传递给 CustomBattle
+        navigate('/app/custom-battle', { state: { layout: placementBoard, rules: ruleSet } })
     }
 
     // 处理规则编辑棋盘点击（根据当前编辑视图 pre/post 更新对应集合）
@@ -627,8 +635,7 @@ export default function VisualRuleEditor() {
                 <div className="row gap-12">
                     <button
                         onClick={() => {
-                            localStorage.removeItem('customRuleSet')
-                            localStorage.removeItem('placementBoard')
+                            // 不再使用 localStorage 清理；直接返回主页
                             navigate('/app/home')
                         }}
                         className="btn-lg btn-lg--slate flex-1"
@@ -637,8 +644,7 @@ export default function VisualRuleEditor() {
                     </button>
                     <button
                         onClick={() => {
-                            // 保存棋盘布局到localStorage
-                            localStorage.setItem('placementBoard', JSON.stringify(placementBoard))
+                            // 不再持久化到 localStorage，直接进入下一步
                             setCurrentStep('select-piece')
                         }}
                         className="btn-lg btn-lg--blue flex-2"
@@ -732,11 +738,7 @@ export default function VisualRuleEditor() {
                     </button>
 
                     <button
-                        onClick={() => {
-                            localStorage.removeItem('customRuleSet')
-                            localStorage.removeItem('placementBoard')
-                            navigate('/app/home')
-                        }}
+                        onClick={() => navigate('/app/home')}
                         className="btn-lg btn-lg--slate mt-16"
                     >
                         返回主页

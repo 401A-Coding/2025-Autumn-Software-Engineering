@@ -8,28 +8,8 @@ import { moveTemplates, getDefaultTemplateForPiece, type MoveTemplateType } from
 export default function CustomRuleEditor() {
     const navigate = useNavigate()
 
-    // 初始化时尝试从 localStorage 加载规则
-    const getInitialRuleSet = (): CustomRuleSet => {
-        const savedRules = localStorage.getItem('customRuleSet')
-        if (savedRules) {
-            try {
-                const loadedRules = JSON.parse(savedRules) as CustomRuleSet
-                // 合并标准规则，确保所有棋子都有规则定义
-                return {
-                    ...loadedRules,
-                    pieceRules: {
-                        ...standardChessRules.pieceRules,
-                        ...loadedRules.pieceRules,
-                    },
-                }
-            } catch (e) {
-                console.error('Failed to load saved rules:', e)
-            }
-        }
-        return standardChessRules
-    }
-
-    const [ruleSet, setRuleSet] = useState<CustomRuleSet>(getInitialRuleSet())
+    // 不再从 localStorage 加载规则；使用内存状态，默认标准规则
+    const [ruleSet, setRuleSet] = useState<CustomRuleSet>(standardChessRules)
     const [selectedPiece, setSelectedPiece] = useState<PieceType>('rook')
     const [selectedTemplate, setSelectedTemplate] = useState<MoveTemplateType>('line-unlimited')
 
@@ -145,9 +125,8 @@ export default function CustomRuleEditor() {
     }
 
     const handleStartGame = () => {
-        // 保存规则集到 localStorage 并跳转到对战页面
-        localStorage.setItem('customRuleSet', JSON.stringify(ruleSet))
-        navigate('/app/custom-battle')
+        // 通过路由 state 传递规则到对局页面（不在前端持久化）
+        navigate('/app/custom-battle', { state: { rules: ruleSet } })
     }
 
     const currentRule = ruleSet.pieceRules[selectedPiece]
