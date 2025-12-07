@@ -1027,7 +1027,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiResponseRecordPrefs"
-    # Community posts (replaces legacy 'shares' concept)
+
   /api/v1/community/posts:
     get:
       tags: [Community]
