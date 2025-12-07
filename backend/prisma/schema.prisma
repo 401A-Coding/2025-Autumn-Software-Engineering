@@ -33,6 +33,12 @@ model User {
   recordFavorites       RecordFavorite[]
   recordShares          RecordShare[]
   userRecordPreferences UserRecordPreference[]
+  posts                 Post[]
+  communityComments     CommunityComment[]
+  postLikes             PostLike[]
+  postBookmarks         PostBookmark[]
+  reports               Report[]
+  moderatorActions      ModeratorAction[]
 }
 
 enum Role {
@@ -168,4 +174,150 @@ model UserRecordPreference {
   retentionLimit   Int      @default(200) // 最大保留记录条数
   autoCleanEnabled Boolean  @default(true) // 是否自动清理非收藏记录
   updatedAt        DateTime @updatedAt
+}
+
+// ---- Community models (posts, comments, likes, bookmarks, reports) ----
+
+enum PostStatus {
+  DRAFT
+  PUBLISHED
+  REMOVED
+}
+
+enum ShareType {
+  NONE
+  RECORD
+  BOARD
+  CLIP
+}
+
+model Post {
+  id          Int                @id @default(autoincrement())
+  authorId    Int
+  author      User               @relation(fields: [authorId], references: [id])
+  title       String?
+  content     String
+  status      PostStatus         @default(PUBLISHED)
+  shareType   ShareType          @default(NONE)
+  shareRefId  Int? // 引用的 record.id / board.id / clip id
+  shareSnap   Json? // 快照，保存必要元信息以防原资源被删除
+  attachments PostAttachment[]
+  tags        PostTag[]
+  comments    CommunityComment[]
+  likes       PostLike[]
+  bookmarks   PostBookmark[]
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  @@index([authorId])
+  @@index([createdAt])
+}
+
+model PostAttachment {
+  id        Int      @id @default(autoincrement())
+  postId    Int
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  url       String
+  mimeType  String?
+  width     Int?
+  height    Int?
+  size      Int? // bytes
+  createdAt DateTime @default(now())
+
+  @@index([postId])
+}
+
+model Tag {
+  id    Int       @id @default(autoincrement())
+  name  String    @unique
+  posts PostTag[]
+}
+
+model PostTag {
+  id     Int  @id @default(autoincrement())
+  postId Int
+  tagId  Int
+  post   Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  tag    Tag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, tagId])
+  @@index([tagId])
+}
+
+model CommunityComment {
+  id        Int                @id @default(autoincrement())
+  postId    Int
+  post      Post               @relation(fields: [postId], references: [id], onDelete: Cascade)
+  authorId  Int?
+  author    User?              @relation(fields: [authorId], references: [id])
+  parentId  Int? // 支持回复
+  parent    CommunityComment?  @relation("CommentReplies", fields: [parentId], references: [id])
+  replies   CommunityComment[] @relation("CommentReplies")
+  content   String
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+
+  @@index([postId])
+  @@index([authorId])
+}
+
+model PostLike {
+  id        Int      @id @default(autoincrement())
+  postId    Int
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@unique([postId, userId])
+  @@index([userId])
+}
+
+model PostBookmark {
+  id        Int      @id @default(autoincrement())
+  postId    Int
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@unique([postId, userId])
+  @@index([userId])
+}
+
+enum ReportTargetType {
+  POST
+  COMMENT
+  RECORD
+}
+
+model Report {
+  id         Int              @id @default(autoincrement())
+  reporterId Int
+  reporter   User             @relation(fields: [reporterId], references: [id])
+  targetType ReportTargetType
+  targetId   Int
+  reason     String
+  details    String?
+  status     String           @default("open")
+  createdAt  DateTime         @default(now())
+  resolvedBy Int?
+  resolvedAt DateTime?
+
+  @@index([reporterId])
+  @@index([targetType, targetId])
+}
+
+model ModeratorAction {
+  id          Int      @id @default(autoincrement())
+  moderatorId Int
+  moderator   User     @relation(fields: [moderatorId], references: [id])
+  actionType  String // remove|warn|ban|restore
+  targetType  String
+  targetId    Int
+  reason      String?
+  metadata    Json?
+  createdAt   DateTime @default(now())
+
+  @@index([moderatorId])
 }
