@@ -1027,120 +1027,317 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiResponseRecordPrefs"
-
-  /api/v1/community/shares:
-    get:
-      tags: [Community]
-      summary: Community feed
-      operationId: communityShares
-      parameters:
-        - in: query
-          name: page
-          schema: { type: integer, default: 1 }
-        - in: query
-          name: pageSize
-          schema: { type: integer, default: 20 }
-      responses:
-        "200":
-          description: Feed page
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiResponsePageCommunityShares"
-  /api/v1/community/shares/{id}/like:
-    post:
-      tags: [Community]
-      summary: Like a share
-      operationId: communityLike
-      security:
-        - bearerAuth: []
-      parameters:
-        - in: path
-          name: id
+    # Community posts (replaces legacy 'shares' concept)
+    /api/v1/community/posts:
+      get:
+        tags: [Community]
+        summary: List community posts (feed)
+        operationId: communityPostsList
+        parameters:
+          - in: query
+            name: page
+            schema: { type: integer, default: 1 }
+          - in: query
+            name: pageSize
+            schema: { type: integer, default: 20 }
+          - in: query
+            name: q
+            description: Full-text query
+            schema: { type: string }
+          - in: query
+            name: tag
+            schema: { type: string }
+          - in: query
+            name: type
+            description: Filter by share type (record|board|clip|none)
+            schema: { type: string }
+          - in: query
+            name: authorId
+            schema: { type: integer }
+          - in: query
+            name: sort
+            description: Sort by 'new' or 'hot'
+            schema: { type: string, default: new }
+        responses:
+          "200":
+            description: Posts page
+            content:
+              application/json:
+                schema:
+                  $ref: "#/components/schemas/ApiResponsePagePosts"
+      post:
+        tags: [Community]
+        summary: Create a post
+        operationId: communityPostsCreate
+        security:
+          - bearerAuth: []
+        requestBody:
           required: true
-          schema: { type: integer }
-      responses:
-        "200":
-          description: OK
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ApiResponseOk"
-    delete:
-      tags: [Community]
-      summary: Unlike a share
-      operationId: communityUnlike
-      security:
-        - bearerAuth: []
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema: { type: integer }
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiResponseOk"
-  /api/v1/community/reports:
-    post:
-      tags: [Community]
-      summary: Report content
-      operationId: communityReport
-      security:
-        - bearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/ReportRequest"
-      responses:
-        "200":
-          description: Accepted
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiResponseReportResult"
-  /api/v1/community/search:
-    get:
-      tags: [Community]
-      summary: Search records
-      operationId: communitySearch
-      parameters:
-        - in: query
-          name: q
-          schema: { type: string }
-        - in: query
-          name: tag
-          schema: { type: string }
-        - in: query
-          name: page
-          schema: { type: integer, default: 1 }
-        - in: query
-          name: pageSize
-          schema: { type: integer, default: 10 }
-      responses:
-        "200":
-          description: Search result
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiResponsePageSearchResults"
+                $ref: "#/components/schemas/PostCreateRequest"
+        responses:
+          "200":
+            description: Created
+            content:
+              application/json:
+                schema:
+                  $ref: "#/components/schemas/ApiResponsePostCreateResult"
 
-components:
-  securitySchemes:
-    bearerAuth:
-      type: http
-      scheme: bearer
-      bearerFormat: JWT
-  schemas:
-    ApiResponseAuthTokens:
-      type: object
-      properties:
-        code:
+    /api/v1/community/posts/{postId}:
+      get:
+        tags: [Community]
+        summary: Get post detail
+        operationId: communityPostsGet
+        parameters:
+          - in: path
+            name: postId
+            required: true
+            schema: { type: integer }
+        responses:
+          "200":
+            description: Post detail
+            content:
+              application/json:
+                schema:
+                  $ref: "#/components/schemas/ApiResponsePost"
+      patch:
+        tags: [Community]
+        summary: Update a post
+        operationId: communityPostsUpdate
+        security:
+          - bearerAuth: []
+        parameters:
+          - in: path
+            name: postId
+            required: true
+            schema: { type: integer }
+        requestBody:
+          required: true
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PostPatchRequest"
+        responses:
+          "200":
+            description: Updated
+            content:
+              application/json:
+                schema:
+                  $ref: "#/components/schemas/ApiResponsePost"
+      delete:
+        tags: [Community]
+        summary: Delete a post (soft delete)
+        operationId: communityPostsDelete
+        security:
+          - bearerAuth: []
+        parameters:
+          - in: path
+            name: postId
+            required: true
+            schema: { type: integer }
+        responses:
+          "200":
+            description: Deleted
+            content:
+              application/json:
+                schema:
+                  $ref: "#/components/schemas/ApiResponseOk"
+
+    /api/v1/community/posts/{postId}/comments:
+      get:
+        tags: [Community]
+        summary: List comments for a post
+        operationId: communityPostCommentsList
+        parameters:
+          - in: path
+            name: postId
+            required: true
+            schema: { type: integer }
+          - in: query
+            name: page
+            schema: { type: integer, default: 1 }
+          - in: query
+            name: pageSize
+            schema: { type: integer, default: 20 }
+        responses:
+          "200":
+            description: Comments
+            content:
+              application/json:
+                schema:
+                  $ref: "#/components/schemas/ApiResponseComments"
+      post:
+        tags: [Community]
+        summary: Add comment to a post
+        operationId: communityPostCommentsAdd
+        security:
+          - bearerAuth: []
+        parameters:
+          - in: path
+            name: postId
+            required: true
+            schema: { type: integer }
+        requestBody:
+          required: true
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommentCreateRequest"
+        responses:
+          "200":
+            description: Added
+            content:
+              application/json:
+                schema:
+                  $ref: "#/components/schemas/ApiResponseCommentCreate"
+
+    /api/v1/community/comments/{commentId}:
+      delete:
+        tags: [Community]
+        summary: Delete a comment
+        operationId: communityCommentDelete
+        security:
+          - bearerAuth: []
+        parameters:
+          - in: path
+            name: commentId
+            required: true
+            schema: { type: integer }
+        responses:
+          "200":
+            description: Deleted
+            content:
+              application/json:
+                schema:
+                  $ref: "#/components/schemas/ApiResponseOk"
+
+    /api/v1/community/posts/{postId}/like:
+      post:
+        tags: [Community]
+        summary: Like a post
+        operationId: communityPostLike
+        security:
+          - bearerAuth: []
+        parameters:
+          - in: path
+            name: postId
+            required: true
+            schema: { type: integer }
+        responses:
+          "200":
+            description: OK
+            content:
+              application/json:
+                schema:
+                  $ref: "#/components/schemas/ApiResponseOk"
+      delete:
+        tags: [Community]
+        summary: Unlike a post
+        operationId: communityPostUnlike
+        security:
+          - bearerAuth: []
+        parameters:
+          - in: path
+            name: postId
+            required: true
+            schema: { type: integer }
+        responses:
+          "200":
+            description: OK
+            content:
+              application/json:
+                schema:
+                  $ref: "#/components/schemas/ApiResponseOk"
+
+    /api/v1/community/posts/{postId}/bookmark:
+      post:
+        tags: [Community]
+        summary: Bookmark a post
+        operationId: communityPostBookmark
+        security:
+          - bearerAuth: []
+        parameters:
+          - in: path
+            name: postId
+            required: true
+            schema: { type: integer }
+        responses:
+          "200":
+            description: OK
+            content:
+              application/json:
+                schema:
+                  $ref: "#/components/schemas/ApiResponseOk"
+      delete:
+        tags: [Community]
+        summary: Remove bookmark
+        operationId: communityPostUnbookmark
+        security:
+          - bearerAuth: []
+        parameters:
+          - in: path
+            name: postId
+            required: true
+            schema: { type: integer }
+        responses:
+          "200":
+            description: OK
+            content:
+              application/json:
+                schema:
+                  $ref: "#/components/schemas/ApiResponseOk"
+
+    /api/v1/community/reports:
+      post:
+        tags: [Community]
+        summary: Report content
+        operationId: communityReport
+        security:
+          - bearerAuth: []
+        requestBody:
+          required: true
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReportRequest"
+        responses:
+          "200":
+            description: Accepted
+            content:
+              application/json:
+                schema:
+                  $ref: "#/components/schemas/ApiResponseReportResult"
+
+    /api/v1/community/search:
+      get:
+        tags: [Community]
+        summary: Search community posts/records
+        operationId: communitySearch
+        parameters:
+          - in: query
+            name: q
+            schema: { type: string }
+          - in: query
+            name: tag
+            schema: { type: string }
+          - in: query
+            name: type
+            schema: { type: string }
+          - in: query
+            name: page
+            schema: { type: integer, default: 1 }
+          - in: query
+            name: pageSize
+            schema: { type: integer, default: 10 }
+        responses:
+          "200":
+            description: Search result
+            content:
+              application/json:
+                schema:
+                  $ref: "#/components/schemas/ApiResponsePageSearchResults"
           type: integer
           example: 0
         message:
@@ -1799,6 +1996,100 @@ components:
             page: { type: integer }
             pageSize: { type: integer }
             total: { type: integer }
+    # Community posts schemas
+    PostSummary:
+      type: object
+      properties:
+        id: { type: integer }
+        authorId: { type: integer }
+        authorNickname: { type: string }
+        title: { type: string, nullable: true }
+        excerpt: { type: string }
+        shareType: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+        likeCount: { type: integer }
+        commentCount: { type: integer }
+    PostShareReference:
+      type: object
+      properties:
+        refType: { type: string, example: record }
+        refId: { type: integer }
+        snapshot: { type: object }
+    PostAttachment:
+      type: object
+      properties:
+        url: { type: string }
+        mimeType: { type: string }
+        width: { type: integer }
+        height: { type: integer }
+    Post:
+      type: object
+      properties:
+        id: { type: integer }
+        authorId: { type: integer }
+        authorNickname: { type: string }
+        title: { type: string, nullable: true }
+        content: { type: string }
+        shareReference:
+          $ref: "#/components/schemas/PostShareReference"
+        attachments:
+          type: array
+          items: { $ref: "#/components/schemas/PostAttachment" }
+        tags:
+          type: array
+          items: { type: string }
+        likeCount: { type: integer }
+        commentCount: { type: integer }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time, nullable: true }
+    PostCreateRequest:
+      type: object
+      required: [content]
+      properties:
+        title: { type: string }
+        content: { type: string }
+        shareType: { type: string, nullable: true }
+        shareRefId: { type: integer, nullable: true }
+        tags:
+          type: array
+          items: { type: string }
+    PostPatchRequest:
+      type: object
+      properties:
+        title: { type: string }
+        content: { type: string }
+        tags:
+          type: array
+          items: { type: string }
+    ApiResponsePagePosts:
+      type: object
+      properties:
+        code: { type: integer, example: 0 }
+        message: { type: string, example: success }
+        data:
+          type: object
+          properties:
+            items:
+              type: array
+              items: { $ref: "#/components/schemas/PostSummary" }
+            page: { type: integer }
+            pageSize: { type: integer }
+            total: { type: integer }
+    ApiResponsePost:
+      type: object
+      properties:
+        code: { type: integer, example: 0 }
+        message: { type: string, example: success }
+        data: { $ref: "#/components/schemas/Post" }
+    ApiResponsePostCreateResult:
+      type: object
+      properties:
+        code: { type: integer, example: 0 }
+        message: { type: string, example: 创建成功 }
+        data:
+          type: object
+          properties:
+            postId: { type: integer }
     RecordPrefs:
       type: object
       properties:

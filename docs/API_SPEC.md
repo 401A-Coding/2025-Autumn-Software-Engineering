@@ -1,3 +1,62 @@
+**社区模块 API 规范（草案）**
+
+- **目标**: 为象棋应用提供发帖驱动的社区，允许用户发布文本/图片，分享对局记录、自定义棋局或片段，并支持评论、点赞、收藏、举报与搜索。
+
+- **前缀**: 所有社区接口均使用 `/api/v1/community/...`。
+
+- **主要资源**:
+  - `Post`：社区帖子（可包含 `shareReference` 指向 record/board/clip，保存 snapshot）
+  - `Comment`：评论，支持父子回复
+  - `Like`：点赞（对帖子/评论）
+  - `Bookmark`：收藏帖子
+  - `Report`：用户举报
+
+---
+
+主要接口一览（简要）
+
+- 列表/时间线
+  - `GET /api/v1/community/posts` — 查询分页帖子（支持 `q`, `tag`, `type`, `authorId`, `sort`）
+
+- 帖子操作
+  - `POST /api/v1/community/posts` — 创建帖子（需要登录）
+  - `GET /api/v1/community/posts/{postId}` — 帖子详情（返回 `Post`，含 attachments 与 shareSnapshot）
+  - `PATCH /api/v1/community/posts/{postId}` — 更新帖子（仅作者或管理员）
+  - `DELETE /api/v1/community/posts/{postId}` — 删除帖子（软删除）
+
+- 评论
+  - `GET /api/v1/community/posts/{postId}/comments` — 帖子评论分页
+  - `POST /api/v1/community/posts/{postId}/comments` — 添加评论（登录）
+  - `DELETE /api/v1/community/comments/{commentId}` — 删除评论（作者或管理员）
+
+- 互动
+  - `POST/DELETE /api/v1/community/posts/{postId}/like` — 点赞/取消
+  - `POST/DELETE /api/v1/community/posts/{postId}/bookmark` — 收藏/取消
+
+- 举报与搜索
+  - `POST /api/v1/community/reports` — 举报帖子或评论
+  - `GET /api/v1/community/search` — 搜索帖子/记录（支持过滤/分页）
+
+---
+
+实现建议与注意事项
+
+- 发帖时强制保存引用资源快照（`PostShareReference.snapshot`），避免原资源变更后断链。
+- 对图片附件限制大小与数量（例如每图 ≤ 5MB，最多 10 张），并在前端做压缩。
+- 支持草稿（`status: draft`）或由前端临时保存草稿到 localStorage。
+- 审核策略：初期以人工/简单规则审核为主（关键词/频率），后期可接入自动检测与速率限制。
+- 搜索：先使用 Postgres full-text，实现后可迁移到 ElasticSearch。
+
+---
+
+下一步（我可以帮你做）
+
+- 生成 `openapi.yaml` 的完整社区路径与 schema（已完成基础草案）。
+- 生成 `backend` 的 Prisma schema 草案与迁移脚本。
+- 生成 `backend/src/modules/community` 的 NestJS 控制器/服务/DTO 模板。
+
+请选择要我继续的下一步（例如“生成 Prisma schema 草案”或“生成后端控制器模板”）。
+
 # 🎯 趣玩象棋统一接口文档（v1.0）
 
 **架构**：NestJS + Prisma + PostgreSQL + Redis + WebSocket  
