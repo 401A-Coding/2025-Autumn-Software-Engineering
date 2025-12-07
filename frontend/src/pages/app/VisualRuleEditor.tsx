@@ -520,9 +520,65 @@ export default function VisualRuleEditor() {
             const { boardToApiFormat } = await import('../../features/chess/boardAdapter')
             const { boardApi } = await import('../../services/api')
             const payload = boardToApiFormat(placementBoard, name, '')
-            // 标记为模板（后端端点会接受 rules 字段）
-            // @ts-ignore
-            payload.rules = ruleSet
+            // ensure preview is a string
+            ;(payload as any).preview = (payload as any).preview ?? ''
+
+            // Map local piece types to API piece types (backend expects 'chariot' instead of 'rook')
+            const typeMap: Record<string, string> = {
+                general: 'general',
+                advisor: 'advisor',
+                elephant: 'elephant',
+                horse: 'horse',
+                rook: 'chariot',
+                cannon: 'cannon',
+                soldier: 'soldier',
+            }
+            if (payload.layout && Array.isArray((payload.layout as any).pieces)) {
+                ;(payload.layout as any).pieces = (payload.layout as any).pieces.map((p: any) => ({
+                    ...p,
+                    type: typeMap[p.type] || p.type,
+                }))
+            }
+
+            // Convert front-end ruleSet to backend RulesDto shape
+            const convertRuleSetToApi = (rs: any) => {
+                const apiRules: any = {
+                    ruleVersion: 1,
+                    layoutSource: 'template',
+                    coordinateSystem: 'relativeToSide',
+                    mode: 'localVersus',
+                    pieceRules: {},
+                }
+                if (!rs || !rs.pieceRules) return apiRules
+                Object.entries(rs.pieceRules).forEach(([pieceType, cfg]: any) => {
+                    if (!cfg) return
+                    const movement: any = { steps: [] as any[] }
+                    const patterns = cfg.movePatterns || cfg.movePatterns === undefined ? cfg.movePatterns : cfg.movePatterns
+                    if (Array.isArray(cfg.movePatterns)) {
+                        cfg.movePatterns.forEach((pat: any) => {
+                            const step: any = { offset: [pat.dx ?? 0, pat.dy ?? 0] }
+                            if (typeof pat.moveOnly === 'boolean') step.allowCapture = !pat.moveOnly
+                            if (typeof pat.captureOnly === 'boolean') step.allowCapture = !!pat.captureOnly
+                            movement.steps.push(step)
+                        })
+                    }
+
+                    const constraints: any = {}
+                    const r = cfg.restrictions || {}
+                    if (r.mustStayInPalace) constraints.palace = 'insideOnly'
+                    if (r.canCrossRiver === false) constraints.river = 'cannotCross'
+                    if (typeof r.maxMoveDistance === 'number') constraints.maxDestinations = r.maxMoveDistance
+
+                    apiRules.pieceRules[pieceType] = {
+                        ruleType: 'custom',
+                        movement: movement,
+                        constraints: Object.keys(constraints).length ? constraints : undefined,
+                    }
+                })
+                return apiRules
+            }
+
+            ;(payload as any).rules = convertRuleSetToApi(ruleSet)
             try {
                 const res = await boardApi.create(payload as any)
                 alert(`已上传模板到服务器，ID: ${(res as any).boardId}`)
