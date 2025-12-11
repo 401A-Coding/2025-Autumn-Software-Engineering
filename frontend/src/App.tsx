@@ -16,6 +16,7 @@ import VisualRuleEditor from './pages/app/VisualRuleEditor.tsx'
 import TemplateManager from './pages/app/TemplateManager.tsx'
 import LiveBattle from './pages/app/LiveBattle.tsx'
 import RecordReplay from './pages/app/RecordReplay.tsx'
+import Community from './pages/app/Community.tsx'
 
 function App() {
   return (
@@ -35,6 +36,7 @@ function App() {
           <Route path="custom-battle" element={<CustomBattle />} />
           <Route path="fun" element={<Fun />} />
           <Route path="history" element={<History />} />
+          <Route path="community" element={<Community />} />
           <Route path="record/:id" element={<RecordReplay />} />
           <Route path="profile" element={<Profile />} />
           <Route path="online-lobby" element={<OnlineLobby />} />

@@ -103,6 +103,10 @@
     gap: 8px;
 }
 
+.gap-10 {
+    gap: 10px;
+}
+
 .gap-12 {
     gap: 12px;
 }
@@ -168,6 +172,10 @@
 
 .ml-auto {
     margin-left: auto;
+}
+
+.ml-4 {
+    margin-left: 4px;
 }
 
 .inline-flex {
@@ -801,6 +809,79 @@
     border-radius: 8px;
     font-size: 14px;
     color: var(--muted);
+}
+
+/* Community */
+.community-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--control-bg);
+}
+
+.pill-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 12px;
+    border-radius: 999px;
+    border: 1px solid var(--control-border);
+    background: var(--control-bg);
+    color: var(--control-text);
+    cursor: pointer;
+}
+
+.pill-btn--active {
+    border-color: var(--accent);
+    background: #fce8ea;
+    color: var(--accent-dark);
+}
+
+.like-chip {
+    background: var(--muted-bg);
+    color: var(--muted);
+    border-radius: 999px;
+    padding: 2px 8px;
+    font-size: 12px;
+    border: 1px solid var(--border);
+}
+
+.link-btn {
+    background: transparent;
+    border: none;
+    color: var(--accent);
+    cursor: pointer;
+    text-decoration: underline;
+    padding: 4px 8px;
+}
+
+.community-search {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+}
+
+.community-input {
+    flex: 1;
+    min-width: 140px;
+    padding: 10px 12px;
+    border: 1px solid var(--control-border);
+    border-radius: 10px;
+    background: var(--control-bg);
+    color: var(--control-text);
+}
+
+.community-result {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px;
 }
 
 /* Page background helpers */
