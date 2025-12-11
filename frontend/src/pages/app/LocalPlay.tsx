@@ -1,5 +1,5 @@
 import Board from '../../features/chess/Board'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { useState } from 'react'
 import './app-pages.css'
 import { recordStore } from '../../features/records/recordStore'
@@ -7,6 +7,8 @@ import type { MoveRecord, ChessRecord } from '../../features/records/types'
 
 export default function LocalPlay() {
     const navigate = useNavigate()
+    const location = useLocation() as any
+    const injectedInitialBoard = location.state?.initialBoard
     const [showExitConfirm, setShowExitConfirm] = useState(false)
     const [moves, setMoves] = useState<MoveRecord[]>([])
     const [startedAt] = useState<string>(new Date().toISOString())
@@ -76,6 +78,7 @@ export default function LocalPlay() {
             <div className="row-center">
                 <div>
                     <Board
+                        initialBoard={injectedInitialBoard}
                         onMove={(m) => setMoves((prev) => [...prev, m])}
                         onGameOver={(result) => {
                             persistRecord(result || undefined)

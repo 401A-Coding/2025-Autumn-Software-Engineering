@@ -12,6 +12,16 @@ export default function Home() {
             </section>
 
             <section className="paper-card card-pad mt-12">
+                <h3 className="mt-0">残局对战</h3>
+                <p className="muted mt-6">从复盘任意一步导出局面，进入布置与推演。</p>
+                <div className="row-start gap-8 mt-12 justify-center">
+                    <a className="btn-primary inline-block" href="/app/endgame">
+                        进入残局模块
+                    </a>
+                </div>
+            </section>
+
+            <section className="paper-card card-pad mt-12">
                 <h3 className="mt-0">🎮 自定义棋局</h3>
                 <p className="muted mt-6">自定义棋子规则，创造属于你的象棋玩法！</p>
                 <div className="row-start gap-8 mt-12 justify-center">

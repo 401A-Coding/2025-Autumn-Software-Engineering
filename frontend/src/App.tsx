@@ -16,6 +16,9 @@ import VisualRuleEditor from './pages/app/VisualRuleEditor.tsx'
 import TemplateManager from './pages/app/TemplateManager.tsx'
 import LiveBattle from './pages/app/LiveBattle.tsx'
 import RecordReplay from './pages/app/RecordReplay.tsx'
+import EndgameHome from './pages/app/EndgameHome.tsx'
+import EndgameSaved from './pages/app/EndgameSaved.tsx'
+import EndgameSetup from './pages/app/EndgameSetup.tsx'
 
 function App() {
   return (
@@ -36,6 +39,9 @@ function App() {
           <Route path="fun" element={<Fun />} />
           <Route path="history" element={<History />} />
           <Route path="record/:id" element={<RecordReplay />} />
+          <Route path="endgame" element={<EndgameHome />} />
+          <Route path="endgame/saved" element={<EndgameSaved />} />
+          <Route path="endgame/setup" element={<EndgameSetup />} />
           <Route path="profile" element={<Profile />} />
           <Route path="online-lobby" element={<OnlineLobby />} />
           <Route path="live-battle" element={<LiveBattle />} />
