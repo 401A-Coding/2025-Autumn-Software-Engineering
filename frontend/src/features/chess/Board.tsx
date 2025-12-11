@@ -30,11 +30,12 @@ function PieceGlyph({ type, side }: { type: string; side: Side }) {
 interface BoardProps {
     customRules?: CustomRules | CustomRuleSet
     initialBoard?: any
+    initialTurn?: Side
     onMove?: (payload: { from: Pos; to: Pos; turn: Side; ts: number }) => void
     onGameOver?: (winner: NonNullable<GameState['winner']>) => void
 }
 
-export default function Board({ customRules: customRulesProp, initialBoard, onMove, onGameOver }: BoardProps) {
+export default function Board({ customRules: customRulesProp, initialBoard, initialTurn, onMove, onGameOver }: BoardProps) {
     const customRules = useMemo(() => {
         if (!customRulesProp) return undefined
         if (isCustomRuleSet(customRulesProp)) {
@@ -45,7 +46,7 @@ export default function Board({ customRules: customRulesProp, initialBoard, onMo
 
     const [state, setState] = useState<GameState>({
         board: initialBoard || createInitialBoard(),
-        turn: 'red',
+        turn: initialTurn || 'red',
         selected: undefined,
         history: [],
         customRules,
@@ -148,7 +149,7 @@ export default function Board({ customRules: customRulesProp, initialBoard, onMo
     function restart() {
         setState(s => ({
             board: initialBoard || createInitialBoard(),
-            turn: 'red',
+            turn: initialTurn || 'red',
             selected: undefined,
             history: [],
             winner: undefined,

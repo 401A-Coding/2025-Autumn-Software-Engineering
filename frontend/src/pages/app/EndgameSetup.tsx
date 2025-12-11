@@ -10,6 +10,7 @@ export default function EndgameSetup() {
     const loc = useLocation() as any
     const initialLayout = loc.state?.layout as any | undefined
     const [name, setName] = useState<string>(loc.state?.name || '')
+    const [turn, setTurn] = useState<'red' | 'black'>(loc.state?.turn || 'red')
 
     type Side = 'red' | 'black'
     type PieceType = 'general' | 'advisor' | 'elephant' | 'horse' | 'rook' | 'cannon' | 'soldier'
@@ -105,6 +106,20 @@ export default function EndgameSetup() {
             <div className="mt-12 row-start gap-12">
                 <div className="pad-8" style={{ minWidth: 260 }}>
                     <div className="col gap-8">
+                        {/* 先手选择 */}
+                        <div className="row-start gap-8 align-center">
+                            <span className="text-14">先手：</span>
+                            <button
+                                className={`btn ${turn === 'red' ? 'btn-primary' : 'btn-ghost'}`}
+                                onClick={() => setTurn('red')}
+                                title="红方先手"
+                            >红</button>
+                            <button
+                                className={`btn ${turn === 'black' ? 'btn-primary' : 'btn-ghost'}`}
+                                onClick={() => setTurn('black')}
+                                title="黑方先手"
+                            >黑</button>
+                        </div>
                         <div>
                             <div className="grid-7 gap-8 mb-16 card-surface">
                                 {/* 橡皮擦 */}
@@ -189,7 +204,7 @@ export default function EndgameSetup() {
                             } catch { }
                         }
                         const initialBoard = buildInitialBoard()
-                        nav('/app/play', { state: { initialBoard } })
+                        nav('/app/play', { state: { initialBoard, turn } })
                     }}>本地对战</button>
                     <button className="btn-ghost" disabled title="在线对战稍后提供">在线对战（敬请期待）</button>
                     <button className="btn-ghost" onClick={() => nav('/app/endgame')}>返回残局首页</button>

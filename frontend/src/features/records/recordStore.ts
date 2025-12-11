@@ -50,6 +50,7 @@ export const recordStore = {
             })),
             bookmarks: (it.bookmarks || []).map((b: any) => ({ id: String(b.id), step: b.step || 0, label: b.label || undefined, note: b.note || undefined })),
             notes: [],
+            initialLayout: (it as any).initialLayout ?? undefined,
         }))
         return mapped.sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime())
     },
@@ -76,6 +77,7 @@ export const recordStore = {
                 })),
                 bookmarks: (it.bookmarks || []).map((b: any) => ({ id: String(b.id), step: b.step || 0, label: b.label || undefined, note: b.note || undefined })),
                 notes: [],
+                initialLayout: (it as any).initialLayout ?? undefined,
             }
             return rec
         } catch (e) {
@@ -85,7 +87,7 @@ export const recordStore = {
 
     async saveNew(partial: Omit<ChessRecord, 'id'>): Promise<{ record: ChessRecord; savedToServer: boolean }> {
         // prepare server payload
-        const body: components['schemas']['RecordCreateRequest'] = {
+        const body: components['schemas']['RecordCreateRequest'] & { initialLayout?: any } = {
             opponent: partial.opponent,
             startedAt: partial.startedAt,
             endedAt: partial.endedAt,
@@ -98,6 +100,7 @@ export const recordStore = {
                 piece: { side: m.turn },
             })),
             bookmarks: (partial.bookmarks || []).map(b => ({ step: b.step, label: b.label, note: (b as any).note })),
+            ...(partial as any).initialLayout ? { initialLayout: (partial as any).initialLayout } : {},
         }
 
         let created: any = null
@@ -136,6 +139,7 @@ export const recordStore = {
                 note: b.note || undefined,
             })),
             notes: partial.notes || [],
+            initialLayout: (created as any).initialLayout ?? (partial as any).initialLayout ?? undefined,
         }
 
         return { record: rec, savedToServer }
@@ -211,5 +215,15 @@ export const recordStore = {
             // ignore
         }
         // no local mutation
+    },
+
+    async remove(id: string) {
+        try {
+            const nid = Number(id)
+            await recordsApi.delete(nid)
+        } catch (e) {
+            // ignore server error
+        }
+        // no local mutation; caller should refresh list
     },
 }

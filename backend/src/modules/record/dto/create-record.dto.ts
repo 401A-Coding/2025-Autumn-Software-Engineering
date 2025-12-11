@@ -10,6 +10,7 @@ import {
   Min,
   ValidateNested,
   IsIn,
+  IsObject,
 } from 'class-validator';
 
 class PosDto {
@@ -123,4 +124,9 @@ export class CreateRecordDto {
   @ValidateNested({ each: true })
   @Type(() => BookmarkDto)
   bookmarks?: BookmarkDto[];
+
+  // 起始布局（残局/自定义棋局用）：{ pieces: [{ type, side, x, y }] }
+  @IsOptional()
+  @IsObject()
+  initialLayout?: any;
 }

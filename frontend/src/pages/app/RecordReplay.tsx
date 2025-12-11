@@ -95,7 +95,7 @@ export default function RecordReplay() {
                 )}
 
                 <div className="mt-12">
-                    <BoardViewer moves={record.moves} step={step} />
+                    <BoardViewer moves={record.moves} step={step} initialLayout={record.initialLayout as any} />
                 </div>
 
                 {/* 步数控制 */}
@@ -117,7 +117,20 @@ export default function RecordReplay() {
                         if (!record) return
                         // 复用 BoardViewer 的逻辑在此计算局面
                         const { board } = (() => {
-                            const b = createInitialBoard()
+                            const b = (() => {
+                                const il: any = (record as any).initialLayout
+                                if (il && Array.isArray(il.pieces)) {
+                                    const base: any[][] = Array.from({ length: 10 }, () => Array.from({ length: 9 }, () => null))
+                                    let id = 0
+                                    for (const p of il.pieces) {
+                                        const x = Math.max(0, Math.min(8, p.x))
+                                        const y = Math.max(0, Math.min(9, p.y))
+                                        base[y][x] = { id: `init-${id++}`, type: p.type, side: p.side }
+                                    }
+                                    return base as any
+                                }
+                                return createInitialBoard()
+                            })()
                             for (let i = 0; i < Math.min(step, record.moves.length); i++) {
                                 const m = record.moves[i]
                                 const nb = movePiece(b, m.from, m.to)
@@ -134,7 +147,11 @@ export default function RecordReplay() {
                             }
                         }
                         const layout = { pieces }
-                        navigate('/app/endgame/setup', { state: { layout, name: `${record.opponent || '残局'}@步${step}` } })
+                        // 当前手按上一步的走子方取反：如果 step>0，则 nextTurn = opposite(record.moves[step-1].turn)
+                        // 若 step=0（开局局面），默认红先手；如未来记录含首手字段，可改为读取该字段
+                        const lastTurn = step > 0 ? (record.moves[step - 1]?.turn) : undefined
+                        const turn = lastTurn ? (lastTurn === 'red' ? 'black' : 'red') : 'red'
+                        navigate('/app/endgame/setup', { state: { layout, name: `${record.opponent || '残局'}@步${step}`, turn } })
                     }}>残局导出</button>
                 </div>
 
@@ -196,6 +213,19 @@ export default function RecordReplay() {
 
                 <div className="mt-24">
                     <button className="btn-ghost" onClick={() => navigate('/app/history')}>返回列表</button>
+                    <button
+                        className="btn-ghost ml-8"
+                        onClick={async () => {
+                            if (!record) return
+                            try {
+                                await recordStore.remove(record.id)
+                                navigate('/app/history')
+                            } catch {
+                                navigate('/app/history')
+                            }
+                        }}
+                        title="删除本条记录"
+                    >删除记录</button>
                 </div>
             </section>
             {showBookmarkSheet && (

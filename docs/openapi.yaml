@@ -1686,6 +1686,19 @@ paths:
       keyTags:
         type: array
         items: { type: string }
+      initialLayout:
+        type: object
+        description: 起始布局（残局/自定义棋局），如 { pieces: [{type, side, x, y}] }
+        properties:
+          pieces:
+            type: array
+            items:
+              type: object
+              properties:
+                type: { type: string }
+                side: { type: string, enum: [red, black] }
+                x: { type: integer }
+                y: { type: integer }
       favorite: { type: boolean, default: false }
       moves:
         type: array
@@ -1734,6 +1747,19 @@ paths:
       keyTags:
         type: array
         items: { type: string }
+      initialLayout:
+        type: object
+        description: 起始布局（残局/自定义棋局），如 { pieces: [{type, side, x, y}] }
+        properties:
+          pieces:
+            type: array
+            items:
+              type: object
+              properties:
+                type: { type: string }
+                side: { type: string, enum: [red, black] }
+                x: { type: integer }
+                y: { type: integer }
       moves:
         type: array
         items: { $ref: "#/components/schemas/RecordMove" }

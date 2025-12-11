@@ -9,6 +9,7 @@ export default function LocalPlay() {
     const navigate = useNavigate()
     const location = useLocation() as any
     const injectedInitialBoard = location.state?.initialBoard
+    const injectedInitialTurn = (location.state?.turn as ('red' | 'black' | undefined))
     const [showExitConfirm, setShowExitConfirm] = useState(false)
     const [moves, setMoves] = useState<MoveRecord[]>([])
     const [startedAt] = useState<string>(new Date().toISOString())
@@ -38,6 +39,17 @@ export default function LocalPlay() {
             moves,
             bookmarks: [],
             notes: [],
+        }
+        // 如果是从残局/自定义进入的本地对战，附带初始布局，供后续复盘正确还原开局
+        if (injectedInitialBoard) {
+            const pieces: any[] = []
+            for (let y = 0; y < 10; y++) {
+                for (let x = 0; x < 9; x++) {
+                    const p: any = injectedInitialBoard[y]?.[x]
+                    if (p) pieces.push({ type: p.type, side: p.side, x, y })
+                }
+            }
+            ; (rec as any).initialLayout = { pieces }
         }
         setSaving(true)
         try {
@@ -79,6 +91,7 @@ export default function LocalPlay() {
                 <div>
                     <Board
                         initialBoard={injectedInitialBoard}
+                        initialTurn={injectedInitialTurn}
                         onMove={(m) => setMoves((prev) => [...prev, m])}
                         onGameOver={(result) => {
                             persistRecord(result || undefined)

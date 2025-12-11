@@ -635,6 +635,7 @@ Authorization: Bearer <token>
 说明：
 
 - 本模块覆盖“本地对战保存、列表、详情、收藏、复盘书签/笔记”等需求。
+- 支持残局/自定义棋局：记录包含 `initialLayout` 字段，复盘从该起始布局开始而非标准开局。
 - 新增记录时，后端会在“当前用户范围”内自动清理非收藏记录，仅保留最近 30 条；收藏记录不受影响。
 
 | 接口         | 方法     | 路径                                  | 鉴权 | 描述                     |
@@ -665,6 +666,7 @@ Authorization: Bearer <token>
   "result": "red",
   "endReason": "checkmate",
   "keyTags": ["中局反击", "双车压制"],
+  "initialLayout": { "pieces": [ { "type": "general", "side": "red", "x": 4, "y": 9 } ] },
   "moves": [
     {"moveIndex":0, "from":{"x":4,"y":9}, "to":{"x":4,"y":8}, "piece":{"type":"general","side":"red"}},
     {"moveIndex":1, "from":{"x":4,"y":0}, "to":{"x":4,"y":1}, "piece":{"type":"general","side":"black"}}
@@ -738,6 +740,7 @@ Authorization: Bearer <token>
     "endReason": "checkmate",
     "keyTags": ["中局反击"],
     "favorite": false,
+    "initialLayout": { "pieces": [ { "type": "general", "side": "red", "x": 4, "y": 9 } ] },
     "moves": [ { "moveIndex": 0 }, { "moveIndex": 1 } ],
     "bookmarks": [ { "id": 1, "step": 12, "label": "妙手" } ]
   }

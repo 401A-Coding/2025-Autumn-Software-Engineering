@@ -18,9 +18,24 @@ function PieceGlyph({ type, side }: { type: string; side: Side }) {
     return <div className={`piece ${side === 'red' ? 'piece--red' : 'piece--black'}`}>{textMap[type] || '?'}</div>
 }
 
-export default function BoardViewer({ moves, step }: { moves: MoveRecord[]; step: number }) {
+type InitialLayout = { pieces?: { type: string; side: Side; x: number; y: number }[] }
+
+export default function BoardViewer({ moves, step, initialLayout }: { moves: MoveRecord[]; step: number; initialLayout?: InitialLayout }) {
     const { board, last } = useMemo(() => {
-        const b = createInitialBoard()
+        // 从初始布局构建棋盘（若无则使用标准开局）
+        const b = (() => {
+            if (initialLayout && Array.isArray(initialLayout.pieces)) {
+                const base = Array.from({ length: 10 }, () => Array.from({ length: 9 }, () => null as any))
+                let id = 0
+                for (const p of initialLayout.pieces) {
+                    const x = Math.max(0, Math.min(8, p.x))
+                    const y = Math.max(0, Math.min(9, p.y))
+                    base[y][x] = { id: `init-${id++}`, type: p.type, side: p.side }
+                }
+                return base as any
+            }
+            return createInitialBoard()
+        })()
         let last: { x: number; y: number } | null = null
         for (let i = 0; i < Math.min(step, moves.length); i++) {
             const m = moves[i]
@@ -30,7 +45,7 @@ export default function BoardViewer({ moves, step }: { moves: MoveRecord[]; step
             last = m.to
         }
         return { board: b, last }
-    }, [moves, step])
+    }, [moves, step, initialLayout])
 
     return (
         <div className="board board-center">
