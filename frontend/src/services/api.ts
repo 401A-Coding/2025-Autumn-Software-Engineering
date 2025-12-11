@@ -322,6 +322,11 @@ export const recordsApi = {
     return res.data
   },
 
+  /** 删除记录 */
+  async delete(id: number): Promise<void> {
+    await apiRequest<void>(`/api/v1/records/${id}`, { method: 'DELETE' })
+  },
+
   /** 更新记录（结果、标签等） */
   async update(
     id: number,
@@ -431,6 +436,7 @@ export const recordsApi = {
       const res = await apiRequest<PrefsData>('/api/v1/records/prefs')
       return res.data
     },
+
 
     async update(body: components['schemas']['RecordPrefsPatch']) {
       type UpdatePrefsData = NonNullable<

@@ -21,7 +21,7 @@ import { BookmarkDeleteDto } from './dto/bookmark-delete.dto';
 
 @Controller('api/v1/records')
 export class RecordController {
-  constructor(private readonly recordService: RecordService) {}
+  constructor(private readonly recordService: RecordService) { }
 
   @Post()
   @UseGuards(JwtAuthGuard)
@@ -34,6 +34,19 @@ export class RecordController {
     return this.recordService
       .create(userId, createRecordDto)
       .then((record) => ({ code: 0, message: 'success', data: record }));
+  }
+
+  @Patch(':id')
+  @UseGuards(JwtAuthGuard)
+  update(
+    @Param('id') id: string,
+    @Body() body: any,
+    @Req() req: Request & { user?: { sub: number } },
+  ) {
+    const userId = req.user!.sub;
+    return this.recordService
+      .update(userId, +id, body)
+      .then((data) => ({ code: 0, message: 'success', data }));
   }
 
   @Get()

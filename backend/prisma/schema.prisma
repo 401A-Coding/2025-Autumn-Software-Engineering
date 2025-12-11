@@ -74,6 +74,7 @@ model Record {
   result    String // 结果，如 win / lose / draw / abandon 等
   endReason String // 结束原因，如 checkmate / timeout / resign
   keyTags   String[] // 关键标签
+  initialLayout Json? // 初始布局（支持残局/自定义棋局），如 { pieces: [{type, side, x, y}] }
   createdAt DateTime         @default(now())
   updatedAt DateTime         @updatedAt
   moves     Move[]

@@ -36,4 +36,6 @@ export type ChessRecord = {
     moves: MoveRecord[]
     bookmarks?: Bookmark[]
     notes?: Note[]
+    // 起始布局（残局/自定义棋局），用于复盘重放起点
+    initialLayout?: { pieces: { type: string; side: Side; x: number; y: number }[] }
 }
