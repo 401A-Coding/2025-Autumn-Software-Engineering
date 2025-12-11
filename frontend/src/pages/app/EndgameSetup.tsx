@@ -1,0 +1,200 @@
+import { useLocation, useNavigate } from 'react-router-dom'
+import { useEffect, useMemo, useState } from 'react'
+import { boardApi } from '../../services/api'
+import '../../features/chess/board.css'
+import './app-pages.css'
+
+// EndgameSetup receives initial layout via route state { layout, name }
+export default function EndgameSetup() {
+    const nav = useNavigate()
+    const loc = useLocation() as any
+    const initialLayout = loc.state?.layout as any | undefined
+    const [name, setName] = useState<string>(loc.state?.name || '')
+
+    type Side = 'red' | 'black'
+    type PieceType = 'general' | 'advisor' | 'elephant' | 'horse' | 'rook' | 'cannon' | 'soldier'
+    type Piece = { type: PieceType; side: Side; x: number; y: number }
+
+    const [pieces, setPieces] = useState<Piece[]>(Array.isArray(initialLayout?.pieces) ? initialLayout.pieces : [])
+    const [brushSide, setBrushSide] = useState<Side>('red')
+    const [brushType, setBrushType] = useState<PieceType>('soldier')
+    const [mode, setMode] = useState<'place' | 'erase'>('place')
+    const [shouldSave, setShouldSave] = useState<boolean>(true)
+
+    useEffect(() => {
+        if (Array.isArray(initialLayout?.pieces)) {
+            setPieces(initialLayout.pieces)
+        }
+    }, [initialLayout])
+
+    const layout = useMemo(() => ({ pieces }), [pieces])
+
+    // build a 10x9 board for Board component
+    function buildInitialBoard() {
+        const b: any[][] = Array.from({ length: 10 }, () => Array(9).fill(null))
+        const ts = Date.now()
+        pieces.forEach((p, i) => {
+            if (p.x >= 0 && p.x < 9 && p.y >= 0 && p.y < 10) {
+                b[p.y][p.x] = { id: `eg-${ts}-${i}`, type: p.type, side: p.side }
+            }
+        })
+        return b
+    }
+
+    // Render the board from layout.pieces
+    const BoardEditor = ({ pieces, onCellClick }: { pieces: Piece[]; onCellClick: (x: number, y: number) => void }) => {
+        const glyph = (type: PieceType, side: Side) => {
+            if (type === 'general') return side === 'red' ? '帥' : '將'
+            if (type === 'advisor') return side === 'red' ? '仕' : '士'
+            if (type === 'elephant') return side === 'red' ? '相' : '象'
+            if (type === 'soldier') return side === 'red' ? '兵' : '卒'
+            if (type === 'horse') return '馬'
+            if (type === 'rook') return '車'
+            if (type === 'cannon') return '炮'
+            return '?'
+        }
+        return (
+            <div className="board board-center">
+                {Array.from({ length: 10 }).map((_, row) => (
+                    <div key={'h' + row} className={`grid-h row-${row}`} />
+                ))}
+                {Array.from({ length: 9 }).map((_, col) => (
+                    <div key={'v' + col} className={`grid-v col-${col}`} />
+                ))}
+                <div className="river-line" />
+                <div className="river-text">楚河        漢界</div>
+                <div className="palace-top" />
+                <div className="palace-bottom" />
+
+                {pieces.map((p, idx) => (
+                    <div key={idx} className={`piece-wrap piece-x-${p.x} piece-y-${p.y}`}>
+                        <div className={`piece ${p.side === 'red' ? 'piece--red' : 'piece--black'}`}>{glyph(p.type, p.side)}</div>
+                    </div>
+                ))}
+
+                {/* Click areas */}
+                {Array.from({ length: 10 }).map((_, y) =>
+                    Array.from({ length: 9 }).map((_, x) => (
+                        <button
+                            key={`c-${x}-${y}`}
+                            className={`click-area cell-x-${x} cell-y-${y}`}
+                            onClick={() => onCellClick(x, y)}
+                            aria-label={`cell ${x},${y}`}
+                            style={{ background: 'transparent', border: 'none', padding: 0, cursor: 'pointer' }}
+                        />
+                    ))
+                )}
+            </div>
+        )
+    }
+
+    return (
+        <section className="paper-card card-pad">
+            <h2 className="mt-0">布置残局</h2>
+            {!initialLayout ? (
+                <div className="note-muted">提示：可从复盘页“残局导出”带入局面，或在下方直接摆子。</div>
+            ) : (
+                <div className="note-info">已载入局面，可直接保存或微调摆子。</div>
+            )}
+
+            <div className="mt-12">
+                <label className="text-14">名称：</label>
+                <input className="w-full mt-8" value={name} onChange={e => setName(e.target.value)} placeholder="给残局起个名字" />
+            </div>
+
+            <div className="mt-12 row-start gap-12">
+                <div className="pad-8" style={{ minWidth: 260 }}>
+                    <div className="col gap-8">
+                        <div>
+                            <div className="grid-7 gap-8 mb-16 card-surface">
+                                {/* 橡皮擦 */}
+                                <button
+                                    className={`opt-btn opt-btn--icon ${mode === 'erase' ? 'opt-btn--active' : ''}`}
+                                    onClick={() => setMode('erase')}
+                                    title="橡皮擦：点击棋盘删除棋子"
+                                >
+                                    ❌
+                                </button>
+
+                                {/* 红黑各子顺序与自定义棋局一致 */}
+                                {([
+                                    { type: 'general' as PieceType, side: 'red' as Side },
+                                    { type: 'general' as PieceType, side: 'black' as Side },
+                                    { type: 'advisor' as PieceType, side: 'red' as Side },
+                                    { type: 'advisor' as PieceType, side: 'black' as Side },
+                                    { type: 'elephant' as PieceType, side: 'red' as Side },
+                                    { type: 'elephant' as PieceType, side: 'black' as Side },
+                                    { type: 'horse' as PieceType, side: 'red' as Side },
+                                    { type: 'horse' as PieceType, side: 'black' as Side },
+                                    { type: 'rook' as PieceType, side: 'red' as Side },
+                                    { type: 'rook' as PieceType, side: 'black' as Side },
+                                    { type: 'cannon' as PieceType, side: 'red' as Side },
+                                    { type: 'cannon' as PieceType, side: 'black' as Side },
+                                    { type: 'soldier' as PieceType, side: 'red' as Side },
+                                    { type: 'soldier' as PieceType, side: 'black' as Side },
+                                ]).map(({ type, side }) => {
+                                    const label = type === 'general' ? (side === 'red' ? '帅' : '将')
+                                        : type === 'advisor' ? (side === 'red' ? '仕' : '士')
+                                            : type === 'elephant' ? (side === 'red' ? '相' : '象')
+                                                : type === 'horse' ? '马'
+                                                    : type === 'rook' ? '车'
+                                                        : type === 'cannon' ? '炮'
+                                                            : (side === 'red' ? '兵' : '卒')
+                                    const active = mode === 'place' && brushSide === side && brushType === type
+                                    return (
+                                        <button
+                                            key={`${side}-${type}`}
+                                            className={`opt-btn ${active ? 'opt-btn--active' : ''} text-18 ${side === 'red' ? 'text-red' : 'text-gray-800'}`}
+                                            onClick={() => { setBrushSide(side); setBrushType(type); setMode('place') }}
+                                            title={`${side === 'red' ? '红' : '黑'}方 ${label}`}
+                                        >
+                                            {label}
+                                        </button>
+                                    )
+                                })}
+                            </div>
+                        </div>
+                        <div className="row-start gap-8">
+                            <button className="btn-ghost" onClick={() => setPieces([])}>清空棋盘</button>
+                        </div>
+                        <div className="note-muted text-12">提示：点击棋盘格即可{mode === 'erase' ? '删除棋子' : '放置所选棋子'}；上方直接选择任一红/黑棋子即可切换放置对象。</div>
+                    </div>
+                </div>
+                <BoardEditor
+                    pieces={pieces}
+                    onCellClick={(x, y) => {
+                        if (mode === 'erase') {
+                            setPieces(prev => prev.filter(p => !(p.x === x && p.y === y)))
+                        } else {
+                            setPieces(prev => [...prev.filter(p => !(p.x === x && p.y === y)), { type: brushType, side: brushSide, x, y }])
+                        }
+                    }}
+                />
+            </div>
+
+            {/* 保存选择 + 对战入口 */}
+            <div className="mt-16 col gap-12">
+                <div className="row-start gap-12">
+                    <span className="text-14">是否保存到我的残局：</span>
+                    <button className={`btn ${shouldSave ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setShouldSave(true)}>是</button>
+                    <button className={`btn ${!shouldSave ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setShouldSave(false)}>否</button>
+                </div>
+
+                <div className="row-start gap-12">
+                    <button className="btn-primary" onClick={async () => {
+                        if (shouldSave) {
+                            try {
+                                const req: any = { name: name || '未命名残局', layout, isTemplate: false }
+                                await boardApi.create(req)
+                            } catch { }
+                        }
+                        const initialBoard = buildInitialBoard()
+                        nav('/app/play', { state: { initialBoard } })
+                    }}>本地对战</button>
+                    <button className="btn-ghost" disabled title="在线对战稍后提供">在线对战（敬请期待）</button>
+                    <button className="btn-ghost" onClick={() => nav('/app/endgame')}>返回残局首页</button>
+                </div>
+            </div>
+        </section>
+    )
+}

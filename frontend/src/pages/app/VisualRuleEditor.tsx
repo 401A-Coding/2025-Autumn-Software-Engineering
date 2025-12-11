@@ -6,6 +6,9 @@ import { createInitialBoard } from '../../features/chess/types'
 import type { CustomRuleSet, MovePattern } from '../../features/chess/ruleEngine'
 import { standardChessRules } from '../../features/chess/rulePresets'
 import { moveTemplates, getDefaultTemplateForPiece, type MoveTemplateType } from '../../features/chess/moveTemplates'
+import { boardStore } from '../../features/boards/boardStore'
+import '../../features/chess/board.css'
+
  
 
 type EditorStep = 'choose-mode' | 'place-pieces' | 'select-piece' | 'edit-rules'
@@ -591,8 +594,59 @@ export default function VisualRuleEditor() {
             { type: 'soldier', side: 'black', label: '兵' },
         ]
 
+        const PieceGlyph = ({ type, side }: { type: PieceType; side: Side }) => {
+            const glyph = (t: PieceType, s: Side) => {
+                if (t === 'general') return s === 'red' ? '帥' : '將'
+                if (t === 'advisor') return s === 'red' ? '仕' : '士'
+                if (t === 'elephant') return s === 'red' ? '相' : '象'
+                if (t === 'soldier') return s === 'red' ? '兵' : '卒'
+                if (t === 'horse') return '馬'
+                if (t === 'rook') return '車'
+                if (t === 'cannon') return '炮'
+                return '?'
+            }
+            return <div className={`piece ${side === 'red' ? 'piece--red' : 'piece--black'}`}>{glyph(type, side)}</div>
+        }
+
+        const PlacementBoard = () => (
+            <div className="board board-center">
+                {Array.from({ length: 10 }).map((_, row) => (
+                    <div key={'h' + row} className={`grid-h row-${row}`} />
+                ))}
+                {Array.from({ length: 9 }).map((_, col) => (
+                    <div key={'v' + col} className={`grid-v col-${col}`} />
+                ))}
+                <div className="river-line" />
+                <div className="river-text">楚河        漢界</div>
+                <div className="palace-top" />
+                <div className="palace-bottom" />
+
+                {placementBoard.map((row, y) =>
+                    row.map((p, x) =>
+                        p ? (
+                            <div key={`${y}-${x}`} className={`piece-wrap piece-x-${x} piece-y-${y}`}>
+                                <PieceGlyph type={p.type} side={p.side} />
+                            </div>
+                        ) : null
+                    )
+                )}
+
+                {Array.from({ length: 10 }).map((_, y) =>
+                    Array.from({ length: 9 }).map((_, x) => (
+                        <button
+                            key={`c-${x}-${y}`}
+                            className={`click-area cell-x-${x} cell-y-${y}`}
+                            onClick={() => handlePlacementClick(y, x)}
+                            aria-label={`cell ${x},${y}`}
+                            style={{ background: 'transparent', border: 'none', padding: 0, cursor: 'pointer' }}
+                        />
+                    ))
+                )}
+            </div>
+        )
+
         return (
-            <div className="pad-16 mw-600 mx-auto">
+            <div className="pad-16 mw-720 mx-auto">
                 <h2 className="text-center mb-16">第一步：摆放棋子</h2>
 
                 {/* 棋子选择器 */}
@@ -615,21 +669,9 @@ export default function VisualRuleEditor() {
                     ))}
                 </div>
 
-                {/* 棋盘（标准布局盘） */}
-                <div className="placement-board-frame mb-16 inline-block">
-                    {placementBoard.map((row, rowIdx) => (
-                        <div key={rowIdx} className="placement-row">
-                            {row.map((piece, colIdx) => (
-                                <div
-                                    key={colIdx}
-                                    onClick={() => handlePlacementClick(rowIdx, colIdx)}
-                                    className={`placement-cell placement-cell--hover ${piece ? 'placement-cell--occupied piece-cell' : ''} ${piece?.side === 'red' ? 'text-red' : 'text-gray-800'}`}
-                                >
-                                    {piece && pieceNames[piece.type].split('/')[piece.side === 'red' ? 0 : 1]}
-                                </div>
-                            ))}
-                        </div>
-                    ))}
+                {/* 棋盘（采用与残局布置相同的渲染） */}
+                <div className="row-center mb-16">
+                    <PlacementBoard />
                 </div>
 
                 <div className="row gap-12">
@@ -658,27 +700,66 @@ export default function VisualRuleEditor() {
 
     // 渲染步骤2: 选择要编辑的棋子
     const renderSelectPieceStep = () => {
+        const PieceGlyph = ({ type, side }: { type: PieceType; side: Side }) => {
+            const glyph = (t: PieceType, s: Side) => {
+                if (t === 'general') return s === 'red' ? '帥' : '將'
+                if (t === 'advisor') return s === 'red' ? '仕' : '士'
+                if (t === 'elephant') return s === 'red' ? '相' : '象'
+                if (t === 'soldier') return s === 'red' ? '兵' : '卒'
+                if (t === 'horse') return '馬'
+                if (t === 'rook') return '車'
+                if (t === 'cannon') return '炮'
+                return '?'
+            }
+            return <div className={`piece ${side === 'red' ? 'piece--red' : 'piece--black'}`}>{glyph(type, side)}</div>
+        }
+
+        const SelectBoard = () => (
+            <div className="board board-center">
+                {Array.from({ length: 10 }).map((_, row) => (
+                    <div key={'h' + row} className={`grid-h row-${row}`} />
+                ))}
+                {Array.from({ length: 9 }).map((_, col) => (
+                    <div key={'v' + col} className={`grid-v col-${col}`} />
+                ))}
+                <div className="river-line" />
+                <div className="river-text">楚河        漢界</div>
+                <div className="palace-top" />
+                <div className="palace-bottom" />
+
+                {placementBoard.map((row, y) =>
+                    row.map((p, x) =>
+                        p ? (
+                            <div key={`${y}-${x}`} className={`piece-wrap piece-x-${x} piece-y-${y}`}>
+                                <PieceGlyph type={p.type} side={p.side} />
+                            </div>
+                        ) : null
+                    )
+                )}
+
+                {Array.from({ length: 10 }).map((_, y) =>
+                    Array.from({ length: 9 }).map((_, x) => (
+                        <button
+                            key={`s-${x}-${y}`}
+                            className={`click-area cell-x-${x} cell-y-${y}`}
+                            onClick={() => handlePieceSelect(y, x)}
+                            aria-label={`cell ${x},${y}`}
+                            style={{ background: 'transparent', border: 'none', padding: 0, cursor: 'pointer' }}
+                        />
+                    ))
+                )}
+            </div>
+        )
+
         return (
-            <div className="pad-16 mw-600 mx-auto">
+            <div className="pad-16 mw-720 mx-auto">
                 <h2 className="text-center mb-16">第二步：选择要编辑规则的棋子</h2>
                 <p className="text-center mb-16 text-slate">
                     点击棋盘上的任意棋子，开始编辑它的移动规则
                 </p>
 
-                <div className="placement-board-frame mb-16 inline-block">
-                    {placementBoard.map((row, rowIdx) => (
-                        <div key={rowIdx} className="placement-row">
-                            {row.map((piece, colIdx) => (
-                                <div
-                                    key={colIdx}
-                                    onClick={() => handlePieceSelect(rowIdx, colIdx)}
-                                    className={`placement-cell ${piece ? 'placement-cell--hover placement-cell--occupied cursor-pointer piece-cell' : 'cursor-default'} ${piece?.side === 'red' ? 'text-red' : 'text-gray-800'}`}
-                                >
-                                    {piece && pieceNames[piece.type].split('/')[piece.side === 'red' ? 0 : 1]}
-                                </div>
-                            ))}
-                        </div>
-                    ))}
+                <div className="row-center mb-16">
+                    <SelectBoard />
                 </div>
 
                 <div className="row gap-12 mt-16">
@@ -902,7 +983,7 @@ export default function VisualRuleEditor() {
                     >
                         ✅ 保存此棋子规则
                     </button>
-                    
+
                     <button
                         onClick={() => editingRiverView === 'pre' ? setSelectedCellsPre(new Set()) : setSelectedCellsPost(new Set())}
                         className="btn-lg btn-lg--amber text-14"

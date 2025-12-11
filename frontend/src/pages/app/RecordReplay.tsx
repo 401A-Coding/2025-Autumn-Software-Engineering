@@ -1,5 +1,7 @@
 import { useParams, useNavigate } from 'react-router-dom'
 import { useEffect, useState } from 'react'
+import { createInitialBoard } from '../../features/chess/types'
+import { movePiece } from '../../features/chess/rules'
 import BoardViewer from '../../features/chess/BoardViewer'
 import { recordStore } from '../../features/records/recordStore'
 import type { ChessRecord, Bookmark } from '../../features/records/types'
@@ -107,6 +109,33 @@ export default function RecordReplay() {
                     <div className="ml-auto">
                         <button className="btn-ghost" onClick={() => setShowSpeedSheet(true)}>修改播放速度</button>
                     </div>
+                </div>
+
+                {/* 残局导出：将当前步的局面导出到布置残局 */}
+                <div className="mt-12">
+                    <button className="btn-primary" onClick={() => {
+                        if (!record) return
+                        // 复用 BoardViewer 的逻辑在此计算局面
+                        const { board } = (() => {
+                            const b = createInitialBoard()
+                            for (let i = 0; i < Math.min(step, record.moves.length); i++) {
+                                const m = record.moves[i]
+                                const nb = movePiece(b, m.from, m.to)
+                                for (let y = 0; y < 10; y++) for (let x = 0; x < 9; x++) b[y][x] = nb[y][x]
+                            }
+                            return { board: b }
+                        })()
+                        // 序列化为布局 JSON：{ pieces: [{ type, side, x, y }] }
+                        const pieces: any[] = []
+                        for (let y = 0; y < 10; y++) {
+                            for (let x = 0; x < 9; x++) {
+                                const p: any = (board as any)[y][x]
+                                if (p) pieces.push({ type: p.type, side: p.side, x, y })
+                            }
+                        }
+                        const layout = { pieces }
+                        navigate('/app/endgame/setup', { state: { layout, name: `${record.opponent || '残局'}@步${step}` } })
+                    }}>残局导出</button>
                 </div>
 
                 {/* 书签操作：改为按钮 prompt 编辑 */}
