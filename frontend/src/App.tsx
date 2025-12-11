@@ -19,6 +19,7 @@ import RecordReplay from './pages/app/RecordReplay.tsx'
 import EndgameHome from './pages/app/EndgameHome.tsx'
 import EndgameSaved from './pages/app/EndgameSaved.tsx'
 import EndgameSetup from './pages/app/EndgameSetup.tsx'
+import Community from './pages/app/Community.tsx'
 
 function App() {
   return (
@@ -38,6 +39,7 @@ function App() {
           <Route path="custom-battle" element={<CustomBattle />} />
           <Route path="fun" element={<Fun />} />
           <Route path="history" element={<History />} />
+          <Route path="community" element={<Community />} />
           <Route path="record/:id" element={<RecordReplay />} />
           <Route path="endgame" element={<EndgameHome />} />
           <Route path="endgame/saved" element={<EndgameSaved />} />

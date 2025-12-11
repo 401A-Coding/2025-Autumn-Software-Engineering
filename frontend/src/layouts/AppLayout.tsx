@@ -1,5 +1,5 @@
 import { NavLink, Outlet } from 'react-router-dom'
-import { IconHome, IconFun, IconHistory, IconProfile } from '../components/icons'
+import { IconHome, IconFun, IconHistory, IconProfile, IconCommunity } from '../components/icons'
 import { logout } from '../lib/session'
 import './app-layout.css'
 
@@ -21,6 +21,10 @@ export default function AppLayout() {
                 <NavLink to="/app/home" className={({ isActive }) => `tab-item ${isActive ? 'active' : ''}`}>
                     <IconHome />
                     <span>主页</span>
+                </NavLink>
+                <NavLink to="/app/community" className={({ isActive }) => `tab-item ${isActive ? 'active' : ''}`}>
+                    <IconCommunity />
+                    <span>社区</span>
                 </NavLink>
                 <NavLink to="/app/fun" className={({ isActive }) => `tab-item ${isActive ? 'active' : ''}`}>
                     <IconFun />

@@ -1028,12 +1028,133 @@ paths:
               schema:
                 $ref: "#/components/schemas/ApiResponseRecordPrefs"
 
-  /api/v1/community/shares:
+  /api/v1/community/posts:
     get:
       tags: [Community]
-      summary: Community feed
-      operationId: communityShares
+      summary: List community posts (feed)
+      operationId: communityPostsList
       parameters:
+        - in: query
+          name: page
+          schema: { type: integer, default: 1 }
+        - in: query
+          name: pageSize
+          schema: { type: integer, default: 20 }
+        - in: query
+          name: q
+          description: Full-text query
+          schema: { type: string }
+        - in: query
+          name: tag
+          schema: { type: string }
+        - in: query
+          name: type
+          description: Filter by share type (record|board|clip|none)
+          schema: { type: string }
+        - in: query
+          name: authorId
+          schema: { type: integer }
+        - in: query
+          name: sort
+          description: Sort by 'new' or 'hot'
+          schema: { type: string, default: new }
+      responses:
+        "200":
+          description: Posts page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponsePagePosts"
+    post:
+      tags: [Community]
+      summary: Create a post
+      operationId: communityPostsCreate
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PostCreateRequest"
+      responses:
+        "200":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponsePostCreateResult"
+
+  /api/v1/community/posts/{postId}:
+    get:
+      tags: [Community]
+      summary: Get post detail
+      operationId: communityPostsGet
+      parameters:
+        - in: path
+          name: postId
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Post detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponsePost"
+    patch:
+      tags: [Community]
+      summary: Update a post
+      operationId: communityPostsUpdate
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: postId
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PostPatchRequest"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponsePost"
+    delete:
+      tags: [Community]
+      summary: Delete a post (soft delete)
+      operationId: communityPostsDelete
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: postId
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseOk"
+
+  /api/v1/community/posts/{postId}/comments:
+    get:
+      tags: [Community]
+      summary: List comments for a post
+      operationId: communityPostCommentsList
+      parameters:
+        - in: path
+          name: postId
+          required: true
+          schema: { type: integer }
         - in: query
           name: page
           schema: { type: integer, default: 1 }
@@ -1042,21 +1163,66 @@ paths:
           schema: { type: integer, default: 20 }
       responses:
         "200":
-          description: Feed page
+          description: Comments
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ApiResponsePageCommunityShares"
-  /api/v1/community/shares/{id}/like:
+                $ref: "#/components/schemas/ApiResponseComments"
     post:
       tags: [Community]
-      summary: Like a share
-      operationId: communityLike
+      summary: Add comment to a post
+      operationId: communityPostCommentsAdd
       security:
         - bearerAuth: []
       parameters:
         - in: path
-          name: id
+          name: postId
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CommentCreateRequest"
+      responses:
+        "200":
+          description: Added
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseCommentCreate"
+
+  /api/v1/community/comments/{commentId}:
+    delete:
+      tags: [Community]
+      summary: Delete a comment
+      operationId: communityCommentDelete
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: commentId
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseOk"
+
+  /api/v1/community/posts/{postId}/like:
+    post:
+      tags: [Community]
+      summary: Like a post
+      operationId: communityPostLike
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: postId
           required: true
           schema: { type: integer }
       responses:
@@ -1068,13 +1234,13 @@ paths:
                 $ref: "#/components/schemas/ApiResponseOk"
     delete:
       tags: [Community]
-      summary: Unlike a share
-      operationId: communityUnlike
+      summary: Unlike a post
+      operationId: communityPostUnlike
       security:
         - bearerAuth: []
       parameters:
         - in: path
-          name: id
+          name: postId
           required: true
           schema: { type: integer }
       responses:
@@ -1084,6 +1250,45 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiResponseOk"
+
+  /api/v1/community/posts/{postId}/bookmark:
+    post:
+      tags: [Community]
+      summary: Bookmark a post
+      operationId: communityPostBookmark
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: postId
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseOk"
+    delete:
+      tags: [Community]
+      summary: Remove bookmark
+      operationId: communityPostUnbookmark
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: postId
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseOk"
+
   /api/v1/community/reports:
     post:
       tags: [Community]
@@ -1104,10 +1309,11 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiResponseReportResult"
+
   /api/v1/community/search:
     get:
       tags: [Community]
-      summary: Search records
+      summary: Search community posts/records
       operationId: communitySearch
       parameters:
         - in: query
@@ -1115,6 +1321,9 @@ paths:
           schema: { type: string }
         - in: query
           name: tag
+          schema: { type: string }
+        - in: query
+          name: type
           schema: { type: string }
         - in: query
           name: page
@@ -1129,690 +1338,772 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiResponsePageSearchResults"
-
-components:
-  securitySchemes:
-    bearerAuth:
-      type: http
-      scheme: bearer
-      bearerFormat: JWT
-  schemas:
-    ApiResponseAuthTokens:
-      type: object
-      properties:
-        code:
-          type: integer
-          example: 0
-        message:
-          type: string
-          example: success
-        data:
-          $ref: "#/components/schemas/AuthTokens"
-      required: [code, message, data]
-    ApiResponseUser:
-      type: object
-      properties:
-        code:
-          type: integer
-          example: 0
-        message:
-          type: string
-          example: success
-        data:
-          $ref: "#/components/schemas/User"
-      required: [code, message, data]
-    ApiResponseError:
-      type: object
-      properties:
-        code:
-          type: integer
-          example: 1001
-        message:
-          type: string
-          example: 参数错误
-        data:
-          oneOf:
-            - type: "null"
-            - type: object
-              description: 参数校验错误详情
-              properties:
-                details:
-                  type: array
-                  items: { type: string }
-      required: [code, message]
-    AuthRegisterRequest:
-      type: object
-      required: [type, phone, password]
-      properties:
-        type:
-          type: string
-          enum: [phone]
-          default: phone
-        phone:
-          type: string
-          example: "13800000000"
-        code:
-          type: string
-          description: SMS verification code (optional if disabled)
-          example: "8523"
-        password:
-          type: string
-          format: password
-          minLength: 6
-          example: Abc12345
-        email:
-          type: string
-          format: email
-          nullable: true
-    AuthLoginRequest:
-      type: object
-      required: [type, phone, password]
-      properties:
-        type:
-          type: string
-          enum: [phone]
-          default: phone
-        phone:
-          type: string
-          example: "13800000000"
-        password:
-          type: string
-          format: password
-          example: Abc12345
-    AuthRefreshRequest:
-      type: object
-      required: [refreshToken]
-      properties:
-        refreshToken:
-          type: string
-          example: eyJhbGciOi...
-    AuthTokens:
-      type: object
-      properties:
-        accessToken:
-          type: string
-          description: JWT access token
-          example: eyJhbGciOi...
-        refreshToken:
-          type: string
-          description: JWT refresh token
-          example: eyJhbGciOi...
-        expiresIn:
-          type: integer
-          description: Access token TTL in seconds
-          example: 1800
-      required: [accessToken, refreshToken]
-    User:
-      type: object
-      properties:
-        id:
-          type: integer
-          example: 1024
-        nickname:
-          type: string
-          example: 棋友A
-        phone:
-          type: string
-          example: "13800000000"
-        avatarUrl:
-          type: string
-          nullable: true
-        role:
-          type: string
-          enum: [USER, ADMIN]
-        createdAt:
-          type: string
-          format: date-time
-    UserUpdateRequest:
-      type: object
-      properties:
-        nickname: { type: string }
-        password: { type: string, format: password, minLength: 6 }
-        avatarUrl: { type: string }
-    SmsRequest:
-      type: object
-      required: [phone]
-      properties:
-        phone: { type: string, example: "13800000000" }
-    ApiResponseSmsSent:
-      type: object
-      properties:
-        code: { type: integer, example: 0 }
-        message: { type: string, example: 短信已发送 }
-        data:
-          type: object
-          properties:
-            requestId: { type: string, example: sms_9f3a2 }
-            expireIn: { type: integer, example: 300 }
-      required: [code, message]
-    ApiResponseOk:
-      type: object
-      properties:
-        code: { type: integer, example: 0 }
-        message: { type: string, example: success }
-        data: { type: object, nullable: true }
-
-    Board:
-      type: object
-      properties:
-        id: { type: integer, example: 301 }
-        name: { type: string, example: 中炮对屏风马 }
-        description: { type: string, nullable: true }
-        layout:
-          type: object
-          properties:
-            pieces:
-              type: array
-              items:
-                type: object
-                properties:
-                  type: { type: string, example: car }
-                  x: { type: integer }
-                  y: { type: integer }
-                  side: { type: string, enum: [red, black] }
-        rules:
-          $ref: "#/components/schemas/Rules"
-    BoardTemplate:
-      type: object
-      properties:
-        id: { type: integer, example: 1 }
-        name: { type: string, example: 中炮对屏风马 }
-        preview: { type: string, example: /img/t1.png }
-    BoardCreateRequest:
-      type: object
-      required: [name, layout]
-      properties:
-        name: { type: string }
-        description: { type: string, nullable: true }
-        layout: { type: object }
-        rules:
-          $ref: "#/components/schemas/Rules"
-          # Update 请求端允许部分字段（Partial），服务端将进行合并
-    BoardUpdateRequest:
-      type: object
-      properties:
-        name: { type: string }
-        description: { type: string, nullable: true }
-        layout: { type: object }
-        rules:
-          $ref: "#/components/schemas/Rules"
-          # Update 请求端允许部分字段（Partial），服务端将进行合并
-    ApiResponseBoardTemplates:
-      type: object
-      properties:
-        code: { type: integer, example: 0 }
-        message: { type: string, example: success }
-        data:
-          type: array
-          items: { $ref: "#/components/schemas/BoardTemplate" }
-    ApiResponsePageBoardTemplates:
-      type: object
-      properties:
-        code: { type: integer, example: 0 }
-        message: { type: string, example: success }
-        data:
-          type: object
-          properties:
-            items:
-              type: array
-              items: { $ref: "#/components/schemas/BoardTemplate" }
-            page: { type: integer }
-            pageSize: { type: integer }
-            total: { type: integer }
-    ApiResponseBoardCreateResult:
-      type: object
-      properties:
-        code: { type: integer, example: 0 }
-        message: { type: string, example: 创建成功 }
-        data:
-          type: object
-          properties:
-            boardId: { type: integer, example: 301 }
-            name: { type: string }
-    ApiResponsePageBoards:
-      type: object
-      properties:
-        code: { type: integer, example: 0 }
-        message: { type: string, example: success }
-        data:
-          type: object
-          properties:
-            items:
-              type: array
-              items: { $ref: "#/components/schemas/Board" }
-            page: { type: integer }
-            pageSize: { type: integer }
-            total: { type: integer }
-    ApiResponseBoard:
-      type: object
-      properties:
-        code: { type: integer, example: 0 }
-        message: { type: string, example: success }
-        data: { $ref: "#/components/schemas/Board" }
-    ApiResponseAvatar:
-      type: object
-      properties:
-        code: { type: integer, example: 0 }
-        message: { type: string, example: 上传成功 }
-        data:
-          type: object
-          properties:
-            url: { type: string }
-
-    Battle:
-      type: object
-      properties:
-        battleId: { type: integer, example: 501 }
-        status: { type: string, example: waiting }
-        mode: { type: string, example: pvp }
-        players:
-          type: array
-          items:
-            type: object
+        type: integer
+        example: 0
+      message:
+        type: string
+        example: success
+      data:
+        $ref: "#/components/schemas/AuthTokens"
+    required: [code, message, data]
+  ApiResponseUser:
+    type: object
+    properties:
+      code:
+        type: integer
+        example: 0
+      message:
+        type: string
+        example: success
+      data:
+        $ref: "#/components/schemas/User"
+    required: [code, message, data]
+  ApiResponseError:
+    type: object
+    properties:
+      code:
+        type: integer
+        example: 1001
+      message:
+        type: string
+        example: 参数错误
+      data:
+        oneOf:
+          - type: "null"
+          - type: object
+            description: 参数校验错误详情
             properties:
-              id: { type: integer }
-        moves:
-          type: array
-          items: { type: object }
-    BattleCreateRequest:
-      type: object
-      properties:
-        mode: { type: string, example: pvp }
-        initialBoardId: { type: integer }
-        fogMode: { type: boolean }
-        password: { type: string, nullable: true }
-    BattleJoinRequest:
-      type: object
-      required: [battleId]
-      properties:
-        battleId: { type: integer }
-        password: { type: string, nullable: true }
-    BattleMatchRequest:
-      type: object
-      properties:
-        mode: { type: string, example: pvp }
-    BattleHistoryItem:
-      type: object
-      properties:
-        battleId: { type: integer }
-        result: { type: string, example: win }
-    ApiResponseBattleCreateResult:
-      type: object
-      properties:
-        code: { type: integer, example: 0 }
-        message: { type: string, example: 房间创建成功 }
-        data:
-          type: object
-          properties:
-            battleId: { type: integer }
-            status: { type: string }
-    ApiResponseBattleMatchResult:
-      type: object
-      properties:
-        code: { type: integer, example: 0 }
-        message: { type: string, example: 匹配成功 }
-        data:
-          type: object
-          properties:
-            battleId: { type: integer }
-    ApiResponseBattle:
-      type: object
-      properties:
-        code: { type: integer, example: 0 }
-        message: { type: string, example: success }
-        data: { $ref: "#/components/schemas/Battle" }
-    ApiResponsePageBattleHistory:
-      type: object
-      properties:
-        code: { type: integer, example: 0 }
-        message: { type: string, example: success }
-        data:
-          type: object
-          properties:
-            items:
-              type: array
-              items: { $ref: "#/components/schemas/BattleHistoryItem" }
-            page: { type: integer }
-            pageSize: { type: integer }
-            total: { type: integer }
+              details:
+                type: array
+                items: { type: string }
+    required: [code, message]
+  AuthRegisterRequest:
+    type: object
+    required: [type, phone, password]
+    properties:
+      type:
+        type: string
+        enum: [phone]
+        default: phone
+      phone:
+        type: string
+        example: "13800000000"
+      code:
+        type: string
+        description: SMS verification code (optional if disabled)
+        example: "8523"
+      password:
+        type: string
+        format: password
+        minLength: 6
+        example: Abc12345
+      email:
+        type: string
+        format: email
+        nullable: true
+  AuthLoginRequest:
+    type: object
+    required: [type, phone, password]
+    properties:
+      type:
+        type: string
+        enum: [phone]
+        default: phone
+      phone:
+        type: string
+        example: "13800000000"
+      password:
+        type: string
+        format: password
+        example: Abc12345
+  AuthRefreshRequest:
+    type: object
+    required: [refreshToken]
+    properties:
+      refreshToken:
+        type: string
+        example: eyJhbGciOi...
+  AuthTokens:
+    type: object
+    properties:
+      accessToken:
+        type: string
+        description: JWT access token
+        example: eyJhbGciOi...
+      refreshToken:
+        type: string
+        description: JWT refresh token
+        example: eyJhbGciOi...
+      expiresIn:
+        type: integer
+        description: Access token TTL in seconds
+        example: 1800
+    required: [accessToken, refreshToken]
+  User:
+    type: object
+    properties:
+      id:
+        type: integer
+        example: 1024
+      nickname:
+        type: string
+        example: 棋友A
+      phone:
+        type: string
+        example: "13800000000"
+      avatarUrl:
+        type: string
+        nullable: true
+      role:
+        type: string
+        enum: [USER, ADMIN]
+      createdAt:
+        type: string
+        format: date-time
+  UserUpdateRequest:
+    type: object
+    properties:
+      nickname: { type: string }
+      password: { type: string, format: password, minLength: 6 }
+      avatarUrl: { type: string }
+  SmsRequest:
+    type: object
+    required: [phone]
+    properties:
+      phone: { type: string, example: "13800000000" }
+  ApiResponseSmsSent:
+    type: object
+    properties:
+      code: { type: integer, example: 0 }
+      message: { type: string, example: 短信已发送 }
+      data:
+        type: object
+        properties:
+          requestId: { type: string, example: sms_9f3a2 }
+          expireIn: { type: integer, example: 300 }
+    required: [code, message]
+  ApiResponseOk:
+    type: object
+    properties:
+      code: { type: integer, example: 0 }
+      message: { type: string, example: success }
+      data: { type: object, nullable: true }
 
-    Record:
-      type: object
-      properties:
-        id: { type: integer }
-        battleId: { type: integer }
-        opponent: { type: string, nullable: true }
-        startedAt: { type: string, format: date-time, nullable: true }
-        endedAt: { type: string, format: date-time, nullable: true }
-        result: { type: string, nullable: true, example: red }
-        endReason: { type: string, nullable: true, example: checkmate }
-        keyTags:
-          type: array
-          items: { type: string }
-        favorite: { type: boolean, default: false }
-        moves:
-          type: array
-          items: { $ref: "#/components/schemas/RecordMove" }
-        bookmarks:
-          type: array
-          items: { $ref: "#/components/schemas/Bookmark" }
-        shared: { type: boolean, default: false }
-        createdAt: { type: string, format: date-time, nullable: true }
-        updatedAt: { type: string, format: date-time, nullable: true }
-    RecordMove:
-      type: object
-      properties:
-        moveIndex: { type: integer }
-        from:
-          type: object
-          properties: { x: { type: integer }, y: { type: integer } }
-        to:
-          type: object
-          properties: { x: { type: integer }, y: { type: integer } }
-        piece:
-          type: object
-          properties:
-            type: { type: string }
-            side: { type: string, enum: [red, black] }
-        capturedType: { type: string, nullable: true }
-        capturedSide: { type: string, nullable: true }
-        timeSpentMs: { type: integer, nullable: true }
-    Bookmark:
-      type: object
-      properties:
-        id: { type: integer }
-        step: { type: integer }
-        label: { type: string, nullable: true }
-        note: { type: string, nullable: true }
-        createdAt: { type: string, format: date-time, nullable: true }
-        updatedAt: { type: string, format: date-time, nullable: true }
-    RecordCreateRequest:
-      type: object
-      properties:
-        opponent: { type: string, nullable: true }
-        startedAt: { type: string, format: date-time, nullable: true }
-        endedAt: { type: string, format: date-time, nullable: true }
-        result: { type: string, nullable: true }
-        endReason: { type: string, nullable: true }
-        keyTags:
-          type: array
-          items: { type: string }
-        moves:
-          type: array
-          items: { $ref: "#/components/schemas/RecordMove" }
-        bookmarks:
-          type: array
-          items: { $ref: "#/components/schemas/Bookmark" }
-    RecordUpdateRequest:
-      type: object
-      properties:
-        opponent: { type: string }
-        result: { type: string }
-        endReason: { type: string }
-        keyTags:
-          type: array
-          items: { type: string }
-    BookmarkCreateRequest:
-      type: object
-      required: [step]
-      properties:
-        step: { type: integer }
-        label: { type: string, nullable: true }
-        note: { type: string, nullable: true }
-    BookmarkUpdateRequest:
-      type: object
-      properties:
-        step: { type: integer }
-        label: { type: string, nullable: true }
-        note: { type: string, nullable: true }
-    ShareRequest:
-      type: object
-      properties:
-        title: { type: string }
-        tags:
-          type: array
-          items: { type: string }
-    CommentCreateRequest:
-      type: object
-      properties:
-        type: { type: string, example: danmu }
-        step: { type: integer }
-        content: { type: string }
-    Comment:
-      type: object
-      properties:
-        id: { type: integer }
-        type: { type: string }
-        content: { type: string }
-    ApiResponsePageRecords:
-      type: object
-      properties:
-        code: { type: integer, example: 0 }
-        message: { type: string, example: success }
-        data:
-          type: object
-          properties:
+  Board:
+    type: object
+    properties:
+      id: { type: integer, example: 301 }
+      name: { type: string, example: 中炮对屏风马 }
+      description: { type: string, nullable: true }
+      layout:
+        type: object
+        properties:
+          pieces:
+            type: array
             items:
-              type: array
-              items: { $ref: "#/components/schemas/Record" }
-            page: { type: integer }
-            pageSize: { type: integer }
-            total: { type: integer }
-    ApiResponseRecord:
-      type: object
-      properties:
-        code: { type: integer, example: 0 }
-        message: { type: string, example: success }
-        data: { $ref: "#/components/schemas/Record" }
-    ApiResponseBookmarkCreate:
-      type: object
-      properties:
-        code: { type: integer, example: 0 }
-        message: { type: string, example: success }
-        data:
+              type: object
+              properties:
+                type: { type: string, example: car }
+                x: { type: integer }
+                y: { type: integer }
+                side: { type: string, enum: [red, black] }
+      rules:
+        $ref: "#/components/schemas/Rules"
+  BoardTemplate:
+    type: object
+    properties:
+      id: { type: integer, example: 1 }
+      name: { type: string, example: 中炮对屏风马 }
+      preview: { type: string, example: /img/t1.png }
+  BoardCreateRequest:
+    type: object
+    required: [name, layout]
+    properties:
+      name: { type: string }
+      description: { type: string, nullable: true }
+      layout: { type: object }
+      rules:
+        $ref: "#/components/schemas/Rules"
+        # Update 请求端允许部分字段（Partial），服务端将进行合并
+  BoardUpdateRequest:
+    type: object
+    properties:
+      name: { type: string }
+      description: { type: string, nullable: true }
+      layout: { type: object }
+      rules:
+        $ref: "#/components/schemas/Rules"
+        # Update 请求端允许部分字段（Partial），服务端将进行合并
+  ApiResponseBoardTemplates:
+    type: object
+    properties:
+      code: { type: integer, example: 0 }
+      message: { type: string, example: success }
+      data:
+        type: array
+        items: { $ref: "#/components/schemas/BoardTemplate" }
+  ApiResponsePageBoardTemplates:
+    type: object
+    properties:
+      code: { type: integer, example: 0 }
+      message: { type: string, example: success }
+      data:
+        type: object
+        properties:
+          items:
+            type: array
+            items: { $ref: "#/components/schemas/BoardTemplate" }
+          page: { type: integer }
+          pageSize: { type: integer }
+          total: { type: integer }
+  ApiResponseBoardCreateResult:
+    type: object
+    properties:
+      code: { type: integer, example: 0 }
+      message: { type: string, example: 创建成功 }
+      data:
+        type: object
+        properties:
+          boardId: { type: integer, example: 301 }
+          name: { type: string }
+  ApiResponsePageBoards:
+    type: object
+    properties:
+      code: { type: integer, example: 0 }
+      message: { type: string, example: success }
+      data:
+        type: object
+        properties:
+          items:
+            type: array
+            items: { $ref: "#/components/schemas/Board" }
+          page: { type: integer }
+          pageSize: { type: integer }
+          total: { type: integer }
+  ApiResponseBoard:
+    type: object
+    properties:
+      code: { type: integer, example: 0 }
+      message: { type: string, example: success }
+      data: { $ref: "#/components/schemas/Board" }
+  ApiResponseAvatar:
+    type: object
+    properties:
+      code: { type: integer, example: 0 }
+      message: { type: string, example: 上传成功 }
+      data:
+        type: object
+        properties:
+          url: { type: string }
+
+  Battle:
+    type: object
+    properties:
+      battleId: { type: integer, example: 501 }
+      status: { type: string, example: waiting }
+      mode: { type: string, example: pvp }
+      players:
+        type: array
+        items:
           type: object
           properties:
             id: { type: integer }
-
-    ApiResponseShareResult:
-      type: object
-      properties:
-        code: { type: integer, example: 0 }
-        message: { type: string, example: success }
-        data:
-          type: object
-          properties:
-            shareId: { type: integer, example: 9001 }
-            url: { type: string, nullable: true, example: "/shares/9001" }
-
-    # ---- Custom Rules schema for board editor ----
-    Rules:
-      type: object
-      description: 自定义棋局规则（编辑器用），支持模板与图形化自定义
-      required: [layoutSource, pieceRules]
-      properties:
-        ruleVersion: { type: integer, minimum: 1, maximum: 100, default: 1 }
-        layoutSource:
-          type: string
-          enum: [empty, standard, template]
-        templateRefId: { type: integer, nullable: true }
-        coordinateSystem:
-          type: string
-          enum: [relativeToSide, absolute]
-          default: relativeToSide
-        mode:
-          type: string
-          enum: [analysis, localVersus]
-          default: analysis
-        pieceRules:
-          type: object
-          additionalProperties:
-            $ref: "#/components/schemas/PieceRuleConfig"
-        notes: { type: string, maxLength: 200, nullable: true }
-        templatesUsed:
-          type: array
-          items: { type: string }
-    PieceRuleConfig:
-      type: object
-      required: [ruleType]
-      properties:
-        ruleType: { type: string, enum: [template, custom] }
-        templateKey: { type: string, nullable: true }
-        movement: { $ref: "#/components/schemas/MoveSpec" }
-        captureMode:
-          { type: string, enum: [sameAsMove, separate], default: sameAsMove }
-        capture: { $ref: "#/components/schemas/MoveSpec" }
-        constraints: { $ref: "#/components/schemas/ConstraintsSpec" }
-    MoveSpec:
-      type: object
-      properties:
-        rays:
-          type: array
-          items: { $ref: "#/components/schemas/RaySpec" }
-        steps:
-          type: array
-          items: { $ref: "#/components/schemas/StepSpec" }
-        gridMask:
-          type: array
+      moves:
+        type: array
+        items: { type: object }
+  BattleCreateRequest:
+    type: object
+    properties:
+      mode: { type: string, example: pvp }
+      initialBoardId: { type: integer }
+      fogMode: { type: boolean }
+      password: { type: string, nullable: true }
+  BattleJoinRequest:
+    type: object
+    required: [battleId]
+    properties:
+      battleId: { type: integer }
+      password: { type: string, nullable: true }
+  BattleMatchRequest:
+    type: object
+    properties:
+      mode: { type: string, example: pvp }
+  BattleHistoryItem:
+    type: object
+    properties:
+      battleId: { type: integer }
+      result: { type: string, example: win }
+  ApiResponseBattleCreateResult:
+    type: object
+    properties:
+      code: { type: integer, example: 0 }
+      message: { type: string, example: 房间创建成功 }
+      data:
+        type: object
+        properties:
+          battleId: { type: integer }
+          status: { type: string }
+  ApiResponseBattleMatchResult:
+    type: object
+    properties:
+      code: { type: integer, example: 0 }
+      message: { type: string, example: 匹配成功 }
+      data:
+        type: object
+        properties:
+          battleId: { type: integer }
+  ApiResponseBattle:
+    type: object
+    properties:
+      code: { type: integer, example: 0 }
+      message: { type: string, example: success }
+      data: { $ref: "#/components/schemas/Battle" }
+  ApiResponsePageBattleHistory:
+    type: object
+    properties:
+      code: { type: integer, example: 0 }
+      message: { type: string, example: success }
+      data:
+        type: object
+        properties:
           items:
             type: array
-            items: { type: integer }
-            minItems: 2
-            maxItems: 2
-        maxDestinations: { type: integer, minimum: 1 }
-    RaySpec:
-      type: object
-      properties:
-        directions:
-          type: array
-          items:
-            type: string
-            enum: [N, S, E, W, NE, NW, SE, SW]
-        vectors:
-          type: array
+            items: { $ref: "#/components/schemas/BattleHistoryItem" }
+          page: { type: integer }
+          pageSize: { type: integer }
+          total: { type: integer }
+
+  Record:
+    type: object
+    properties:
+      id: { type: integer }
+      battleId: { type: integer }
+      opponent: { type: string, nullable: true }
+      startedAt: { type: string, format: date-time, nullable: true }
+      endedAt: { type: string, format: date-time, nullable: true }
+      result: { type: string, nullable: true, example: red }
+      endReason: { type: string, nullable: true, example: checkmate }
+      keyTags:
+        type: array
+        items: { type: string }
+      favorite: { type: boolean, default: false }
+      moves:
+        type: array
+        items: { $ref: "#/components/schemas/RecordMove" }
+      bookmarks:
+        type: array
+        items: { $ref: "#/components/schemas/Bookmark" }
+      shared: { type: boolean, default: false }
+      createdAt: { type: string, format: date-time, nullable: true }
+      updatedAt: { type: string, format: date-time, nullable: true }
+  RecordMove:
+    type: object
+    properties:
+      moveIndex: { type: integer }
+      from:
+        type: object
+        properties: { x: { type: integer }, y: { type: integer } }
+      to:
+        type: object
+        properties: { x: { type: integer }, y: { type: integer } }
+      piece:
+        type: object
+        properties:
+          type: { type: string }
+          side: { type: string, enum: [red, black] }
+      capturedType: { type: string, nullable: true }
+      capturedSide: { type: string, nullable: true }
+      timeSpentMs: { type: integer, nullable: true }
+  Bookmark:
+    type: object
+    properties:
+      id: { type: integer }
+      step: { type: integer }
+      label: { type: string, nullable: true }
+      note: { type: string, nullable: true }
+      createdAt: { type: string, format: date-time, nullable: true }
+      updatedAt: { type: string, format: date-time, nullable: true }
+  RecordCreateRequest:
+    type: object
+    properties:
+      opponent: { type: string, nullable: true }
+      startedAt: { type: string, format: date-time, nullable: true }
+      endedAt: { type: string, format: date-time, nullable: true }
+      result: { type: string, nullable: true }
+      endReason: { type: string, nullable: true }
+      keyTags:
+        type: array
+        items: { type: string }
+      moves:
+        type: array
+        items: { $ref: "#/components/schemas/RecordMove" }
+      bookmarks:
+        type: array
+        items: { $ref: "#/components/schemas/Bookmark" }
+  RecordUpdateRequest:
+    type: object
+    properties:
+      opponent: { type: string }
+      result: { type: string }
+      endReason: { type: string }
+      keyTags:
+        type: array
+        items: { type: string }
+  BookmarkCreateRequest:
+    type: object
+    required: [step]
+    properties:
+      step: { type: integer }
+      label: { type: string, nullable: true }
+      note: { type: string, nullable: true }
+  BookmarkUpdateRequest:
+    type: object
+    properties:
+      step: { type: integer }
+      label: { type: string, nullable: true }
+      note: { type: string, nullable: true }
+  ShareRequest:
+    type: object
+    properties:
+      title: { type: string }
+      tags:
+        type: array
+        items: { type: string }
+  CommentCreateRequest:
+    type: object
+    properties:
+      type: { type: string, example: danmu }
+      step: { type: integer }
+      content: { type: string }
+  Comment:
+    type: object
+    properties:
+      id: { type: integer }
+      type: { type: string }
+      content: { type: string }
+  ApiResponsePageRecords:
+    type: object
+    properties:
+      code: { type: integer, example: 0 }
+      message: { type: string, example: success }
+      data:
+        type: object
+        properties:
           items:
             type: array
-            items: { type: integer }
-            minItems: 2
-            maxItems: 2
-        maxSteps: { type: integer, minimum: 1, nullable: true }
-        requireScreensForMove:
-          { type: integer, minimum: 0, maximum: 2, default: 0 }
-        requireScreensForCapture:
-          { type: integer, minimum: 0, maximum: 2, default: 0 }
-        stopAtFirstBlocker: { type: boolean, default: true }
-    StepSpec:
-      type: object
-      properties:
-        offset:
+            items: { $ref: "#/components/schemas/Record" }
+          page: { type: integer }
+          pageSize: { type: integer }
+          total: { type: integer }
+  ApiResponseRecord:
+    type: object
+    properties:
+      code: { type: integer, example: 0 }
+      message: { type: string, example: success }
+      data: { $ref: "#/components/schemas/Record" }
+  ApiResponseBookmarkCreate:
+    type: object
+    properties:
+      code: { type: integer, example: 0 }
+      message: { type: string, example: success }
+      data:
+        type: object
+        properties:
+          id: { type: integer }
+
+  ApiResponseShareResult:
+    type: object
+    properties:
+      code: { type: integer, example: 0 }
+      message: { type: string, example: success }
+      data:
+        type: object
+        properties:
+          shareId: { type: integer, example: 9001 }
+          url: { type: string, nullable: true, example: "/shares/9001" }
+
+  # ---- Custom Rules schema for board editor ----
+  Rules:
+    type: object
+    description: 自定义棋局规则（编辑器用），支持模板与图形化自定义
+    required: [layoutSource, pieceRules]
+    properties:
+      ruleVersion: { type: integer, minimum: 1, maximum: 100, default: 1 }
+      layoutSource:
+        type: string
+        enum: [empty, standard, template]
+      templateRefId: { type: integer, nullable: true }
+      coordinateSystem:
+        type: string
+        enum: [relativeToSide, absolute]
+        default: relativeToSide
+      mode:
+        type: string
+        enum: [analysis, localVersus]
+        default: analysis
+      pieceRules:
+        type: object
+        additionalProperties:
+          $ref: "#/components/schemas/PieceRuleConfig"
+      notes: { type: string, maxLength: 200, nullable: true }
+      templatesUsed:
+        type: array
+        items: { type: string }
+  PieceRuleConfig:
+    type: object
+    required: [ruleType]
+    properties:
+      ruleType: { type: string, enum: [template, custom] }
+      templateKey: { type: string, nullable: true }
+      movement: { $ref: "#/components/schemas/MoveSpec" }
+      captureMode:
+        { type: string, enum: [sameAsMove, separate], default: sameAsMove }
+      capture: { $ref: "#/components/schemas/MoveSpec" }
+      constraints: { $ref: "#/components/schemas/ConstraintsSpec" }
+  MoveSpec:
+    type: object
+    properties:
+      rays:
+        type: array
+        items: { $ref: "#/components/schemas/RaySpec" }
+      steps:
+        type: array
+        items: { $ref: "#/components/schemas/StepSpec" }
+      gridMask:
+        type: array
+        items:
           type: array
           items: { type: integer }
           minItems: 2
           maxItems: 2
-        requiredEmpty:
+      maxDestinations: { type: integer, minimum: 1 }
+  RaySpec:
+    type: object
+    properties:
+      directions:
+        type: array
+        items:
+          type: string
+          enum: [N, S, E, W, NE, NW, SE, SW]
+      vectors:
+        type: array
+        items:
           type: array
+          items: { type: integer }
+          minItems: 2
+          maxItems: 2
+      maxSteps: { type: integer, minimum: 1, nullable: true }
+      requireScreensForMove:
+        { type: integer, minimum: 0, maximum: 2, default: 0 }
+      requireScreensForCapture:
+        { type: integer, minimum: 0, maximum: 2, default: 0 }
+      stopAtFirstBlocker: { type: boolean, default: true }
+  StepSpec:
+    type: object
+    properties:
+      offset:
+        type: array
+        items: { type: integer }
+        minItems: 2
+        maxItems: 2
+      requiredEmpty:
+        type: array
+        items:
+          type: array
+          items: { type: integer }
+          minItems: 2
+          maxItems: 2
+      allowCapture: { type: boolean, default: true }
+  ConstraintsSpec:
+    type: object
+    properties:
+      palace:
+        { type: string, enum: [none, insideOnly, outsideOnly], default: none }
+      river:
+        { type: string, enum: [none, cannotCross, mustCross], default: none }
+      forwardOnlyBeforeRiver: { type: boolean }
+      enableSidewaysAfterRiver: { type: boolean }
+      allowBackwardAfterRiver: { type: boolean }
+  ApiResponseComments:
+    type: object
+    properties:
+      code: { type: integer, example: 0 }
+      message: { type: string, example: success }
+      data:
+        type: array
+        items: { $ref: "#/components/schemas/Comment" }
+  ApiResponseCommentCreate:
+    type: object
+    properties:
+      code: { type: integer, example: 0 }
+      message: { type: string, example: success }
+      data:
+        type: object
+        properties:
+          commentId: { type: integer }
+
+  CommunityShareItem:
+    type: object
+    properties:
+      shareId: { type: integer }
+      title: { type: string }
+      likes: { type: integer }
+  ReportRequest:
+    type: object
+    properties:
+      targetType: { type: string, example: share }
+      targetId: { type: integer }
+      reason: { type: string }
+  ApiResponseReportResult:
+    type: object
+    properties:
+      code: { type: integer, example: 0 }
+      message: { type: string, example: 已受理 }
+      data:
+        type: object
+        properties:
+          reportId: { type: integer }
+  SearchResultItem:
+    type: object
+    properties:
+      recordId: { type: integer }
+      title: { type: string }
+  ApiResponsePageCommunityShares:
+    type: object
+    properties:
+      code: { type: integer, example: 0 }
+      message: { type: string, example: success }
+      data:
+        type: object
+        properties:
           items:
             type: array
-            items: { type: integer }
-            minItems: 2
-            maxItems: 2
-        allowCapture: { type: boolean, default: true }
-    ConstraintsSpec:
-      type: object
-      properties:
-        palace:
-          { type: string, enum: [none, insideOnly, outsideOnly], default: none }
-        river:
-          { type: string, enum: [none, cannotCross, mustCross], default: none }
-        forwardOnlyBeforeRiver: { type: boolean }
-        enableSidewaysAfterRiver: { type: boolean }
-        allowBackwardAfterRiver: { type: boolean }
-    ApiResponseComments:
-      type: object
-      properties:
-        code: { type: integer, example: 0 }
-        message: { type: string, example: success }
-        data:
-          type: array
-          items: { $ref: "#/components/schemas/Comment" }
-    ApiResponseCommentCreate:
-      type: object
-      properties:
-        code: { type: integer, example: 0 }
-        message: { type: string, example: success }
-        data:
-          type: object
-          properties:
-            commentId: { type: integer }
-
-    CommunityShareItem:
-      type: object
-      properties:
-        shareId: { type: integer }
-        title: { type: string }
-        likes: { type: integer }
-    ReportRequest:
-      type: object
-      properties:
-        targetType: { type: string, example: share }
-        targetId: { type: integer }
-        reason: { type: string }
-    ApiResponseReportResult:
-      type: object
-      properties:
-        code: { type: integer, example: 0 }
-        message: { type: string, example: 已受理 }
-        data:
-          type: object
-          properties:
-            reportId: { type: integer }
-    SearchResultItem:
-      type: object
-      properties:
-        recordId: { type: integer }
-        title: { type: string }
-    ApiResponsePageCommunityShares:
-      type: object
-      properties:
-        code: { type: integer, example: 0 }
-        message: { type: string, example: success }
-        data:
-          type: object
-          properties:
-            items:
-              type: array
-              items: { $ref: "#/components/schemas/CommunityShareItem" }
-            page: { type: integer }
-            pageSize: { type: integer }
-            total: { type: integer }
-    ApiResponsePageSearchResults:
-      type: object
-      properties:
-        code: { type: integer, example: 0 }
-        message: { type: string, example: success }
-        data:
-          type: object
-          properties:
-            items:
-              type: array
-              items: { $ref: "#/components/schemas/SearchResultItem" }
-            page: { type: integer }
-            pageSize: { type: integer }
-            total: { type: integer }
-    RecordPrefs:
-      type: object
-      properties:
-        keepLimit: { type: integer, example: 30, minimum: 1, maximum: 500 }
-        autoCleanEnabled: { type: boolean, example: true }
-        updatedAt: { type: string, format: date-time }
-    RecordPrefsPatch:
-      type: object
-      properties:
-        keepLimit: { type: integer, minimum: 1, maximum: 500 }
-        autoCleanEnabled: { type: boolean }
-    ApiResponseRecordPrefs:
-      type: object
-      properties:
-        code: { type: integer, example: 0 }
-        message: { type: string, example: success }
-        data: { $ref: "#/components/schemas/RecordPrefs" }
+            items: { $ref: "#/components/schemas/CommunityShareItem" }
+          page: { type: integer }
+          pageSize: { type: integer }
+          total: { type: integer }
+  ApiResponsePageSearchResults:
+    type: object
+    properties:
+      code: { type: integer, example: 0 }
+      message: { type: string, example: success }
+      data:
+        type: object
+        properties:
+          items:
+            type: array
+            items: { $ref: "#/components/schemas/SearchResultItem" }
+          page: { type: integer }
+          pageSize: { type: integer }
+          total: { type: integer }
+  # Community posts schemas
+  PostSummary:
+    type: object
+    properties:
+      id: { type: integer }
+      authorId: { type: integer }
+      authorNickname: { type: string }
+      title: { type: string, nullable: true }
+      excerpt: { type: string }
+      shareType: { type: string, nullable: true }
+      createdAt: { type: string, format: date-time }
+      likeCount: { type: integer }
+      commentCount: { type: integer }
+  PostShareReference:
+    type: object
+    properties:
+      refType: { type: string, example: record }
+      refId: { type: integer }
+      snapshot: { type: object }
+  PostAttachment:
+    type: object
+    properties:
+      url: { type: string }
+      mimeType: { type: string }
+      width: { type: integer }
+      height: { type: integer }
+  Post:
+    type: object
+    properties:
+      id: { type: integer }
+      authorId: { type: integer }
+      authorNickname: { type: string }
+      title: { type: string, nullable: true }
+      content: { type: string }
+      shareReference:
+        $ref: "#/components/schemas/PostShareReference"
+      attachments:
+        type: array
+        items: { $ref: "#/components/schemas/PostAttachment" }
+      tags:
+        type: array
+        items: { type: string }
+      likeCount: { type: integer }
+      commentCount: { type: integer }
+      createdAt: { type: string, format: date-time }
+      updatedAt: { type: string, format: date-time, nullable: true }
+  PostCreateRequest:
+    type: object
+    required: [content]
+    properties:
+      title: { type: string }
+      content: { type: string }
+      shareType: { type: string, nullable: true }
+      shareRefId: { type: integer, nullable: true }
+      tags:
+        type: array
+        items: { type: string }
+  PostPatchRequest:
+    type: object
+    properties:
+      title: { type: string }
+      content: { type: string }
+      tags:
+        type: array
+        items: { type: string }
+  ApiResponsePagePosts:
+    type: object
+    properties:
+      code: { type: integer, example: 0 }
+      message: { type: string, example: success }
+      data:
+        type: object
+        properties:
+          items:
+            type: array
+            items: { $ref: "#/components/schemas/PostSummary" }
+          page: { type: integer }
+          pageSize: { type: integer }
+          total: { type: integer }
+  ApiResponsePost:
+    type: object
+    properties:
+      code: { type: integer, example: 0 }
+      message: { type: string, example: success }
+      data: { $ref: "#/components/schemas/Post" }
+  ApiResponsePostCreateResult:
+    type: object
+    properties:
+      code: { type: integer, example: 0 }
+      message: { type: string, example: 创建成功 }
+      data:
+        type: object
+        properties:
+          postId: { type: integer }
+  RecordPrefs:
+    type: object
+    properties:
+      keepLimit: { type: integer, example: 30, minimum: 1, maximum: 500 }
+      autoCleanEnabled: { type: boolean, example: true }
+      updatedAt: { type: string, format: date-time }
+  RecordPrefsPatch:
+    type: object
+    properties:
+      keepLimit: { type: integer, minimum: 1, maximum: 500 }
+      autoCleanEnabled: { type: boolean }
+  ApiResponseRecordPrefs:
+    type: object
+    properties:
+      code: { type: integer, example: 0 }
+      message: { type: string, example: success }
+      data: { $ref: "#/components/schemas/RecordPrefs" }

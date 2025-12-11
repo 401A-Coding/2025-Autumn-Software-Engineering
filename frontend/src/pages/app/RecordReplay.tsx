@@ -101,8 +101,8 @@ export default function RecordReplay() {
                 {/* 步数控制 */}
                 <div className="mt-12 inline-controls">
                     <button className="btn-ghost" disabled={step <= 0} onClick={() => setStep(s => Math.max(0, s - 1))}>◀</button>
-                    <div className="minw-80 text-center">{step}/{total}</div>
                     <button className="btn-ghost" disabled={step >= total} onClick={() => setStep(s => Math.min(total, s + 1))}>▶</button>
+                    <div className="minw-80 text-center">{step}/{total}</div>
                     <button className="btn-ghost" onClick={() => setStep(0)}>开局</button>
                     <button className="btn-ghost" onClick={() => setStep(total)}>终局</button>
                     <button className="btn-ghost" onClick={() => setIsPlaying(p => !p)}>{isPlaying ? '⏸ 暂停' : '▶ 自动'}</button>

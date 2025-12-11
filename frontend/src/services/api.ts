@@ -16,6 +16,9 @@ type BoardTemplate = components['schemas']['BoardTemplate']
 type BoardCreateRequest = components['schemas']['BoardCreateRequest']
 type BoardUpdateRequest = components['schemas']['BoardUpdateRequest']
 type BattleCreateRequest = components['schemas']['BattleCreateRequest']
+type CommunityShare = components['schemas']['CommunityShareItem']
+type ReportRequest = components['schemas']['ReportRequest']
+type SearchResultItem = components['schemas']['SearchResultItem']
 
 /**
  * 获取认证 token
@@ -528,5 +531,83 @@ export const userApi = {
     }
     const json: ApiResponse<AvatarData> = await res.json()
     return json.data
+  },
+}
+
+/**
+ * 社区相关 API
+ */
+export const communityApi = {
+  /** 获取分享广场 */
+  async list(page = 1, pageSize = 20): Promise<
+    NonNullable<operations['communityShares']['responses'][200]['content']['application/json']['data']>
+  > {
+    type PageData = NonNullable<
+      operations['communityShares']['responses'][200]['content']['application/json']['data']
+    >
+    const res = await apiRequest<PageData>(`/api/v1/community/shares?page=${page}&pageSize=${pageSize}`)
+    // 兼容 data 为空或 items 缺失的情况
+    const data: any = res.data ?? {}
+    return {
+      items: Array.isArray(data.items) ? (data.items as CommunityShare[]) : [],
+      page: data.page ?? page,
+      pageSize: data.pageSize ?? pageSize,
+      total: data.total ?? 0,
+    }
+  },
+
+  /** 点赞分享 */
+  async like(id: number) {
+    type OkData = NonNullable<
+      operations['communityLike']['responses'][200]['content']['application/json']['data']
+    >
+    const res = await apiRequest<OkData>(`/api/v1/community/shares/${id}/like`, {
+      method: 'POST',
+    })
+    return res.data
+  },
+
+  /** 取消点赞分享 */
+  async unlike(id: number) {
+    type OkData = NonNullable<
+      operations['communityUnlike']['responses'][200]['content']['application/json']['data']
+    >
+    const res = await apiRequest<OkData>(`/api/v1/community/shares/${id}/like`, {
+      method: 'DELETE',
+    })
+    return res.data
+  },
+
+  /** 举报内容 */
+  async report(body: ReportRequest) {
+    type ReportData = NonNullable<
+      operations['communityReport']['responses'][200]['content']['application/json']['data']
+    >
+    const res = await apiRequest<ReportData>('/api/v1/community/reports', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    })
+    return res.data
+  },
+
+  /** 搜索对局 */
+  async search(params: { q?: string; tag?: string; page?: number; pageSize?: number }) {
+    const query = new URLSearchParams()
+    if (params.q) query.set('q', params.q)
+    if (params.tag) query.set('tag', params.tag)
+    if (params.page) query.set('page', String(params.page))
+    if (params.pageSize) query.set('pageSize', String(params.pageSize))
+
+    type SearchData = NonNullable<
+      operations['communitySearch']['responses'][200]['content']['application/json']['data']
+    >
+    const res = await apiRequest<SearchData>(`/api/v1/community/search?${query.toString()}`)
+    const data: any = res.data ?? {}
+    return {
+      items: Array.isArray(data.items) ? (data.items as SearchResultItem[]) : [],
+      page: data.page ?? params.page ?? 1,
+      pageSize: data.pageSize ?? params.pageSize ?? 10,
+      total: data.total ?? 0,
+    }
   },
 }
