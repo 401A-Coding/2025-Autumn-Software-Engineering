@@ -18,6 +18,15 @@ export const IconHistory = ({ size = 20 }: { size?: number }) => (
     </svg>
 )
 
+export const IconCommunity = ({ size = 20 }: { size?: number }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M4 6.5c0-1.105.895-2 2-2h12c1.105 0 2 .895 2 2v5c0 1.105-.895 2-2 2h-4.5L9 17.5V13.5H6c-1.105 0-2-.895-2-2v-5z" stroke="currentColor" strokeWidth="1.5" fill="none" />
+        <circle cx="9" cy="10" r="1" fill="currentColor" />
+        <circle cx="12" cy="10" r="1" fill="currentColor" />
+        <circle cx="15" cy="10" r="1" fill="currentColor" />
+    </svg>
+)
+
 export const IconProfile = ({ size = 20 }: { size?: number }) => (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
         <circle cx="12" cy="8" r="4" stroke="currentColor" strokeWidth="1.5" />
