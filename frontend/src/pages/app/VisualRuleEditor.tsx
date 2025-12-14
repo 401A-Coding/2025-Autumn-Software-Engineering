@@ -9,7 +9,7 @@ import { moveTemplates, getDefaultTemplateForPiece, type MoveTemplateType } from
 import { boardStore } from '../../features/boards/boardStore'
 import '../../features/chess/board.css'
 
- 
+
 
 type EditorStep = 'choose-mode' | 'place-pieces' | 'select-piece' | 'edit-rules'
 type PlacementBoard = (Piece | null)[][]
@@ -523,9 +523,51 @@ export default function VisualRuleEditor() {
             const { boardToApiFormat } = await import('../../features/chess/boardAdapter')
             const { boardApi } = await import('../../services/api')
             const payload = boardToApiFormat(placementBoard, name, '')
-            // 标记为模板（后端端点会接受 rules 字段）
-            // @ts-ignore
-            payload.rules = ruleSet
+
+            // 生成最小可通过 DTO 校验的 RulesDto 结构
+            const toServerRules = () => {
+                const pieceRules: Record<string, any> = {}
+                const src = (ruleSet && (ruleSet as any).pieceRules) || {}
+                for (const [k, cfg] of Object.entries(src)) {
+                    if (!cfg || !(cfg as any).movePatterns) continue
+                    const patterns = (cfg as any).movePatterns as Array<{ dx: number; dy: number }>
+                    // 将本地 movePatterns 简化为 gridMask（忽略复杂条件与重复，仅保留目标相对坐标）
+                    const gridMask: [number, number][] = []
+                    const seen = new Set<string>()
+                    for (const p of patterns) {
+                        const key = `${p.dx},${p.dy}`
+                        if (seen.has(key)) continue
+                        seen.add(key)
+                        gridMask.push([p.dx, p.dy])
+                    }
+
+                    // 约束映射：仅保留与 DTO 对齐的字段
+                    const restrictions = (cfg as any).restrictions || {}
+                    const constraints: any = {}
+                    if (restrictions.mustStayInPalace === true) constraints.palace = 'insideOnly'
+                    if (restrictions.canCrossRiver === false) constraints.river = 'cannotCross'
+
+                    pieceRules[k] = {
+                        ruleType: 'custom',
+                        movement: gridMask.length ? { gridMask } : undefined,
+                        captureMode: 'sameAsMove',
+                        constraints: Object.keys(constraints).length ? constraints : undefined,
+                    }
+                }
+                return {
+                    ruleVersion: 1,
+                    layoutSource: 'empty',
+                    coordinateSystem: 'relativeToSide',
+                    mode: 'analysis',
+                    pieceRules,
+                }
+            }
+
+                // 后端必填字段：preview（string）；并标记为模板
+                ; (payload as any).preview = ''
+                ; (payload as any).isTemplate = true
+                // 附加规则（转换后的 DTO 结构）
+                ; (payload as any).rules = toServerRules()
             try {
                 const res = await boardApi.create(payload as any)
                 alert(`已上传模板到服务器，ID: ${(res as any).boardId}`)
