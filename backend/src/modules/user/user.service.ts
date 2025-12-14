@@ -273,15 +273,14 @@ export class UserService {
           where: { authorId: userId, status: 'PUBLISHED' },
           orderBy: { createdAt: 'desc' },
           take: 10,
-          include: {
-            _count: { select: { likes: true, comments: true } },
-          },
           select: {
             id: true,
             title: true,
             content: true,
             createdAt: true,
-            _count: true,
+            _count: {
+              select: { likes: true, comments: true },
+            },
           },
         }),
       ]);
