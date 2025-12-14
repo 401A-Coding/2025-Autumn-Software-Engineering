@@ -57,7 +57,7 @@ export default function Community() {
             e?.preventDefault()
             query = searchQuery
         }
-        
+
         if (!query.trim()) return
 
         setLoading(true)

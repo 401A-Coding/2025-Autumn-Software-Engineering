@@ -290,8 +290,8 @@ export default function PostDetail() {
 
                     {/* 标签 */}
                     {post.tags && post.tags.length > 0 && (
-                        <div className="mb-16" style={{ 
-                            borderTop: '1px solid #e0e0e0', 
+                        <div className="mb-16" style={{
+                            borderTop: '1px solid #e0e0e0',
                             paddingTop: '12px',
                             marginTop: '8px'
                         }}>
@@ -378,7 +378,8 @@ export default function PostDetail() {
                                         avatarUrl={comment.authorAvatar ?? undefined}
                                         timestamp={comment.createdAt}
                                         size="small"
-                                    />                                    <DropdownMenu actions={getCommentActions(comment)} />                                    <DropdownMenu actions={getCommentActions(comment)} />
+                                    />
+                                    <DropdownMenu actions={getCommentActions(comment)} />
                                 </div>
                                 {/* 评论内容 */}
                                 <div style={{ padding: '12px', textAlign: 'left' }}>
