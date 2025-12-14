@@ -96,14 +96,15 @@ export default function UserAvatar({
                 )}
             </div>
 
-            {/* 用户信息：昵称与时间紧贴头像右侧、同一行显示 */}
-            <div className="row-start align-center" style={{ gap: 6 }}>
+            {/* 用户信息：昵称与时间紧贴头像右侧、同一行显示且不换行 */}
+            <div className="row-start align-center" style={{ gap: 6, whiteSpace: 'nowrap' }}>
                 <div
                     className="cursor-pointer fw-600"
                     onClick={handleClick}
                     style={{
                         fontSize: size === 'small' ? 12 : 14,
                         color: '#333',
+                        lineHeight: 1,
                     }}
                 >
                     {nickname || '匿名用户'}
