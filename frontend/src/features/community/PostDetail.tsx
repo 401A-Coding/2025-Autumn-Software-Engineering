@@ -8,6 +8,7 @@ type Post = {
     id: number
     authorId: number
     authorNickname?: string
+    authorAvatar?: string | null
     title: string | null
     content: string
     shareReference?: any
@@ -133,6 +134,7 @@ export default function PostDetail() {
                     <UserAvatar
                         userId={post.authorId}
                         nickname={post.authorNickname}
+                        avatarUrl={post.authorAvatar ?? undefined}
                         timestamp={post.createdAt}
                         size="large"
                     />

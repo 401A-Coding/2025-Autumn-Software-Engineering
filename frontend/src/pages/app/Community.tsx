@@ -8,6 +8,7 @@ type Post = {
     id: number
     authorId: number
     authorNickname?: string
+    authorAvatar?: string | null
     title: string | null
     excerpt: string
     shareType: string | null
@@ -147,6 +148,7 @@ export default function Community() {
                                         <UserAvatar
                                             userId={post.authorId}
                                             nickname={post.authorNickname}
+                                            avatarUrl={post.authorAvatar ?? undefined}
                                             timestamp={post.createdAt}
                                             size="medium"
                                         />
