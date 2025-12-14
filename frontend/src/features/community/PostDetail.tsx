@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import '../../pages/app/app-pages.css'
-import { communityApi } from '../../services/api'
+import { communityApi, userApi } from '../../services/api'
 import UserAvatar from '../../components/UserAvatar'
+import DropdownMenu, { type MenuAction } from '../../components/DropdownMenu'
 
 import { useRef } from 'react'
 import BoardPreview from '../../components/BoardPreview'
@@ -49,6 +50,7 @@ export default function PostDetail() {
     const [bookmarked, setBookmarked] = useState(false)
     const [expandedComment, setExpandedComment] = useState(false)
     const commentsRef = useRef<HTMLDivElement>(null)
+    const [currentUserId, setCurrentUserId] = useState<number | null>(null)
 
     async function loadPost() {
         if (!postId) return
@@ -131,7 +133,100 @@ export default function PostDetail() {
     useEffect(() => {
         loadPost()
         loadComments()
+        loadCurrentUser()
     }, [postId])
+
+    async function loadCurrentUser() {
+        try {
+            const me = await userApi.getMe()
+            setCurrentUserId(me.id as number)
+        } catch (e) {
+            console.error('Failed to get current user:', e)
+            setCurrentUserId(null)
+        }
+    }
+
+    function getPostActions(): MenuAction[] {
+        const actions: MenuAction[] = []
+
+        if (currentUserId && post && currentUserId === post.authorId) {
+            actions.push({
+                label: '编辑',
+                onClick: () => handleEditPost(),
+            })
+            actions.push({
+                label: '删除',
+                onClick: () => handleDeletePost(),
+                danger: true,
+            })
+        }
+
+        actions.push({
+            label: '举报',
+            onClick: () => handleReportPost(),
+        })
+
+        return actions
+    }
+
+    function getCommentActions(comment: Comment): MenuAction[] {
+        const actions: MenuAction[] = []
+
+        if (currentUserId && comment.authorId && currentUserId === comment.authorId) {
+            actions.push({
+                label: '删除',
+                onClick: () => handleDeleteComment(comment.id),
+                danger: true,
+            })
+        }
+
+        actions.push({
+            label: '举报',
+            onClick: () => handleReportComment(comment.id),
+        })
+
+        return actions
+    }
+
+    async function handleDeletePost() {
+        if (!post || !window.confirm('确定要删除这篇帖子吗?')) return
+        try {
+            await communityApi.deletePost(post.id)
+            alert('帖子已删除')
+            navigate('/app/community')
+        } catch (e) {
+            console.error('Delete post failed:', e)
+            alert('删除失败')
+        }
+    }
+
+    function handleEditPost() {
+        // TODO: Implement edit mode
+        alert('编辑功能即将推出')
+    }
+
+    function handleReportPost() {
+        alert('举报功能即将推出')
+    }
+
+    async function handleDeleteComment(commentId: number) {
+        if (!window.confirm('确定要删除这条评论吗?')) return
+        try {
+            await communityApi.deleteComment(commentId)
+            setComments(comments.filter(c => c.id !== commentId))
+            if (post) {
+                setPost({ ...post, commentCount: Math.max(0, post.commentCount - 1) })
+            }
+            alert('评论已删除')
+        } catch (e) {
+            console.error('Delete comment failed:', e)
+            alert('删除失败')
+        }
+    }
+
+    function handleReportComment(_commentId: number) {
+        alert('举报功能即将推出')
+    }
 
     if (loading) {
         return <div className="muted text-center py-24">加载中...</div>
@@ -158,7 +253,7 @@ export default function PostDetail() {
             {/* 帖子内容 */}
             <section className="paper-card mb-12" style={{ padding: 0, overflow: 'hidden' }}>
                 {/* 用户信息区域 */}
-                <div style={{ padding: '16px 20px', backgroundColor: '#fafafa', borderBottom: '1px solid #e0e0e0', display: 'flex', alignItems: 'center' }}>
+                <div style={{ padding: '16px 20px', backgroundColor: '#fafafa', borderBottom: '1px solid #e0e0e0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     <UserAvatar
                         userId={post.authorId}
                         nickname={post.authorNickname}
@@ -166,6 +261,7 @@ export default function PostDetail() {
                         timestamp={post.createdAt}
                         size="large"
                     />
+                    <DropdownMenu actions={getPostActions()} />
                 </div>
 
                 {/* 帖子内容区域 */}
@@ -245,14 +341,14 @@ export default function PostDetail() {
                         {comments.map((comment) => (
                             <div key={comment.id} className="paper-card" style={{ padding: 0, overflow: 'hidden' }}>
                                 {/* 评论者信息 */}
-                                <div style={{ padding: '10px 12px', backgroundColor: '#fafafa', borderBottom: '1px solid #e0e0e0' }}>
+                                <div style={{ padding: '10px 12px', backgroundColor: '#fafafa', borderBottom: '1px solid #e0e0e0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                                     <UserAvatar
                                         userId={comment.authorId || 0}
                                         nickname={comment.authorNickname}
                                         avatarUrl={comment.authorAvatar ?? undefined}
                                         timestamp={comment.createdAt}
                                         size="small"
-                                    />
+                                    />                                    <DropdownMenu actions={getCommentActions(comment)} />                                    <DropdownMenu actions={getCommentActions(comment)} />
                                 </div>
                                 {/* 评论内容 */}
                                 <div style={{ padding: '12px', textAlign: 'left' }}>

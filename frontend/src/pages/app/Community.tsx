@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import './app-pages.css'
-import { communityApi } from '../../services/api'
+import { communityApi, userApi } from '../../services/api'
 import UserAvatar from '../../components/UserAvatar'
 import RecordEmbed from '../../components/RecordEmbed'
 import BoardPreview from '../../components/BoardPreview'
+import DropdownMenu, { type MenuAction } from '../../components/DropdownMenu'
 
 type Post = {
     id: number
@@ -28,6 +29,7 @@ export default function Community() {
     const [page, setPage] = useState(1)
     const [total, setTotal] = useState(0)
     const [pageSize] = useState(10)
+    const [currentUserId, setCurrentUserId] = useState<number | null>(null)
     const [searchQuery, setSearchQuery] = useState('')
     const [isSearching, setIsSearching] = useState(false)
 
@@ -78,7 +80,54 @@ export default function Community() {
 
     useEffect(() => {
         loadPosts(1)
+        loadCurrentUser()
     }, [])
+
+    async function loadCurrentUser() {
+        try {
+            const me = await userApi.getMe()
+            setCurrentUserId(me.id as number)
+        } catch (e) {
+            console.error('Failed to get current user:', e)
+            setCurrentUserId(null)
+        }
+    }
+
+    function getPostActions(post: Post): MenuAction[] {
+        const actions: MenuAction[] = []
+
+        if (currentUserId && currentUserId === post.authorId) {
+            actions.push({
+                label: '编辑',
+                onClick: () => navigate(`/app/community/${post.id}/edit`),
+            })
+            actions.push({
+                label: '删除',
+                onClick: () => handleDeletePost(post.id),
+                danger: true,
+            })
+        }
+
+        actions.push({
+            label: '举报',
+            onClick: () => alert('举报功能即将推出'),
+        })
+
+        return actions
+    }
+
+    async function handleDeletePost(postId: number) {
+        if (!window.confirm('确定要删除这篇帖子吗?')) return
+        try {
+            await communityApi.deletePost(postId)
+            setPosts(posts.filter(p => p.id !== postId))
+            setTotal(Math.max(0, total - 1))
+            alert('帖子已删除')
+        } catch (e) {
+            console.error('Delete post failed:', e)
+            alert('删除失败')
+        }
+    }
 
     const maxPage = Math.ceil(total / pageSize) || 1
 
@@ -147,7 +196,7 @@ export default function Community() {
                                     onClick={() => navigate(`/app/community/${post.id}`)}
                                 >
                                     {/* 用户信息区域 */}
-                                    <div style={{ padding: '12px 16px', backgroundColor: '#fafafa', borderBottom: '1px solid #e0e0e0' }}>
+                                    <div style={{ padding: '12px 16px', backgroundColor: '#fafafa', borderBottom: '1px solid #e0e0e0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                                         <UserAvatar
                                             userId={post.authorId}
                                             nickname={post.authorNickname}
@@ -155,6 +204,9 @@ export default function Community() {
                                             timestamp={post.createdAt}
                                             size="medium"
                                         />
+                                        <div onClick={(e) => e.stopPropagation()}>
+                                            <DropdownMenu actions={getPostActions(post)} />
+                                        </div>
                                     </div>
 
                                     {/* 帖子内容区域 */}
