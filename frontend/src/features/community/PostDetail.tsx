@@ -268,17 +268,6 @@ export default function PostDetail() {
                 <div style={{ padding: '16px 20px' }}>
                     <h2 className="mt-0 mb-12" style={{ textAlign: 'left' }}>{post.title || '(无标题)'}</h2>
 
-                    {/* 标签 */}
-                    {post.tags && post.tags.length > 0 && (
-                        <div className="row-start gap-4 mb-12 flex-wrap">
-                            {post.tags.map((tag, idx) => (
-                                <span key={idx} className="badge badge-light">
-                                    {tag}
-                                </span>
-                            ))}
-                        </div>
-                    )}
-
                     {/* 帖子正文 */}
                     <div className="prose mb-16" style={{ textAlign: 'left' }}>
                         <p className="whitespace-pre-wrap" style={{ textAlign: 'left' }}>{post.content}</p>
@@ -296,6 +285,47 @@ export default function PostDetail() {
                                 boardId={post.shareRefId}
                                 onClick={() => navigate(`/app/boards/${post.shareRefId}`)}
                             />
+                        </div>
+                    )}
+
+                    {/* 标签 */}
+                    {post.tags && post.tags.length > 0 && (
+                        <div className="mb-16" style={{ 
+                            borderTop: '1px solid #e0e0e0', 
+                            paddingTop: '12px',
+                            marginTop: '8px'
+                        }}>
+                            <div className="row-start gap-6 flex-wrap">
+                                {post.tags.map((tag, idx) => (
+                                    <button
+                                        key={idx}
+                                        onClick={() => navigate(`/app/community?search=${encodeURIComponent(tag)}`)}
+                                        style={{
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            padding: '4px 10px',
+                                            backgroundColor: '#f0f0f0',
+                                            border: '1px solid #d0d0d0',
+                                            borderRadius: '12px',
+                                            fontSize: '13px',
+                                            color: '#555',
+                                            cursor: 'pointer',
+                                            transition: 'all 0.2s',
+                                        }}
+                                        onMouseEnter={(e) => {
+                                            e.currentTarget.style.backgroundColor = '#e0e0e0'
+                                            e.currentTarget.style.borderColor = '#b0b0b0'
+                                        }}
+                                        onMouseLeave={(e) => {
+                                            e.currentTarget.style.backgroundColor = '#f0f0f0'
+                                            e.currentTarget.style.borderColor = '#d0d0d0'
+                                        }}
+                                    >
+                                        <span style={{ marginRight: '2px', fontWeight: 600 }}>#</span>
+                                        {tag}
+                                    </button>
+                                ))}
+                            </div>
                         </div>
                     )}
 

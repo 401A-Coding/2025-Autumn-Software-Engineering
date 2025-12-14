@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import './app-pages.css'
 import { communityApi, userApi } from '../../services/api'
 import UserAvatar from '../../components/UserAvatar'
@@ -24,6 +24,7 @@ type Post = {
 
 export default function Community() {
     const navigate = useNavigate()
+    const [searchParams] = useSearchParams()
     const [posts, setPosts] = useState<Post[]>([])
     const [loading, setLoading] = useState(true)
     const [page, setPage] = useState(1)
@@ -48,15 +49,22 @@ export default function Community() {
         }
     }
 
-    async function handleSearch(e: React.FormEvent) {
-        e.preventDefault()
-        if (!searchQuery.trim()) return
+    async function handleSearch(e?: React.FormEvent | string) {
+        let query: string
+        if (typeof e === 'string') {
+            query = e
+        } else {
+            e?.preventDefault()
+            query = searchQuery
+        }
+        
+        if (!query.trim()) return
 
         setLoading(true)
         setIsSearching(true)
         try {
             const res = await communityApi.listPosts({
-                q: searchQuery,
+                q: query,
                 page: 1,
                 pageSize: pageSize,
             })
@@ -79,7 +87,14 @@ export default function Community() {
     }
 
     useEffect(() => {
-        loadPosts(1)
+        const urlSearch = searchParams.get('search')
+        if (urlSearch) {
+            setSearchQuery(urlSearch)
+            setIsSearching(true)
+            handleSearch(urlSearch)
+        } else {
+            loadPosts(1)
+        }
         loadCurrentUser()
     }, [])
 
@@ -212,10 +227,10 @@ export default function Community() {
                                     {/* 帖子内容区域 */}
                                     <div style={{ padding: '12px 16px' }}>
                                         {/* 帖子标题 */}
-                                        <h4 className="mt-0 mb-6">{post.title || '(无标题)'}</h4>
+                                        <h4 className="mt-0 mb-6" style={{ textAlign: 'left' }}>{post.title || '(无标题)'}</h4>
 
                                         {/* 帖子摘要 */}
-                                        <p className="muted mb-8 text-14 line-clamp-2">
+                                        <p className="muted mb-8 text-14 line-clamp-2" style={{ textAlign: 'left' }}>
                                             {post.excerpt || '(无内容)'}
                                         </p>
 
