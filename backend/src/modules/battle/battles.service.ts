@@ -76,7 +76,7 @@ export class BattlesService {
     @Optional() private readonly metrics?: MetricsService,
     @Optional() private readonly events?: EventEmitter2,
     @Optional() private readonly records?: RecordService,
-  ) { }
+  ) {}
 
   verifyBearer(authorization?: string) {
     if (!authorization || !authorization.toLowerCase().startsWith('bearer ')) {
