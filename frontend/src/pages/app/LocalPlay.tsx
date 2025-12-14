@@ -49,7 +49,7 @@ export default function LocalPlay() {
                     if (p) pieces.push({ type: p.type, side: p.side, x, y })
                 }
             }
-            ; (rec as any).initialLayout = { pieces }
+            ; (rec as any).initialLayout = { pieces, turn: injectedInitialTurn ?? 'red' }
         }
         setSaving(true)
         try {

@@ -150,7 +150,13 @@ export default function RecordReplay() {
                         // 当前手按上一步的走子方取反：如果 step>0，则 nextTurn = opposite(record.moves[step-1].turn)
                         // 若 step=0（开局局面），默认红先手；如未来记录含首手字段，可改为读取该字段
                         const lastTurn = step > 0 ? (record.moves[step - 1]?.turn) : undefined
-                        const turn = lastTurn ? (lastTurn === 'red' ? 'black' : 'red') : 'red'
+                        // 当没有步数（step=0）时，使用记录的 initialLayout.turn；若不存在则回退红先手
+                        const initialTurn = (() => {
+                            const il: any = (record as any).initialLayout
+                            const t = il?.turn
+                            return t === 'red' || t === 'black' ? t : 'red'
+                        })()
+                        const turn = lastTurn ? (lastTurn === 'red' ? 'black' : 'red') : initialTurn
                         navigate('/app/endgame/setup', { state: { layout, name: `${record.opponent || '残局'}@步${step}`, turn } })
                     }}>残局导出</button>
                 </div>
