@@ -49,13 +49,13 @@ export default function Community() {
         setLoading(true)
         setIsSearching(true)
         try {
-            const res = await communityApi.search({
+            const res = await communityApi.listPosts({
                 q: searchQuery,
                 page: 1,
                 pageSize: pageSize,
             })
-            setPosts(res.items || [])
-            setTotal(res.total || 0)
+            setPosts((res as any).items || [])
+            setTotal((res as any).total || 0)
             setPage(1)
         } catch (e) {
             console.error('Search failed:', e)

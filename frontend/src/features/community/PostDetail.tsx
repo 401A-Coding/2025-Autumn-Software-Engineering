@@ -41,9 +41,11 @@ export default function PostDetail() {
 
     async function loadPost() {
         if (!postId) return
+        const id = Number(postId)
+        if (Number.isNaN(id)) return
         setLoading(true)
         try {
-            const data = await communityApi.getPost(parseInt(postId))
+            const data = await communityApi.getPost(id)
             if (data) {
                 setPost(data as Post)
             }

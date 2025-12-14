@@ -538,6 +538,19 @@ export const userApi = {
     const json: ApiResponse<AvatarData> = await res.json()
     return json.data
   },
+
+  /** 按用户ID获取公开信息 */
+  async getById(userId: number) {
+    type UserData = {
+      id: number
+      nickname: string
+      avatarUrl?: string | null
+      role: string
+      createdAt: string
+    }
+    const res = await apiRequest<UserData>(`/api/v1/users/${userId}`)
+    return res.data
+  },
 }
 
 /**

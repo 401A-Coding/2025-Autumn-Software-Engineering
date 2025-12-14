@@ -1,13 +1,12 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import './app-pages.css'
+import { userApi } from '../../services/api'
 
 type UserProfile = {
     id: number
-    username: string
-    nickname?: string
-    email?: string
-    avatarUrl?: string
+    nickname: string
+    avatarUrl?: string | null
     role: string
     createdAt: string
 }
@@ -17,22 +16,30 @@ export default function UserProfile() {
     const { userId } = useParams<{ userId: string }>()
     const [user, setUser] = useState<UserProfile | null>(null)
     const [loading, setLoading] = useState(true)
+    const [error, setError] = useState('')
 
     useEffect(() => {
-        // TODO: 实现用户信息获取 API
-        // 目前使用模拟数据
-        setLoading(true)
-        setTimeout(() => {
-            setUser({
-                id: parseInt(userId || '0'),
-                username: 'user_' + userId,
-                nickname: '用户 ' + userId,
-                email: 'user@example.com',
-                role: 'USER',
-                createdAt: new Date().toISOString(),
-            })
-            setLoading(false)
-        }, 500)
+        let alive = true
+        const fetchUser = async () => {
+            if (!userId) return
+            setLoading(true)
+            setError('')
+            try {
+                const data = await userApi.getById(Number(userId))
+                if (!alive) return
+                setUser(data as unknown as UserProfile)
+            } catch (e: any) {
+                if (!alive) return
+                setError(e?.message || '加载用户信息失败')
+                setUser(null)
+            } finally {
+                if (alive) setLoading(false)
+            }
+        }
+        fetchUser()
+        return () => {
+            alive = false
+        }
     }, [userId])
 
     if (loading) {
@@ -42,7 +49,7 @@ export default function UserProfile() {
     if (!user) {
         return (
             <section className="paper-card card-pad">
-                <div className="empty-box">用户不存在</div>
+                <div className="empty-box">{error || '用户不存在'}</div>
                 <button className="btn-primary mt-16" onClick={() => navigate(-1)}>
                     返回
                 </button>
@@ -77,21 +84,20 @@ export default function UserProfile() {
                         {user.avatarUrl ? (
                             <img
                                 src={user.avatarUrl}
-                                alt={user.nickname || user.username}
+                                alt={user.nickname}
                                 style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                             />
                         ) : (
                             <span style={{ fontSize: 28, fontWeight: 600, color: '#666' }}>
-                                {(user.nickname || user.username).slice(0, 2).toUpperCase()}
+                                {user.nickname.slice(0, 2).toUpperCase()}
                             </span>
                         )}
                     </div>
 
                     {/* 用户信息 */}
                     <div className="flex-1">
-                        <h2 className="mt-0 mb-4">{user.nickname || user.username}</h2>
-                        <div className="text-14 muted mb-2">@{user.username}</div>
-                        {user.email && <div className="text-14 muted mb-2">📧 {user.email}</div>}
+                        <h2 className="mt-0 mb-4">{user.nickname}</h2>
+                        <div className="text-14 muted mb-2">用户ID：{user.id}</div>
                         <div className="text-14 muted">
                             📅 加入于 {new Date(user.createdAt).toLocaleDateString('zh-CN')}
                         </div>
