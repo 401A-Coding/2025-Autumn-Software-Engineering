@@ -56,7 +56,10 @@ export default function BoardPreview({ boardId, onClick }: BoardPreviewProps) {
     return (
         <div
             className="border rounded-lg p-4 bg-green-50 border-green-200 hover:bg-green-100 transition cursor-pointer"
-            onClick={onClick}
+            onClick={(e) => {
+                e.stopPropagation()
+                onClick?.()
+            }}
         >
             <div className="flex items-start">
                 <div className="flex-shrink-0 w-12 h-12 bg-green-200 rounded flex items-center justify-center text-green-700 font-bold text-lg mr-3">

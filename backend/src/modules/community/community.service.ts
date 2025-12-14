@@ -62,6 +62,7 @@ export class CommunityService {
             excerpt: p.content?.slice(0, 200) ?? '',
             shareType:
                 p.shareType === 'NONE' ? null : String(p.shareType).toLowerCase(),
+            shareRefId: p.shareType === 'NONE' ? null : p.shareRefId,
             createdAt: p.createdAt,
             likeCount: p._count.likes,
             commentCount: p._count.comments,
@@ -115,6 +116,9 @@ export class CommunityService {
             authorAvatar: p.author?.avatarUrl ?? null,
             title: p.title ?? null,
             content: p.content,
+            shareType:
+                p.shareType === 'NONE' ? null : String(p.shareType).toLowerCase(),
+            shareRefId: p.shareType === 'NONE' ? null : p.shareRefId,
             shareReference:
                 p.shareType === 'NONE'
                     ? null
@@ -184,7 +188,9 @@ export class CommunityService {
                 skip: (page - 1) * pageSize,
                 take: pageSize,
                 orderBy: { createdAt: 'desc' },
-                include: { author: { select: { id: true, username: true, avatarUrl: true } } },
+                include: {
+                    author: { select: { id: true, username: true, avatarUrl: true } },
+                },
             }),
             this.prisma.communityComment.count({ where: { postId } }),
         ]);
@@ -202,7 +208,9 @@ export class CommunityService {
     async addComment(userId: number, postId: number, body: any) {
         const created = await this.prisma.communityComment.create({
             data: { postId, authorId: userId, content: body.content },
-            include: { author: { select: { id: true, username: true, avatarUrl: true } } },
+            include: {
+                author: { select: { id: true, username: true, avatarUrl: true } },
+            },
         });
         return {
             commentId: created.id,

@@ -5,6 +5,7 @@ import { communityApi } from '../../services/api'
 import UserAvatar from '../../components/UserAvatar'
 import RecordPreview from '../../components/RecordPreview'
 import BoardPreview from '../../components/BoardPreview'
+import RecordEmbed from '../../components/RecordEmbed'
 
 type Post = {
     id: number
@@ -13,7 +14,7 @@ type Post = {
     authorAvatar?: string | null
     title: string | null
     content: string
-    shareType?: string | null
+    shareType?: string | null // backend returns lower-case, e.g. 'record' | 'board'
     shareRefId?: number | null
     shareReference?: any
     attachments: any[]
@@ -155,23 +156,6 @@ export default function PostDetail() {
                 {/* 用户信息区域 */}
                 <div style={{ padding: '16px 20px', backgroundColor: '#fafafa', borderBottom: '1px solid #e0e0e0' }}>
                     <UserAvatar
-                        {/* 引用资源预览 */}
-                        {post.shareType === 'RECORD' && post.shareRefId && (
-                            <div className="mb-16">
-                                <RecordPreview
-                                    recordId={post.shareRefId}
-                                    onClick={() => navigate(`/app/records/${post.shareRefId}`)}
-                                />
-                            </div>
-                        )}
-                        {post.shareType === 'BOARD' && post.shareRefId && (
-                            <div className="mb-16">
-                                <BoardPreview
-                                    boardId={post.shareRefId}
-                                    onClick={() => navigate(`/app/boards/${post.shareRefId}`)}
-                                />
-                            </div>
-                        )}
                         userId={post.authorId}
                         nickname={post.authorNickname}
                         avatarUrl={post.authorAvatar ?? undefined}
@@ -199,6 +183,21 @@ export default function PostDetail() {
                     <div className="prose mb-16">
                         <p className="whitespace-pre-wrap">{post.content}</p>
                     </div>
+
+                    {/* 引用资源预览 */}
+                    {post.shareType === 'record' && post.shareRefId && (
+                        <div className="mb-16">
+                            <RecordEmbed recordId={post.shareRefId} />
+                        </div>
+                    )}
+                    {post.shareType === 'board' && post.shareRefId && (
+                        <div className="mb-16">
+                            <BoardPreview
+                                boardId={post.shareRefId}
+                                onClick={() => navigate(`/app/boards/${post.shareRefId}`)}
+                            />
+                        </div>
+                    )}
 
                     {/* 附件 */}
                     {post.attachments && post.attachments.length > 0 && (

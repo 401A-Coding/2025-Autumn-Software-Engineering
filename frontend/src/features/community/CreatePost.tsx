@@ -4,6 +4,9 @@ import '../../pages/app/app-pages.css'
 import { communityApi } from '../../services/api'
 import TagInput from '../../components/TagInput'
 import ResourceSelector from '../../components/ResourceSelector'
+import RecordPreview from '../../components/RecordPreview'
+import BoardPreview from '../../components/BoardPreview'
+import RecordEmbed from '../../components/RecordEmbed'
 
 export default function CreatePost() {
     const navigate = useNavigate()
@@ -77,10 +80,6 @@ export default function CreatePost() {
                             onChange={(e) => setTitle(e.target.value)}
                             maxLength={200}
                             className="w-100"
-                            {/* 资源引用 */}
-                        <div className="form-group mb-16">
-                            <ResourceSelector value={resource} onChange={setResource} />
-                        </div>
                         />
                         <div className="text-12 muted mt-4">{title.length} / 200</div>
                     </div>
@@ -114,6 +113,28 @@ export default function CreatePost() {
                             placeholder="输入标签名称"
                         />
                     </div>
+
+                    {/* 资源引用 */}
+                    <div className="form-group mb-16">
+                        <ResourceSelector value={resource} onChange={setResource} />
+                    </div>
+
+                    {/* 引用预览 */}
+                    {resource.shareType === 'RECORD' && resource.shareRefId && (
+                        <div className="form-group mb-16">
+                            <label className="mb-6 d-block fw-600">预览</label>
+                            <RecordEmbed recordId={resource.shareRefId} />
+                        </div>
+                    )}
+                    {resource.shareType === 'BOARD' && resource.shareRefId && (
+                        <div className="form-group mb-16">
+                            <label className="mb-6 d-block fw-600">预览</label>
+                            <BoardPreview
+                                boardId={resource.shareRefId}
+                                onClick={() => navigate(`/app/boards/${resource.shareRefId}`)}
+                            />
+                        </div>
+                    )}
 
                     {/* 提交按钮 */}
                     <div className="row-end gap-8">

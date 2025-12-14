@@ -56,7 +56,10 @@ export default function RecordPreview({ recordId, onClick }: RecordPreviewProps)
     return (
         <div
             className="border rounded-lg p-4 bg-blue-50 border-blue-200 hover:bg-blue-100 transition cursor-pointer"
-            onClick={onClick}
+            onClick={(e) => {
+                e.stopPropagation()
+                onClick?.()
+            }}
         >
             <div className="flex items-start">
                 <div className="flex-shrink-0 w-12 h-12 bg-blue-200 rounded flex items-center justify-center text-blue-700 font-bold text-lg mr-3">
