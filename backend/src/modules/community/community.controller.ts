@@ -37,7 +37,7 @@ export class CommunityController {
   @UseGuards(JwtAuthGuard)
   @Post('posts')
   async createPost(@Req() req: any, @Body() body: PostCreateDto) {
-    const result = await this.service.createPost(req.user?.id, body);
+    const result = await this.service.createPost(req.user?.sub, body);
     return { code: 0, message: '创建成功', data: result };
   }
 
@@ -55,7 +55,7 @@ export class CommunityController {
     @Body() patch: PostPatchDto,
   ) {
     const post = await this.service.updatePost(
-      req.user?.id,
+      req.user?.sub,
       Number(postId),
       patch,
     );
@@ -65,7 +65,7 @@ export class CommunityController {
   @UseGuards(JwtAuthGuard)
   @Delete('posts/:postId')
   async deletePost(@Req() req: any, @Param('postId') postId: string) {
-    const result = await this.service.deletePost(req.user?.id, Number(postId));
+    const result = await this.service.deletePost(req.user?.sub, Number(postId));
     return { code: 0, message: 'success', data: result };
   }
 
@@ -90,7 +90,7 @@ export class CommunityController {
     @Body() body: CommentCreateDto,
   ) {
     const data = await this.service.addComment(
-      req.user?.id,
+      req.user?.sub,
       Number(postId),
       body,
     );
@@ -107,21 +107,21 @@ export class CommunityController {
   @UseGuards(JwtAuthGuard)
   @Post('posts/:postId/like')
   async likePost(@Req() req: any, @Param('postId') postId: string) {
-    const data = await this.service.likePost(req.user?.id, Number(postId));
+    const data = await this.service.likePost(req.user?.sub, Number(postId));
     return { code: 0, message: 'success', data };
   }
 
   @UseGuards(JwtAuthGuard)
   @Delete('posts/:postId/like')
   async unlikePost(@Req() req: any, @Param('postId') postId: string) {
-    const data = await this.service.unlikePost(req.user?.id, Number(postId));
+    const data = await this.service.unlikePost(req.user?.sub, Number(postId));
     return { code: 0, message: 'success', data };
   }
 
   @UseGuards(JwtAuthGuard)
   @Post('posts/:postId/bookmark')
   async bookmarkPost(@Req() req: any, @Param('postId') postId: string) {
-    const data = await this.service.bookmarkPost(req.user?.id, Number(postId));
+    const data = await this.service.bookmarkPost(req.user?.sub, Number(postId));
     return { code: 0, message: 'success', data };
   }
 
@@ -129,7 +129,7 @@ export class CommunityController {
   @Delete('posts/:postId/bookmark')
   async unbookmarkPost(@Req() req: any, @Param('postId') postId: string) {
     const data = await this.service.unbookmarkPost(
-      req.user?.id,
+      req.user?.sub,
       Number(postId),
     );
     return { code: 0, message: 'success', data };
@@ -138,7 +138,7 @@ export class CommunityController {
   @UseGuards(JwtAuthGuard)
   @Post('reports')
   async createReport(@Req() req: any, @Body() body: ReportCreateDto) {
-    const data = await this.service.createReport(req.user?.id, body);
+    const data = await this.service.createReport(req.user?.sub, body);
     return { code: 0, message: '已受理', data };
   }
 

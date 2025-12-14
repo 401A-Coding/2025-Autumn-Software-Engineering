@@ -6,14 +6,17 @@ import {
   IsIn,
   IsNotEmpty,
 } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class PostsQueryDto {
   @IsOptional()
   @IsInt()
+  @Type(() => Number)
   page?: number = 1;
 
   @IsOptional()
   @IsInt()
+  @Type(() => Number)
   pageSize?: number = 20;
 
   @IsOptional()
@@ -31,6 +34,7 @@ export class PostsQueryDto {
 
   @IsOptional()
   @IsInt()
+  @Type(() => Number)
   authorId?: number;
 
   @IsOptional()
