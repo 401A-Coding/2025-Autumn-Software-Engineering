@@ -60,7 +60,7 @@ export default function UserAvatar({
     }
 
     return (
-        <div className="row-start align-center" style={{ gap: 6 }}>
+        <div className="row-start align-center" style={{ gap: 8 }}>
             {/* 头像 */}
             <div
                 className="cursor-pointer"
@@ -96,15 +96,15 @@ export default function UserAvatar({
                 )}
             </div>
 
-            {/* 用户信息：昵称与时间紧贴头像右侧、同一行显示且不换行 */}
-            <div className="row-start align-center" style={{ gap: 6, whiteSpace: 'nowrap' }}>
+            {/* 用户信息：昵称在上、日期在下，整体紧贴头像右侧 */}
+            <div className="col" style={{ gap: 4 }}>
                 <div
                     className="cursor-pointer fw-600"
                     onClick={handleClick}
                     style={{
                         fontSize: size === 'small' ? 12 : 14,
                         color: '#333',
-                        lineHeight: 1,
+                        lineHeight: 1.2,
                     }}
                 >
                     {nickname || '匿名用户'}
@@ -113,7 +113,7 @@ export default function UserAvatar({
                     <div
                         className="text-12 muted"
                         style={{
-                            lineHeight: 1,
+                            lineHeight: 1.2,
                         }}
                     >
                         {formatTime(timestamp)}
