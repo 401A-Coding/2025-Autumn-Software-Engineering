@@ -1854,6 +1854,22 @@ components:
             shareId: { type: integer, example: 9001 }
             url: { type: string, nullable: true, example: "/shares/9001" }
 
+    # Record preferences schemas
+    RecordPrefs:
+      type: object
+      properties:
+        keepLimit: { type: integer, example: 30, minimum: 1, maximum: 500 }
+    RecordPrefsPatch:
+      type: object
+      properties:
+        keepLimit: { type: integer, minimum: 1, maximum: 500 }
+    ApiResponseRecordPrefs:
+      type: object
+      properties:
+        code: { type: integer, example: 0 }
+        message: { type: string, example: success }
+        data: { $ref: "#/components/schemas/RecordPrefs" }
+
     # Board rule editor schemas
     Rules:
       type: object

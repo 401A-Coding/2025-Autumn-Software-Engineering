@@ -1,187 +1,207 @@
-import { useEffect, useState, type FormEvent } from 'react'
-import { Link } from 'react-router-dom'
-import { communityApi } from '../../services/api'
-import type { components } from '../../types/api'
+import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import './app-pages.css'
+import { communityApi } from '../../services/api'
 
-type ShareItem = (components['schemas']['CommunityShareItem'] & { liked?: boolean })
-type SearchResultItem = components['schemas']['SearchResultItem']
-
-type BusyMap = Record<number, boolean>
+type Post = {
+    id: number
+    authorId: number
+    authorNickname?: string
+    title: string | null
+    excerpt: string
+    shareType: string | null
+    createdAt: string
+    likeCount: number
+    commentCount: number
+    tags: string[]
+}
 
 export default function Community() {
-    const [feed, setFeed] = useState<ShareItem[]>([])
-    const [feedError, setFeedError] = useState<string | null>(null)
-    const [loadingFeed, setLoadingFeed] = useState(true)
-    const [likeBusy, setLikeBusy] = useState<BusyMap>({})
+    const navigate = useNavigate()
+    const [posts, setPosts] = useState<Post[]>([])
+    const [loading, setLoading] = useState(true)
+    const [page, setPage] = useState(1)
+    const [total, setTotal] = useState(0)
+    const [pageSize] = useState(10)
+    const [searchQuery, setSearchQuery] = useState('')
+    const [isSearching, setIsSearching] = useState(false)
 
-    const [query, setQuery] = useState('')
-    const [tag, setTag] = useState('')
-    const [searching, setSearching] = useState(false)
-    const [searchError, setSearchError] = useState<string | null>(null)
-    const [results, setResults] = useState<SearchResultItem[]>([])
-    const [hasSearched, setHasSearched] = useState(false)
-
-    useEffect(() => {
-        refreshFeed()
-    }, [])
-
-    async function refreshFeed() {
-        setLoadingFeed(true)
-        setFeedError(null)
+    async function loadPosts(pageNum = 1) {
+        setLoading(true)
         try {
-            const page = await communityApi.list(1, 20)
-            const items = (page?.items || []).map(it => ({ ...it, liked: false }))
-            setFeed(items)
-        } catch (e: unknown) {
-            const msg = e instanceof Error ? e.message : '加载失败'
-            setFeedError(msg)
+            const res = await communityApi.listPosts({ page: pageNum, pageSize })
+            setPosts((res as any).items || [])
+            setTotal((res as any).total || 0)
+            setPage(pageNum)
+        } catch (e) {
+            console.error('Failed to load posts:', e)
+            setPosts([])
         } finally {
-            setLoadingFeed(false)
+            setLoading(false)
         }
     }
 
-    async function toggleLike(shareId?: number) {
-        if (!shareId) return
-        if (likeBusy[shareId]) return
-        setLikeBusy(prev => ({ ...prev, [shareId]: true }))
-        const target = feed.find(it => it.shareId === shareId)
-        const liked = !!target?.liked
-        try {
-            if (liked) await communityApi.unlike(shareId)
-            else await communityApi.like(shareId)
-            setFeed(items => items.map(it => {
-                if (it.shareId !== shareId) return it
-                const likes = (it.likes ?? 0) + (liked ? -1 : 1)
-                return { ...it, liked: !liked, likes: Math.max(0, likes) }
-            }))
-        } catch (e: unknown) {
-            const msg = e instanceof Error ? e.message : '操作失败'
-            window.alert(msg)
-        } finally {
-            setLikeBusy(prev => {
-                const next = { ...prev }
-                delete next[shareId]
-                return next
-            })
-        }
-    }
+    async function handleSearch(e: React.FormEvent) {
+        e.preventDefault()
+        if (!searchQuery.trim()) return
 
-    async function report(shareId?: number) {
-        if (!shareId) return
-        const reason = window.prompt('请输入举报理由（可简述违规点）')
-        if (!reason || !reason.trim()) return
-        try {
-            await communityApi.report({ targetType: 'share', targetId: shareId, reason: reason.trim() })
-            window.alert('已提交举报，我们会尽快处理')
-        } catch (e: unknown) {
-            const msg = e instanceof Error ? e.message : '举报失败'
-            window.alert(msg)
-        }
-    }
-
-    async function onSearch(e?: FormEvent) {
-        e?.preventDefault()
-        setSearching(true)
-        setSearchError(null)
-        setHasSearched(true)
+        setLoading(true)
+        setIsSearching(true)
         try {
             const res = await communityApi.search({
-                q: query.trim() || undefined,
-                tag: tag.trim() || undefined,
+                q: searchQuery,
                 page: 1,
-                pageSize: 10,
+                pageSize: pageSize,
             })
-            setResults(res.items || [])
-        } catch (e: unknown) {
-            const msg = e instanceof Error ? e.message : '搜索失败'
-            setSearchError(msg)
+            setPosts(res.items || [])
+            setTotal(res.total || 0)
+            setPage(1)
+        } catch (e) {
+            console.error('Search failed:', e)
+            setPosts([])
         } finally {
-            setSearching(false)
+            setLoading(false)
         }
     }
 
+    function handleClearSearch() {
+        setSearchQuery('')
+        setIsSearching(false)
+        setPage(1)
+        loadPosts(1)
+    }
+
+    useEffect(() => {
+        loadPosts(1)
+    }, [])
+
+    const maxPage = Math.ceil(total / pageSize) || 1
+
     return (
-        <div className="col gap-12">
-            <section className="paper-card card-pad">
-                <div className="row-between align-center">
-                    <div>
-                        <h3 className="mt-0 mb-4">社区广场</h3>
-                        <div className="muted text-14">浏览热门分享，参与互动或举报违规内容。</div>
+        <div>
+            {/* 顶部导航栏 */}
+            <section className="paper-card card-pad mb-12">
+                <div className="row-between align-center mb-12">
+                    <h3 className="mt-0 mb-0">社区</h3>
+                    <div className="row-start gap-8">
+                        <button
+                            className="btn-primary"
+                            title="发布新帖"
+                            onClick={() => navigate('/app/community/new')}
+                        >
+                            ➕ 发布
+                        </button>
                     </div>
-                    <button className="btn-ghost" onClick={refreshFeed} disabled={loadingFeed}>刷新</button>
                 </div>
-                {feedError && <div className="error-text mt-8">{feedError}</div>}
-                {loadingFeed ? (
-                    <div className="muted mt-8">加载中...</div>
-                ) : feed.length === 0 ? (
-                    <div className="empty-box mt-8">暂无分享</div>
-                ) : (
-                    <div className="col gap-10 mt-8">
-                        {feed.map(item => (
-                            <div key={item.shareId} className="community-item">
-                                <div className="col gap-4">
-                                    <div className="fw-600 text-16">{item.title || '未命名对局'}</div>
-                                    <div className="muted text-12">分享 ID：{item.shareId ?? '—'}</div>
-                                </div>
-                                <div className="row gap-8 align-center ml-auto">
-                                    <button
-                                        className={`pill-btn ${item.liked ? 'pill-btn--active' : ''}`}
-                                        onClick={() => toggleLike(item.shareId)}
-                                        disabled={likeBusy[item.shareId ?? -1]}
-                                    >
-                                        <span role="img" aria-label="like">👍</span>
-                                        <span className="ml-4">{item.liked ? '已赞' : '点赞'}</span>
-                                        <span className="like-chip">{item.likes ?? 0}</span>
-                                    </button>
-                                    <button className="link-btn" onClick={() => report(item.shareId)}>举报</button>
-                                </div>
-                            </div>
-                        ))}
+
+                {/* 搜索栏 */}
+                <form onSubmit={handleSearch} className="row-start gap-8 mb-12">
+                    <input
+                        type="text"
+                        placeholder="搜索帖子..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="flex-1"
+                    />
+                    <button type="submit" className="btn-ghost" title="搜索">
+                        🔍
+                    </button>
+                    {isSearching && (
+                        <button
+                            type="button"
+                            className="btn-ghost"
+                            title="清除搜索"
+                            onClick={handleClearSearch}
+                        >
+                            ✕
+                        </button>
+                    )}
+                </form>
+
+                {isSearching && (
+                    <div className="muted text-12">
+                        搜索结果："{searchQuery}" （共 {total} 条）
                     </div>
                 )}
             </section>
 
+            {/* 帖子列表 */}
             <section className="paper-card card-pad">
-                <h3 className="mt-0 mb-8">搜索对局</h3>
-                <form className="community-search" onSubmit={onSearch}>
-                    <input
-                        className="community-input"
-                        placeholder="关键词（标题/作者）"
-                        value={query}
-                        onChange={e => setQuery(e.target.value)}
-                    />
-                    <input
-                        className="community-input"
-                        placeholder="标签（可选）"
-                        value={tag}
-                        onChange={e => setTag(e.target.value)}
-                    />
-                    <button type="submit" className="btn-primary" disabled={searching}>
-                        {searching ? '搜索中…' : '搜索'}
-                    </button>
-                </form>
-                {searchError && <div className="error-text mt-8">{searchError}</div>}
-                {results.length > 0 ? (
-                    <div className="col gap-8 mt-12">
-                        {results.map(item => (
-                            <div key={item.recordId} className="community-result">
-                                <div>
-                                    <div className="fw-600">{item.title || '未命名对局'}</div>
-                                    <div className="muted text-12">记录 ID：{item.recordId ?? '—'}</div>
-                                </div>
-                                {item.recordId != null && (
-                                    <Link className="btn-ghost" to={`/app/record/${item.recordId}`}>
-                                        查看
-                                    </Link>
-                                )}
-                            </div>
-                        ))}
-                    </div>
-                ) : hasSearched ? (
-                    <div className="muted mt-8">未找到符合条件的对局</div>
+                {loading ? (
+                    <div className="muted text-center py-24">加载中...</div>
+                ) : posts.length === 0 ? (
+                    <div className="empty-box">暂无帖子</div>
                 ) : (
-                    <div className="muted mt-8">输入关键词或标签后搜索对局</div>
+                    <>
+                        <div className="col gap-12">
+                            {posts.map((post) => (
+                                <div
+                                    key={post.id}
+                                    className="paper-card pad-12 cursor-pointer hover:shadow-md transition-shadow"
+                                    onClick={() => navigate(`/app/community/${post.id}`)}
+                                >
+                                    {/* 帖子标题 */}
+                                    <h4 className="mt-0 mb-6">{post.title || '(无标题)'}</h4>
+
+                                    {/* 帖子摘要 */}
+                                    <p className="muted mb-8 text-14 line-clamp-2">
+                                        {post.excerpt || '(无内容)'}
+                                    </p>
+
+                                    {/* 标签 */}
+                                    {post.tags && post.tags.length > 0 && (
+                                        <div className="row-start gap-4 mb-8 flex-wrap">
+                                            {post.tags.slice(0, 3).map((tag, idx) => (
+                                                <span key={idx} className="badge badge-light text-12">
+                                                    {tag}
+                                                </span>
+                                            ))}
+                                            {post.tags.length > 3 && (
+                                                <span className="badge badge-light text-12">
+                                                    +{post.tags.length - 3}
+                                                </span>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    {/* 底部信息 */}
+                                    <div className="row-between align-center text-12 muted">
+                                        <div className="row-start gap-12">
+                                            <span>{post.authorNickname || '匿名用户'}</span>
+                                            <span>{new Date(post.createdAt).toLocaleDateString()}</span>
+                                        </div>
+                                        <div className="row-start gap-12">
+                                            <span>👍 {post.likeCount}</span>
+                                            <span>💬 {post.commentCount}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* 分页器 */}
+                        {maxPage > 1 && (
+                            <div className="row-center gap-8 mt-16 pt-12 border-top">
+                                <button
+                                    className="btn-ghost"
+                                    onClick={() => loadPosts(Math.max(1, page - 1))}
+                                    disabled={page <= 1}
+                                >
+                                    ← 上一页
+                                </button>
+                                <span className="muted text-12">
+                                    第 {page} / {maxPage} 页
+                                </span>
+                                <button
+                                    className="btn-ghost"
+                                    onClick={() => loadPosts(Math.min(maxPage, page + 1))}
+                                    disabled={page >= maxPage}
+                                >
+                                    下一页 →
+                                </button>
+                            </div>
+                        )}
+                    </>
                 )}
             </section>
         </div>

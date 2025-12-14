@@ -544,41 +544,151 @@ export const userApi = {
  * 社区相关 API
  */
 export const communityApi = {
-  /** 获取分享广场 */
-  async list(page = 1, pageSize = 20): Promise<
-    NonNullable<operations['communityShares']['responses'][200]['content']['application/json']['data']>
-  > {
-    type PageData = NonNullable<
-      operations['communityShares']['responses'][200]['content']['application/json']['data']
+  /** 获取帖子列表 */
+  async listPosts(params?: {
+    page?: number
+    pageSize?: number
+    q?: string
+    tag?: string
+    type?: string
+    authorId?: number
+    sort?: 'new' | 'hot'
+  }) {
+    const query = new URLSearchParams()
+    if (params?.page) query.set('page', String(params.page))
+    if (params?.pageSize) query.set('pageSize', String(params.pageSize))
+    if (params?.q) query.set('q', params.q)
+    if (params?.tag) query.set('tag', params.tag)
+    if (params?.type) query.set('type', params.type)
+    if (params?.authorId) query.set('authorId', String(params.authorId))
+    if (params?.sort) query.set('sort', params.sort)
+
+    type PostsData = NonNullable<
+      operations['communityPostsList']['responses'][200]['content']['application/json']['data']
     >
-    const res = await apiRequest<PageData>(`/api/v1/community/shares?page=${page}&pageSize=${pageSize}`)
-    // 兼容 data 为空或 items 缺失的情况
-    const data: any = res.data ?? {}
-    return {
-      items: Array.isArray(data.items) ? (data.items as CommunityShare[]) : [],
-      page: data.page ?? page,
-      pageSize: data.pageSize ?? pageSize,
-      total: data.total ?? 0,
-    }
+    const res = await apiRequest<PostsData>(
+      `/api/v1/community/posts${query.toString() ? '?' + query.toString() : ''}`
+    )
+    return res.data
   },
 
-  /** 点赞分享 */
-  async like(id: number) {
-    type OkData = NonNullable<
-      operations['communityLike']['responses'][200]['content']['application/json']['data']
+  /** 创建帖子 */
+  async createPost(body: components['schemas']['PostCreateRequest']) {
+    type CreateData = NonNullable<
+      operations['communityPostsCreate']['responses'][200]['content']['application/json']['data']
     >
-    const res = await apiRequest<OkData>(`/api/v1/community/shares/${id}/like`, {
+    const res = await apiRequest<CreateData>('/api/v1/community/posts', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    })
+    return res.data
+  },
+
+  /** 获取帖子详情 */
+  async getPost(postId: number) {
+    type PostData = NonNullable<
+      operations['communityPostsGet']['responses'][200]['content']['application/json']['data']
+    >
+    const res = await apiRequest<PostData>(`/api/v1/community/posts/${postId}`)
+    return res.data
+  },
+
+  /** 更新帖子 */
+  async updatePost(postId: number, body: components['schemas']['PostPatchRequest']) {
+    type UpdateData = NonNullable<
+      operations['communityPostsUpdate']['responses'][200]['content']['application/json']['data']
+    >
+    const res = await apiRequest<UpdateData>(`/api/v1/community/posts/${postId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    })
+    return res.data
+  },
+
+  /** 删除帖子 */
+  async deletePost(postId: number) {
+    type DeleteData = NonNullable<
+      operations['communityPostsDelete']['responses'][200]['content']['application/json']['data']
+    >
+    const res = await apiRequest<DeleteData>(`/api/v1/community/posts/${postId}`, {
+      method: 'DELETE',
+    })
+    return res.data
+  },
+
+  /** 获取帖子评论列表 */
+  async getComments(postId: number, page = 1, pageSize = 20) {
+    type CommentsData = NonNullable<
+      operations['communityPostCommentsList']['responses'][200]['content']['application/json']['data']
+    >
+    const res = await apiRequest<CommentsData>(
+      `/api/v1/community/posts/${postId}/comments?page=${page}&pageSize=${pageSize}`
+    )
+    return res.data
+  },
+
+  /** 添加评论 */
+  async addComment(postId: number, body: components['schemas']['CommentCreateRequest']) {
+    type CommentData = NonNullable<
+      operations['communityPostCommentsAdd']['responses'][200]['content']['application/json']['data']
+    >
+    const res = await apiRequest<CommentData>(`/api/v1/community/posts/${postId}/comments`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    })
+    return res.data
+  },
+
+  /** 删除评论 */
+  async deleteComment(commentId: number) {
+    type DeleteData = NonNullable<
+      operations['communityCommentDelete']['responses'][200]['content']['application/json']['data']
+    >
+    const res = await apiRequest<DeleteData>(`/api/v1/community/comments/${commentId}`, {
+      method: 'DELETE',
+    })
+    return res.data
+  },
+
+  /** 点赞帖子 */
+  async likePost(postId: number) {
+    type OkData = NonNullable<
+      operations['communityPostLike']['responses'][200]['content']['application/json']['data']
+    >
+    const res = await apiRequest<OkData>(`/api/v1/community/posts/${postId}/like`, {
       method: 'POST',
     })
     return res.data
   },
 
-  /** 取消点赞分享 */
-  async unlike(id: number) {
+  /** 取消点赞 */
+  async unlikePost(postId: number) {
     type OkData = NonNullable<
-      operations['communityUnlike']['responses'][200]['content']['application/json']['data']
+      operations['communityPostUnlike']['responses'][200]['content']['application/json']['data']
     >
-    const res = await apiRequest<OkData>(`/api/v1/community/shares/${id}/like`, {
+    const res = await apiRequest<OkData>(`/api/v1/community/posts/${postId}/like`, {
+      method: 'DELETE',
+    })
+    return res.data
+  },
+
+  /** 收藏帖子 */
+  async bookmarkPost(postId: number) {
+    type OkData = NonNullable<
+      operations['communityPostBookmark']['responses'][200]['content']['application/json']['data']
+    >
+    const res = await apiRequest<OkData>(`/api/v1/community/posts/${postId}/bookmark`, {
+      method: 'POST',
+    })
+    return res.data
+  },
+
+  /** 取消收藏 */
+  async unbookmarkPost(postId: number) {
+    type OkData = NonNullable<
+      operations['communityPostUnbookmark']['responses'][200]['content']['application/json']['data']
+    >
+    const res = await apiRequest<OkData>(`/api/v1/community/posts/${postId}/bookmark`, {
       method: 'DELETE',
     })
     return res.data
@@ -596,11 +706,12 @@ export const communityApi = {
     return res.data
   },
 
-  /** 搜索对局 */
-  async search(params: { q?: string; tag?: string; page?: number; pageSize?: number }) {
+  /** 搜索帖子 */
+  async search(params: { q?: string; tag?: string; type?: string; page?: number; pageSize?: number }) {
     const query = new URLSearchParams()
     if (params.q) query.set('q', params.q)
     if (params.tag) query.set('tag', params.tag)
+    if (params.type) query.set('type', params.type)
     if (params.page) query.set('page', String(params.page))
     if (params.pageSize) query.set('pageSize', String(params.pageSize))
 
