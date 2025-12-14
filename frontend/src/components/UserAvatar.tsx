@@ -60,7 +60,14 @@ export default function UserAvatar({
     }
 
     return (
-        <div className="row-start align-center" style={{ gap: 8 }}>
+        <div
+            style={{
+                display: 'flex',
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 8,
+            }}
+        >
             {/* 头像 */}
             <div
                 className="cursor-pointer"
@@ -97,23 +104,38 @@ export default function UserAvatar({
             </div>
 
             {/* 用户信息：昵称在上、日期在下，整体紧贴头像右侧 */}
-            <div className="col" style={{ gap: 4 }}>
+            <div
+                style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 4,
+                    minWidth: 0,
+                }}
+            >
                 <div
-                    className="cursor-pointer fw-600"
                     onClick={handleClick}
                     style={{
+                        cursor: 'pointer',
+                        fontWeight: 600,
                         fontSize: size === 'small' ? 12 : 14,
                         color: '#333',
                         lineHeight: 1.2,
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
                     }}
                 >
                     {nickname || '匿名用户'}
                 </div>
                 {showTime && timestamp && (
                     <div
-                        className="text-12 muted"
                         style={{
+                            fontSize: 12,
+                            color: '#666',
                             lineHeight: 1.2,
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
                         }}
                     >
                         {formatTime(timestamp)}
