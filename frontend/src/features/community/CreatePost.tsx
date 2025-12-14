@@ -2,12 +2,13 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import '../../pages/app/app-pages.css'
 import { communityApi } from '../../services/api'
+import TagInput from '../../components/TagInput'
 
 export default function CreatePost() {
     const navigate = useNavigate()
     const [title, setTitle] = useState('')
     const [content, setContent] = useState('')
-    const [tags, setTags] = useState('')
+    const [tags, setTags] = useState<string[]>([])
     const [submitting, setSubmitting] = useState(false)
     const [error, setError] = useState('')
 
@@ -21,15 +22,10 @@ export default function CreatePost() {
         setSubmitting(true)
         setError('')
         try {
-            const tagList = tags
-                .split(',')
-                .map((t) => t.trim())
-                .filter((t) => t.length > 0)
-
             await communityApi.createPost({
                 title,
                 content,
-                tags: tagList,
+                tags: tags,
             })
 
             alert('发帖成功！')
@@ -95,21 +91,12 @@ export default function CreatePost() {
                         <label htmlFor="tags" className="mb-6 d-block fw-600">
                             标签（可选）
                         </label>
-                        <input
-                            id="tags"
-                            type="text"
-                            placeholder="多个标签用逗号分隔，如：技巧, 开局, 残局"
-                            value={tags}
-                            onChange={(e) => setTags(e.target.value)}
-                            className="w-100"
+                        <TagInput
+                            tags={tags}
+                            onChange={setTags}
+                            maxTags={5}
+                            placeholder="输入标签名称"
                         />
-                        <div className="text-12 muted mt-4">
-                            {tags
-                                .split(',')
-                                .map((t) => t.trim())
-                                .filter((t) => t.length > 0).length}{' '}
-                            个标签
-                        </div>
                     </div>
 
                     {/* 提交按钮 */}

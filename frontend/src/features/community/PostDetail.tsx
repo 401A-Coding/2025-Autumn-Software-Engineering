@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import '../../pages/app/app-pages.css'
 import { communityApi } from '../../services/api'
+import UserAvatar from '../../components/UserAvatar'
 
 type Post = {
     id: number
@@ -19,8 +20,11 @@ type Post = {
 }
 
 type Comment = {
+    authorId?: number
+    authorNickname?: string
     id: number
     type: string
+    createdAt?: string
     content: string
 }
 
@@ -121,16 +125,55 @@ export default function PostDetail() {
             </button>
 
             {/* 帖子内容 */}
-            <section className="paper-card card-pad mb-12">
-                <h2 className="mt-0 mb-12">{post.title || '(无标题)'}</h2>
+            <section className="paper-card mb-12" style={{ padding: 0, overflow: 'hidden' }}>
+                {/* 用户信息区域 */}
+                <div style={{ padding: '16px 20px', backgroundColor: '#fafafa', borderBottom: '1px solid #e0e0e0' }}>
+                    <UserAvatar
+                        userId={post.authorId}
+                        nickname={post.authorNickname}
+                        timestamp={post.createdAt}
+                        size="large"
+                    />
+                </div>
 
-                <div className="row-between align-center mb-16 pb-12 border-bottom">
-                    <div className="row-start gap-12 text-12 muted">
-                        <span>作者：{post.authorNickname || '匿名用户'}</span>
-                        <span>时间：{new Date(post.createdAt).toLocaleString()}</span>
-                        {post.updatedAt && <span>更新：{new Date(post.updatedAt).toLocaleString()}</span>}
+                {/* 帖子内容区域 */}
+                <div style={{ padding: '16px 20px' }}>
+                    <h2 className="mt-0 mb-12">{post.title || '(无标题)'}</h2>
+
+                    {/* 标签 */}
+                    {post.tags && post.tags.length > 0 && (
+                        <div className="row-start gap-4 mb-12 flex-wrap">
+                            {post.tags.map((tag, idx) => (
+                                <span key={idx} className="badge badge-light">
+                                    {tag}
+                                </span>
+                            ))}
+                        </div>
+                    )}
+
+                    {/* 帖子正文 */}
+                    <div className="prose mb-16">
+                        <p className="whitespace-pre-wrap">{post.content}</p>
                     </div>
-                    <div className="row-start gap-8">
+
+                    {/* 附件 */}
+                    {post.attachments && post.attachments.length > 0 && (
+                        <div className="mb-16">
+                            <h4>附件</h4>
+                            <ul>
+                                {post.attachments.map((att, idx) => (
+                                    <li key={idx}>
+                                        <a href={att.url} target="_blank" rel="noopener noreferrer">
+                                            {att.url}
+                                        </a>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
+
+                    {/* 互动按钮 */}
+                    <div className="row-start gap-12 pt-12 border-top">
                         <button
                             className={`btn-ghost text-14 ${liked ? 'fw-600' : ''}`}
                             onClick={handleLike}
@@ -138,40 +181,9 @@ export default function PostDetail() {
                         >
                             👍 {post.likeCount}
                         </button>
+                        <span className="text-14 muted">💬 {post.commentCount}</span>
                     </div>
                 </div>
-
-                {/* 标签 */}
-                {post.tags && post.tags.length > 0 && (
-                    <div className="row-start gap-4 mb-12 flex-wrap">
-                        {post.tags.map((tag, idx) => (
-                            <span key={idx} className="badge badge-light">
-                                {tag}
-                            </span>
-                        ))}
-                    </div>
-                )}
-
-                {/* 帖子正文 */}
-                <div className="prose mb-16">
-                    <p className="whitespace-pre-wrap">{post.content}</p>
-                </div>
-
-                {/* 附件 */}
-                {post.attachments && post.attachments.length > 0 && (
-                    <div className="mb-16">
-                        <h4>附件</h4>
-                        <ul>
-                            {post.attachments.map((att, idx) => (
-                                <li key={idx}>
-                                    <a href={att.url} target="_blank" rel="noopener noreferrer">
-                                        {att.url}
-                                    </a>
-                                </li>
-                            ))}
-                        </ul>
-                    </div>
-                )}
             </section>
 
             {/* 评论区 */}
@@ -204,9 +216,20 @@ export default function PostDetail() {
                 ) : (
                     <div className="col gap-12">
                         {comments.map((comment) => (
-                            <div key={comment.id} className="paper-card pad-12">
-                                <p className="mt-0 mb-4">{comment.content}</p>
-                                <div className="text-12 muted">刚才</div>
+                            <div key={comment.id} className="paper-card" style={{ padding: 0, overflow: 'hidden' }}>
+                                {/* 评论者信息 */}
+                                <div style={{ padding: '10px 12px', backgroundColor: '#fafafa', borderBottom: '1px solid #e0e0e0' }}>
+                                    <UserAvatar
+                                        userId={comment.authorId || 0}
+                                        nickname={comment.authorNickname}
+                                        timestamp={comment.createdAt}
+                                        size="small"
+                                    />
+                                </div>
+                                {/* 评论内容 */}
+                                <div style={{ padding: '12px' }}>
+                                    <p className="mt-0 mb-0 whitespace-pre-wrap">{comment.content}</p>
+                                </div>
                             </div>
                         ))}
                     </div>

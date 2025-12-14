@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import './app-pages.css'
 import { communityApi } from '../../services/api'
+import UserAvatar from '../../components/UserAvatar'
 
 type Post = {
     id: number
@@ -137,40 +138,48 @@ export default function Community() {
                             {posts.map((post) => (
                                 <div
                                     key={post.id}
-                                    className="paper-card pad-12 cursor-pointer hover:shadow-md transition-shadow"
+                                    className="paper-card cursor-pointer hover:shadow-md transition-shadow"
+                                    style={{ padding: 0, overflow: 'hidden' }}
                                     onClick={() => navigate(`/app/community/${post.id}`)}
                                 >
-                                    {/* 帖子标题 */}
-                                    <h4 className="mt-0 mb-6">{post.title || '(无标题)'}</h4>
+                                    {/* 用户信息区域 */}
+                                    <div style={{ padding: '12px 16px', backgroundColor: '#fafafa', borderBottom: '1px solid #e0e0e0' }}>
+                                        <UserAvatar
+                                            userId={post.authorId}
+                                            nickname={post.authorNickname}
+                                            timestamp={post.createdAt}
+                                            size="medium"
+                                        />
+                                    </div>
 
-                                    {/* 帖子摘要 */}
-                                    <p className="muted mb-8 text-14 line-clamp-2">
-                                        {post.excerpt || '(无内容)'}
-                                    </p>
+                                    {/* 帖子内容区域 */}
+                                    <div style={{ padding: '12px 16px' }}>
+                                        {/* 帖子标题 */}
+                                        <h4 className="mt-0 mb-6">{post.title || '(无标题)'}</h4>
 
-                                    {/* 标签 */}
-                                    {post.tags && post.tags.length > 0 && (
-                                        <div className="row-start gap-4 mb-8 flex-wrap">
-                                            {post.tags.slice(0, 3).map((tag, idx) => (
-                                                <span key={idx} className="badge badge-light text-12">
-                                                    {tag}
-                                                </span>
-                                            ))}
-                                            {post.tags.length > 3 && (
-                                                <span className="badge badge-light text-12">
-                                                    +{post.tags.length - 3}
-                                                </span>
-                                            )}
-                                        </div>
-                                    )}
+                                        {/* 帖子摘要 */}
+                                        <p className="muted mb-8 text-14 line-clamp-2">
+                                            {post.excerpt || '(无内容)'}
+                                        </p>
 
-                                    {/* 底部信息 */}
-                                    <div className="row-between align-center text-12 muted">
-                                        <div className="row-start gap-12">
-                                            <span>{post.authorNickname || '匿名用户'}</span>
-                                            <span>{new Date(post.createdAt).toLocaleDateString()}</span>
-                                        </div>
-                                        <div className="row-start gap-12">
+                                        {/* 标签 */}
+                                        {post.tags && post.tags.length > 0 && (
+                                            <div className="row-start gap-4 mb-8 flex-wrap">
+                                                {post.tags.slice(0, 3).map((tag, idx) => (
+                                                    <span key={idx} className="badge badge-light text-12">
+                                                        {tag}
+                                                    </span>
+                                                ))}
+                                                {post.tags.length > 3 && (
+                                                    <span className="badge badge-light text-12">
+                                                        +{post.tags.length - 3}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        )}
+
+                                        {/* 底部信息 */}
+                                        <div className="row-start gap-12 text-12 muted">
                                             <span>👍 {post.likeCount}</span>
                                             <span>💬 {post.commentCount}</span>
                                         </div>
