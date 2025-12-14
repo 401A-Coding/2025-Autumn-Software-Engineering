@@ -6,7 +6,6 @@ import { createInitialBoard } from '../../features/chess/types'
 import type { CustomRuleSet, MovePattern } from '../../features/chess/ruleEngine'
 import { standardChessRules } from '../../features/chess/rulePresets'
 import { moveTemplates, getDefaultTemplateForPiece, type MoveTemplateType } from '../../features/chess/moveTemplates'
-import { boardStore } from '../../features/boards/boardStore'
 import '../../features/chess/board.css'
 
 

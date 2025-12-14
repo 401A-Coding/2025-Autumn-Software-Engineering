@@ -177,8 +177,7 @@ export default function Community() {
                                             <div className="mb-8">
                                                 <BoardPreview
                                                     boardId={post.shareRefId}
-                                                    onClick={(e) => {
-                                                        e.stopPropagation()
+                                                    onClick={() => {
                                                         navigate(`/app/boards/${post.shareRefId}`)
                                                     }}
                                                 />

@@ -16,7 +16,6 @@ type BoardTemplate = components['schemas']['BoardTemplate']
 type BoardCreateRequest = components['schemas']['BoardCreateRequest']
 type BoardUpdateRequest = components['schemas']['BoardUpdateRequest']
 type BattleCreateRequest = components['schemas']['BattleCreateRequest']
-type CommunityShare = components['schemas']['CommunityShareItem']
 type ReportRequest = components['schemas']['ReportRequest']
 type SearchResultItem = components['schemas']['SearchResultItem']
 

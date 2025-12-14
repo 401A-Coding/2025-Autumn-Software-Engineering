@@ -23,7 +23,7 @@ export default function TemplateManager() {
     void refresh()
     void refreshRemote()
     // remove local saved-boards listener because we no longer use local storage
-    return () => {}
+    return () => { }
   }, [])
 
   const [remoteTemplates, setRemoteTemplates] = useState<any[]>([])
@@ -41,7 +41,6 @@ export default function TemplateManager() {
 
   const handleApply = (boardData: any) => {
     // 将服务器上的布局与规则通过路由 state 传递给可视化编辑器（可在编辑器中直接加载）
-    const layout = boardData.layout || { pieces: [] }
     const local = apiBoardToLocalFormat(boardData)
     navigate('/app/visual-editor', { state: { layout: local, rules: boardData.rules } })
   }
@@ -59,7 +58,7 @@ export default function TemplateManager() {
     }
   }
 
-  
+
 
   const handleImportRemote = async (boardId?: number) => {
     if (!boardId) return

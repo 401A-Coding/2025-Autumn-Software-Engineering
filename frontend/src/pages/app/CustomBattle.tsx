@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import Board from '../../features/chess/Board'
 import type { CustomRuleSet } from '../../features/chess/ruleEngine'
 import { standardChessRules } from '../../features/chess/rulePresets'
-import { recordsApi, boardApi } from '../../services/api'
+import { boardApi } from '../../services/api'
 import { apiBoardToLocalFormat } from '../../features/chess/boardAdapter'
 import { recordStore } from '../../features/records/recordStore'
 import type { MoveRecord, ChessRecord } from '../../features/records/types'
@@ -40,7 +40,7 @@ export default function CustomBattle() {
         if (boardIdStr) {
             const id = Number(boardIdStr)
             if (!Number.isNaN(id)) {
-                ;(async () => {
+                ; (async () => {
                     try {
                         const apiBoard = await boardApi.get(id)
                         // 将 API 格式转换为本地二维数组
@@ -75,7 +75,7 @@ export default function CustomBattle() {
             // Use recordStore.saveNew which will attempt server save if token exists,
             // otherwise fall back to local-only saving. This centralizes save logic and
             // avoids direct 401 errors from calling recordsApi.create here.
-            const { record, savedToServer } = await recordStore.saveNew(rec)
+            const { savedToServer } = await recordStore.saveNew(rec)
             if (savedToServer) {
                 alert('对局已保存到服务器')
             } else {

@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import '../../pages/app/app-pages.css'
 import { communityApi } from '../../services/api'
 import UserAvatar from '../../components/UserAvatar'
-import RecordPreview from '../../components/RecordPreview'
+
 import BoardPreview from '../../components/BoardPreview'
 import RecordEmbed from '../../components/RecordEmbed'
 
