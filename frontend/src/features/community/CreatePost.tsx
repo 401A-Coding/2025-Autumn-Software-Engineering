@@ -3,12 +3,20 @@ import { useNavigate } from 'react-router-dom'
 import '../../pages/app/app-pages.css'
 import { communityApi } from '../../services/api'
 import TagInput from '../../components/TagInput'
+import ResourceSelector from '../../components/ResourceSelector'
 
 export default function CreatePost() {
     const navigate = useNavigate()
     const [title, setTitle] = useState('')
     const [content, setContent] = useState('')
     const [tags, setTags] = useState<string[]>([])
+    const [resource, setResource] = useState<{
+        shareType: 'NONE' | 'RECORD' | 'BOARD'
+        shareRefId: number | null
+    }>({
+        shareType: 'NONE',
+        shareRefId: null,
+    })
     const [submitting, setSubmitting] = useState(false)
     const [error, setError] = useState('')
 
@@ -26,6 +34,10 @@ export default function CreatePost() {
                 title,
                 content,
                 tags: tags,
+                ...(resource.shareType !== 'NONE' && {
+                    shareType: resource.shareType,
+                    shareRefId: resource.shareRefId,
+                }),
             })
 
             alert('发帖成功！')
@@ -65,6 +77,10 @@ export default function CreatePost() {
                             onChange={(e) => setTitle(e.target.value)}
                             maxLength={200}
                             className="w-100"
+                            {/* 资源引用 */}
+                        <div className="form-group mb-16">
+                            <ResourceSelector value={resource} onChange={setResource} />
+                        </div>
                         />
                         <div className="text-12 muted mt-4">{title.length} / 200</div>
                     </div>
