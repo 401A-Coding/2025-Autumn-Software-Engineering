@@ -23,6 +23,7 @@ type Post = {
 type Comment = {
     authorId?: number
     authorNickname?: string
+    authorAvatar?: string | null
     id: number
     type: string
     createdAt?: string
@@ -89,7 +90,11 @@ export default function PostDetail() {
                 {
                     id: (res as any).commentId || Date.now(),
                     type: 'static',
+                    authorId: (res as any).authorId,
+                    authorNickname: (res as any).authorNickname,
+                    authorAvatar: (res as any).authorAvatar ?? null,
                     content: commentText,
+                    createdAt: (res as any).createdAt || new Date().toISOString(),
                 },
             ])
             setPost({ ...post, commentCount: post.commentCount + 1 })
@@ -226,6 +231,7 @@ export default function PostDetail() {
                                     <UserAvatar
                                         userId={comment.authorId || 0}
                                         nickname={comment.authorNickname}
+                                        avatarUrl={comment.authorAvatar ?? undefined}
                                         timestamp={comment.createdAt}
                                         size="small"
                                     />

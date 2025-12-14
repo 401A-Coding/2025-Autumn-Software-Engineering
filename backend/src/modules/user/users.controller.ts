@@ -21,7 +21,7 @@ import { Request } from 'express';
 
 @Controller('api/v1/users')
 export class UsersController {
-  constructor(private readonly userService: UserService) { }
+  constructor(private readonly userService: UserService) {}
 
   @Get('me')
   @HttpCode(200)

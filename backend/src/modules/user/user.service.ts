@@ -16,7 +16,7 @@ export class UserService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
-  ) { }
+  ) {}
 
   // 注册
   async register(dto: CreateUserDto) {

@@ -184,14 +184,17 @@ export class CommunityService {
                 skip: (page - 1) * pageSize,
                 take: pageSize,
                 orderBy: { createdAt: 'desc' },
-                include: { author: { select: { id: true, username: true } } },
+                include: { author: { select: { id: true, username: true, avatarUrl: true } } },
             }),
             this.prisma.communityComment.count({ where: { postId } }),
         ]);
         const mapped = items.map((c: any) => ({
             id: c.id,
-            type: 'static',
+            authorId: c.authorId,
+            authorNickname: c.author?.username,
+            authorAvatar: c.author?.avatarUrl ?? null,
             content: c.content,
+            createdAt: c.createdAt,
         }));
         return { items: mapped, page, pageSize, total };
     }
@@ -199,8 +202,16 @@ export class CommunityService {
     async addComment(userId: number, postId: number, body: any) {
         const created = await this.prisma.communityComment.create({
             data: { postId, authorId: userId, content: body.content },
+            include: { author: { select: { id: true, username: true, avatarUrl: true } } },
         });
-        return { commentId: created.id };
+        return {
+            commentId: created.id,
+            authorId: created.authorId,
+            authorNickname: created.author?.username,
+            authorAvatar: created.author?.avatarUrl ?? null,
+            content: created.content,
+            createdAt: created.createdAt,
+        };
     }
 
     async likePost(userId: number, postId: number) {
