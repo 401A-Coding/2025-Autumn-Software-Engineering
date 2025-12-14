@@ -310,8 +310,8 @@ GET /api/v1/boards/templates
   "code": 0,
   "message": "success",
   "data": [
-    { "id": 1, "name": "中炮对屏风马", "preview": "/img/t1.png" },
-    { "id": 2, "name": "反宫马", "preview": "/img/t2.png" }
+    { "id": 1, "name": "中炮对屏风马", "preview": "/img/t1.png", "isTemplate": true },
+    { "id": 2, "name": "反宫马", "preview": "/img/t2.png", "isTemplate": true }
   ]
 }
 ```
@@ -324,14 +324,17 @@ POST /api/v1/boards
   "name": "中炮对屏风马",
   "description": "经典布局",
   "layout": {
+    "turn": "red",
     "pieces": [
-      { "type": "car", "x": 0, "y": 0, "side": "red" }
+      { "type": "rook", "x": 0, "y": 0, "side": "red" }
     ]
   },
   "rules": {
     "horse": "日字",
     "cannon": "跳吃"
-  }
+  },
+  "isTemplate": true,
+  "preview": ""
 }
 ```
 
@@ -341,7 +344,7 @@ POST /api/v1/boards
 {
   "code": 0,
   "message": "创建成功",
-  "data": { "boardId": 301, "name": "中炮对屏风马" }
+  "data": { "boardId": 301, "name": "中炮对屏风马", "isTemplate": true }
 }
 ```
 
@@ -359,7 +362,7 @@ Authorization: Bearer <token>
   "code": 0,
   "message": "success",
   "data": {
-    "items": [ { "id": 301, "name": "中炮对屏风马" } ],
+    "items": [ { "id": 301, "name": "中炮对屏风马", "isTemplate": false } ],
     "page": 1,
     "pageSize": 10,
     "total": 1

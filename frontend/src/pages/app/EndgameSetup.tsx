@@ -20,7 +20,8 @@ export default function EndgameSetup() {
     const [brushSide, setBrushSide] = useState<Side>('red')
     const [brushType, setBrushType] = useState<PieceType>('soldier')
     const [mode, setMode] = useState<'place' | 'erase'>('place')
-    const [shouldSave, setShouldSave] = useState<boolean>(true)
+    const [saving, setSaving] = useState(false)
+    const [saveMsg, setSaveMsg] = useState<string>('')
 
     useEffect(() => {
         if (Array.isArray(initialLayout?.pieces)) {
@@ -97,10 +98,22 @@ export default function EndgameSetup() {
             ) : (
                 <div className="note-info">已载入局面，可直接保存或微调摆子。</div>
             )}
-
-            <div className="mt-12">
-                <label className="text-14">名称：</label>
-                <input className="w-full mt-8" value={name} onChange={e => setName(e.target.value)} placeholder="给残局起个名字" />
+            <div className="mt-12 row-between">
+                <div>
+                    <div className="text-14 muted">名称</div>
+                    <div className="text-18 fw-600 mt-6">{name || '未命名残局'}</div>
+                </div>
+                <button
+                    className={'btn-ghost'}
+                    onClick={() => {
+                        const next = window.prompt('输入模板名称：', name || '未命名残局')
+                        if (next !== null) {
+                            const trimmed = next.trim()
+                            setName(trimmed)
+                        }
+                    }}
+                    title={'改名字'}
+                >改名字</button>
             </div>
 
             <div className="mt-12 row-start gap-12">
@@ -187,27 +200,41 @@ export default function EndgameSetup() {
                 />
             </div>
 
-            {/* 保存选择 + 对战入口 */}
+            {/* 保存模板与对战入口 */}
             <div className="mt-16 col gap-12">
                 <div className="row-start gap-12">
-                    <span className="text-14">是否保存到我的残局：</span>
-                    <button className={`btn ${shouldSave ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setShouldSave(true)}>是</button>
-                    <button className={`btn ${!shouldSave ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setShouldSave(false)}>否</button>
+                    <button
+                        className="btn-primary"
+                        disabled={saving}
+                        onClick={async () => {
+                            setSaveMsg('')
+                            setSaving(true)
+                            try {
+                                const req: any = { name: name || '未命名残局', layout: { ...layout, turn }, preview: '', isTemplate: true }
+                                await boardApi.createTemplate(req)
+                                setSaveMsg('已保存到我的残局（模板）')
+                            } catch (e: any) {
+                                console.error('保存残局模板失败: ', e)
+                                const msg = e?.message || '保存失败（需登录后端才能保存）。'
+                                setSaveMsg(msg)
+                            } finally {
+                                setSaving(false)
+                            }
+                        }}
+                    >保存模板</button>
+                    <button className="btn-ghost" onClick={() => nav('/app/endgame')}>返回残局首页</button>
                 </div>
+
+                {saveMsg && (
+                    <div className="note-info text-13">{saveMsg} <button className="btn-ghost btn-xs" onClick={() => nav('/app/endgame/saved')}>查看我的残局</button></div>
+                )}
 
                 <div className="row-start gap-12">
                     <button className="btn-primary" onClick={async () => {
-                        if (shouldSave) {
-                            try {
-                                const req: any = { name: name || '未命名残局', layout, isTemplate: false }
-                                await boardApi.create(req)
-                            } catch { }
-                        }
                         const initialBoard = buildInitialBoard()
                         nav('/app/play', { state: { initialBoard, turn } })
                     }}>本地对战</button>
                     <button className="btn-ghost" disabled title="在线对战稍后提供">在线对战（敬请期待）</button>
-                    <button className="btn-ghost" onClick={() => nav('/app/endgame')}>返回残局首页</button>
                 </div>
             </div>
         </section>

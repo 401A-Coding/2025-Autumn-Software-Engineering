@@ -95,6 +95,30 @@ export const boardApi = {
   },
 
   /**
+   * 创建残局模板（与对战无关的独立保存）
+   * 自动设置 isTemplate=true 与默认 preview 字段
+   */
+  async createTemplate(request: BoardCreateRequest): Promise<
+    NonNullable<operations['boardsCreate']['responses'][200]['content']['application/json']['data']>
+  > {
+    const payload: BoardCreateRequest = {
+      ...request,
+      // 强制作为模板保存
+      // 由于 BoardCreateRequest 类型不含 isTemplate/preview（来自 OpenAPI 旧版），此处按后端约定附加字段
+      ...(request as any),
+    }
+      ; (payload as any).isTemplate = true
+    if ((payload as any).preview === undefined) (payload as any).preview = ''
+    const res = await apiRequest<
+      NonNullable<operations['boardsCreate']['responses'][200]['content']['application/json']['data']>
+    >('/api/v1/boards', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    })
+    return res.data
+  },
+
+  /**
    * 获取我的棋盘列表
    */
   async getMine(page = 1, pageSize = 20): Promise<

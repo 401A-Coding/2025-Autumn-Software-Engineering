@@ -9,6 +9,7 @@ export class PieceDto {
       'elephant', // 象/相
       'horse', // 马
       'chariot', // 车
+      'rook', // 兼容前端历史命名
       'cannon', // 炮
       'soldier', // 卒/兵
     ],
