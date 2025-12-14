@@ -4,6 +4,7 @@ import '../../pages/app/app-pages.css'
 import { communityApi } from '../../services/api'
 import UserAvatar from '../../components/UserAvatar'
 
+import { useRef } from 'react'
 import BoardPreview from '../../components/BoardPreview'
 import RecordEmbed from '../../components/RecordEmbed'
 
@@ -45,6 +46,9 @@ export default function PostDetail() {
     const [liked, setLiked] = useState(false)
     const [commentText, setCommentText] = useState('')
     const [submitting, setSubmitting] = useState(false)
+    const [bookmarked, setBookmarked] = useState(false)
+    const [expandedComment, setExpandedComment] = useState(false)
+    const commentsRef = useRef<HTMLDivElement>(null)
 
     async function loadPost() {
         if (!postId) return
@@ -145,7 +149,7 @@ export default function PostDetail() {
     }
 
     return (
-        <div>
+        <div style={{ paddingBottom: expandedComment ? '400px' : '90px' }}>
             {/* 返回按钮 */}
             <button className="btn-ghost mb-12" onClick={() => navigate('/app/community')}>
                 ← 返回
@@ -154,7 +158,7 @@ export default function PostDetail() {
             {/* 帖子内容 */}
             <section className="paper-card mb-12" style={{ padding: 0, overflow: 'hidden' }}>
                 {/* 用户信息区域 */}
-                <div style={{ padding: '16px 20px', backgroundColor: '#fafafa', borderBottom: '1px solid #e0e0e0' }}>
+                <div style={{ padding: '16px 20px', backgroundColor: '#fafafa', borderBottom: '1px solid #e0e0e0', display: 'flex', alignItems: 'center' }}>
                     <UserAvatar
                         userId={post.authorId}
                         nickname={post.authorNickname}
@@ -166,7 +170,7 @@ export default function PostDetail() {
 
                 {/* 帖子内容区域 */}
                 <div style={{ padding: '16px 20px' }}>
-                    <h2 className="mt-0 mb-12">{post.title || '(无标题)'}</h2>
+                    <h2 className="mt-0 mb-12" style={{ textAlign: 'left' }}>{post.title || '(无标题)'}</h2>
 
                     {/* 标签 */}
                     {post.tags && post.tags.length > 0 && (
@@ -180,8 +184,8 @@ export default function PostDetail() {
                     )}
 
                     {/* 帖子正文 */}
-                    <div className="prose mb-16">
-                        <p className="whitespace-pre-wrap">{post.content}</p>
+                    <div className="prose mb-16" style={{ textAlign: 'left' }}>
+                        <p className="whitespace-pre-wrap" style={{ textAlign: 'left' }}>{post.content}</p>
                     </div>
 
                     {/* 引用资源预览 */}
@@ -230,28 +234,8 @@ export default function PostDetail() {
             </section>
 
             {/* 评论区 */}
-            <section className="paper-card card-pad">
+            <section className="paper-card card-pad" ref={commentsRef}>
                 <h3 className="mt-0 mb-12">评论 ({post.commentCount})</h3>
-
-                {/* 评论输入框 */}
-                <form onSubmit={handleCommentSubmit} className="mb-16 pb-16 border-bottom">
-                    <textarea
-                        placeholder="写下你的评论..."
-                        value={commentText}
-                        onChange={(e) => setCommentText(e.target.value)}
-                        className="w-100 mb-8"
-                        rows={3}
-                    />
-                    <div className="row-end">
-                        <button
-                            type="submit"
-                            className="btn-primary"
-                            disabled={!commentText.trim() || submitting}
-                        >
-                            {submitting ? '发送中...' : '发送评论'}
-                        </button>
-                    </div>
-                </form>
 
                 {/* 评论列表 */}
                 {comments.length === 0 ? (
@@ -271,14 +255,191 @@ export default function PostDetail() {
                                     />
                                 </div>
                                 {/* 评论内容 */}
-                                <div style={{ padding: '12px' }}>
-                                    <p className="mt-0 mb-0 whitespace-pre-wrap">{comment.content}</p>
+                                <div style={{ padding: '12px', textAlign: 'left' }}>
+                                    <p className="mt-0 mb-0 whitespace-pre-wrap" style={{ textAlign: 'left' }}>{comment.content}</p>
                                 </div>
                             </div>
                         ))}
                     </div>
                 )}
             </section>
+
+            {/* 底部交互栏 - 固定 */}
+            <div
+                className="post-detail-bottom-bar"
+                style={{
+                    position: 'fixed',
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    backgroundColor: '#fff',
+                    borderTop: '1px solid #e0e0e0',
+                    zIndex: 1000,
+                    transition: 'all 0.3s ease',
+                    maxHeight: expandedComment ? '90vh' : '90px',
+                    overflowY: expandedComment ? 'auto' : 'visible',
+                }}
+            >
+                {!expandedComment ? (
+                    // 收起状态：隐式评论输入 + 交互按钮
+                    <div
+                        style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '12px',
+                            padding: '12px 16px',
+                            height: '90px',
+                        }}
+                    >
+                        {/* 隐式评论输入框 */}
+                        <div
+                            onClick={() => setExpandedComment(true)}
+                            className="comment-input-collapsed"
+                            style={{
+                                flex: 1,
+                                padding: '10px 14px',
+                                borderRadius: '20px',
+                                backgroundColor: '#f5f5f5',
+                                cursor: 'pointer',
+                                color: '#999',
+                                fontSize: '14px',
+                                transition: 'all 0.2s ease',
+                                userSelect: 'none',
+                            }}
+                        >
+                            写下你的评论...
+                        </div>
+
+                        {/* 交互按钮组 */}
+                        <button
+                            className="interaction-btn"
+                            title="评论"
+                            onClick={() => {
+                                if (commentsRef.current) {
+                                    commentsRef.current.scrollIntoView({ behavior: 'smooth' })
+                                }
+                            }}
+                            style={{
+                                flex: 0,
+                                background: 'none',
+                                border: 'none',
+                                fontSize: '18px',
+                                cursor: 'pointer',
+                                padding: '8px 10px',
+                            }}
+                        >
+                            💬 <span style={{ fontSize: '12px', marginLeft: '2px' }}>{post.commentCount}</span>
+                        </button>
+
+                        <button
+                            className={`interaction-btn ${liked ? 'active' : ''}`}
+                            title="点赞"
+                            onClick={handleLike}
+                            disabled={liking}
+                            style={{
+                                flex: 0,
+                                background: 'none',
+                                border: 'none',
+                                fontSize: '18px',
+                                cursor: 'pointer',
+                                padding: '8px 10px',
+                                opacity: liked ? 1 : 0.7,
+                                fontWeight: liked ? '600' : '400',
+                            }}
+                        >
+                            👍 <span style={{ fontSize: '12px', marginLeft: '2px' }}>{post.likeCount}</span>
+                        </button>
+
+                        <button
+                            className={`interaction-btn ${bookmarked ? 'active' : ''}`}
+                            title="收藏"
+                            onClick={() => setBookmarked(!bookmarked)}
+                            style={{
+                                flex: 0,
+                                background: 'none',
+                                border: 'none',
+                                fontSize: '18px',
+                                cursor: 'pointer',
+                                padding: '8px 10px',
+                                opacity: bookmarked ? 1 : 0.7,
+                                fontWeight: bookmarked ? '600' : '400',
+                            }}
+                        >
+                            {bookmarked ? '🔖' : '☆'}
+                        </button>
+                    </div>
+                ) : (
+                    // 展开状态：完整评论输入框
+                    <form
+                        onSubmit={handleCommentSubmit}
+                        style={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            padding: '16px',
+                            gap: '8px',
+                        }}
+                    >
+                        <textarea
+                            autoFocus
+                            placeholder="写下你的评论..."
+                            value={commentText}
+                            onChange={(e) => setCommentText(e.target.value)}
+                            style={{
+                                width: '100%',
+                                minHeight: '100px',
+                                padding: '12px',
+                                borderRadius: '8px',
+                                border: '1px solid #ddd',
+                                fontFamily: 'inherit',
+                                fontSize: '14px',
+                                resize: 'vertical',
+                            }}
+                        />
+                        <div
+                            style={{
+                                display: 'flex',
+                                gap: '8px',
+                                justifyContent: 'flex-end',
+                            }}
+                        >
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setExpandedComment(false)
+                                    setCommentText('')
+                                }}
+                                style={{
+                                    padding: '8px 16px',
+                                    borderRadius: '6px',
+                                    border: '1px solid #ddd',
+                                    background: '#fff',
+                                    color: '#666',
+                                    cursor: 'pointer',
+                                    fontSize: '14px',
+                                }}
+                            >
+                                取消
+                            </button>
+                            <button
+                                type="submit"
+                                disabled={!commentText.trim() || submitting}
+                                style={{
+                                    padding: '8px 20px',
+                                    borderRadius: '6px',
+                                    border: 'none',
+                                    background: commentText.trim() && !submitting ? '#5c9cff' : '#ccc',
+                                    color: '#fff',
+                                    cursor: commentText.trim() && !submitting ? 'pointer' : 'not-allowed',
+                                    fontSize: '14px',
+                                    fontWeight: '500',
+                                }}
+                            >
+                                {submitting ? '发送中...' : '发表'}
+                            </button>
+                        </div>
+                    </form>
+                )}
+            </div>
         </div>
     )
 }
