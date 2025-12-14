@@ -58,6 +58,19 @@ export default function PostDetail() {
         }
     }
 
+    async function loadComments() {
+        if (!postId) return
+        const id = Number(postId)
+        if (Number.isNaN(id)) return
+        try {
+            const res = await communityApi.getComments(id, 1, 20)
+            setComments((res as any).items || [])
+        } catch (e) {
+            console.error('Failed to load comments:', e)
+            setComments([])
+        }
+    }
+
     async function handleLike() {
         if (!post || liking) return
         setLiking(true)
@@ -108,6 +121,7 @@ export default function PostDetail() {
 
     useEffect(() => {
         loadPost()
+        loadComments()
     }, [postId])
 
     if (loading) {
