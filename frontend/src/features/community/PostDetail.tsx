@@ -201,8 +201,9 @@ export default function PostDetail() {
     }
 
     function handleEditPost() {
-        // TODO: Implement edit mode
-        alert('编辑功能即将推出')
+        if (post) {
+            navigate(`/app/community/${post.id}/edit`)
+        }
     }
 
     function handleReportPost() {

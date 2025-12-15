@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useState, useEffect } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
 import '../../pages/app/app-pages.css'
 import { communityApi } from '../../services/api'
 import TagInput from '../../components/TagInput'
@@ -9,6 +9,9 @@ import RecordEmbed from '../../components/RecordEmbed'
 
 export default function CreatePost() {
     const navigate = useNavigate()
+    const { postId } = useParams<{ postId: string }>()
+    const isEditMode = !!postId
+
     const [title, setTitle] = useState('')
     const [content, setContent] = useState('')
     const [tags, setTags] = useState<string[]>([])
@@ -20,7 +23,37 @@ export default function CreatePost() {
         shareRefId: null,
     })
     const [submitting, setSubmitting] = useState(false)
+    const [loading, setLoading] = useState(isEditMode)
     const [error, setError] = useState('')
+
+    useEffect(() => {
+        if (isEditMode && postId) {
+            loadPost()
+        }
+    }, [postId, isEditMode])
+
+    async function loadPost() {
+        if (!postId) return
+        setLoading(true)
+        try {
+            const data = await communityApi.getPost(Number(postId))
+            setTitle(data.title || '')
+            setContent(data.content || '')
+            setTags(data.tags || [])
+
+            if (data.shareReference?.refType && data.shareReference?.refId) {
+                setResource({
+                    shareType: data.shareReference.refType.toUpperCase() as 'RECORD' | 'BOARD',
+                    shareRefId: data.shareReference.refId,
+                })
+            }
+        } catch (e) {
+            console.error('Failed to load post:', e)
+            setError('加载帖子失败')
+        } finally {
+            setLoading(false)
+        }
+    }
 
     async function handleSubmit(e: React.FormEvent) {
         e.preventDefault()
@@ -32,7 +65,7 @@ export default function CreatePost() {
         setSubmitting(true)
         setError('')
         try {
-            await communityApi.createPost({
+            const postData = {
                 title,
                 content,
                 tags: tags,
@@ -40,28 +73,43 @@ export default function CreatePost() {
                     shareType: resource.shareType,
                     shareRefId: resource.shareRefId,
                 }),
-            })
+            }
 
-            alert('发帖成功！')
-            navigate('/app/community')
+            if (isEditMode && postId) {
+                await communityApi.updatePost(Number(postId), postData)
+                alert('更新成功！')
+                navigate(`/app/community/${postId}`)
+            } else {
+                await communityApi.createPost(postData)
+                alert('发帖成功！')
+                navigate('/app/community')
+            }
         } catch (e: any) {
-            console.error('Create post failed:', e)
-            setError(e.message || '发帖失败')
+            console.error(isEditMode ? 'Update post failed:' : 'Create post failed:', e)
+            setError(e.message || (isEditMode ? '更新失败' : '发帖失败'))
         } finally {
             setSubmitting(false)
         }
     }
 
+    if (loading) {
+        return (
+            <div className="paper-card card-pad">
+                <div className="muted text-center py-24">加载中...</div>
+            </div>
+        )
+    }
+
     return (
         <div>
             {/* 返回按钮 */}
-            <button className="btn-ghost mb-12" onClick={() => navigate('/app/community')}>
+            <button className="btn-ghost mb-12" onClick={() => navigate(isEditMode ? `/app/community/${postId}` : '/app/community')}>
                 ← 返回
             </button>
 
             {/* 发帖表单 */}
             <section className="paper-card card-pad">
-                <h2 className="mt-0 mb-20">发布新帖</h2>
+                <h2 className="mt-0 mb-20">{isEditMode ? '编辑帖子' : '发布新帖'}</h2>
 
                 {error && <div className="alert alert-error mb-16">{error}</div>}
 
@@ -130,7 +178,7 @@ export default function CreatePost() {
                         <button
                             type="button"
                             className="btn-ghost"
-                            onClick={() => navigate('/app/community')}
+                            onClick={() => navigate(isEditMode ? `/app/community/${postId}` : '/app/community')}
                             disabled={submitting}
                         >
                             取消
@@ -140,7 +188,7 @@ export default function CreatePost() {
                             className="btn-primary"
                             disabled={submitting || !title.trim() || !content.trim()}
                         >
-                            {submitting ? '发布中...' : '发布'}
+                            {submitting ? (isEditMode ? '保存中...' : '发布中...') : (isEditMode ? '保存' : '发布')}
                         </button>
                     </div>
                 </form>

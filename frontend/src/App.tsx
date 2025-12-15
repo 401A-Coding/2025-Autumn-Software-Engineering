@@ -43,8 +43,9 @@ function App() {
           <Route path="fun" element={<Fun />} />
           <Route path="history" element={<History />} />
           <Route path="community" element={<Community />} />
-          <Route path="community/:postId" element={<PostDetail />} />
           <Route path="community/new" element={<CreatePost />} />
+          <Route path="community/:postId/edit" element={<CreatePost />} />
+          <Route path="community/:postId" element={<PostDetail />} />
           <Route path="users/:userId" element={<UserProfile />} />
           <Route path="record/:id" element={<RecordReplay />} />
           <Route path="endgame" element={<EndgameHome />} />
