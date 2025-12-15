@@ -60,8 +60,8 @@ export default function BoardViewer({ moves, step, initialLayout }: { moves: Mov
             <div className="palace-top" />
             <div className="palace-bottom" />
 
-            {board.map((row, y) =>
-                row.map((p, x) =>
+            {board.map((row: any, y: number) =>
+                row.map((p: any, x: number) =>
                     p ? (
                         <div key={p.id} className={`piece-wrap piece-x-${x} piece-y-${y}`}>
                             <PieceGlyph type={p.type} side={p.side} />

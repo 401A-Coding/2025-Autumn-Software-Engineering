@@ -248,6 +248,64 @@ export class UserService {
     return { ...rest, nickname: username };
   }
 
+  // 获取任意用户的公开信息（不返回手机号、邮箱等敏感字段）
+  async getPublicProfileById(userId: number) {
+    const [user, postCount, commentCount, likeCount, posts] =
+      await this.prisma.$transaction([
+        this.prisma.user.findUnique({
+          where: { id: userId },
+          select: {
+            id: true,
+            username: true,
+            avatarUrl: true,
+            role: true,
+            createdAt: true,
+          },
+        }),
+        this.prisma.post.count({
+          where: { authorId: userId, status: 'PUBLISHED' },
+        }),
+        this.prisma.communityComment.count({ where: { authorId: userId } }),
+        this.prisma.postLike.count({
+          where: { post: { authorId: userId } },
+        }),
+        this.prisma.post.findMany({
+          where: { authorId: userId, status: 'PUBLISHED' },
+          orderBy: { createdAt: 'desc' },
+          take: 10,
+          select: {
+            id: true,
+            title: true,
+            content: true,
+            createdAt: true,
+            _count: {
+              select: { likes: true, comments: true },
+            },
+          },
+        }),
+      ]);
+
+    if (!user) throw new UnauthorizedException('用户不存在');
+    const { username, ...rest } = user;
+    return {
+      ...rest,
+      nickname: username,
+      stats: {
+        posts: postCount,
+        comments: commentCount,
+        likes: likeCount,
+      },
+      posts: posts.map((p) => ({
+        id: p.id,
+        title: p.title ?? '(无标题)',
+        excerpt: p.content?.slice(0, 200) ?? '',
+        createdAt: p.createdAt,
+        likeCount: (p as any)._count?.likes ?? 0,
+        commentCount: (p as any)._count?.comments ?? 0,
+      })),
+    };
+  }
+
   // 更新当前用户信息（支持 nickname/password/avatarUrl）
   async updateMe(
     authorization: string | undefined,

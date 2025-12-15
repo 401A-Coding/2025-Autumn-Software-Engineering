@@ -20,6 +20,9 @@ import EndgameHome from './pages/app/EndgameHome.tsx'
 import EndgameSaved from './pages/app/EndgameSaved.tsx'
 import EndgameSetup from './pages/app/EndgameSetup.tsx'
 import Community from './pages/app/Community.tsx'
+import PostDetail from './features/community/PostDetail.tsx'
+import CreatePost from './features/community/CreatePost.tsx'
+import UserProfile from './pages/app/UserProfile.tsx'
 
 function App() {
   return (
@@ -40,6 +43,10 @@ function App() {
           <Route path="fun" element={<Fun />} />
           <Route path="history" element={<History />} />
           <Route path="community" element={<Community />} />
+          <Route path="community/new" element={<CreatePost />} />
+          <Route path="community/:postId/edit" element={<CreatePost />} />
+          <Route path="community/:postId" element={<PostDetail />} />
+          <Route path="users/:userId" element={<UserProfile />} />
           <Route path="record/:id" element={<RecordReplay />} />
           <Route path="endgame" element={<EndgameHome />} />
           <Route path="endgame/saved" element={<EndgameSaved />} />

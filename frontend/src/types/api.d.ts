@@ -489,24 +489,62 @@ export interface paths {
         patch: operations["recordsPrefsUpdate"];
         trace?: never;
     };
-    "/api/v1/community/shares": {
+    "/api/v1/community/posts": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** Community feed */
-        get: operations["communityShares"];
+        /** List community posts (feed) */
+        get: operations["communityPostsList"];
         put?: never;
-        post?: never;
+        /** Create a post */
+        post: operations["communityPostsCreate"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/community/shares/{id}/like": {
+    "/api/v1/community/posts/{postId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get post detail */
+        get: operations["communityPostsGet"];
+        put?: never;
+        post?: never;
+        /** Delete a post (soft delete) */
+        delete: operations["communityPostsDelete"];
+        options?: never;
+        head?: never;
+        /** Update a post */
+        patch: operations["communityPostsUpdate"];
+        trace?: never;
+    };
+    "/api/v1/community/posts/{postId}/comments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List comments for a post */
+        get: operations["communityPostCommentsList"];
+        put?: never;
+        /** Add comment to a post */
+        post: operations["communityPostCommentsAdd"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/community/comments/{commentId}": {
         parameters: {
             query?: never;
             header?: never;
@@ -515,10 +553,45 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Like a share */
-        post: operations["communityLike"];
-        /** Unlike a share */
-        delete: operations["communityUnlike"];
+        post?: never;
+        /** Delete a comment */
+        delete: operations["communityCommentDelete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/community/posts/{postId}/like": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Like a post */
+        post: operations["communityPostLike"];
+        /** Unlike a post */
+        delete: operations["communityPostUnlike"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/community/posts/{postId}/bookmark": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Bookmark a post */
+        post: operations["communityPostBookmark"];
+        /** Remove bookmark */
+        delete: operations["communityPostUnbookmark"];
         options?: never;
         head?: never;
         patch?: never;
@@ -548,7 +621,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Search records */
+        /** Search community posts/records */
         get: operations["communitySearch"];
         put?: never;
         post?: never;
@@ -562,126 +635,143 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
-        ApiResponseAuthTokens: {
-            /** @example 0 */
-            code: number;
-            /** @example success */
-            message: string;
-            data: components["schemas"]["AuthTokens"];
+        SearchResultItem: {
+            recordId?: number;
+            title?: string;
         };
-        ApiResponseUser: {
-            /** @example 0 */
-            code: number;
-            /** @example success */
-            message: string;
-            data: components["schemas"]["User"];
-        };
-        ApiResponseError: {
-            /** @example 1001 */
-            code: number;
-            /** @example 参数错误 */
-            message: string;
-            data?: null | {
-                details?: string[];
-            };
-        };
-        AuthRegisterRequest: {
-            /**
-             * @default phone
-             * @enum {string}
-             */
-            type: "phone";
-            /** @example 13800000000 */
-            phone: string;
-            /**
-             * @description SMS verification code (optional if disabled)
-             * @example 8523
-             */
-            code?: string;
-            /**
-             * Format: password
-             * @example Abc12345
-             */
-            password: string;
-            /** Format: email */
-            email?: string | null;
-        };
-        AuthLoginRequest: {
-            /**
-             * @default phone
-             * @enum {string}
-             */
-            type: "phone";
-            /** @example 13800000000 */
-            phone: string;
-            /**
-             * Format: password
-             * @example Abc12345
-             */
-            password: string;
-        };
-        AuthRefreshRequest: {
-            /** @example eyJhbGciOi... */
-            refreshToken: string;
-        };
-        AuthTokens: {
-            /**
-             * @description JWT access token
-             * @example eyJhbGciOi...
-             */
-            accessToken: string;
-            /**
-             * @description JWT refresh token
-             * @example eyJhbGciOi...
-             */
-            refreshToken: string;
-            /**
-             * @description Access token TTL in seconds
-             * @example 1800
-             */
-            expiresIn?: number;
-        };
-        User: {
-            /** @example 1024 */
-            id?: number;
-            /** @example 棋友A */
-            nickname?: string;
-            /** @example 13800000000 */
-            phone?: string;
-            avatarUrl?: string | null;
-            /** @enum {string} */
-            role?: "USER" | "ADMIN";
-            /** Format: date-time */
-            createdAt?: string;
-        };
-        UserUpdateRequest: {
-            nickname?: string;
-            /** Format: password */
-            password?: string;
-            avatarUrl?: string;
-        };
-        SmsRequest: {
-            /** @example 13800000000 */
-            phone: string;
-        };
-        ApiResponseSmsSent: {
-            /** @example 0 */
-            code: number;
-            /** @example 短信已发送 */
-            message: string;
-            data?: {
-                /** @example sms_9f3a2 */
-                requestId?: string;
-                /** @example 300 */
-                expireIn?: number;
-            };
-        };
-        ApiResponseOk: {
+        ApiResponsePageSearchResults: {
             /** @example 0 */
             code?: number;
             /** @example success */
             message?: string;
-            data?: Record<string, never> | null;
+            data?: {
+                items?: components["schemas"]["SearchResultItem"][];
+                page?: number;
+                pageSize?: number;
+                total?: number;
+            };
+        };
+        PostSummary: {
+            id?: number;
+            authorId?: number;
+            authorNickname?: string;
+            title?: string | null;
+            excerpt?: string;
+            shareType?: string | null;
+            /** Format: date-time */
+            createdAt?: string;
+            likeCount?: number;
+            commentCount?: number;
+        };
+        PostShareReference: {
+            /** @example record */
+            refType?: string;
+            refId?: number;
+            snapshot?: Record<string, never>;
+        };
+        PostAttachment: {
+            url?: string;
+            mimeType?: string;
+            width?: number;
+            height?: number;
+        };
+        Post: {
+            id?: number;
+            authorId?: number;
+            authorNickname?: string;
+            title?: string | null;
+            content?: string;
+            shareReference?: components["schemas"]["PostShareReference"];
+            attachments?: components["schemas"]["PostAttachment"][];
+            tags?: string[];
+            likeCount?: number;
+            commentCount?: number;
+            /** Format: date-time */
+            createdAt?: string;
+            /** Format: date-time */
+            updatedAt?: string | null;
+        };
+        PostCreateRequest: {
+            title?: string;
+            content: string;
+            shareType?: string | null;
+            shareRefId?: number | null;
+            tags?: string[];
+        };
+        PostPatchRequest: {
+            title?: string;
+            content?: string;
+            tags?: string[];
+        };
+        ApiResponsePagePosts: {
+            /** @example 0 */
+            code?: number;
+            /** @example success */
+            message?: string;
+            data?: {
+                items?: components["schemas"]["PostSummary"][];
+                page?: number;
+                pageSize?: number;
+                total?: number;
+            };
+        };
+        ApiResponsePost: {
+            /** @example 0 */
+            code?: number;
+            /** @example success */
+            message?: string;
+            data?: components["schemas"]["Post"];
+        };
+        ApiResponsePostCreateResult: {
+            /** @example 0 */
+            code?: number;
+            /** @example 创建成功 */
+            message?: string;
+            data?: {
+                postId?: number;
+            };
+        };
+        Comment: {
+            id?: number;
+            type?: string;
+            content?: string;
+        };
+        CommentCreateRequest: {
+            /** @example danmu */
+            type?: string;
+            step?: number;
+            content?: string;
+        };
+        ApiResponseComments: {
+            /** @example 0 */
+            code?: number;
+            /** @example success */
+            message?: string;
+            data?: components["schemas"]["Comment"][];
+        };
+        ApiResponseCommentCreate: {
+            /** @example 0 */
+            code?: number;
+            /** @example success */
+            message?: string;
+            data?: {
+                commentId?: number;
+            };
+        };
+        ReportRequest: {
+            /** @example share */
+            targetType?: string;
+            targetId?: number;
+            reason?: string;
+        };
+        ApiResponseReportResult: {
+            /** @example 0 */
+            code?: number;
+            /** @example 已受理 */
+            message?: string;
+            data?: {
+                reportId?: number;
+            };
         };
         Board: {
             /** @example 301 */
@@ -862,6 +952,16 @@ export interface components {
             /** @example checkmate */
             endReason?: string | null;
             keyTags?: string[];
+            /** @description 起始布局（残局/自定义棋局），如 { pieces: [{type, side, x, y}] } */
+            initialLayout?: {
+                pieces?: {
+                    type?: string;
+                    /** @enum {string} */
+                    side?: "red" | "black";
+                    x?: number;
+                    y?: number;
+                }[];
+            };
             /** @default false */
             favorite: boolean;
             moves?: components["schemas"]["RecordMove"][];
@@ -911,6 +1011,16 @@ export interface components {
             result?: string | null;
             endReason?: string | null;
             keyTags?: string[];
+            /** @description 起始布局（残局/自定义棋局），如 { pieces: [{type, side, x, y}] } */
+            initialLayout?: {
+                pieces?: {
+                    type?: string;
+                    /** @enum {string} */
+                    side?: "red" | "black";
+                    x?: number;
+                    y?: number;
+                }[];
+            };
             moves?: components["schemas"]["RecordMove"][];
             bookmarks?: components["schemas"]["Bookmark"][];
         };
@@ -933,17 +1043,6 @@ export interface components {
         ShareRequest: {
             title?: string;
             tags?: string[];
-        };
-        CommentCreateRequest: {
-            /** @example danmu */
-            type?: string;
-            step?: number;
-            content?: string;
-        };
-        Comment: {
-            id?: number;
-            type?: string;
-            content?: string;
         };
         ApiResponsePageRecords: {
             /** @example 0 */
@@ -984,6 +1083,20 @@ export interface components {
                 /** @example /shares/9001 */
                 url?: string | null;
             };
+        };
+        RecordPrefs: {
+            /** @example 30 */
+            keepLimit?: number;
+        };
+        RecordPrefsPatch: {
+            keepLimit?: number;
+        };
+        ApiResponseRecordPrefs: {
+            /** @example 0 */
+            code?: number;
+            /** @example success */
+            message?: string;
+            data?: components["schemas"]["RecordPrefs"];
         };
         /** @description 自定义棋局规则（编辑器用），支持模板与图形化自定义 */
         Rules: {
@@ -1059,45 +1172,10 @@ export interface components {
             enableSidewaysAfterRiver?: boolean;
             allowBackwardAfterRiver?: boolean;
         };
-        ApiResponseComments: {
-            /** @example 0 */
-            code?: number;
-            /** @example success */
-            message?: string;
-            data?: components["schemas"]["Comment"][];
-        };
-        ApiResponseCommentCreate: {
-            /** @example 0 */
-            code?: number;
-            /** @example success */
-            message?: string;
-            data?: {
-                commentId?: number;
-            };
-        };
         CommunityShareItem: {
             shareId?: number;
             title?: string;
             likes?: number;
-        };
-        ReportRequest: {
-            /** @example share */
-            targetType?: string;
-            targetId?: number;
-            reason?: string;
-        };
-        ApiResponseReportResult: {
-            /** @example 0 */
-            code?: number;
-            /** @example 已受理 */
-            message?: string;
-            data?: {
-                reportId?: number;
-            };
-        };
-        SearchResultItem: {
-            recordId?: number;
-            title?: string;
         };
         ApiResponsePageCommunityShares: {
             /** @example 0 */
@@ -1111,36 +1189,126 @@ export interface components {
                 total?: number;
             };
         };
-        ApiResponsePageSearchResults: {
+        ApiResponseUser: {
             /** @example 0 */
-            code?: number;
+            code: number;
             /** @example success */
-            message?: string;
-            data?: {
-                items?: components["schemas"]["SearchResultItem"][];
-                page?: number;
-                pageSize?: number;
-                total?: number;
+            message: string;
+            data: components["schemas"]["User"];
+        };
+        ApiResponseError: {
+            /** @example 1001 */
+            code: number;
+            /** @example 参数错误 */
+            message: string;
+            data?: null | {
+                details?: string[];
             };
         };
-        RecordPrefs: {
-            /** @example 30 */
-            keepLimit?: number;
-            /** @example true */
-            autoCleanEnabled?: boolean;
+        AuthRegisterRequest: {
+            /**
+             * @default phone
+             * @enum {string}
+             */
+            type: "phone";
+            /** @example 13800000000 */
+            phone: string;
+            /**
+             * @description SMS verification code (optional if disabled)
+             * @example 8523
+             */
+            code?: string;
+            /**
+             * Format: password
+             * @example Abc12345
+             */
+            password: string;
+            /** Format: email */
+            email?: string | null;
+        };
+        AuthLoginRequest: {
+            /**
+             * @default phone
+             * @enum {string}
+             */
+            type: "phone";
+            /** @example 13800000000 */
+            phone: string;
+            /**
+             * Format: password
+             * @example Abc12345
+             */
+            password: string;
+        };
+        AuthRefreshRequest: {
+            /** @example eyJhbGciOi... */
+            refreshToken: string;
+        };
+        AuthTokens: {
+            /**
+             * @description JWT access token
+             * @example eyJhbGciOi...
+             */
+            accessToken: string;
+            /**
+             * @description JWT refresh token
+             * @example eyJhbGciOi...
+             */
+            refreshToken: string;
+            /**
+             * @description Access token TTL in seconds
+             * @example 1800
+             */
+            expiresIn?: number;
+        };
+        ApiResponseAuthTokens: {
+            /** @example 0 */
+            code: number;
+            /** @example success */
+            message: string;
+            data: components["schemas"]["AuthTokens"];
+        };
+        User: {
+            /** @example 1024 */
+            id?: number;
+            /** @example 棋友A */
+            nickname?: string;
+            /** @example 13800000000 */
+            phone?: string;
+            avatarUrl?: string | null;
+            /** @enum {string} */
+            role?: "USER" | "ADMIN";
             /** Format: date-time */
-            updatedAt?: string;
+            createdAt?: string;
         };
-        RecordPrefsPatch: {
-            keepLimit?: number;
-            autoCleanEnabled?: boolean;
+        UserUpdateRequest: {
+            nickname?: string;
+            /** Format: password */
+            password?: string;
+            avatarUrl?: string;
         };
-        ApiResponseRecordPrefs: {
+        SmsRequest: {
+            /** @example 13800000000 */
+            phone: string;
+        };
+        ApiResponseSmsSent: {
+            /** @example 0 */
+            code: number;
+            /** @example 短信已发送 */
+            message: string;
+            data?: {
+                /** @example sms_9f3a2 */
+                requestId?: string;
+                /** @example 300 */
+                expireIn?: number;
+            };
+        };
+        ApiResponseOk: {
             /** @example 0 */
             code?: number;
             /** @example success */
             message?: string;
-            data?: components["schemas"]["RecordPrefs"];
+            data?: Record<string, never> | null;
         };
     };
     responses: never;
@@ -2158,11 +2326,19 @@ export interface operations {
             };
         };
     };
-    communityShares: {
+    communityPostsList: {
         parameters: {
             query?: {
                 page?: number;
                 pageSize?: number;
+                /** @description Full-text query */
+                q?: string;
+                tag?: string;
+                /** @description Filter by share type (record|board|clip|none) */
+                type?: string;
+                authorId?: number;
+                /** @description Sort by 'new' or 'hot' */
+                sort?: string;
             };
             header?: never;
             path?: never;
@@ -2170,23 +2346,190 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Feed page */
+            /** @description Posts page */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ApiResponsePageCommunityShares"];
+                    "application/json": components["schemas"]["ApiResponsePagePosts"];
                 };
             };
         };
     };
-    communityLike: {
+    communityPostsCreate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PostCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponsePostCreateResult"];
+                };
+            };
+        };
+    };
+    communityPostsGet: {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                id: number;
+                postId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Post detail */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponsePost"];
+                };
+            };
+        };
+    };
+    communityPostsDelete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                postId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseOk"];
+                };
+            };
+        };
+    };
+    communityPostsUpdate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                postId: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PostPatchRequest"];
+            };
+        };
+        responses: {
+            /** @description Updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponsePost"];
+                };
+            };
+        };
+    };
+    communityPostCommentsList: {
+        parameters: {
+            query?: {
+                page?: number;
+                pageSize?: number;
+            };
+            header?: never;
+            path: {
+                postId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Comments */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseComments"];
+                };
+            };
+        };
+    };
+    communityPostCommentsAdd: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                postId: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommentCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Added */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseCommentCreate"];
+                };
+            };
+        };
+    };
+    communityCommentDelete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                commentId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseOk"];
+                };
+            };
+        };
+    };
+    communityPostLike: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                postId: number;
             };
             cookie?: never;
         };
@@ -2203,12 +2546,56 @@ export interface operations {
             };
         };
     };
-    communityUnlike: {
+    communityPostUnlike: {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                id: number;
+                postId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseOk"];
+                };
+            };
+        };
+    };
+    communityPostBookmark: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                postId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseOk"];
+                };
+            };
+        };
+    };
+    communityPostUnbookmark: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                postId: number;
             };
             cookie?: never;
         };
@@ -2254,6 +2641,7 @@ export interface operations {
             query?: {
                 q?: string;
                 tag?: string;
+                type?: string;
                 page?: number;
                 pageSize?: number;
             };

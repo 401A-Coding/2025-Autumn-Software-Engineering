@@ -29,7 +29,7 @@ type CreateBookmarkInput = {
 
 @Injectable()
 export class RecordService {
-  constructor(private readonly prisma: PrismaService) { }
+  constructor(private readonly prisma: PrismaService) {}
 
   async create(userId: number, dto: CreateRecordDto) {
     // 基础校验（放宽 result / endReason；moves 可为空）
@@ -47,7 +47,7 @@ export class RecordService {
     const movesInput = (dto as any).moves ?? [];
     const bookmarksInput = (dto as any).bookmarks ?? [];
 
-    let record: any
+    let record: any;
     const baseData = {
       ownerId: userId,
       opponent: dto.opponent,
@@ -59,46 +59,49 @@ export class RecordService {
       moves:
         Array.isArray(movesInput) && movesInput.length > 0
           ? {
-            create: movesInput.map((m: any) => ({
-              moveIndex: m.moveIndex,
-              fromX: m.from?.x ?? m.fromX ?? 0,
-              fromY: m.from?.y ?? m.fromY ?? 0,
-              toX: m.to?.x ?? m.toX ?? 0,
-              toY: m.to?.y ?? m.toY ?? 0,
-              pieceType: m.piece?.type ?? m.pieceType ?? 'unknown',
-              pieceSide: m.piece?.side ?? m.pieceSide ?? 'red',
-              capturedType: m.capturedType ?? null,
-              capturedSide: m.capturedSide ?? null,
-              timeSpentMs: m.timeSpentMs ?? 0,
-              san: m.san ?? null,
-            })),
-          }
+              create: movesInput.map((m: any) => ({
+                moveIndex: m.moveIndex,
+                fromX: m.from?.x ?? m.fromX ?? 0,
+                fromY: m.from?.y ?? m.fromY ?? 0,
+                toX: m.to?.x ?? m.toX ?? 0,
+                toY: m.to?.y ?? m.toY ?? 0,
+                pieceType: m.piece?.type ?? m.pieceType ?? 'unknown',
+                pieceSide: m.piece?.side ?? m.pieceSide ?? 'red',
+                capturedType: m.capturedType ?? null,
+                capturedSide: m.capturedSide ?? null,
+                timeSpentMs: m.timeSpentMs ?? 0,
+                san: m.san ?? null,
+              })),
+            }
           : undefined,
       bookmarks:
         Array.isArray(bookmarksInput) && bookmarksInput.length > 0
           ? {
-            create: bookmarksInput.map((b: any) => ({
-              step: b.step,
-              label: b.label ?? 'bookmark',
-              note: b.note ?? '',
-            })),
-          }
+              create: bookmarksInput.map((b: any) => ({
+                step: b.step,
+                label: b.label ?? 'bookmark',
+                note: b.note ?? '',
+              })),
+            }
           : undefined,
-    } as any
+    } as any;
 
     try {
       record = await this.prisma.record.create({
-        data: { ...baseData, initialLayout: (dto as any).initialLayout ?? null } as any,
+        data: {
+          ...baseData,
+          initialLayout: (dto as any).initialLayout ?? null,
+        },
         include: { moves: true, bookmarks: true },
-      })
+      });
     } catch (e: any) {
       // 兼容未迁移/未生成 Prisma Client 的情况：回退为不写 initialLayout 也能保存
       record = await this.prisma.record.create({
         data: baseData,
         include: { moves: true, bookmarks: true },
-      })
-        // 保留 initialLayout 在返回体中，供前端立即复盘使用（数据库可能还未存）
-        ; (record as any).initialLayout = (dto as any).initialLayout ?? null
+      });
+      // 保留 initialLayout 在返回体中，供前端立即复盘使用（数据库可能还未存）
+      record.initialLayout = (dto as any).initialLayout ?? null;
     }
 
     // Count and clean non-favorite records for this user if enabled
@@ -217,22 +220,22 @@ export class RecordService {
     const existing = await this.prisma.record.findUnique({
       where: { id },
       select: { ownerId: true },
-    })
-    if (!existing) throw new NotFoundException('Record not found')
+    });
+    if (!existing) throw new NotFoundException('Record not found');
     if (existing.ownerId !== userId)
-      throw new ForbiddenException('Not allowed to update this record')
+      throw new ForbiddenException('Not allowed to update this record');
 
-    const data: any = {}
+    const data: any = {};
     if (Array.isArray(patch?.keyTags)) {
       const tags = (patch.keyTags as any[])
         .map((t) => (typeof t === 'string' ? t.trim() : String(t)))
-        .filter((t) => !!t)
-      data.keyTags = tags
+        .filter((t) => !!t);
+      data.keyTags = tags;
     }
     if (patch?.result && typeof patch.result === 'string') {
-      data.result = patch.result
+      data.result = patch.result;
     }
-    if (Object.keys(data).length === 0) return this.findOne(userId, id)
+    if (Object.keys(data).length === 0) return this.findOne(userId, id);
 
     const updated = await this.prisma.record.update({
       where: { id },
@@ -244,11 +247,14 @@ export class RecordService {
         moves: true,
         bookmarks: true,
       },
-    })
+    });
     return {
       ...updated,
-      result: (updated as any).result === 'unknown' ? 'unfinished' : (updated as any).result,
-    } as any
+      result:
+        (updated as any).result === 'unknown'
+          ? 'unfinished'
+          : (updated as any).result,
+    } as any;
   }
 
   async shareRecord(
