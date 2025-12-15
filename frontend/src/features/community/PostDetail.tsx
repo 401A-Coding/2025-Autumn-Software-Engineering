@@ -46,6 +46,7 @@ type Reply = {
     authorId?: number
     authorNickname?: string
     authorAvatar?: string | null
+    replyToId?: number | null
     replyToNickname?: string | null
     content: string
     likeCount: number
@@ -552,7 +553,18 @@ export default function PostDetail() {
                                                     >
                                                         <span style={{ fontWeight: 600 }}>{reply.authorNickname || '匿名'}</span>
                                                         {reply.parentId && reply.parentId !== comment.id && reply.replyToNickname ? (
-                                                            <span> 回复 {reply.replyToNickname}：</span>
+                                                            <span>
+                                                                {' '}
+                                                                回复{' '}
+                                                                <a
+                                                                    href={reply.replyToId ? `/app/users/${reply.replyToId}` : '#'}
+                                                                    onClick={(e) => e.stopPropagation()}
+                                                                    style={{ color: '#1a73e8', textDecoration: 'none' }}
+                                                                >
+                                                                    {reply.replyToNickname}
+                                                                </a>
+                                                                ：
+                                                            </span>
                                                         ) : (
                                                             <span>：</span>
                                                         )}
@@ -621,9 +633,21 @@ export default function PostDetail() {
 
                                                         {/* 回复内容 */}
                                                         <p style={{ margin: '0', fontSize: '13px', color: '#555', textAlign: 'left' }}>
-                                                            {reply.parentId && reply.parentId !== comment.id && reply.replyToNickname
-                                                                ? `回复 ${reply.replyToNickname}：${reply.content}`
-                                                                : reply.content}
+                                                            {reply.parentId && reply.parentId !== comment.id && reply.replyToNickname ? (
+                                                                <>
+                                                                    回复{' '}
+                                                                    <a
+                                                                        href={reply.replyToId ? `/app/users/${reply.replyToId}` : '#'}
+                                                                        style={{ color: '#1a73e8', textDecoration: 'none' }}
+                                                                        onClick={(e) => e.stopPropagation()}
+                                                                    >
+                                                                        {reply.replyToNickname}
+                                                                    </a>
+                                                                    ：{reply.content}
+                                                                </>
+                                                            ) : (
+                                                                reply.content
+                                                            )}
                                                         </p>
 
                                                         <div style={{ marginTop: '8px' }}>

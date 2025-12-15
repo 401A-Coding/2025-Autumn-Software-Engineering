@@ -182,7 +182,7 @@ export class CommunityService {
   }
 
   async listComments(postId: number, page: number, pageSize: number) {
-    const [items, total] = await this.prisma.$transaction([
+    const [topComments, total] = await this.prisma.$transaction([
       this.prisma.communityComment.findMany({
         where: { postId, parentId: null }, // 只返回顶级评论
         skip: (page - 1) * pageSize,
@@ -190,48 +190,77 @@ export class CommunityService {
         orderBy: { createdAt: 'desc' },
         include: {
           author: { select: { id: true, username: true, avatarUrl: true } },
-          _count: { select: { likes: true, replies: true } },
-          replies: {
-            take: 3, // 只取前3条回复用于预览
-            orderBy: { createdAt: 'asc' },
-            include: {
-              author: {
-                select: { id: true, username: true, avatarUrl: true },
-              },
-              parent: {
-                select: {
-                  id: true,
-                  author: { select: { username: true } },
-                },
-              },
-              _count: { select: { likes: true } },
-            },
-          },
+          _count: { select: { likes: true } },
         },
       }),
       this.prisma.communityComment.count({ where: { postId, parentId: null } }),
     ]);
-    const mapped = items.map((c: any) => ({
-      id: c.id,
-      authorId: c.authorId,
-      authorNickname: c.author?.username,
-      authorAvatar: c.author?.avatarUrl ?? null,
-      content: c.content,
-      likeCount: c._count.likes,
-      replyCount: c._count.replies,
-      replies: c.replies.map((r: any) => ({
+
+    const topIds = topComments.map((c) => c.id);
+    // 取出每个顶级评论下的所有楼中楼：直接子回复 + 子回复的子回复
+    const allReplies = topIds.length
+      ? await this.prisma.communityComment.findMany({
+          where: {
+            OR: [
+              { parentId: { in: topIds } },
+              { parent: { parentId: { in: topIds } } },
+            ],
+          },
+          orderBy: { createdAt: 'asc' },
+          include: {
+            author: { select: { id: true, username: true, avatarUrl: true } },
+            parent: {
+              select: {
+                id: true,
+                parentId: true,
+                author: { select: { id: true, username: true } },
+              },
+            },
+            _count: { select: { likes: true } },
+          },
+        })
+      : [];
+
+    const repliesByRoot: Record<number, any[]> = {};
+    for (const r of allReplies) {
+      const parentId = r.parentId ?? null;
+      const parentParentId = r.parent?.parentId ?? null;
+      const rootId = topIds.includes(parentId as number)
+        ? (parentId as number)
+        : topIds.includes(parentParentId as number)
+          ? (parentParentId as number)
+          : null;
+      if (!rootId) continue;
+      if (!repliesByRoot[rootId]) repliesByRoot[rootId] = [];
+      repliesByRoot[rootId].push(r);
+    }
+
+    const mapped = topComments.map((c: any) => {
+      const replies = (repliesByRoot[c.id] ?? []).map((r: any) => ({
         id: r.id,
         parentId: r.parentId,
         authorId: r.authorId,
         authorNickname: r.author?.username,
         authorAvatar: r.author?.avatarUrl ?? null,
+        replyToId: r.parent?.author?.id ?? null,
         replyToNickname: r.parent?.author?.username ?? null,
         content: r.content,
         likeCount: r._count.likes,
         createdAt: r.createdAt,
-      })),
-      createdAt: c.createdAt,
-    }));
+      }));
+      return {
+        id: c.id,
+        authorId: c.authorId,
+        authorNickname: c.author?.username,
+        authorAvatar: c.author?.avatarUrl ?? null,
+        content: c.content,
+        likeCount: c._count.likes,
+        replyCount: replies.length,
+        replies,
+        createdAt: c.createdAt,
+      };
+    });
+
     return { items: mapped, page, pageSize, total };
   }
 

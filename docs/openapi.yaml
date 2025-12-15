@@ -870,7 +870,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ApiResponseComments"
+                $ref: "#/components/schemas/ApiResponsePageComments"
     post:
       tags: [Records]
       summary: Add comment
@@ -1167,7 +1167,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ApiResponseComments"
+                $ref: "#/components/schemas/ApiResponsePageComments"
     post:
       tags: [Community]
       summary: Add comment to a post
@@ -1208,6 +1208,44 @@ paths:
       responses:
         "200":
           description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseOk"
+
+  /api/v1/community/comments/{commentId}/like:
+    post:
+      tags: [Community]
+      summary: Like a comment
+      operationId: communityCommentLike
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: commentId
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseOk"
+    delete:
+      tags: [Community]
+      summary: Unlike a comment
+      operationId: communityCommentUnlike
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: commentId
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: OK
           content:
             application/json:
               schema:
@@ -1463,26 +1501,60 @@ components:
             postId: { type: integer }
 
     # Comments & report schemas used by community
-    Comment:
+    CommunityReply:
       type: object
       properties:
         id: { type: integer }
-        type: { type: string }
+        parentId: { type: integer, nullable: true }
+        authorId: { type: integer }
+        authorNickname: { type: string }
+        authorAvatar: { type: string, nullable: true }
+        replyToId: { type: integer, nullable: true }
+        replyToNickname: { type: string, nullable: true }
         content: { type: string }
-    CommentCreateRequest:
+        likeCount: { type: integer }
+        createdAt: { type: string, format: date-time }
+    CommunityComment:
       type: object
       properties:
+        id: { type: integer }
+        authorId: { type: integer }
+        authorNickname: { type: string }
+        authorAvatar: { type: string, nullable: true }
+        content: { type: string }
+        likeCount: { type: integer }
+        replyCount: { type: integer }
+        replies:
+          type: array
+          items: { $ref: "#/components/schemas/CommunityReply" }
+        createdAt: { type: string, format: date-time }
+    CommentCreateRequest:
+      type: object
+      required: [content]
+      properties:
+        content: { type: string }
+        parentId:
+          {
+            type: integer,
+            nullable: true,
+            description: 顶级评论不传；回复时传父评论或父回复的 ID,
+          }
         type: { type: string, example: danmu }
         step: { type: integer }
-        content: { type: string }
-    ApiResponseComments:
+    ApiResponsePageComments:
       type: object
       properties:
         code: { type: integer, example: 0 }
         message: { type: string, example: success }
         data:
-          type: array
-          items: { $ref: "#/components/schemas/Comment" }
+          type: object
+          properties:
+            items:
+              type: array
+              items: { $ref: "#/components/schemas/CommunityComment" }
+            page: { type: integer }
+            pageSize: { type: integer }
+            total: { type: integer }
     ApiResponseCommentCreate:
       type: object
       properties:
@@ -1492,6 +1564,11 @@ components:
           type: object
           properties:
             commentId: { type: integer }
+            authorId: { type: integer }
+            authorNickname: { type: string }
+            authorAvatar: { type: string, nullable: true }
+            content: { type: string }
+            createdAt: { type: string, format: date-time }
     ReportRequest:
       type: object
       properties:

@@ -116,10 +116,7 @@ export class CommunityController {
 
   @UseGuards(JwtAuthGuard)
   @Delete('comments/:commentId/like')
-  async unlikeComment(
-    @Req() req: any,
-    @Param('commentId') commentId: string,
-  ) {
+  async unlikeComment(@Req() req: any, @Param('commentId') commentId: string) {
     const data = await this.service.unlikeComment(
       req.user?.sub,
       Number(commentId),
