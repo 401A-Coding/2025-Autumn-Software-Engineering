@@ -532,12 +532,13 @@ export default function PostDetail() {
                                     >
                                         {!expandedReplies[comment.id] ? (
                                             // 折叠状态：简化展示
-                                            <div>
+                                            <div style={{ textAlign: 'left' }}>
                                                 {comment.replies.slice(0, 2).map((reply) => (
                                                     <div
                                                         key={reply.id}
                                                         style={{
                                                             padding: '6px 0',
+                                                            textAlign: 'left',
                                                             fontSize: '13px',
                                                             color: '#555',
                                                         }}
@@ -571,44 +572,43 @@ export default function PostDetail() {
                                                             backgroundColor: '#fff',
                                                         }}
                                                     >
-                                                        {/* 回复头部 */}
-                                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                                                        {/* 回复头部：用户信息和操作按钮 */}
+                                                        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '8px' }}>
                                                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1 }}>
                                                                 <img
                                                                     src={reply.authorAvatar || 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 40 40%22%3E%3Crect fill=%22%23ddd%22 width=%2240%22 height=%2240%22/%3E%3C/svg%3E'}
                                                                     alt="avatar"
-                                                                    style={{ width: '24px', height: '24px', borderRadius: '50%' }}
+                                                                    style={{ width: '24px', height: '24px', borderRadius: '50%', flexShrink: 0 }}
                                                                 />
                                                                 <div>
                                                                     <div style={{ fontSize: '13px', fontWeight: 600, color: '#333' }}>{reply.authorNickname || '匿名'}</div>
                                                                     <div style={{ fontSize: '11px', color: '#999', marginTop: '2px' }}>{reply.createdAt ? new Date(reply.createdAt).toLocaleDateString() : ''}</div>
                                                                 </div>
                                                             </div>
-                                                            <DropdownMenu actions={getReplyActions(reply)} />
+                                                            {/* 右上角操作区：点赞 + 菜单 */}
+                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
+                                                                <button
+                                                                    onClick={() => handleLikeReply(reply.id)}
+                                                                    style={{
+                                                                        background: 'none',
+                                                                        border: 'none',
+                                                                        cursor: 'pointer',
+                                                                        fontSize: '12px',
+                                                                        color: replyLikes[reply.id] ? '#5c9cff' : '#999',
+                                                                        padding: '4px 6px',
+                                                                        display: 'flex',
+                                                                        alignItems: 'center',
+                                                                        gap: '3px',
+                                                                    }}
+                                                                >
+                                                                    👍 <span>{reply.likeCount}</span>
+                                                                </button>
+                                                                <DropdownMenu actions={getReplyActions(reply)} />
+                                                            </div>
                                                         </div>
 
                                                         {/* 回复内容 */}
-                                                        <p style={{ margin: '8px 0 0 0', fontSize: '13px', color: '#555', textAlign: 'left' }}>{reply.content}</p>
-
-                                                        {/* 回复点赞 */}
-                                                        <div style={{ marginTop: '8px', display: 'flex', gap: '8px' }}>
-                                                            <button
-                                                                onClick={() => handleLikeReply(reply.id)}
-                                                                style={{
-                                                                    background: 'none',
-                                                                    border: 'none',
-                                                                    cursor: 'pointer',
-                                                                    fontSize: '12px',
-                                                                    color: replyLikes[reply.id] ? '#5c9cff' : '#999',
-                                                                    padding: 0,
-                                                                    display: 'flex',
-                                                                    alignItems: 'center',
-                                                                    gap: '4px',
-                                                                }}
-                                                            >
-                                                                👍 <span>{reply.likeCount}</span>
-                                                            </button>
-                                                        </div>
+                                                        <p style={{ margin: '0', fontSize: '13px', color: '#555', textAlign: 'left' }}>{reply.content}</p>
                                                     </div>
                                                 ))}
                                                 <button
