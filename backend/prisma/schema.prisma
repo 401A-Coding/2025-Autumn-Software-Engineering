@@ -37,6 +37,7 @@ model User {
   communityComments     CommunityComment[]
   postLikes             PostLike[]
   postBookmarks         PostBookmark[]
+  commentLikes          CommentLike[]
   reports               Report[]
   moderatorActions      ModeratorAction[]
 }
@@ -254,12 +255,25 @@ model CommunityComment {
   parentId  Int? // 支持回复
   parent    CommunityComment?  @relation("CommentReplies", fields: [parentId], references: [id])
   replies   CommunityComment[] @relation("CommentReplies")
+  likes     CommentLike[]
   content   String
   createdAt DateTime           @default(now())
   updatedAt DateTime           @updatedAt
 
   @@index([postId])
   @@index([authorId])
+}
+
+model CommentLike {
+  id        Int              @id @default(autoincrement())
+  commentId Int
+  comment   CommunityComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  userId    Int
+  user      User             @relation(fields: [userId], references: [id])
+  createdAt DateTime         @default(now())
+
+  @@unique([commentId, userId])
+  @@index([userId])
 }
 
 model PostLike {

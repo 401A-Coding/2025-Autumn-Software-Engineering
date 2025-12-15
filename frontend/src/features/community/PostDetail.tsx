@@ -32,9 +32,22 @@ type Comment = {
     authorNickname?: string
     authorAvatar?: string | null
     id: number
-    type: string
+    type?: string
     createdAt?: string
     content: string
+    likeCount: number
+    replyCount: number
+    replies: Reply[]
+}
+
+type Reply = {
+    id: number
+    authorId?: number
+    authorNickname?: string
+    authorAvatar?: string | null
+    content: string
+    likeCount: number
+    createdAt?: string
 }
 
 export default function PostDetail() {
@@ -51,6 +64,10 @@ export default function PostDetail() {
     const [expandedComment, setExpandedComment] = useState(false)
     const commentsRef = useRef<HTMLDivElement>(null)
     const [currentUserId, setCurrentUserId] = useState<number | null>(null)
+    const [commentLikes, setCommentLikes] = useState<Record<number, boolean>>({})
+    const [expandedReplies, setExpandedReplies] = useState<Record<number, boolean>>({})
+    const [replyingTo, setReplyingTo] = useState<number | null>(null)
+    const [replyText, setReplyText] = useState('')
 
     async function loadPost() {
         if (!postId) return
@@ -119,6 +136,9 @@ export default function PostDetail() {
                     authorAvatar: (res as any).authorAvatar ?? null,
                     content: commentText,
                     createdAt: (res as any).createdAt || new Date().toISOString(),
+                    likeCount: 0,
+                    replyCount: 0,
+                    replies: [],
                 },
             ])
             setPost({ ...post, commentCount: post.commentCount + 1 })
@@ -227,6 +247,44 @@ export default function PostDetail() {
 
     function handleReportComment(_commentId: number) {
         alert('举报功能即将推出')
+    }
+
+    async function handleLikeComment(commentId: number) {
+        try {
+            const isLiked = commentLikes[commentId]
+            if (!isLiked) {
+                await communityApi.likeComment(commentId)
+                setCommentLikes({ ...commentLikes, [commentId]: true })
+                setComments(comments.map(c =>
+                    c.id === commentId ? { ...c, likeCount: c.likeCount + 1 } : c
+                ))
+            } else {
+                await communityApi.unlikeComment(commentId)
+                setCommentLikes({ ...commentLikes, [commentId]: false })
+                setComments(comments.map(c =>
+                    c.id === commentId ? { ...c, likeCount: Math.max(0, c.likeCount - 1) } : c
+                ))
+            }
+        } catch (e) {
+            console.error('Comment like failed:', e)
+        }
+    }
+
+    function toggleReplies(commentId: number) {
+        setExpandedReplies({ ...expandedReplies, [commentId]: !expandedReplies[commentId] })
+    }
+
+    async function handleReplySubmit(commentId: number) {
+        if (!replyText.trim()) return
+        try {
+            await communityApi.addComment(post!.id, { content: replyText, parentId: commentId } as any)
+            // 重新加载评论以获取更新的回复
+            await loadComments()
+            setReplyText('')
+            setReplyingTo(null)
+        } catch (e) {
+            console.error('Reply submit failed:', e)
+        }
     }
 
     if (loading) {
@@ -380,11 +438,196 @@ export default function PostDetail() {
                                         timestamp={comment.createdAt}
                                         size="small"
                                     />
-                                    <DropdownMenu actions={getCommentActions(comment)} />
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        {/* 点赞按钮 */}
+                                        <button
+                                            onClick={() => handleLikeComment(comment.id)}
+                                            style={{
+                                                background: 'none',
+                                                border: 'none',
+                                                cursor: 'pointer',
+                                                fontSize: '14px',
+                                                color: commentLikes[comment.id] ? '#5c9cff' : '#666',
+                                                padding: '4px 8px',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '4px',
+                                            }}
+                                        >
+                                            👍 <span>{comment.likeCount}</span>
+                                        </button>
+                                        <DropdownMenu actions={getCommentActions(comment)} />
+                                    </div>
                                 </div>
                                 {/* 评论内容 */}
                                 <div style={{ padding: '12px', textAlign: 'left' }}>
                                     <p className="mt-0 mb-0 whitespace-pre-wrap" style={{ textAlign: 'left' }}>{comment.content}</p>
+                                </div>
+
+                                {/* 楼中楼回复区域 */}
+                                {comment.replyCount > 0 && (
+                                    <div
+                                        style={{
+                                            padding: '12px',
+                                            backgroundColor: '#f9f9f9',
+                                            borderTop: '1px solid #e0e0e0',
+                                            cursor: !expandedReplies[comment.id] ? 'pointer' : 'default',
+                                        }}
+                                        onClick={() => !expandedReplies[comment.id] && toggleReplies(comment.id)}
+                                    >
+                                        {!expandedReplies[comment.id] ? (
+                                            // 折叠状态：简化展示
+                                            <div>
+                                                {comment.replies.slice(0, 2).map((reply) => (
+                                                    <div
+                                                        key={reply.id}
+                                                        style={{
+                                                            padding: '6px 0',
+                                                            fontSize: '13px',
+                                                            color: '#555',
+                                                        }}
+                                                    >
+                                                        <span style={{ fontWeight: 600 }}>{reply.authorNickname || '匿名'}：</span>
+                                                        <span>{reply.content}</span>
+                                                    </div>
+                                                ))}
+                                                {comment.replyCount > 2 && (
+                                                    <div
+                                                        style={{
+                                                            marginTop: '8px',
+                                                            fontSize: '13px',
+                                                            color: '#5c9cff',
+                                                            fontWeight: 500,
+                                                        }}
+                                                    >
+                                                        查看全部 {comment.replyCount} 条回复 ▼
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ) : (
+                                            // 展开状态：详细展示
+                                            <div onClick={(e) => e.stopPropagation()}>
+                                                {comment.replies.map((reply) => (
+                                                    <div
+                                                        key={reply.id}
+                                                        style={{
+                                                            padding: '8px 0',
+                                                            borderBottom: '1px solid #e8e8e8',
+                                                            display: 'flex',
+                                                            gap: '8px',
+                                                        }}
+                                                    >
+                                                        <UserAvatar
+                                                            userId={reply.authorId || 0}
+                                                            nickname={reply.authorNickname}
+                                                            avatarUrl={reply.authorAvatar ?? undefined}
+                                                            timestamp={reply.createdAt}
+                                                            size="small"
+                                                        />
+                                                        <div style={{ flex: 1 }}>
+                                                            <p style={{ margin: 0, fontSize: '13px' }}>{reply.content}</p>
+                                                            <div style={{ marginTop: '6px', display: 'flex', gap: '8px' }}>
+                                                                <button
+                                                                    style={{
+                                                                        background: 'none',
+                                                                        border: 'none',
+                                                                        cursor: 'pointer',
+                                                                        fontSize: '12px',
+                                                                        color: '#999',
+                                                                        padding: 0,
+                                                                    }}
+                                                                >
+                                                                    👍 {reply.likeCount}
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                                <button
+                                                    onClick={() => toggleReplies(comment.id)}
+                                                    style={{
+                                                        marginTop: '8px',
+                                                        background: 'none',
+                                                        border: 'none',
+                                                        cursor: 'pointer',
+                                                        fontSize: '13px',
+                                                        color: '#5c9cff',
+                                                        padding: 0,
+                                                        fontWeight: 500,
+                                                    }}
+                                                >
+                                                    收起回复 ▲
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
+                                {/* 回复输入框 */}
+                                <div style={{ padding: '12px', borderTop: '1px solid #e0e0e0' }}>
+                                    {replyingTo === comment.id ? (
+                                        <div>
+                                            <textarea
+                                                autoFocus
+                                                value={replyText}
+                                                onChange={(e) => setReplyText(e.target.value)}
+                                                placeholder="写下你的回复..."
+                                                style={{
+                                                    width: '100%',
+                                                    minHeight: '60px',
+                                                    padding: '8px',
+                                                    borderRadius: '6px',
+                                                    border: '1px solid #ddd',
+                                                    fontSize: '13px',
+                                                    resize: 'vertical',
+                                                }}
+                                            />
+                                            <div style={{ marginTop: '8px', display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                                                <button
+                                                    onClick={() => { setReplyingTo(null); setReplyText('') }}
+                                                    style={{
+                                                        padding: '6px 12px',
+                                                        borderRadius: '4px',
+                                                        border: '1px solid #ddd',
+                                                        background: '#fff',
+                                                        cursor: 'pointer',
+                                                        fontSize: '13px',
+                                                    }}
+                                                >
+                                                    取消
+                                                </button>
+                                                <button
+                                                    onClick={() => handleReplySubmit(comment.id)}
+                                                    disabled={!replyText.trim()}
+                                                    style={{
+                                                        padding: '6px 16px',
+                                                        borderRadius: '4px',
+                                                        border: 'none',
+                                                        background: replyText.trim() ? '#5c9cff' : '#ccc',
+                                                        color: '#fff',
+                                                        cursor: replyText.trim() ? 'pointer' : 'not-allowed',
+                                                        fontSize: '13px',
+                                                    }}
+                                                >
+                                                    回复
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <button
+                                            onClick={() => setReplyingTo(comment.id)}
+                                            style={{
+                                                background: 'none',
+                                                border: 'none',
+                                                cursor: 'pointer',
+                                                fontSize: '13px',
+                                                color: '#5c9cff',
+                                                padding: 0,
+                                            }}
+                                        >
+                                            💬 回复
+                                        </button>
+                                    )}
                                 </div>
                             </div>
                         ))}

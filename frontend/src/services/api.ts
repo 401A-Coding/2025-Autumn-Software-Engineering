@@ -662,6 +662,22 @@ export const communityApi = {
     return res.data
   },
 
+  /** 点赞评论 */
+  async likeComment(commentId: number) {
+    const res = await apiRequest<{ ok: boolean }>(`/api/v1/community/comments/${commentId}/like`, {
+      method: 'POST',
+    })
+    return res.data
+  },
+
+  /** 取消点赞评论 */
+  async unlikeComment(commentId: number) {
+    const res = await apiRequest<{ ok: boolean }>(`/api/v1/community/comments/${commentId}/like`, {
+      method: 'DELETE',
+    })
+    return res.data
+  },
+
   /** 点赞帖子 */
   async likePost(postId: number) {
     type OkData = NonNullable<

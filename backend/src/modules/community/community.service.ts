@@ -184,15 +184,26 @@ export class CommunityService {
   async listComments(postId: number, page: number, pageSize: number) {
     const [items, total] = await this.prisma.$transaction([
       this.prisma.communityComment.findMany({
-        where: { postId },
+        where: { postId, parentId: null }, // 只返回顶级评论
         skip: (page - 1) * pageSize,
         take: pageSize,
         orderBy: { createdAt: 'desc' },
         include: {
           author: { select: { id: true, username: true, avatarUrl: true } },
+          _count: { select: { likes: true, replies: true } },
+          replies: {
+            take: 3, // 只取前3条回复用于预览
+            orderBy: { createdAt: 'asc' },
+            include: {
+              author: {
+                select: { id: true, username: true, avatarUrl: true },
+              },
+              _count: { select: { likes: true } },
+            },
+          },
         },
       }),
-      this.prisma.communityComment.count({ where: { postId } }),
+      this.prisma.communityComment.count({ where: { postId, parentId: null } }),
     ]);
     const mapped = items.map((c: any) => ({
       id: c.id,
@@ -200,6 +211,17 @@ export class CommunityService {
       authorNickname: c.author?.username,
       authorAvatar: c.author?.avatarUrl ?? null,
       content: c.content,
+      likeCount: c._count.likes,
+      replyCount: c._count.replies,
+      replies: c.replies.map((r: any) => ({
+        id: r.id,
+        authorId: r.authorId,
+        authorNickname: r.author?.username,
+        authorAvatar: r.author?.avatarUrl ?? null,
+        content: r.content,
+        likeCount: r._count.likes,
+        createdAt: r.createdAt,
+      })),
       createdAt: c.createdAt,
     }));
     return { items: mapped, page, pageSize, total };
@@ -207,7 +229,12 @@ export class CommunityService {
 
   async addComment(userId: number, postId: number, body: any) {
     const created = await this.prisma.communityComment.create({
-      data: { postId, authorId: userId, content: body.content },
+      data: {
+        postId,
+        authorId: userId,
+        content: body.content,
+        parentId: body.parentId ?? null,
+      },
       include: {
         author: { select: { id: true, username: true, avatarUrl: true } },
       },
@@ -233,6 +260,20 @@ export class CommunityService {
 
   async unlikePost(userId: number, postId: number) {
     await this.prisma.postLike.deleteMany({ where: { postId, userId } });
+    return { ok: true };
+  }
+
+  async likeComment(userId: number, commentId: number) {
+    await this.prisma.commentLike.upsert({
+      where: { commentId_userId: { commentId, userId } },
+      update: {},
+      create: { commentId, userId },
+    });
+    return { ok: true };
+  }
+
+  async unlikeComment(userId: number, commentId: number) {
+    await this.prisma.commentLike.deleteMany({ where: { commentId, userId } });
     return { ok: true };
   }
 

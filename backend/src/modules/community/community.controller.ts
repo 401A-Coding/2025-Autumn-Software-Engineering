@@ -105,6 +105,29 @@ export class CommunityController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Post('comments/:commentId/like')
+  async likeComment(@Req() req: any, @Param('commentId') commentId: string) {
+    const data = await this.service.likeComment(
+      req.user?.sub,
+      Number(commentId),
+    );
+    return { code: 0, message: 'success', data };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Delete('comments/:commentId/like')
+  async unlikeComment(
+    @Req() req: any,
+    @Param('commentId') commentId: string,
+  ) {
+    const data = await this.service.unlikeComment(
+      req.user?.sub,
+      Number(commentId),
+    );
+    return { code: 0, message: 'success', data };
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Post('posts/:postId/like')
   async likePost(@Req() req: any, @Param('postId') postId: string) {
     const data = await this.service.likePost(req.user?.sub, Number(postId));
