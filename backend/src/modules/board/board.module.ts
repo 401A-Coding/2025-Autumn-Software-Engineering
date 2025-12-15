@@ -14,5 +14,6 @@ import { JwtAuthGuard } from 'src/common/guards/jwt-auth.guard';
   ],
   controllers: [BoardController],
   providers: [BoardService, JwtAuthGuard],
+  exports: [BoardService],
 })
-export class BoardModule {}
+export class BoardModule { }

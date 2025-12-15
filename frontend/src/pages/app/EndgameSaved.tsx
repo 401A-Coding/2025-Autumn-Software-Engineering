@@ -97,6 +97,14 @@ export default function EndgameSaved() {
                                     className="btn-ghost"
                                     onClick={() => nav('/app/endgame/setup', { state: { layout: b.layout, name: b.name } })}
                                 >打开</button>
+                                <button
+                                    className="btn-ghost"
+                                    title="以该残局模板创建好友房，邀请在线对战"
+                                    onClick={() => {
+                                        if (!b.id) return
+                                        nav(`/app/live-battle?action=create&initialBoardId=${b.id}`)
+                                    }}
+                                >邀请对战</button>
                             </div>
                         </div>
                     ))}

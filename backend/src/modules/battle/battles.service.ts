@@ -98,6 +98,7 @@ export class BattlesService {
       source?: 'match' | 'room';
       visibility?: 'match' | 'private' | 'public';
     },
+    seed?: { board: Board; turn: Side },
   ) {
     const source = opts?.source ?? 'room';
     const visibility =
@@ -120,13 +121,15 @@ export class BattlesService {
       moves: [],
       turnIndex: 0,
       createdAt: Date.now(),
-      board: this.engine.createInitialBoard(),
-      turn: 'red',
+      board: seed?.board ?? this.engine.createInitialBoard(),
+      turn: seed?.turn ?? 'red',
       onlineUserIds: [],
       source,
       visibility,
       ownerId: creatorId,
     };
+    // 同步 turnIndex 与初始先手
+    state.turnIndex = state.turn === 'red' ? 0 : 1;
     this.battles.set(id, state);
     this.scheduleWaitingTtl(id);
     return { battleId: id, status: state.status };

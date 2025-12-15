@@ -10,6 +10,11 @@ export default function LiveBattle() {
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
     const action = searchParams.get('action'); // create | join | match | null
+    const joinRoomParam = searchParams.get('room');
+    const initialBoardIdParam = searchParams.get('initialBoardId');
+    const initialBoardId = initialBoardIdParam && /^\d+$/.test(initialBoardIdParam)
+        ? Number(initialBoardIdParam)
+        : undefined;
     const [battleId, setBattleId] = useState<number | ''>('');
     const [joinIdInput, setJoinIdInput] = useState<string>('');
     const [connected, setConnected] = useState(false);
@@ -274,6 +279,19 @@ export default function LiveBattle() {
         conn.snapshot(id);
     };
 
+    // 通过 query 参数自动加入指定房间（用于“加入好友房”直达）
+    const handleAutoJoin = async (id: number) => {
+        try {
+            await battleApi.join(id);
+        } catch (e) {
+            const msg = e instanceof Error ? e.message : String(e);
+            alert(`加入房间失败：${msg}`);
+        }
+        setBattleId(id);
+        conn.join(id, 0);
+        conn.snapshot(id);
+    };
+
     const handleAttemptMove = async (from: { x: number; y: number }, to: { x: number; y: number }) => {
         const id = Number(battleId);
         if (!id) return;
@@ -289,7 +307,11 @@ export default function LiveBattle() {
         if (createLockRef.current) return;
         createLockRef.current = true;
         try {
-            const data = await battleApi.create({ mode: 'pvp' } as { mode: string });
+            const req: any = { mode: 'pvp' };
+            if (typeof initialBoardId === 'number') {
+                req.initialBoardId = initialBoardId;
+            }
+            const data = await battleApi.create(req as { mode: string });
             const id: number = (data as { battleId: number }).battleId;
             setBattleId(id);
             conn.join(id, 0);
@@ -319,19 +341,24 @@ export default function LiveBattle() {
         }
     };
 
-    // 若来自模式选择页，则自动执行创建/匹配一次
+    // 若来自模式选择页或直达参数，则自动执行创建/匹配/加入一次
     useEffect(() => {
-        if (!action || autoActionRef.current) return;
+        if (autoActionRef.current) return;
         if (!battleId) {
             if (action === 'create') {
                 handleCreate();
+                autoActionRef.current = true;
             } else if (action === 'match') {
                 handleMatch();
+                autoActionRef.current = true;
+            } else if (action === 'join' && joinRoomParam && /^\d+$/.test(joinRoomParam)) {
+                const id = Number(joinRoomParam);
+                handleAutoJoin(id);
+                autoActionRef.current = true;
             }
-            autoActionRef.current = true; // 标记已自动执行一次，避免重复
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [action, battleId]);
+    }, [action, battleId, joinRoomParam]);
 
     const inRoom = battleId !== '' && Number(battleId) > 0;
 

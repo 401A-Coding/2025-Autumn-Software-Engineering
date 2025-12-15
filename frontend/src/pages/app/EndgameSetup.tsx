@@ -234,7 +234,32 @@ export default function EndgameSetup() {
                         const initialBoard = buildInitialBoard()
                         nav('/app/play', { state: { initialBoard, turn } })
                     }}>本地对战</button>
-                    <button className="btn-ghost" disabled title="在线对战稍后提供">在线对战（敬请期待）</button>
+                    <button
+                        className="btn-ghost"
+                        title="保存为模板并创建好友房，邀请在线对战"
+                        onClick={async () => {
+                            setSaveMsg('')
+                            setSaving(true)
+                            try {
+                                const payload: any = {
+                                    name: name || '未命名残局',
+                                    layout: { ...layout, turn },
+                                    preview: '',
+                                    isTemplate: true,
+                                }
+                                const res = await boardApi.createTemplate(payload)
+                                const boardId = (res as any)?.boardId ?? (res as any)?.id
+                                if (!boardId) throw new Error('未返回模板ID')
+                                // 跳转到在线对战页，使用 initialBoardId 直达创建好友房
+                                nav(`/app/live-battle?action=create&initialBoardId=${boardId}`)
+                            } catch (e: any) {
+                                const msg = e?.message || '创建好友房失败（需登录后端才能创建）。'
+                                setSaveMsg(msg)
+                            } finally {
+                                setSaving(false)
+                            }
+                        }}
+                    >在线邀请对战</button>
                 </div>
             </div>
         </section>
