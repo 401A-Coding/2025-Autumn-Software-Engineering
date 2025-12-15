@@ -8,6 +8,7 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { MetricsModule } from '../metrics/metrics.module';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { RecordModule } from '../record/record.module';
+import { BoardModule } from '../board/board.module';
 
 @Module({
   imports: [
@@ -17,9 +18,10 @@ import { RecordModule } from '../record/record.module';
     MetricsModule,
     EventEmitterModule.forRoot(),
     forwardRef(() => RecordModule),
+    BoardModule,
   ],
   controllers: [BattlesController],
   providers: [BattlesService, BattlesGateway, ChessEngineService, JwtAuthGuard],
   exports: [BattlesService],
 })
-export class BattleModule {}
+export class BattleModule { }

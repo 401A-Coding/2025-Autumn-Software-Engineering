@@ -11,14 +11,10 @@ export default function EndgameHome() {
                 <Link to="/app/endgame/setup" className="btn-primary" title="从零或导出局面来布置残局">布置残局</Link>
                 <button
                     className="btn-primary"
-                    title="输入好友房房间号加入残局对战"
+                    title="前往加入好友房页面"
                     onClick={() => {
-                        const rid = window.prompt('输入好友房房间号：')
-                        if (!rid) return
-                        const num = Number(rid)
-                        if (!Number.isFinite(num) || num <= 0) { alert('房间号不合法'); return }
-                        // 跳转到在线对战页，标记为残局房
-                        nav('/app/live-battle', { state: { roomId: num, type: 'endgame' } })
+                        // 直接跳转到在线对战页面的加入模式，不弹窗
+                        nav('/app/live-battle?action=join')
                     }}
                 >加入好友房</button>
             </div>
