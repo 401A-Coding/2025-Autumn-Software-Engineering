@@ -68,6 +68,7 @@ export default function PostDetail() {
     const [currentUserId, setCurrentUserId] = useState<number | null>(null)
     const [commentLikes, setCommentLikes] = useState<Record<number, boolean>>({})
     const [expandedReplies, setExpandedReplies] = useState<Record<number, boolean>>({})
+    const [replyingOnComment, setReplyingOnComment] = useState<number | null>(null)
     const [replyingTo, setReplyingTo] = useState<number | null>(null)
     const [replyText, setReplyText] = useState('')
     const [replyTargetLabel, setReplyTargetLabel] = useState<string>('楼主')
@@ -287,6 +288,7 @@ export default function PostDetail() {
             await loadComments()
             setReplyText('')
             setReplyingTo(null)
+            setReplyingOnComment(null)
             setReplyTargetLabel('楼主')
         } catch (e) {
             console.error('Reply submit failed:', e)
@@ -627,6 +629,8 @@ export default function PostDetail() {
                                                         <div style={{ marginTop: '8px' }}>
                                                             <button
                                                                 onClick={() => {
+                                                                    setExpandedReplies({ ...expandedReplies, [comment.id]: true })
+                                                                    setReplyingOnComment(comment.id)
                                                                     setReplyingTo(reply.id)
                                                                     setReplyTargetLabel(reply.authorNickname || '匿名')
                                                                 }}
@@ -666,7 +670,7 @@ export default function PostDetail() {
 
                                 {/* 回复输入框 */}
                                 <div style={{ padding: '12px', borderTop: '1px solid #e0e0e0' }}>
-                                    {replyingTo === comment.id ? (
+                                    {replyingOnComment === comment.id ? (
                                         <div>
                                             <textarea
                                                 autoFocus
@@ -717,6 +721,7 @@ export default function PostDetail() {
                                     ) : (
                                         <button
                                             onClick={() => {
+                                                setReplyingOnComment(comment.id)
                                                 setReplyingTo(comment.id)
                                                 setReplyTargetLabel(comment.authorNickname || '楼主')
                                             }}
