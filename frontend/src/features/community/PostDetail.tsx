@@ -68,6 +68,7 @@ export default function PostDetail() {
     const [expandedReplies, setExpandedReplies] = useState<Record<number, boolean>>({})
     const [replyingTo, setReplyingTo] = useState<number | null>(null)
     const [replyText, setReplyText] = useState('')
+    const [replyLikes, setReplyLikes] = useState<Record<number, boolean>>({})
 
     async function loadPost() {
         if (!postId) return
@@ -286,7 +287,61 @@ export default function PostDetail() {
             console.error('Reply submit failed:', e)
         }
     }
+    async function handleLikeReply(replyId: number) {
+        try {
+            const isLiked = replyLikes[replyId]
+            if (!isLiked) {
+                await communityApi.likeComment(replyId)
+                setReplyLikes({ ...replyLikes, [replyId]: true })
+                // 更新回复的点赞数 - 找到对应的回复并更新
+                setComments(comments.map(c => ({
+                    ...c,
+                    replies: c.replies.map(r =>
+                        r.id === replyId ? { ...r, likeCount: r.likeCount + 1 } : r
+                    )
+                })))
+            } else {
+                await communityApi.unlikeComment(replyId)
+                setReplyLikes({ ...replyLikes, [replyId]: false })
+                setComments(comments.map(c => ({
+                    ...c,
+                    replies: c.replies.map(r =>
+                        r.id === replyId ? { ...r, likeCount: Math.max(0, r.likeCount - 1) } : r
+                    )
+                })))
+            }
+        } catch (e) {
+            console.error('Reply like failed:', e)
+        }
+    }
 
+    async function handleDeleteReply(replyId: number) {
+        if (!window.confirm('确定要删除这条回复吗?')) return
+        try {
+            await communityApi.deleteComment(replyId)
+            // 重新加载评论以获取更新的回复列表
+            await loadComments()
+        } catch (e) {
+            console.error('Delete reply failed:', e)
+            alert('删除失败')
+        }
+    }
+
+    function getReplyActions(reply: Reply): MenuAction[] {
+        const actions: MenuAction[] = []
+        if (currentUserId && reply.authorId && currentUserId === reply.authorId) {
+            actions.push({
+                label: '删除',
+                onClick: () => handleDeleteReply(reply.id),
+                danger: true,
+            })
+        }
+        actions.push({
+            label: '举报',
+            onClick: () => alert('举报功能即将推出'),
+        })
+        return actions
+    }
     if (loading) {
         return <div className="muted text-center py-24">加载中...</div>
     }
@@ -511,35 +566,48 @@ export default function PostDetail() {
                                                     <div
                                                         key={reply.id}
                                                         style={{
-                                                            padding: '8px 0',
+                                                            padding: '12px',
                                                             borderBottom: '1px solid #e8e8e8',
-                                                            display: 'flex',
-                                                            gap: '8px',
+                                                            backgroundColor: '#fff',
                                                         }}
                                                     >
-                                                        <UserAvatar
-                                                            userId={reply.authorId || 0}
-                                                            nickname={reply.authorNickname}
-                                                            avatarUrl={reply.authorAvatar ?? undefined}
-                                                            timestamp={reply.createdAt}
-                                                            size="small"
-                                                        />
-                                                        <div style={{ flex: 1 }}>
-                                                            <p style={{ margin: 0, fontSize: '13px' }}>{reply.content}</p>
-                                                            <div style={{ marginTop: '6px', display: 'flex', gap: '8px' }}>
-                                                                <button
-                                                                    style={{
-                                                                        background: 'none',
-                                                                        border: 'none',
-                                                                        cursor: 'pointer',
-                                                                        fontSize: '12px',
-                                                                        color: '#999',
-                                                                        padding: 0,
-                                                                    }}
-                                                                >
-                                                                    👍 {reply.likeCount}
-                                                                </button>
+                                                        {/* 回复头部 */}
+                                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1 }}>
+                                                                <img
+                                                                    src={reply.authorAvatar || 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 40 40%22%3E%3Crect fill=%22%23ddd%22 width=%2240%22 height=%2240%22/%3E%3C/svg%3E'}
+                                                                    alt="avatar"
+                                                                    style={{ width: '24px', height: '24px', borderRadius: '50%' }}
+                                                                />
+                                                                <div>
+                                                                    <div style={{ fontSize: '13px', fontWeight: 600, color: '#333' }}>{reply.authorNickname || '匿名'}</div>
+                                                                    <div style={{ fontSize: '11px', color: '#999', marginTop: '2px' }}>{reply.createdAt ? new Date(reply.createdAt).toLocaleDateString() : ''}</div>
+                                                                </div>
                                                             </div>
+                                                            <DropdownMenu actions={getReplyActions(reply)} />
+                                                        </div>
+
+                                                        {/* 回复内容 */}
+                                                        <p style={{ margin: '8px 0 0 0', fontSize: '13px', color: '#555', textAlign: 'left' }}>{reply.content}</p>
+
+                                                        {/* 回复点赞 */}
+                                                        <div style={{ marginTop: '8px', display: 'flex', gap: '8px' }}>
+                                                            <button
+                                                                onClick={() => handleLikeReply(reply.id)}
+                                                                style={{
+                                                                    background: 'none',
+                                                                    border: 'none',
+                                                                    cursor: 'pointer',
+                                                                    fontSize: '12px',
+                                                                    color: replyLikes[reply.id] ? '#5c9cff' : '#999',
+                                                                    padding: 0,
+                                                                    display: 'flex',
+                                                                    alignItems: 'center',
+                                                                    gap: '4px',
+                                                                }}
+                                                            >
+                                                                👍 <span>{reply.likeCount}</span>
+                                                            </button>
                                                         </div>
                                                     </div>
                                                 ))}
