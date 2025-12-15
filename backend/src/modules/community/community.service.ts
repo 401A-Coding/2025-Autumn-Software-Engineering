@@ -198,6 +198,12 @@ export class CommunityService {
               author: {
                 select: { id: true, username: true, avatarUrl: true },
               },
+              parent: {
+                select: {
+                  id: true,
+                  author: { select: { username: true } },
+                },
+              },
               _count: { select: { likes: true } },
             },
           },
@@ -215,9 +221,11 @@ export class CommunityService {
       replyCount: c._count.replies,
       replies: c.replies.map((r: any) => ({
         id: r.id,
+        parentId: r.parentId,
         authorId: r.authorId,
         authorNickname: r.author?.username,
         authorAvatar: r.author?.avatarUrl ?? null,
+        replyToNickname: r.parent?.author?.username ?? null,
         content: r.content,
         likeCount: r._count.likes,
         createdAt: r.createdAt,

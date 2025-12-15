@@ -42,9 +42,11 @@ type Comment = {
 
 type Reply = {
     id: number
+    parentId?: number | null
     authorId?: number
     authorNickname?: string
     authorAvatar?: string | null
+    replyToNickname?: string | null
     content: string
     likeCount: number
     createdAt?: string
@@ -68,6 +70,7 @@ export default function PostDetail() {
     const [expandedReplies, setExpandedReplies] = useState<Record<number, boolean>>({})
     const [replyingTo, setReplyingTo] = useState<number | null>(null)
     const [replyText, setReplyText] = useState('')
+    const [replyTargetLabel, setReplyTargetLabel] = useState<string>('楼主')
     const [replyLikes, setReplyLikes] = useState<Record<number, boolean>>({})
 
     async function loadPost() {
@@ -278,11 +281,13 @@ export default function PostDetail() {
     async function handleReplySubmit(commentId: number) {
         if (!replyText.trim()) return
         try {
-            await communityApi.addComment(post!.id, { content: replyText, parentId: commentId } as any)
+            const targetId = replyingTo ?? commentId
+            await communityApi.addComment(post!.id, { content: replyText, parentId: targetId } as any)
             // 重新加载评论以获取更新的回复
             await loadComments()
             setReplyText('')
             setReplyingTo(null)
+            setReplyTargetLabel('楼主')
         } catch (e) {
             console.error('Reply submit failed:', e)
         }
@@ -543,7 +548,12 @@ export default function PostDetail() {
                                                             color: '#555',
                                                         }}
                                                     >
-                                                        <span style={{ fontWeight: 600 }}>{reply.authorNickname || '匿名'}：</span>
+                                                        <span style={{ fontWeight: 600 }}>{reply.authorNickname || '匿名'}</span>
+                                                        {reply.parentId && reply.parentId !== comment.id && reply.replyToNickname ? (
+                                                            <span> 回复 {reply.replyToNickname}：</span>
+                                                        ) : (
+                                                            <span>：</span>
+                                                        )}
                                                         <span>{reply.content}</span>
                                                     </div>
                                                 ))}
@@ -608,7 +618,30 @@ export default function PostDetail() {
                                                         </div>
 
                                                         {/* 回复内容 */}
-                                                        <p style={{ margin: '0', fontSize: '13px', color: '#555', textAlign: 'left' }}>{reply.content}</p>
+                                                        <p style={{ margin: '0', fontSize: '13px', color: '#555', textAlign: 'left' }}>
+                                                            {reply.parentId && reply.parentId !== comment.id && reply.replyToNickname
+                                                                ? `回复 ${reply.replyToNickname}：${reply.content}`
+                                                                : reply.content}
+                                                        </p>
+
+                                                        <div style={{ marginTop: '8px' }}>
+                                                            <button
+                                                                onClick={() => {
+                                                                    setReplyingTo(reply.id)
+                                                                    setReplyTargetLabel(reply.authorNickname || '匿名')
+                                                                }}
+                                                                style={{
+                                                                    background: 'none',
+                                                                    border: 'none',
+                                                                    cursor: 'pointer',
+                                                                    fontSize: '12px',
+                                                                    color: '#5c9cff',
+                                                                    padding: 0,
+                                                                }}
+                                                            >
+                                                                回复
+                                                            </button>
+                                                        </div>
                                                     </div>
                                                 ))}
                                                 <button
@@ -683,7 +716,10 @@ export default function PostDetail() {
                                         </div>
                                     ) : (
                                         <button
-                                            onClick={() => setReplyingTo(comment.id)}
+                                            onClick={() => {
+                                                setReplyingTo(comment.id)
+                                                setReplyTargetLabel(comment.authorNickname || '楼主')
+                                            }}
                                             style={{
                                                 background: 'none',
                                                 border: 'none',
@@ -820,7 +856,7 @@ export default function PostDetail() {
                     >
                         <textarea
                             autoFocus
-                            placeholder="写下你的评论..."
+                            placeholder={`回复 ${replyTargetLabel}...`}
                             value={commentText}
                             onChange={(e) => setCommentText(e.target.value)}
                             style={{
