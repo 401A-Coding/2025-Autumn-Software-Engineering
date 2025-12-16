@@ -13,7 +13,7 @@ interface ViewItem {
 export default function MyViews() {
     const navigate = useNavigate()
     const [views, setViews] = useState<ViewItem[]>([])
-    const [loading, setLoading] = useState(true)
+    const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [page, setPage] = useState(1)
     const [total, setTotal] = useState(0)
@@ -33,14 +33,17 @@ export default function MyViews() {
     }
 
     const loadViews = useCallback(async (p: number) => {
-        setLoading(true)
-        setError(null)
         try {
+            setLoading(true)
+            setError(null)
             const data = await communityApi.getMyViews(p, pageSize)
-            setViews(data.items)
-            setTotal(data.total)
+            setViews(data.items || [])
+            setTotal(data.total || 0)
         } catch (e) {
+            console.error('加载浏览历史失败:', e)
             setError(e instanceof Error ? e.message : '加载失败')
+            setViews([])
+            setTotal(0)
         } finally {
             setLoading(false)
         }

@@ -43,14 +43,17 @@ export default function MyLikes() {
     }
 
     const loadLikes = useCallback(async (t: typeof type, p: number) => {
-        setLoading(true)
-        setError(null)
         try {
+            setLoading(true)
+            setError(null)
             const data = await communityApi.getMyLikes(t, p, pageSize)
-            setLikes(data.items)
-            setTotal(data.total)
+            setLikes(data.items || [])
+            setTotal(data.total || 0)
         } catch (e) {
+            console.error('加载点赞列表失败:', e)
             setError(e instanceof Error ? e.message : '加载失败')
+            setLikes([])
+            setTotal(0)
         } finally {
             setLoading(false)
         }

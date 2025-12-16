@@ -40,14 +40,17 @@ export default function MyBookmarks() {
     }
 
     const loadBookmarks = useCallback(async (p: number) => {
-        setLoading(true)
-        setError(null)
         try {
+            setLoading(true)
+            setError(null)
             const data = await communityApi.getMyBookmarks(p, pageSize)
-            setBookmarks(data.items)
-            setTotal(data.total)
+            setBookmarks(data.items || [])
+            setTotal(data.total || 0)
         } catch (e) {
+            console.error('加载收藏列表失败:', e)
             setError(e instanceof Error ? e.message : '加载失败')
+            setBookmarks([])
+            setTotal(0)
         } finally {
             setLoading(false)
         }
