@@ -18,7 +18,7 @@ export class BattlesController {
   constructor(
     private readonly battles: BattlesService,
     private readonly boards: BoardService,
-  ) { }
+  ) {}
 
   @Post()
   @UseGuards(JwtAuthGuard)
@@ -35,18 +35,31 @@ export class BattlesController {
     @Req() req: Request & { user?: { sub: number } },
   ) {
     // 构造种子：优先使用 initialLayout，其次尝试 initialBoardId（模板表中的 layout）
-    let seed: { board: import('../../shared/chess/types').Board; turn: import('../../shared/chess/types').Side } | undefined;
-    const turn = (body.initialLayout?.turn ?? 'red') as 'red' | 'black';
-    if (body.initialLayout?.pieces && Array.isArray(body.initialLayout.pieces)) {
+    let seed:
+      | {
+          board: import('../../shared/chess/types').Board;
+          turn: import('../../shared/chess/types').Side;
+        }
+      | undefined;
+    const turn = body.initialLayout?.turn ?? 'red';
+    if (
+      body.initialLayout?.pieces &&
+      Array.isArray(body.initialLayout.pieces)
+    ) {
       const pieces = body.initialLayout.pieces;
-      const b: import('../../shared/chess/types').Board = Array.from({ length: 10 }, () => Array(9).fill(null));
+      const b: import('../../shared/chess/types').Board = Array.from(
+        { length: 10 },
+        () => Array(9).fill(null),
+      );
       let idSeq = 0;
       for (const p of pieces) {
         if (
           typeof p.x === 'number' &&
           typeof p.y === 'number' &&
-          p.x >= 0 && p.x < 9 &&
-          p.y >= 0 && p.y < 10 &&
+          p.x >= 0 &&
+          p.x < 9 &&
+          p.y >= 0 &&
+          p.y < 10 &&
           typeof p.type === 'string' &&
           (p.side === 'red' || p.side === 'black')
         ) {
@@ -62,20 +75,31 @@ export class BattlesController {
       try {
         const tmpl = await this.boards.findOne(Number(body.initialBoardId));
         const layout: any = (tmpl as any).layout;
-        const pieces: any[] = Array.isArray(layout?.pieces) ? layout.pieces : [];
-        const b: import('../../shared/chess/types').Board = Array.from({ length: 10 }, () => Array(9).fill(null));
+        const pieces: any[] = Array.isArray(layout?.pieces)
+          ? layout.pieces
+          : [];
+        const b: import('../../shared/chess/types').Board = Array.from(
+          { length: 10 },
+          () => Array(9).fill(null),
+        );
         let idSeq = 0;
         for (const p of pieces) {
           if (
             typeof p.x === 'number' &&
             typeof p.y === 'number' &&
-            p.x >= 0 && p.x < 9 &&
-            p.y >= 0 && p.y < 10 &&
+            p.x >= 0 &&
+            p.x < 9 &&
+            p.y >= 0 &&
+            p.y < 10 &&
             typeof p.type === 'string' &&
             (p.side === 'red' || p.side === 'black')
           ) {
-            const type = p.type === 'chariot' ? 'rook' : (p.type as any);
-            (b as any)[p.y][p.x] = { id: `seed-${idSeq++}`, type, side: p.side };
+            const type = p.type === 'chariot' ? 'rook' : p.type;
+            (b as any)[p.y][p.x] = {
+              id: `seed-${idSeq++}`,
+              type,
+              side: p.side,
+            };
           }
         }
         const t = (layout?.turn ?? 'red') as 'red' | 'black';

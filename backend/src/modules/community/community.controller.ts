@@ -179,4 +179,19 @@ export class CommunityController {
     });
     return { code: 0, message: 'success', data };
   }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('my-comments')
+  async getMyComments(
+    @Req() req: any,
+    @Query('page') page: number = 1,
+    @Query('pageSize') pageSize: number = 20,
+  ) {
+    const data = await this.service.getMyComments(
+      req.user?.sub,
+      Number(page) || 1,
+      Number(pageSize) || 20,
+    );
+    return { code: 0, message: 'success', data };
+  }
 }

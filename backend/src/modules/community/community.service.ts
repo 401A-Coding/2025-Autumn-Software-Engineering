@@ -3,7 +3,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 
 @Injectable()
 export class CommunityService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   async listPosts(params: {
     page: number;
@@ -25,10 +25,10 @@ export class CommunityService {
       ];
     const tagFilter = tag
       ? {
-          tags: {
-            some: { tag: { name: { equals: tag, mode: 'insensitive' } } },
-          },
-        }
+        tags: {
+          some: { tag: { name: { equals: tag, mode: 'insensitive' } } },
+        },
+      }
       : {};
 
     const orderBy: any =
@@ -123,10 +123,10 @@ export class CommunityService {
         p.shareType === 'NONE'
           ? null
           : {
-              refType: String(p.shareType).toLowerCase(),
-              refId: p.shareRefId ?? 0,
-              snapshot: p.shareSnap ?? null,
-            },
+            refType: String(p.shareType).toLowerCase(),
+            refId: p.shareRefId ?? 0,
+            snapshot: p.shareSnap ?? null,
+          },
       attachments:
         p.attachments?.map((a: any) => ({
           url: a.url,
@@ -200,25 +200,25 @@ export class CommunityService {
     // 取出每个顶级评论下的所有楼中楼：直接子回复 + 子回复的子回复
     const allReplies = topIds.length
       ? await this.prisma.communityComment.findMany({
-          where: {
-            OR: [
-              { parentId: { in: topIds } },
-              { parent: { parentId: { in: topIds } } },
-            ],
-          },
-          orderBy: { createdAt: 'asc' },
-          include: {
-            author: { select: { id: true, username: true, avatarUrl: true } },
-            parent: {
-              select: {
-                id: true,
-                parentId: true,
-                author: { select: { id: true, username: true } },
-              },
+        where: {
+          OR: [
+            { parentId: { in: topIds } },
+            { parent: { parentId: { in: topIds } } },
+          ],
+        },
+        orderBy: { createdAt: 'asc' },
+        include: {
+          author: { select: { id: true, username: true, avatarUrl: true } },
+          parent: {
+            select: {
+              id: true,
+              parentId: true,
+              author: { select: { id: true, username: true } },
             },
-            _count: { select: { likes: true } },
           },
-        })
+          _count: { select: { likes: true } },
+        },
+      })
       : [];
 
     const repliesByRoot: Record<number, any[]> = {};
@@ -357,10 +357,10 @@ export class CommunityService {
       ];
     const tagFilter = tag
       ? {
-          tags: {
-            some: { tag: { name: { equals: tag, mode: 'insensitive' } } },
-          },
-        }
+        tags: {
+          some: { tag: { name: { equals: tag, mode: 'insensitive' } } },
+        },
+      }
       : {};
     const [items, total] = await this.prisma.$transaction([
       this.prisma.post.findMany({
@@ -378,6 +378,68 @@ export class CommunityService {
       recordId: i.id,
       title: i.title ?? '',
     }));
+    return { items: mapped, page, pageSize, total };
+  }
+
+  async getMyComments(userId: number, page = 1, pageSize = 20) {
+    const [items, total] = await this.prisma.$transaction([
+      this.prisma.communityComment.findMany({
+        where: {
+          authorId: userId,
+        },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          post: {
+            select: {
+              id: true,
+              title: true,
+              status: true,
+            },
+          },
+          author: {
+            select: {
+              id: true,
+              username: true,
+              avatarUrl: true,
+            },
+          },
+          parent: {
+            select: {
+              id: true,
+              authorId: true,
+              author: {
+                select: {
+                  id: true,
+                  username: true,
+                },
+              },
+            },
+          },
+        },
+      }),
+      this.prisma.communityComment.count({
+        where: {
+          authorId: userId,
+        },
+      }),
+    ]);
+
+    const mapped = items.map((c: any) => ({
+      id: c.id,
+      postId: c.postId,
+      postTitle: c.post?.title ?? null,
+      postStatus: c.post?.status ?? null,
+      parentId: c.parentId,
+      parentAuthorNickname: c.parent?.author?.username ?? null,
+      content: c.content,
+      createdAt: c.createdAt,
+      authorId: c.authorId,
+      authorNickname: c.author?.username,
+      authorAvatar: c.author?.avatarUrl ?? null,
+    }));
+
     return { items: mapped, page, pageSize, total };
   }
 }

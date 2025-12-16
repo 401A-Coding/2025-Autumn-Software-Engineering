@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useLocation } from 'react-router-dom'
 import '../../pages/app/app-pages.css'
 import { communityApi, userApi } from '../../services/api'
 import UserAvatar from '../../components/UserAvatar'
@@ -55,7 +55,19 @@ type Reply = {
 
 export default function PostDetail() {
     const navigate = useNavigate()
+    const location = useLocation()
     const { postId } = useParams<{ postId: string }>()
+    const fromPage = (location.state as { from?: string })?.from || '/app/community'
+    const targetCommentId = (location.state as { commentId?: number })?.commentId
+    const returnTab = (location.state as { tab?: 'posts' | 'comments' })?.tab
+
+    const handleBack = () => {
+        if (returnTab && fromPage === '/app/my-posts') {
+            navigate(fromPage, { state: { tab: returnTab } })
+        } else {
+            navigate(fromPage)
+        }
+    }
     const [post, setPost] = useState<Post | null>(null)
     const [comments, setComments] = useState<Comment[]>([])
     const [loading, setLoading] = useState(true)
@@ -161,6 +173,45 @@ export default function PostDetail() {
         loadComments()
         loadCurrentUser()
     }, [postId])
+
+    // 当评论加载完成且有目标评论ID时，滚动到该评论
+    useEffect(() => {
+        if (targetCommentId && comments.length > 0) {
+            // 首先检查是否是楼中楼评论，如果是，先展开父评论
+            let needExpand = false
+            let parentCommentId = null
+
+            for (const comment of comments) {
+                const isTargetReply = comment.replies?.some((r: any) => r.id === targetCommentId)
+                if (isTargetReply) {
+                    needExpand = true
+                    parentCommentId = comment.id
+                    break
+                }
+            }
+
+            if (needExpand && parentCommentId) {
+                // 展开父评论
+                setExpandedReplies(prev => ({ ...prev, [parentCommentId]: true }))
+
+                // 等待DOM更新后再滚动
+                setTimeout(() => {
+                    const targetComment = document.getElementById(`comment-${targetCommentId}`)
+                    if (targetComment) {
+                        targetComment.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                    }
+                }, 300)
+            } else {
+                // 主评论直接滚动
+                const targetComment = document.getElementById(`comment-${targetCommentId}`)
+                if (targetComment) {
+                    setTimeout(() => {
+                        targetComment.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                    }, 100)
+                }
+            }
+        }
+    }, [comments, targetCommentId])
 
     async function loadCurrentUser() {
         try {
@@ -358,8 +409,8 @@ export default function PostDetail() {
         return (
             <section className="paper-card card-pad">
                 <div className="empty-box">帖子不存在</div>
-                <button className="btn-primary mt-16" onClick={() => navigate('/app/community')}>
-                    返回社区
+                <button className="btn-primary mt-16" onClick={handleBack}>
+                    返回
                 </button>
             </section>
         )
@@ -368,7 +419,7 @@ export default function PostDetail() {
     return (
         <div style={{ paddingBottom: expandedComment ? '400px' : '90px' }}>
             {/* 返回按钮 */}
-            <button className="btn-ghost mb-12" onClick={() => navigate('/app/community')}>
+            <button className="btn-ghost mb-12" onClick={handleBack}>
                 ← 返回
             </button>
 
@@ -491,7 +542,7 @@ export default function PostDetail() {
                 ) : (
                     <div className="col gap-12">
                         {comments.map((comment) => (
-                            <div key={comment.id} className="paper-card" style={{ padding: 0, overflow: 'hidden' }}>
+                            <div key={comment.id} id={`comment-${comment.id}`} className="paper-card" style={{ padding: 0, overflow: 'hidden' }}>
                                 {/* 评论者信息 */}
                                 <div style={{ padding: '10px 12px', backgroundColor: '#fafafa', borderBottom: '1px solid #e0e0e0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                                     <UserAvatar
@@ -590,6 +641,7 @@ export default function PostDetail() {
                                                 {comment.replies.map((reply) => (
                                                     <div
                                                         key={reply.id}
+                                                        id={`comment-${reply.id}`}
                                                         style={{
                                                             padding: '12px',
                                                             borderBottom: '1px solid #e8e8e8',

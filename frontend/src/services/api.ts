@@ -779,4 +779,15 @@ export const communityApi = {
       total: data.total ?? 0,
     }
   },
+
+  /** 获取我的评论 */
+  async getMyComments(page = 1, pageSize = 20) {
+    type MyCommentsData = NonNullable<
+      operations['communityMyComments']['responses'][200]['content']['application/json']['data']
+    >
+    const res = await apiRequest<MyCommentsData>(
+      `/api/v1/community/my-comments?page=${page}&pageSize=${pageSize}`
+    )
+    return res.data
+  },
 }

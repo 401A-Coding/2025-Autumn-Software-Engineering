@@ -1213,6 +1213,28 @@ paths:
               schema:
                 $ref: "#/components/schemas/ApiResponseOk"
 
+  /api/v1/community/my-comments:
+    get:
+      tags: [Community]
+      summary: Get my comments (replies)
+      operationId: communityMyComments
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer, default: 1 }
+        - in: query
+          name: pageSize
+          schema: { type: integer, default: 20 }
+      responses:
+        "200":
+          description: My comments list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponsePageMyComments"
+
   /api/v1/community/comments/{commentId}/like:
     post:
       tags: [Community]
@@ -1569,6 +1591,39 @@ components:
             authorAvatar: { type: string, nullable: true }
             content: { type: string }
             createdAt: { type: string, format: date-time }
+    MyCommentItem:
+      type: object
+      properties:
+        id: { type: integer }
+        postId: { type: integer }
+        postTitle: { type: string, nullable: true }
+        postStatus:
+          {
+            type: string,
+            nullable: true,
+            description: "post status: PUBLISHED, REMOVED, DELETED",
+          }
+        parentId: { type: integer, nullable: true }
+        parentAuthorNickname: { type: string, nullable: true }
+        content: { type: string }
+        createdAt: { type: string, format: date-time }
+        authorId: { type: integer }
+        authorNickname: { type: string }
+        authorAvatar: { type: string, nullable: true }
+    ApiResponsePageMyComments:
+      type: object
+      properties:
+        code: { type: integer, example: 0 }
+        message: { type: string, example: success }
+        data:
+          type: object
+          properties:
+            items:
+              type: array
+              items: { $ref: "#/components/schemas/MyCommentItem" }
+            page: { type: integer }
+            pageSize: { type: integer }
+            total: { type: integer }
     ReportRequest:
       type: object
       properties:
