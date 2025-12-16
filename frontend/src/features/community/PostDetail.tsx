@@ -74,6 +74,7 @@ export default function PostDetail() {
     const [comments, setComments] = useState<Comment[]>([])
     const [loading, setLoading] = useState(true)
     const [liking, setLiking] = useState(false)
+    const [bookmarking, setBookmarking] = useState(false)
     const [liked, setLiked] = useState(false)
     const [commentText, setCommentText] = useState('')
     const [submitting, setSubmitting] = useState(false)
@@ -539,7 +540,32 @@ export default function PostDetail() {
                             👍 {post.likeCount}
                         </button>
                         <span className="text-14 muted">💬 {post.commentCount}</span>
-                        <span className="text-14 muted">🔖 {post.bookmarkCount ?? 0}</span>
+                        <button
+                            className={`btn-ghost text-14 ${bookmarked ? 'fw-600' : ''}`}
+                            onClick={async () => {
+                                if (!post || bookmarking) return
+                                setBookmarking(true)
+                                try {
+                                    if (bookmarked) {
+                                        await communityApi.unbookmarkPost(post.id)
+                                    } else {
+                                        await communityApi.bookmarkPost(post.id)
+                                    }
+                                    setBookmarked(!bookmarked)
+                                    setPost(prev => prev ? ({
+                                        ...prev,
+                                        bookmarkCount: Math.max(0, (prev.bookmarkCount ?? 0) + (bookmarked ? -1 : 1))
+                                    }) : prev)
+                                } catch (err) {
+                                    console.error('Failed to toggle bookmark:', err)
+                                } finally {
+                                    setBookmarking(false)
+                                }
+                            }}
+                            disabled={bookmarking}
+                        >
+                            🔖 {post.bookmarkCount ?? 0}
+                        </button>
                     </div>
                 </div>
             </section>
@@ -934,7 +960,8 @@ export default function PostDetail() {
                             className={`interaction-btn ${bookmarked ? 'active' : ''}`}
                             title="收藏"
                             onClick={async () => {
-                                if (!post) return
+                                if (!post || bookmarking) return
+                                setBookmarking(true)
                                 try {
                                     if (bookmarked) {
                                         await communityApi.unbookmarkPost(post.id)
@@ -949,6 +976,8 @@ export default function PostDetail() {
                                     }) : prev)
                                 } catch (err) {
                                     console.error('Failed to toggle bookmark:', err)
+                                } finally {
+                                    setBookmarking(false)
                                 }
                             }}
                             style={{
@@ -963,6 +992,7 @@ export default function PostDetail() {
                             }}
                         >
                             {bookmarked ? '🔖' : '☆'}
+                            <span style={{ fontSize: '12px', marginLeft: '2px' }}>{post.bookmarkCount ?? 0}</span>
                         </button>
                     </div>
                 ) : (
