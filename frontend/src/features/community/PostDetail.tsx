@@ -96,6 +96,13 @@ export default function PostDetail() {
             const data = await communityApi.getPost(id)
             if (data) {
                 setPost(data as Post)
+                // 记录浏览历史
+                try {
+                    await communityApi.recordPostView(id)
+                } catch (err) {
+                    // 记录浏览失败不影响主流程，仅记录错误
+                    console.error('Failed to record post view:', err)
+                }
             }
         } catch (e) {
             console.error('Failed to load post:', e)
