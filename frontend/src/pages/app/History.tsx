@@ -153,6 +153,24 @@ function RecordsList({ filter, list, loading, onRefresh }: { filter: 'all' | 'fa
                                         onChange={() => setSelectedIds(prev => ({ ...prev, [String(r.id)]: !prev[String(r.id)] }))}
                                     />
                                 )}
+                                <button
+                                    className="btn-ghost"
+                                    title={r.favorite ? '取消收藏' : '收藏'}
+                                    onClick={async () => {
+                                        try {
+                                            if (r.favorite) {
+                                                await recordsApi.unfavorite(Number(r.id))
+                                            } else {
+                                                await recordsApi.favorite(Number(r.id))
+                                            }
+                                            await onRefresh()
+                                        } catch (e) {
+                                            console.error('Failed to toggle favorite:', e)
+                                        }
+                                    }}
+                                >
+                                    {r.favorite ? '❤️' : '🤍'}
+                                </button>
                                 <button className="btn-ghost" onClick={() => navigate(`/app/record/${r.id}`)}>复盘</button>
                                 <button
                                     className="btn-ghost"
