@@ -462,27 +462,13 @@ export default function PostDetail() {
 
     return (
         <div style={{ paddingBottom: expandedComment ? '400px' : '90px' }}>
-            {/* 返回按钮 - 左上角固定 */}
-            <button
-                className="btn-ghost"
-                onClick={handleBack}
-                style={{
-                    position: 'fixed',
-                    top: '16px',
-                    left: '16px',
-                    zIndex: 999,
-                    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                    backdropFilter: 'blur(4px)',
-                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
-                    padding: '8px 16px',
-                    borderRadius: '8px',
-                }}
-            >
+            {/* 返回按钮 */}
+            <button className="btn-ghost mb-12" onClick={handleBack}>
                 ← 返回
             </button>
 
             {/* 帖子内容 */}
-            <section className="paper-card mb-12" style={{ padding: 0, overflow: 'hidden', marginTop: '60px' }}>
+            <section className="paper-card mb-12" style={{ padding: 0, overflow: 'hidden' }}>
                 {/* 用户信息区域 */}
                 <div style={{ padding: '16px 20px', backgroundColor: '#fafafa', borderBottom: '1px solid #e0e0e0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     <UserAvatar

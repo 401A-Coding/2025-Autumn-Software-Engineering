@@ -82,27 +82,13 @@ export default function UserProfile() {
 
     return (
         <div>
-            {/* 返回按钮 - 左上角固定 */}
-            <button
-                className="btn-ghost"
-                onClick={() => navigate(-1)}
-                style={{
-                    position: 'fixed',
-                    top: '16px',
-                    left: '16px',
-                    zIndex: 999,
-                    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                    backdropFilter: 'blur(4px)',
-                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
-                    padding: '8px 16px',
-                    borderRadius: '8px',
-                }}
-            >
+            {/* 返回按钮 */}
+            <button className="btn-ghost mb-12" onClick={() => navigate(-1)}>
                 ← 返回
             </button>
 
             {/* 用户信息卡片 */}
-            <section className="paper-card card-pad" style={{ marginTop: '60px' }}>
+            <section className="paper-card card-pad">
                 {/* 头像+用户信息同一行，右侧信息分三行 */}
                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: '16px', marginBottom: '16px' }}>
                     {/* 头像 */}
