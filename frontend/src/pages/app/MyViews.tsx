@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { communityApi } from '../../services/api'
 import './app-pages.css'
@@ -32,7 +32,7 @@ export default function MyViews() {
         })
     }
 
-    const loadViews = async (p: number) => {
+    const loadViews = useCallback(async (p: number) => {
         setLoading(true)
         setError(null)
         try {
@@ -44,11 +44,11 @@ export default function MyViews() {
         } finally {
             setLoading(false)
         }
-    }
+    }, [pageSize])
 
     useEffect(() => {
         loadViews(page)
-    }, [page])
+    }, [page, loadViews])
 
     const handleClear = async () => {
         if (!confirm('确定要清空全部浏览历史吗？')) return

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { communityApi } from '../../services/api'
 import './app-pages.css'
@@ -39,7 +39,7 @@ export default function MyBookmarks() {
         })
     }
 
-    const loadBookmarks = async (p: number) => {
+    const loadBookmarks = useCallback(async (p: number) => {
         setLoading(true)
         setError(null)
         try {
@@ -51,11 +51,11 @@ export default function MyBookmarks() {
         } finally {
             setLoading(false)
         }
-    }
+    }, [pageSize])
 
     useEffect(() => {
         loadBookmarks(page)
-    }, [page])
+    }, [page, loadBookmarks])
 
     const handleRemoveBookmark = async (postId: number) => {
         try {
