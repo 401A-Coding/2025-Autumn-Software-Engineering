@@ -169,7 +169,7 @@ export default function UserProfile() {
                             <div
                                 key={p.id}
                                 className="paper-card pad-12 cursor-pointer"
-                                onClick={() => navigate(`/app/community/${p.id}`)}
+                                onClick={() => navigate(`/app/community/${p.id}`, { state: { from: `/app/users/${userId}` } })}
                             >
                                 <div className="row-between align-start">
                                     <div>
