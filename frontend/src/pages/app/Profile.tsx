@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { logout } from '../../lib/session'
 import { userApi } from '../../services/api'
 import type { operations } from '../../types/api'
@@ -17,6 +18,20 @@ export default function Profile() {
     const [uploading, setUploading] = useState(false)
     const [showEdit, setShowEdit] = useState(false)
     const fileInputId = 'avatar-upload-input'
+    const navigate = useNavigate()
+
+    const battleLinks = [
+        { title: '战绩', description: '查看全部对局记录', to: '/app/history' },
+        { title: '收藏', description: '我的收藏对局', to: '/app/favorites' },
+    ]
+
+    const communityLinks = [
+        { title: '我的发帖', description: '我发布的帖子', to: me ? `/app/users/${me.id}` : '/app/community' },
+        { title: '我的回帖', description: '我参与的评论', to: '/app/community?scope=my-comments' },
+        { title: '浏览历史', description: '我看过的帖子', to: '/app/community?scope=my-views' },
+        { title: '我的点赞', description: '我点过赞的帖子', to: '/app/community?scope=my-likes' },
+        { title: '我的收藏', description: '我收藏的帖子', to: '/app/community?scope=my-favorites' },
+    ]
 
     function formatDate(iso?: string | Date | null) {
         if (!iso) return '-'
@@ -111,6 +126,62 @@ export default function Profile() {
                 )}
 
                 <button className="btn-ghost mt-8" onClick={onLogout}>退出登录</button>
+            </section>
+
+            <section className="paper-card card-pad mt-12">
+                <div className="row-between align-center mb-8">
+                    <h3 className="mt-0 mb-0">对战信息</h3>
+                    <span className="muted text-12">从这里快速进入记录模块</span>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '12px' }}>
+                    {battleLinks.map((item) => (
+                        <button
+                            key={item.title}
+                            type="button"
+                            className="btn-ghost"
+                            style={{
+                                border: '1px solid #e5e7eb',
+                                borderRadius: 8,
+                                background: '#f8fafc',
+                                padding: '12px 14px',
+                                textAlign: 'left',
+                                cursor: 'pointer'
+                            }}
+                            onClick={() => navigate(item.to)}
+                        >
+                            <div className="fw-600">{item.title}</div>
+                            <div className="muted text-12 mt-4">{item.description}</div>
+                        </button>
+                    ))}
+                </div>
+            </section>
+
+            <section className="paper-card card-pad mt-12">
+                <div className="row-between align-center mb-8">
+                    <h3 className="mt-0 mb-0">社区信息</h3>
+                    <span className="muted text-12">我的互动和收藏</span>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '12px' }}>
+                    {communityLinks.map((item) => (
+                        <button
+                            key={item.title}
+                            type="button"
+                            className="btn-ghost"
+                            style={{
+                                border: '1px solid #e5e7eb',
+                                borderRadius: 8,
+                                background: '#f9f9f9',
+                                padding: '12px 14px',
+                                textAlign: 'left',
+                                cursor: 'pointer'
+                            }}
+                            onClick={() => navigate(item.to)}
+                        >
+                            <div className="fw-600">{item.title}</div>
+                            <div className="muted text-12 mt-4">{item.description}</div>
+                        </button>
+                    ))}
+                </div>
             </section>
 
             {/* 编辑资料弹窗 */}

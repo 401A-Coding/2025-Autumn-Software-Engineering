@@ -30,10 +30,6 @@ export default function AppLayout() {
                     <IconFun />
                     <span>娱乐</span>
                 </NavLink>
-                <NavLink to="/app/history" className={({ isActive }) => `tab-item ${isActive ? 'active' : ''}`}>
-                    <IconHistory />
-                    <span>记录</span>
-                </NavLink>
                 <NavLink to="/app/profile" className={({ isActive }) => `tab-item ${isActive ? 'active' : ''}`}>
                     <IconProfile />
                     <span>我的</span>
