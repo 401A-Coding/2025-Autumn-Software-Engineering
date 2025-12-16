@@ -21,7 +21,7 @@ import { BookmarkDeleteDto } from './dto/bookmark-delete.dto';
 
 @Controller('api/v1/records')
 export class RecordController {
-  constructor(private readonly recordService: RecordService) {}
+  constructor(private readonly recordService: RecordService) { }
 
   @Post()
   @UseGuards(JwtAuthGuard)
@@ -72,6 +72,22 @@ export class RecordController {
     return this.recordService
       .findAllPaginated(userId, p, ps, fav, result)
       .then((res) => ({ code: 0, message: 'success', data: res }));
+  }
+
+  @Get('prefs')
+  @UseGuards(JwtAuthGuard)
+  getRetentionPrefs(@Req() req: Request & { user?: { sub: number } }) {
+    const userId = req.user!.sub;
+    // 将后端字段映射为 keepLimit 以与前端契约一致
+    return this.recordService.getRetentionPrefs(userId).then((data) => ({
+      code: 0,
+      message: 'success',
+      data: {
+        keepLimit: (data as any).retentionLimit ?? 30,
+        autoCleanEnabled: (data as any).autoCleanEnabled ?? true,
+        updatedAt: (data as any).updatedAt,
+      },
+    }));
   }
 
   @Get(':id')
@@ -212,23 +228,6 @@ export class RecordController {
     return this.recordService
       .removeBookmark(userId, +id, +bid)
       .then(() => ({ code: 0, message: 'success', data: {} }));
-  }
-
-  // 个人对局记录保留条数设置
-  @Get('prefs')
-  @UseGuards(JwtAuthGuard)
-  getRetentionPrefs(@Req() req: Request & { user?: { sub: number } }) {
-    const userId = req.user!.sub;
-    // 将后端字段映射为 keepLimit 以与前端契约一致
-    return this.recordService.getRetentionPrefs(userId).then((data) => ({
-      code: 0,
-      message: 'success',
-      data: {
-        keepLimit: (data as any).retentionLimit ?? 30,
-        autoCleanEnabled: (data as any).autoCleanEnabled ?? true,
-        updatedAt: (data as any).updatedAt,
-      },
-    }));
   }
 
   // 个人对局记录保留条数修改
