@@ -4,6 +4,7 @@ import { createInitialBoard } from '../../features/chess/types'
 import { movePiece } from '../../features/chess/rules'
 import BoardViewer from '../../features/chess/BoardViewer'
 import { recordStore } from '../../features/records/recordStore'
+import { recordsApi } from '../../services/api'
 import type { ChessRecord, Bookmark } from '../../features/records/types'
 // 书签即评论，统一用 bookmarks 展示
 import './app-pages.css'
@@ -80,7 +81,29 @@ export default function RecordReplay() {
     return (
         <div>
             <section className="paper-card card-pad pos-rel">
-                <h2 className={`mt-0 ${titleClass}`}>{titleText}</h2>
+                <div className="row-between align-center mb-8">
+                    <h2 className={`mt-0 mb-0 ${titleClass}`}>{titleText}</h2>
+                    <button
+                        className="btn-ghost"
+                        title={record.favorite ? '取消收藏' : '收藏'}
+                        onClick={async () => {
+                            try {
+                                if (record.favorite) {
+                                    await recordsApi.unfavorite(record.id)
+                                    setRecord({ ...record, favorite: false })
+                                } else {
+                                    await recordsApi.favorite(record.id)
+                                    setRecord({ ...record, favorite: true })
+                                }
+                            } catch (e) {
+                                console.error('Failed to toggle favorite:', e)
+                            }
+                        }}
+                        style={{ fontSize: '28px', lineHeight: 1 }}
+                    >
+                        {record.favorite ? '❤️' : '🤍'}
+                    </button>
+                </div>
 
                 <div className="muted text-13">
                     开始：{new Date(record.startedAt).toLocaleString()} · 结束：{record.endedAt ? new Date(record.endedAt).toLocaleString() : '—'}
