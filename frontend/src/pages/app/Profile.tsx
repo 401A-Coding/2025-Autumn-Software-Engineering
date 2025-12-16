@@ -175,7 +175,13 @@ export default function Profile() {
                                 textAlign: 'left',
                                 cursor: 'pointer'
                             }}
-                            onClick={() => navigate(item.to, item.state ? { state: item.state } : {})}
+                            onClick={() => {
+                                if (item.state) {
+                                    navigate(item.to, { state: item.state })
+                                } else {
+                                    navigate(item.to)
+                                }
+                            }}
                         >
                             <div className="fw-600">{item.title}</div>
                             <div className="muted text-12 mt-4">{item.description}</div>
