@@ -105,9 +105,11 @@ function RecordsList({ filter, list, loading, onRefresh }: { filter: 'all' | 'fa
     const [showTagModal, setShowTagModal] = useState(false)
     const [editingRecordId, setEditingRecordId] = useState<string | null>(null)
     const [tagInput, setTagInput] = useState('')
-    const [selectionMode, setSelectionMode] = useState<'none' | 'favorite' | 'delete'>('none')
+    const [batchMode, setBatchMode] = useState(false)
     const [selectedIds, setSelectedIds] = useState<Record<string, boolean>>({})
     const filtered = filter === 'favorite' ? list.filter(r => r.favorite) : list
+    const selectedCount = Object.values(selectedIds).filter(Boolean).length
+    const isBatchModeAllowed = filter === 'all' // 批量操作仅在"记录"标签页可用
 
     if (loading) return <div className="muted">加载中...</div>
 
@@ -115,10 +117,46 @@ function RecordsList({ filter, list, loading, onRefresh }: { filter: 'all' | 'fa
         return <div className="empty-box">暂无{filter === 'favorite' ? '收藏' : '记录'}</div>
     }
 
-    // 保留函数以备后续单行收藏逻辑需要；当前批量模式下未使用
-
     return (
         <div className="col gap-8">
+            {/* 上方提示栏：批量模式 */}
+            {batchMode && isBatchModeAllowed && (
+                <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '12px 16px',
+                    backgroundColor: '#f0f7ff',
+                    borderRadius: '6px',
+                    border: '1px solid #d0e8ff'
+                }}>
+                    <button
+                        className="btn-ghost"
+                        onClick={() => {
+                            const allIds = filtered.map(r => String(r.id))
+                            const allSelected = allIds.every(id => selectedIds[id])
+                            if (allSelected) {
+                                setSelectedIds({})
+                            } else {
+                                const newSelected: Record<string, boolean> = {}
+                                allIds.forEach(id => { newSelected[id] = true })
+                                setSelectedIds(newSelected)
+                            }
+                        }}
+                    >
+                        {Object.values(selectedIds).filter(Boolean).length === filtered.length && filtered.length > 0 ? '✓ 取消全选' : '全选'}
+                    </button>
+                    <div className="muted">已选择 {selectedCount} 条</div>
+                    <button
+                        className="btn-primary"
+                        onClick={() => {
+                            setBatchMode(false)
+                            setSelectedIds({})
+                        }}
+                    >完成</button>
+                </div>
+            )}
+
             <div className="col gap-8" style={{ height: 420, overflowY: 'auto', paddingRight: 4 }}>
                 {filtered.map(r => {
                     const hasTags = Array.isArray(r.keyTags) && r.keyTags.length > 0
@@ -145,7 +183,7 @@ function RecordsList({ filter, list, loading, onRefresh }: { filter: 'all' | 'fa
                                 </div>
                             </div>
                             <div className="row-start gap-8">
-                                {selectionMode !== 'none' && (
+                                {batchMode && isBatchModeAllowed && (
                                     <input
                                         type="checkbox"
                                         aria-label="选择此记录"
@@ -185,47 +223,56 @@ function RecordsList({ filter, list, loading, onRefresh }: { filter: 'all' | 'fa
                     )
                 })}
             </div>
-            {/* 底部操作栏：批量收藏/删除 */}
-            <div className="row-between mt-12">
-                {selectionMode === 'none' ? (
-                    <div className="row-start gap-8">
-                        <button
-                            className="btn-ghost"
-                            onClick={() => { setSelectionMode('favorite'); setSelectedIds({}) }}
-                        >批量收藏</button>
-                        <button
-                            className="btn-ghost"
-                            onClick={() => { setSelectionMode('delete'); setSelectedIds({}) }}
-                        >批量删除</button>
-                    </div>
-                ) : (
-                    <div className="row-between w-full">
-                        <div className="muted">已选 {Object.values(selectedIds).filter(Boolean).length} 条</div>
-                        <div className="row-start gap-8">
-                            <button className="btn-ghost" onClick={() => { setSelectionMode('none'); setSelectedIds({}) }}>取消</button>
-                            <button
-                                className="btn-primary"
-                                onClick={async () => {
-                                    const ids = Object.keys(selectedIds).filter(id => selectedIds[id])
-                                    if (!ids.length) return
-                                    if (selectionMode === 'favorite') {
-                                        for (const id of ids) {
-                                            try { await recordsApi.favorite(Number(id)) } catch { }
-                                        }
-                                    } else if (selectionMode === 'delete') {
-                                        for (const id of ids) {
-                                            try { await recordStore.remove(id) } catch { }
-                                        }
-                                    }
-                                    setSelectionMode('none')
-                                    setSelectedIds({})
-                                    await onRefresh()
-                                }}
-                            >{selectionMode === 'favorite' ? '收藏选中' : '删除选中'}</button>
-                        </div>
-                    </div>
-                )}
-            </div>
+
+            {/* 下方操作栏：仅在批量模式时显示 */}
+            {batchMode && isBatchModeAllowed && (
+                <div style={{
+                    display: 'flex',
+                    gap: '8px',
+                    padding: '12px 16px',
+                    backgroundColor: '#f9f9f9',
+                    borderRadius: '6px',
+                    border: '1px solid #e0e0e0'
+                }}>
+                    <button
+                        className="btn-ghost"
+                        onClick={async () => {
+                            const ids = Object.keys(selectedIds).filter(id => selectedIds[id])
+                            if (!ids.length) return
+                            for (const id of ids) {
+                                try { await recordsApi.favorite(Number(id)) } catch { }
+                            }
+                            setSelectedIds({})
+                            await onRefresh()
+                        }}
+                        disabled={selectedCount === 0}
+                    >收藏选中</button>
+                    <button
+                        className="btn-ghost"
+                        onClick={async () => {
+                            const ids = Object.keys(selectedIds).filter(id => selectedIds[id])
+                            if (!ids.length) return
+                            for (const id of ids) {
+                                try { await recordStore.remove(id) } catch { }
+                            }
+                            setSelectedIds({})
+                            await onRefresh()
+                        }}
+                        disabled={selectedCount === 0}
+                    >删除选中</button>
+                </div>
+            )}
+
+            {/* 底部操作栏：仅在非批量模式且允许批量操作时显示 */}
+            {!batchMode && isBatchModeAllowed && (
+                <div className="row-start mt-12">
+                    <button
+                        className="btn-ghost"
+                        onClick={() => { setBatchMode(true); setSelectedIds({}) }}
+                    >批量操作</button>
+                </div>
+            )}
+
             {showTagModal && (
                 <div role="dialog" aria-modal="true" aria-labelledby="tag-title" className="modal-mask" onClick={() => setShowTagModal(false)}>
                     <div className="paper-card modal-card mw-420" onClick={(e) => e.stopPropagation()}>
