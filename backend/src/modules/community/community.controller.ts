@@ -41,10 +41,12 @@ export class CommunityController {
     return { code: 0, message: '创建成功', data: result };
   }
 
+  @UseGuards(JwtAuthGuard)
   @Get('posts/:postId')
-  async getPost(@Param('postId') postId: string) {
-    const post = await this.service.getPost(Number(postId));
-    return { code: 0, message: 'success', data: post };
+  async getPost(@Req() req: any, @Param('postId') postId: string) {
+    const userId = req.user?.sub; // 可选，未登录则为 undefined
+    const data = await this.service.getPost(Number(postId), userId);
+    return { code: 0, message: 'success', data };
   }
 
   @UseGuards(JwtAuthGuard)

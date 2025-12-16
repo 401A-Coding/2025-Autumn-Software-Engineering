@@ -23,6 +23,8 @@ type Post = {
     tags: string[]
     likeCount: number
     commentCount: number
+    bookmarkCount?: number
+    bookmarked?: boolean
     createdAt: string
     updatedAt?: string
 }
@@ -96,6 +98,8 @@ export default function PostDetail() {
             const data = await communityApi.getPost(id)
             if (data) {
                 setPost(data as Post)
+                // 设置收藏状态
+                setBookmarked((data as any).bookmarked ?? false)
                 // 记录浏览历史
                 try {
                     await communityApi.recordPostView(id)
@@ -525,7 +529,7 @@ export default function PostDetail() {
                         </div>
                     )}
 
-                    {/* 互动按钮 */}
+                    {/* 互动按钮与统计 */}
                     <div className="row-start gap-12 pt-12 border-top">
                         <button
                             className={`btn-ghost text-14 ${liked ? 'fw-600' : ''}`}
@@ -535,6 +539,7 @@ export default function PostDetail() {
                             👍 {post.likeCount}
                         </button>
                         <span className="text-14 muted">💬 {post.commentCount}</span>
+                        <span className="text-14 muted">🔖 {post.bookmarkCount ?? 0}</span>
                     </div>
                 </div>
             </section>
@@ -928,7 +933,24 @@ export default function PostDetail() {
                         <button
                             className={`interaction-btn ${bookmarked ? 'active' : ''}`}
                             title="收藏"
-                            onClick={() => setBookmarked(!bookmarked)}
+                            onClick={async () => {
+                                if (!post) return
+                                try {
+                                    if (bookmarked) {
+                                        await communityApi.unbookmarkPost(post.id)
+                                    } else {
+                                        await communityApi.bookmarkPost(post.id)
+                                    }
+                                    // 更新本地 UI 状态
+                                    setBookmarked(!bookmarked)
+                                    setPost(prev => prev ? ({
+                                        ...prev,
+                                        bookmarkCount: Math.max(0, (prev.bookmarkCount ?? 0) + (bookmarked ? -1 : 1))
+                                    }) : prev)
+                                } catch (err) {
+                                    console.error('Failed to toggle bookmark:', err)
+                                }
+                            }}
                             style={{
                                 flex: 0,
                                 background: 'none',

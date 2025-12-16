@@ -98,17 +98,26 @@ export class CommunityService {
     return { postId: created.id };
   }
 
-  async getPost(postId: number) {
+  async getPost(postId: number, userId?: number) {
     const p = await this.prisma.post.findUnique({
       where: { id: postId },
       include: {
         author: { select: { id: true, username: true, avatarUrl: true } },
         attachments: true,
         tags: { include: { tag: true } },
-        _count: { select: { likes: true, comments: true } },
+        _count: { select: { likes: true, comments: true, bookmarks: true } },
       },
     });
     if (!p) return null;
+
+    // 查询当前用户是否已收藏
+    let bookmarked = false;
+    if (userId) {
+      const bookmark = await this.prisma.postBookmark.findFirst({
+        where: { postId, userId },
+      });
+      bookmarked = !!bookmark;
+    }
     return {
       id: p.id,
       authorId: p.authorId,
@@ -137,6 +146,8 @@ export class CommunityService {
       tags: p.tags?.map((t: any) => t.tag.name) ?? [],
       likeCount: p._count.likes,
       commentCount: p._count.comments,
+      bookmarkCount: p._count.bookmarks,
+      bookmarked,
       createdAt: p.createdAt,
       updatedAt: p.updatedAt ?? null,
     };
