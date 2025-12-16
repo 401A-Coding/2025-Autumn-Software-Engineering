@@ -1,13 +1,12 @@
 import { useEffect, useState } from 'react'
-import Segmented from '../../components/Segmented'
 import './app-pages.css'
 import { recordStore } from '../../features/records/recordStore'
 import { useNavigate } from 'react-router-dom'
 import { recordsApi } from '../../services/api'
 
 export default function History() {
+    const navigate = useNavigate()
     const [keepLimit, setKeepLimit] = useState<number>(30)
-    const [tab, setTab] = useState<'records' | 'favorites'>('records')
     const [showSettings, setShowSettings] = useState(false)
     const [list, setList] = useState<any[]>([])
     const [loading, setLoading] = useState(true)
@@ -51,6 +50,9 @@ export default function History() {
 
     return (
         <div>
+            <button className="btn-ghost mb-12" onClick={() => navigate('/app/profile')}>
+                ← 返回
+            </button>
             <section className="paper-card card-pad pos-rel">
                 <h3 className="mt-0">对局记录</h3>
                 <div className="row-between mb-12">
@@ -85,16 +87,8 @@ export default function History() {
                             </div>
                         )}
                     </div>
-                    <Segmented
-                        options={[
-                            { label: '记录', value: 'records' },
-                            { label: '收藏', value: 'favorites' },
-                        ]}
-                        value={tab}
-                        onChange={(v: string) => setTab(v as 'records' | 'favorites')}
-                    />
                 </div>
-                {tab === 'records' ? <RecordsList filter="all" list={list} loading={loading} onRefresh={refresh} /> : <RecordsList filter="favorite" list={list} loading={loading} onRefresh={refresh} />}
+                <RecordsList filter="all" list={list} loading={loading} onRefresh={refresh} />
             </section>
         </div>
     );

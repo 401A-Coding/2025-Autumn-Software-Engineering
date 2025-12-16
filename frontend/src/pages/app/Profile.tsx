@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { logout } from '../../lib/session'
 import { userApi } from '../../services/api'
 import type { operations } from '../../types/api'
@@ -13,10 +14,25 @@ export default function Profile() {
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
     const [newNickname, setNewNickname] = useState<string>('')
+    const [newBio, setNewBio] = useState<string>('')
     const [saving, setSaving] = useState(false)
     const [uploading, setUploading] = useState(false)
     const [showEdit, setShowEdit] = useState(false)
     const fileInputId = 'avatar-upload-input'
+    const navigate = useNavigate()
+
+    const battleLinks = [
+        { title: '战绩', description: '查看全部对局记录', to: '/app/history' },
+        { title: '收藏', description: '我的收藏对局', to: '/app/favorites' },
+    ]
+
+    const communityLinks = [
+        { title: '我的发帖', description: '我发布的帖子', to: '/app/my-posts', state: { tab: 'posts' } },
+        { title: '我的回帖', description: '我参与的评论', to: '/app/my-posts', state: { tab: 'comments' } },
+        { title: '浏览历史', description: '我看过的帖子', to: '/app/my-views' },
+        { title: '我的点赞', description: '我点过赞的帖子', to: '/app/my-likes' },
+        { title: '我的收藏', description: '我收藏的帖子', to: '/app/my-bookmarks' },
+    ]
 
     function formatDate(iso?: string | Date | null) {
         if (!iso) return '-'
@@ -31,6 +47,7 @@ export default function Profile() {
                 const data = await userApi.getMe()
                 setMe(data)
                 setNewNickname(data.nickname || '')
+                setNewBio((data as any).bio || '')
             } catch (e) {
                 setError(e instanceof Error ? e.message : '加载失败')
             } finally {
@@ -48,7 +65,7 @@ export default function Profile() {
         setSaving(true)
         setError(null)
         try {
-            const updated = await userApi.updateMe({ nickname: newNickname })
+            const updated = await userApi.updateMe({ nickname: newNickname, bio: newBio || null })
             setMe(updated)
             setShowEdit(false)
         } catch (e) {
@@ -113,6 +130,68 @@ export default function Profile() {
                 <button className="btn-ghost mt-8" onClick={onLogout}>退出登录</button>
             </section>
 
+            <section className="paper-card card-pad mt-12">
+                <div className="row-between align-center mb-8">
+                    <h3 className="mt-0 mb-0">对战信息</h3>
+                    <span className="muted text-12">从这里快速进入记录模块</span>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '12px' }}>
+                    {battleLinks.map((item) => (
+                        <button
+                            key={item.title}
+                            type="button"
+                            className="btn-ghost"
+                            style={{
+                                border: '1px solid #e5e7eb',
+                                borderRadius: 8,
+                                background: '#f8fafc',
+                                padding: '12px 14px',
+                                textAlign: 'left',
+                                cursor: 'pointer'
+                            }}
+                            onClick={() => navigate(item.to)}
+                        >
+                            <div className="fw-600">{item.title}</div>
+                            <div className="muted text-12 mt-4">{item.description}</div>
+                        </button>
+                    ))}
+                </div>
+            </section>
+
+            <section className="paper-card card-pad mt-12">
+                <div className="row-between align-center mb-8">
+                    <h3 className="mt-0 mb-0">社区信息</h3>
+                    <span className="muted text-12">我的互动和收藏</span>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '12px' }}>
+                    {communityLinks.map((item) => (
+                        <button
+                            key={item.title}
+                            type="button"
+                            className="btn-ghost"
+                            style={{
+                                border: '1px solid #e5e7eb',
+                                borderRadius: 8,
+                                background: '#f9f9f9',
+                                padding: '12px 14px',
+                                textAlign: 'left',
+                                cursor: 'pointer'
+                            }}
+                            onClick={() => {
+                                if (item.state) {
+                                    navigate(item.to, { state: item.state })
+                                } else {
+                                    navigate(item.to)
+                                }
+                            }}
+                        >
+                            <div className="fw-600">{item.title}</div>
+                            <div className="muted text-12 mt-4">{item.description}</div>
+                        </button>
+                    ))}
+                </div>
+            </section>
+
             {/* 编辑资料弹窗 */}
             {showEdit && (
                 <div
@@ -153,12 +232,21 @@ export default function Profile() {
 
                             {/* 昵称编辑 */}
                             <div className="minw-220 flex-1">
-                                <div className="row-start gap-8">
+                                <div className="row-start gap-8 mb-8">
                                     <strong>昵称：</strong>
                                     <input
                                         value={newNickname}
                                         onChange={(e) => setNewNickname(e.target.value)}
                                         placeholder="输入新昵称"
+                                    />
+                                </div>
+                                <div className="row-start gap-8">
+                                    <strong>签名：</strong>
+                                    <textarea
+                                        value={newBio}
+                                        onChange={(e) => setNewBio(e.target.value)}
+                                        placeholder="输入签名或自我介绍"
+                                        style={{ minHeight: 80, resize: 'vertical' }}
                                     />
                                 </div>
                             </div>

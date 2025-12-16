@@ -561,6 +561,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/community/my-comments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get my comments (replies) */
+        get: operations["communityMyComments"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/community/comments/{commentId}/like": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Like a comment */
+        post: operations["communityCommentLike"];
+        /** Unlike a comment */
+        delete: operations["communityCommentUnlike"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/community/posts/{postId}/like": {
         parameters: {
             query?: never;
@@ -731,23 +766,50 @@ export interface components {
                 postId?: number;
             };
         };
-        Comment: {
+        CommunityReply: {
             id?: number;
-            type?: string;
+            parentId?: number | null;
+            authorId?: number;
+            authorNickname?: string;
+            authorAvatar?: string | null;
+            replyToId?: number | null;
+            replyToNickname?: string | null;
             content?: string;
+            likeCount?: number;
+            /** Format: date-time */
+            createdAt?: string;
+        };
+        CommunityComment: {
+            id?: number;
+            authorId?: number;
+            authorNickname?: string;
+            authorAvatar?: string | null;
+            content?: string;
+            likeCount?: number;
+            replyCount?: number;
+            replies?: components["schemas"]["CommunityReply"][];
+            /** Format: date-time */
+            createdAt?: string;
         };
         CommentCreateRequest: {
+            content: string;
+            /** @description 顶级评论不传；回复时传父评论或父回复的 ID */
+            parentId?: number | null;
             /** @example danmu */
             type?: string;
             step?: number;
-            content?: string;
         };
-        ApiResponseComments: {
+        ApiResponsePageComments: {
             /** @example 0 */
             code?: number;
             /** @example success */
             message?: string;
-            data?: components["schemas"]["Comment"][];
+            data?: {
+                items?: components["schemas"]["CommunityComment"][];
+                page?: number;
+                pageSize?: number;
+                total?: number;
+            };
         };
         ApiResponseCommentCreate: {
             /** @example 0 */
@@ -756,6 +818,39 @@ export interface components {
             message?: string;
             data?: {
                 commentId?: number;
+                authorId?: number;
+                authorNickname?: string;
+                authorAvatar?: string | null;
+                content?: string;
+                /** Format: date-time */
+                createdAt?: string;
+            };
+        };
+        MyCommentItem: {
+            id?: number;
+            postId?: number;
+            postTitle?: string | null;
+            /** @description post status: PUBLISHED, REMOVED, DELETED */
+            postStatus?: string | null;
+            parentId?: number | null;
+            parentAuthorNickname?: string | null;
+            content?: string;
+            /** Format: date-time */
+            createdAt?: string;
+            authorId?: number;
+            authorNickname?: string;
+            authorAvatar?: string | null;
+        };
+        ApiResponsePageMyComments: {
+            /** @example 0 */
+            code?: number;
+            /** @example success */
+            message?: string;
+            data?: {
+                items?: components["schemas"]["MyCommentItem"][];
+                page?: number;
+                pageSize?: number;
+                total?: number;
             };
         };
         ReportRequest: {
@@ -2153,7 +2248,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ApiResponseComments"];
+                    "application/json": components["schemas"]["ApiResponsePageComments"];
                 };
             };
         };
@@ -2471,7 +2566,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ApiResponseComments"];
+                    "application/json": components["schemas"]["ApiResponsePageComments"];
                 };
             };
         };
@@ -2514,6 +2609,73 @@ export interface operations {
         requestBody?: never;
         responses: {
             /** @description Deleted */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseOk"];
+                };
+            };
+        };
+    };
+    communityMyComments: {
+        parameters: {
+            query?: {
+                page?: number;
+                pageSize?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description My comments list */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponsePageMyComments"];
+                };
+            };
+        };
+    };
+    communityCommentLike: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                commentId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseOk"];
+                };
+            };
+        };
+    };
+    communityCommentUnlike: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                commentId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;

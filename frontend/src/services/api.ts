@@ -3,6 +3,7 @@
  */
 
 import type { components, operations } from '../types/api'
+import http from '../lib/http'
 
 const base = import.meta.env.VITE_API_BASE || ''
 
@@ -778,5 +779,85 @@ export const communityApi = {
       pageSize: data.pageSize ?? params.pageSize ?? 10,
       total: data.total ?? 0,
     }
+  },
+
+  /** 获取我的评论 */
+  async getMyComments(page = 1, pageSize = 20) {
+    type MyCommentsData = NonNullable<
+      operations['communityMyComments']['responses'][200]['content']['application/json']['data']
+    >
+    const res = await apiRequest<MyCommentsData>(
+      `/api/v1/community/my-comments?page=${page}&pageSize=${pageSize}`
+    )
+    return res.data
+  },
+
+  /** 记录帖子浏览 */
+  async recordPostView(postId: number) {
+    await apiRequest(`/api/v1/community/posts/${postId}/view`, {
+      method: 'POST',
+    })
+  },
+
+  /** 获取浏览历史 */
+  async getMyViews(page = 1, pageSize = 20) {
+    type ViewsData = {
+      items: Array<{
+        postId: number
+        postTitle: string | null
+        postStatus: string | null
+        viewedAt: string
+      }>
+      page: number
+      pageSize: number
+      total: number
+    }
+    const res = await http.get<ViewsData>(
+      `/api/v1/community/my-views?page=${page}&pageSize=${pageSize}`
+    )
+    return res.data
+  },
+
+  /** 清空浏览历史 */
+  async clearMyViews() {
+    await http.delete('/api/v1/community/my-views')
+  },
+
+  /** 获取点赞列表 */
+  async getMyLikes(type: 'all' | 'post' | 'comment' = 'all', page = 1, pageSize = 20) {
+    type LikesData = {
+      items: Array<any>
+      page: number
+      pageSize: number
+      total: number
+    }
+    const res = await http.get<LikesData>(
+      `/api/v1/community/my-likes?type=${type}&page=${page}&pageSize=${pageSize}`
+    )
+    return res.data
+  },
+
+  /** 获取收藏列表 */
+  async getMyBookmarks(page = 1, pageSize = 20) {
+    type BookmarksData = {
+      items: Array<{
+        postId: number
+        title: string
+        excerpt: string
+        authorNickname?: string
+        authorAvatar?: string | null
+        likeCount: number
+        commentCount: number
+        bookmarkedAt: string
+        createdAt: string
+      }>
+      page: number
+      pageSize: number
+      total: number
+    }
+    const res = await http.get<BookmarksData>(
+      `/api/v1/community/my-bookmarks?page=${page}&pageSize=${pageSize}`
+    )
+    return res.data
   },
 }

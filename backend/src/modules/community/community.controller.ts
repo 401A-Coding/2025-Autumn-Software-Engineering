@@ -41,10 +41,12 @@ export class CommunityController {
     return { code: 0, message: '创建成功', data: result };
   }
 
+  @UseGuards(JwtAuthGuard)
   @Get('posts/:postId')
-  async getPost(@Param('postId') postId: string) {
-    const post = await this.service.getPost(Number(postId));
-    return { code: 0, message: 'success', data: post };
+  async getPost(@Req() req: any, @Param('postId') postId: string) {
+    const userId = req.user?.sub; // 可选，未登录则为 undefined
+    const data = await this.service.getPost(Number(postId), userId);
+    return { code: 0, message: 'success', data };
   }
 
   @UseGuards(JwtAuthGuard)
@@ -100,8 +102,11 @@ export class CommunityController {
   @UseGuards(JwtAuthGuard)
   @Delete('comments/:commentId')
   async deleteComment(@Req() req: any, @Param('commentId') commentId: string) {
-    // TODO: ownership/moderation checks in service
-    return { code: 0, message: 'success', data: { ok: true } };
+    const data = await this.service.deleteComment(
+      req.user?.sub,
+      Number(commentId),
+    );
+    return { code: 0, message: 'success', data };
   }
 
   @UseGuards(JwtAuthGuard)
@@ -177,6 +182,85 @@ export class CommunityController {
       page: Number(page) || 1,
       pageSize: Number(pageSize) || 10,
     });
+    return { code: 0, message: 'success', data };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('my-comments')
+  async getMyComments(
+    @Req() req: any,
+    @Query('page') page: number = 1,
+    @Query('pageSize') pageSize: number = 20,
+  ) {
+    const data = await this.service.getMyComments(
+      req.user?.sub,
+      Number(page) || 1,
+      Number(pageSize) || 20,
+    );
+    return { code: 0, message: 'success', data };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('posts/:postId/view')
+  async recordPostView(@Req() req: any, @Param('postId') postId: string) {
+    const data = await this.service.recordPostView(
+      req.user?.sub,
+      Number(postId),
+    );
+    return { code: 0, message: 'success', data };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('my-views')
+  async getMyViews(
+    @Req() req: any,
+    @Query('page') page: number = 1,
+    @Query('pageSize') pageSize: number = 20,
+  ) {
+    const data = await this.service.getMyViews(
+      req.user?.sub,
+      Number(page) || 1,
+      Number(pageSize) || 20,
+    );
+    return { code: 0, message: 'success', data };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Delete('my-views')
+  async clearMyViews(@Req() req: any) {
+    const data = await this.service.clearMyViews(req.user?.sub);
+    return { code: 0, message: '已清空浏览历史', data };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('my-likes')
+  async getMyLikes(
+    @Req() req: any,
+    @Query('type') type: 'all' | 'post' | 'comment' = 'all',
+    @Query('page') page: number = 1,
+    @Query('pageSize') pageSize: number = 20,
+  ) {
+    const data = await this.service.getMyLikes(
+      req.user?.sub,
+      type,
+      Number(page) || 1,
+      Number(pageSize) || 20,
+    );
+    return { code: 0, message: 'success', data };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('my-bookmarks')
+  async getMyBookmarks(
+    @Req() req: any,
+    @Query('page') page: number = 1,
+    @Query('pageSize') pageSize: number = 20,
+  ) {
+    const data = await this.service.getMyBookmarks(
+      req.user?.sub,
+      Number(page) || 1,
+      Number(pageSize) || 20,
+    );
     return { code: 0, message: 'success', data };
   }
 }

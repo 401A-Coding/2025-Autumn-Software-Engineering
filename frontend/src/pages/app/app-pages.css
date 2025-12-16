@@ -317,6 +317,87 @@
     color: #2563eb;
 }
 
+.like-item--compact {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.left-align {
+    text-align: left;
+}
+
+.like-type-badge.left {
+    align-self: flex-start;
+    display: inline-block;
+    font-size: 12px;
+    color: #374151;
+    background: #f3f4f6;
+    border: 1px solid #e5e7eb;
+    padding: 2px 8px;
+    border-radius: 999px;
+}
+
+.like-item-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: #111827;
+}
+
+.like-item-excerpt {
+    margin-top: 4px;
+    color: #4b5563;
+    font-size: 14px;
+}
+
+.like-item-stats {
+    margin-top: 8px;
+    display: flex;
+    gap: 16px;
+    color: #6b7280;
+    font-size: 13px;
+}
+
+.liked-comment-box {
+    border: 1px dashed #c7d2fe;
+    background: #eef2ff;
+    border-radius: 8px;
+    padding: 10px;
+}
+
+.liked-comment-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+}
+
+.liked-comment-header .badge {
+    font-size: 12px;
+    color: #3730a3;
+    background: #e0e7ff;
+    border: 1px solid #c7d2fe;
+    padding: 2px 6px;
+    border-radius: 6px;
+}
+
+.liked-comment-stats {
+    font-size: 12px;
+    color: #4f46e5;
+}
+
+.liked-comment-content {
+    color: #1f2937;
+    font-size: 14px;
+    line-height: 1.5;
+    white-space: pre-wrap;
+}
+
+.like-item-footer.left-align {
+    font-size: 12px;
+    color: #6b7280;
+}
+
 .text-orange-700 {
     color: #92400e;
 }
@@ -969,4 +1050,417 @@
 /* Misc text helpers */
 .text-gray {
     color: #374151;
+}
+
+/* MyViews page */
+.view-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 16px;
+}
+
+.view-item {
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid #e5e7eb;
+    background-color: #ffffff;
+    transition: all 0.2s;
+}
+
+.view-item.clickable {
+    cursor: pointer;
+}
+
+.view-item.clickable:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    border-color: #d1d5db;
+}
+
+/* 删除/不可导航的灰显样式 */
+.like-item--disabled {
+    opacity: 0.6;
+    filter: grayscale(30%);
+}
+
+.like-item--disabled:hover {
+    box-shadow: none;
+    border-color: #e5e7eb;
+}
+
+.view-item.deleted {
+    background-color: #f9fafb;
+    color: #9ca3af;
+}
+
+.view-title {
+    font-size: 15px;
+    font-weight: 500;
+    margin-bottom: 8px;
+    word-break: break-word;
+}
+
+.deleted-tag {
+    color: #d1d5db;
+    font-size: 12px;
+}
+
+.view-date {
+    font-size: 12px;
+    color: #9ca3af;
+}
+
+/* MyLikes page */
+.like-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 16px;
+}
+
+.like-filter-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+    padding: 0 16px;
+}
+
+.like-filter-label {
+    font-size: 12px;
+    color: #666;
+}
+
+.header-spacer {
+    width: 60px;
+}
+
+.simple-avatar {
+    flex-shrink: 0;
+}
+
+.avatar-image {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background-color: #e5e7eb;
+    background-size: cover;
+    background-position: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: 600;
+    color: #6b7280;
+    overflow: hidden;
+}
+
+.avatar-image img {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.like-item {
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid #e5e7eb;
+    background-color: #ffffff;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.like-item:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    border-color: #d1d5db;
+}
+
+.like-item-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+
+.like-item-meta {
+    flex: 1;
+}
+
+.like-item-author {
+    font-size: 14px;
+    font-weight: 500;
+    color: #1f2937;
+}
+
+.like-item-date {
+    font-size: 12px;
+    color: #9ca3af;
+    margin-top: 2px;
+}
+
+.like-type-badge {
+    font-size: 12px;
+    background-color: #f3f4f6;
+    color: #6b7280;
+    padding: 2px 8px;
+    border-radius: 4px;
+}
+
+.like-item-content {
+    margin-bottom: 8px;
+}
+
+.like-item-title {
+    font-size: 15px;
+    font-weight: 500;
+    color: #1f2937;
+    margin-bottom: 4px;
+    word-break: break-word;
+}
+
+.like-item-excerpt {
+    font-size: 13px;
+    color: #6b7280;
+    line-height: 1.5;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.like-item-post-title {
+    font-size: 12px;
+    color: #9ca3af;
+    margin-bottom: 4px;
+}
+
+.like-item-comment-content {
+    font-size: 13px;
+    color: #1f2937;
+    line-height: 1.5;
+}
+
+.like-item-footer {
+    font-size: 12px;
+    color: #9ca3af;
+    border-top: 1px solid #f3f4f6;
+    padding-top: 8px;
+}
+
+/* MyBookmarks page */
+.bookmark-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 16px;
+}
+
+.bookmark-item {
+    position: relative;
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid #e5e7eb;
+    background-color: #ffffff;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.bookmark-item:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    border-color: #d1d5db;
+}
+
+.bookmark-item.edit-mode {
+    padding-left: 44px;
+}
+
+.remove-button {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 24px;
+    height: 24px;
+    border: none;
+    border-radius: 50%;
+    background-color: #f3f4f6;
+    color: #ef4444;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.remove-button:hover {
+    background-color: #ef4444;
+    color: #ffffff;
+}
+
+.bookmark-item-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+
+.bookmark-item-meta {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    /* 昵称与日期左对齐靠头像 */
+}
+
+.bookmark-item-author {
+    font-size: 14px;
+    font-weight: 500;
+    color: #1f2937;
+    text-align: left;
+}
+
+.bookmark-item-date {
+    font-size: 12px;
+    color: #9ca3af;
+    margin-top: 2px;
+    text-align: left;
+}
+
+.bookmark-item-content {
+    margin-bottom: 8px;
+}
+
+.bookmark-item-title {
+    font-size: 15px;
+    font-weight: 500;
+    color: #1f2937;
+    margin-bottom: 4px;
+    word-break: break-word;
+    text-align: left;
+    /* 标题左对齐 */
+}
+
+.bookmark-item-excerpt {
+    font-size: 13px;
+    color: #6b7280;
+    line-height: 1.5;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-align: left;
+    /* 正文预览左对齐 */
+}
+
+.bookmark-item-footer {
+    font-size: 12px;
+    color: #9ca3af;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border-top: 1px solid #f3f4f6;
+    padding-top: 8px;
+}
+
+.bookmark-date {
+    margin-left: auto;
+}
+
+/* App page base styles */
+.app-page {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    background-color: #ffffff;
+}
+
+.app-page-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    border-bottom: 1px solid #e5e7eb;
+    background-color: #ffffff;
+}
+
+.app-page-header h2 {
+    flex: 1;
+    text-align: center;
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: #1f2937;
+}
+
+.back-button,
+.action-button {
+    padding: 8px 12px;
+    border: none;
+    border-radius: 6px;
+    background-color: #f3f4f6;
+    color: #1f2937;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.2s;
+}
+
+.back-button:hover,
+.action-button:hover:not(:disabled) {
+    background-color: #e5e7eb;
+}
+
+.action-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.app-page-content {
+    flex: 1;
+    overflow-y: auto;
+}
+
+.loading-message,
+.error-message,
+.empty-message {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 200px;
+    font-size: 14px;
+    color: #9ca3af;
+}
+
+.error-message {
+    color: #ef4444;
+}
+
+.pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 16px;
+    font-size: 14px;
+    color: #6b7280;
+}
+
+.pagination button {
+    padding: 8px 16px;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    background-color: #ffffff;
+    color: #1f2937;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.pagination button:hover:not(:disabled) {
+    background-color: #f3f4f6;
+    border-color: #d1d5db;
+}
+
+.pagination button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
 }

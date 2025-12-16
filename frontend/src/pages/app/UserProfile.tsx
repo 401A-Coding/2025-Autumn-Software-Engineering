@@ -9,6 +9,7 @@ type UserProfile = {
     avatarUrl?: string | null
     role: string
     createdAt: string
+    bio?: string | null
     stats?: {
         posts: number
         comments: number
@@ -55,6 +56,15 @@ export default function UserProfile() {
         }
     }, [userId])
 
+    const copyUid = async (uid: number) => {
+        try {
+            await navigator.clipboard.writeText(String(uid))
+            alert('已复制UID')
+        } catch {
+            alert('复制失败')
+        }
+    }
+
     if (loading) {
         return <div className="muted text-center py-24">加载中...</div>
     }
@@ -79,7 +89,8 @@ export default function UserProfile() {
 
             {/* 用户信息卡片 */}
             <section className="paper-card card-pad">
-                <div className="row-start gap-16 align-start mb-16">
+                {/* 头像+用户信息同一行，右侧信息分三行 */}
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '16px', marginBottom: '16px' }}>
                     {/* 头像 */}
                     <div
                         style={{
@@ -107,29 +118,44 @@ export default function UserProfile() {
                         )}
                     </div>
 
-                    {/* 用户信息 */}
-                    <div className="flex-1">
-                        <h2 className="mt-0 mb-4">{user.nickname}</h2>
-                        <div className="text-14 muted mb-2">用户ID：{user.id}</div>
-                        <div className="text-14 muted">
+                    {/* 右侧信息分三行 */}
+                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px', textAlign: 'left' }}>
+                        {/* 第一行：昵称 */}
+                        <div>
+                            <h2 style={{ margin: 0, fontSize: '16px', fontWeight: 600 }}>{user.nickname}</h2>
+                        </div>
+                        {/* 第二行：UID + 复制按钮 */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '14px', color: '#8a7f73' }}>
+                            <span>UID：{user.id}</span>
+                            <button className="btn-compact btn-ghost" onClick={() => copyUid(user.id)} style={{ padding: '2px 6px', fontSize: '12px' }}>
+                                复制
+                            </button>
+                        </div>
+                        {/* 第三行：加入时间 */}
+                        <div style={{ fontSize: '14px', color: '#8a7f73' }}>
                             📅 加入于 {new Date(user.createdAt).toLocaleDateString('zh-CN')}
                         </div>
                     </div>
                 </div>
 
-                {/* 统计信息 */}
-                <div className="row-start gap-16 pt-16 border-top">
-                    <div className="text-center">
-                        <div className="text-20 fw-600 mb-4">{user.stats?.posts ?? 0}</div>
-                        <div className="text-12 muted">帖子</div>
+                {/* 签名/自我介绍 */}
+                <div style={{ fontSize: '14px', color: '#555', lineHeight: '1.5', marginBottom: '12px' }}>
+                    {user.bio && user.bio.trim().length > 0 ? user.bio : '该用户还没有填写签名...'}
+                </div>
+
+                {/* 统计信息：居中对齐，略微分散 */}
+                <div style={{ display: 'flex', justifyContent: 'space-around', paddingTop: '12px', borderTop: '1px solid #e7d8b1' }}>
+                    <div style={{ textAlign: 'center' }}>
+                        <div style={{ fontSize: '18px', fontWeight: 600, marginBottom: '4px' }}>{user.stats?.posts ?? 0}</div>
+                        <div style={{ fontSize: '13px', color: '#8a7f73' }}>帖子</div>
                     </div>
-                    <div className="text-center">
-                        <div className="text-20 fw-600 mb-4">{user.stats?.comments ?? 0}</div>
-                        <div className="text-12 muted">评论</div>
+                    <div style={{ textAlign: 'center' }}>
+                        <div style={{ fontSize: '18px', fontWeight: 600, marginBottom: '4px' }}>{user.stats?.comments ?? 0}</div>
+                        <div style={{ fontSize: '13px', color: '#8a7f73' }}>评论</div>
                     </div>
-                    <div className="text-center">
-                        <div className="text-20 fw-600 mb-4">{user.stats?.likes ?? 0}</div>
-                        <div className="text-12 muted">获赞</div>
+                    <div style={{ textAlign: 'center' }}>
+                        <div style={{ fontSize: '18px', fontWeight: 600, marginBottom: '4px' }}>{user.stats?.likes ?? 0}</div>
+                        <div style={{ fontSize: '13px', color: '#8a7f73' }}>获赞</div>
                     </div>
                 </div>
             </section>
@@ -140,11 +166,15 @@ export default function UserProfile() {
                 {user.posts && user.posts.length > 0 ? (
                     <div className="col gap-8">
                         {user.posts.map((p) => (
-                            <div key={p.id} className="paper-card pad-12">
+                            <div
+                                key={p.id}
+                                className="paper-card pad-12 cursor-pointer"
+                                onClick={() => navigate(`/app/community/${p.id}`, { state: { from: `/app/users/${userId}` } })}
+                            >
                                 <div className="row-between align-start">
                                     <div>
-                                        <div className="fw-600 mb-4">{p.title}</div>
-                                        <div className="muted text-13 line-clamp-2 mb-6">{p.excerpt || '(无内容)'}</div>
+                                        <div className="fw-600 mb-4" style={{ textAlign: 'left' }}>{p.title}</div>
+                                        <div className="muted text-13 line-clamp-2 mb-6" style={{ textAlign: 'left' }}>{p.excerpt || '(无内容)'}</div>
                                         <div className="text-12 muted row-start gap-10">
                                             <span>{new Date(p.createdAt).toLocaleDateString()}</span>
                                             <span>👍 {p.likeCount}</span>

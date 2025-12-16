@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useLocation } from 'react-router-dom'
 import '../../pages/app/app-pages.css'
 import { communityApi, userApi } from '../../services/api'
 import UserAvatar from '../../components/UserAvatar'
@@ -23,6 +23,8 @@ type Post = {
     tags: string[]
     likeCount: number
     commentCount: number
+    bookmarkCount?: number
+    bookmarked?: boolean
     createdAt: string
     updatedAt?: string
 }
@@ -55,17 +57,32 @@ type Reply = {
 
 export default function PostDetail() {
     const navigate = useNavigate()
+    const location = useLocation()
     const { postId } = useParams<{ postId: string }>()
+    const fromPage = (location.state as { from?: string })?.from || '/app/community'
+    const targetCommentId = (location.state as { commentId?: number })?.commentId
+    const returnTab = (location.state as { tab?: 'posts' | 'comments' })?.tab
+
+    const handleBack = () => {
+        if (returnTab && fromPage === '/app/my-posts') {
+            navigate(fromPage, { state: { tab: returnTab } })
+        } else {
+            navigate(fromPage)
+        }
+    }
     const [post, setPost] = useState<Post | null>(null)
     const [comments, setComments] = useState<Comment[]>([])
     const [loading, setLoading] = useState(true)
     const [liking, setLiking] = useState(false)
+    const [bookmarking, setBookmarking] = useState(false)
     const [liked, setLiked] = useState(false)
     const [commentText, setCommentText] = useState('')
     const [submitting, setSubmitting] = useState(false)
     const [bookmarked, setBookmarked] = useState(false)
     const [expandedComment, setExpandedComment] = useState(false)
     const commentsRef = useRef<HTMLDivElement>(null)
+    const commentInputRef = useRef<HTMLDivElement>(null)
+    const replyInputRefs = useRef<Map<number, HTMLDivElement>>(new Map())
     const [currentUserId, setCurrentUserId] = useState<number | null>(null)
     const [commentLikes, setCommentLikes] = useState<Record<number, boolean>>({})
     const [expandedReplies, setExpandedReplies] = useState<Record<number, boolean>>({})
@@ -73,6 +90,7 @@ export default function PostDetail() {
     const [replyingTo, setReplyingTo] = useState<number | null>(null)
     const [replyText, setReplyText] = useState('')
     const [replyTargetLabel, setReplyTargetLabel] = useState<string>('楼主')
+    const [replyTargetContent, setReplyTargetContent] = useState<string>('')
     const [replyLikes, setReplyLikes] = useState<Record<number, boolean>>({})
 
     async function loadPost() {
@@ -84,6 +102,15 @@ export default function PostDetail() {
             const data = await communityApi.getPost(id)
             if (data) {
                 setPost(data as Post)
+                // 设置收藏状态
+                setBookmarked((data as any).bookmarked ?? false)
+                // 记录浏览历史
+                try {
+                    await communityApi.recordPostView(id)
+                } catch (err) {
+                    // 记录浏览失败不影响主流程，仅记录错误
+                    console.error('Failed to record post view:', err)
+                }
             }
         } catch (e) {
             console.error('Failed to load post:', e)
@@ -161,6 +188,74 @@ export default function PostDetail() {
         loadComments()
         loadCurrentUser()
     }, [postId])
+
+    // 处理主评论框失焦收起
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (expandedComment && commentInputRef.current && !commentInputRef.current.contains(event.target as Node)) {
+                setExpandedComment(false)
+            }
+        }
+        document.addEventListener('mousedown', handleClickOutside)
+        return () => document.removeEventListener('mousedown', handleClickOutside)
+    }, [expandedComment])
+
+    // 处理楼中楼回复框失焦收起
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (replyingOnComment !== null) {
+                const replyBox = replyInputRefs.current.get(replyingOnComment)
+                if (replyBox && !replyBox.contains(event.target as Node)) {
+                    setReplyingOnComment(null)
+                    setReplyingTo(null)
+                    setReplyText('')
+                    setReplyTargetLabel('楼主')
+                    setReplyTargetContent('')
+                }
+            }
+        }
+        document.addEventListener('mousedown', handleClickOutside)
+        return () => document.removeEventListener('mousedown', handleClickOutside)
+    }, [replyingOnComment])
+
+    // 当评论加载完成且有目标评论ID时，滚动到该评论
+    useEffect(() => {
+        if (targetCommentId && comments.length > 0) {
+            // 首先检查是否是楼中楼评论，如果是，先展开父评论
+            let needExpand = false
+            let parentCommentId = null
+
+            for (const comment of comments) {
+                const isTargetReply = comment.replies?.some((r: any) => r.id === targetCommentId)
+                if (isTargetReply) {
+                    needExpand = true
+                    parentCommentId = comment.id
+                    break
+                }
+            }
+
+            if (needExpand && parentCommentId) {
+                // 展开父评论
+                setExpandedReplies(prev => ({ ...prev, [parentCommentId]: true }))
+
+                // 等待DOM更新后再滚动
+                setTimeout(() => {
+                    const targetComment = document.getElementById(`comment-${targetCommentId}`)
+                    if (targetComment) {
+                        targetComment.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                    }
+                }, 300)
+            } else {
+                // 主评论直接滚动
+                const targetComment = document.getElementById(`comment-${targetCommentId}`)
+                if (targetComment) {
+                    setTimeout(() => {
+                        targetComment.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                    }, 100)
+                }
+            }
+        }
+    }, [comments, targetCommentId])
 
     async function loadCurrentUser() {
         try {
@@ -358,8 +453,8 @@ export default function PostDetail() {
         return (
             <section className="paper-card card-pad">
                 <div className="empty-box">帖子不存在</div>
-                <button className="btn-primary mt-16" onClick={() => navigate('/app/community')}>
-                    返回社区
+                <button className="btn-primary mt-16" onClick={handleBack}>
+                    返回
                 </button>
             </section>
         )
@@ -368,7 +463,7 @@ export default function PostDetail() {
     return (
         <div style={{ paddingBottom: expandedComment ? '400px' : '90px' }}>
             {/* 返回按钮 */}
-            <button className="btn-ghost mb-12" onClick={() => navigate('/app/community')}>
+            <button className="btn-ghost mb-12" onClick={handleBack}>
                 ← 返回
             </button>
 
@@ -467,7 +562,7 @@ export default function PostDetail() {
                         </div>
                     )}
 
-                    {/* 互动按钮 */}
+                    {/* 互动按钮与统计 */}
                     <div className="row-start gap-12 pt-12 border-top">
                         <button
                             className={`btn-ghost text-14 ${liked ? 'fw-600' : ''}`}
@@ -477,6 +572,32 @@ export default function PostDetail() {
                             👍 {post.likeCount}
                         </button>
                         <span className="text-14 muted">💬 {post.commentCount}</span>
+                        <button
+                            className={`btn-ghost text-14 ${bookmarked ? 'fw-600' : ''}`}
+                            onClick={async () => {
+                                if (!post || bookmarking) return
+                                setBookmarking(true)
+                                try {
+                                    if (bookmarked) {
+                                        await communityApi.unbookmarkPost(post.id)
+                                    } else {
+                                        await communityApi.bookmarkPost(post.id)
+                                    }
+                                    setBookmarked(!bookmarked)
+                                    setPost(prev => prev ? ({
+                                        ...prev,
+                                        bookmarkCount: Math.max(0, (prev.bookmarkCount ?? 0) + (bookmarked ? -1 : 1))
+                                    }) : prev)
+                                } catch (err) {
+                                    console.error('Failed to toggle bookmark:', err)
+                                } finally {
+                                    setBookmarking(false)
+                                }
+                            }}
+                            disabled={bookmarking}
+                        >
+                            🔖 {post.bookmarkCount ?? 0}
+                        </button>
                     </div>
                 </div>
             </section>
@@ -491,7 +612,7 @@ export default function PostDetail() {
                 ) : (
                     <div className="col gap-12">
                         {comments.map((comment) => (
-                            <div key={comment.id} className="paper-card" style={{ padding: 0, overflow: 'hidden' }}>
+                            <div key={comment.id} id={`comment-${comment.id}`} className="paper-card" style={{ padding: 0, overflow: 'hidden' }}>
                                 {/* 评论者信息 */}
                                 <div style={{ padding: '10px 12px', backgroundColor: '#fafafa', borderBottom: '1px solid #e0e0e0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                                     <UserAvatar
@@ -524,7 +645,11 @@ export default function PostDetail() {
                                 </div>
                                 {/* 评论内容 */}
                                 <div style={{ padding: '12px', textAlign: 'left' }}>
-                                    <p className="mt-0 mb-0 whitespace-pre-wrap" style={{ textAlign: 'left' }}>{comment.content}</p>
+                                    {(comment as any).isDeleted ? (
+                                        <p className="mt-0 mb-0" style={{ color: '#999', fontStyle: 'italic' }}>该回复已被作者删除</p>
+                                    ) : (
+                                        <p className="mt-0 mb-0 whitespace-pre-wrap" style={{ textAlign: 'left' }}>{comment.content}</p>
+                                    )}
                                 </div>
 
                                 {/* 楼中楼回复区域 */}
@@ -568,7 +693,13 @@ export default function PostDetail() {
                                                         ) : (
                                                             <span>：</span>
                                                         )}
-                                                        <span>{reply.content}</span>
+                                                        <span>
+                                                            {(reply as any).isDeleted ? (
+                                                                <span style={{ color: '#999', fontStyle: 'italic' }}>该回复已被作者删除</span>
+                                                            ) : (
+                                                                reply.content
+                                                            )}
+                                                        </span>
                                                     </div>
                                                 ))}
                                                 {comment.replyCount > 2 && (
@@ -590,6 +721,7 @@ export default function PostDetail() {
                                                 {comment.replies.map((reply) => (
                                                     <div
                                                         key={reply.id}
+                                                        id={`comment-${reply.id}`}
                                                         style={{
                                                             padding: '12px',
                                                             borderBottom: '1px solid #e8e8e8',
@@ -633,7 +765,9 @@ export default function PostDetail() {
 
                                                         {/* 回复内容 */}
                                                         <p style={{ margin: '0', fontSize: '13px', color: '#555', textAlign: 'left' }}>
-                                                            {reply.parentId && reply.parentId !== comment.id && reply.replyToNickname ? (
+                                                            {(reply as any).isDeleted ? (
+                                                                <span style={{ color: '#999', fontStyle: 'italic' }}>该回复已被作者删除</span>
+                                                            ) : reply.parentId && reply.parentId !== comment.id && reply.replyToNickname ? (
                                                                 <>
                                                                     回复{' '}
                                                                     <a
@@ -657,6 +791,7 @@ export default function PostDetail() {
                                                                     setReplyingOnComment(comment.id)
                                                                     setReplyingTo(reply.id)
                                                                     setReplyTargetLabel(reply.authorNickname || '匿名')
+                                                                    setReplyTargetContent(reply.content || '')
                                                                 }}
                                                                 style={{
                                                                     background: 'none',
@@ -695,7 +830,13 @@ export default function PostDetail() {
                                 {/* 回复输入框 */}
                                 <div style={{ padding: '12px', borderTop: '1px solid #e0e0e0' }}>
                                     {replyingOnComment === comment.id ? (
-                                        <div>
+                                        <div ref={(el) => { if (el) replyInputRefs.current.set(comment.id, el) }}>
+                                            {/* 回复提示 */}
+                                            {replyTargetContent && (
+                                                <div style={{ fontSize: '12px', color: '#999', marginBottom: '8px', lineHeight: '1.5', textAlign: 'left' }}>
+                                                    回复 {replyTargetLabel}：{replyTargetContent.length > 50 ? replyTargetContent.slice(0, 50) + '...' : replyTargetContent}
+                                                </div>
+                                            )}
                                             <textarea
                                                 autoFocus
                                                 value={replyText}
@@ -713,7 +854,13 @@ export default function PostDetail() {
                                             />
                                             <div style={{ marginTop: '8px', display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
                                                 <button
-                                                    onClick={() => { setReplyingTo(null); setReplyText('') }}
+                                                    onClick={() => {
+                                                        setReplyingOnComment(null)
+                                                        setReplyingTo(null)
+                                                        setReplyText('')
+                                                        setReplyTargetLabel('楼主')
+                                                        setReplyTargetContent('')
+                                                    }}
                                                     style={{
                                                         padding: '6px 12px',
                                                         borderRadius: '4px',
@@ -748,6 +895,7 @@ export default function PostDetail() {
                                                 setReplyingOnComment(comment.id)
                                                 setReplyingTo(comment.id)
                                                 setReplyTargetLabel(comment.authorNickname || '楼主')
+                                                setReplyTargetContent(comment.content || '')
                                             }}
                                             style={{
                                                 background: 'none',
@@ -770,6 +918,7 @@ export default function PostDetail() {
 
             {/* 底部交互栏 - 固定 */}
             <div
+                ref={commentInputRef}
                 className="post-detail-bottom-bar"
                 style={{
                     position: 'fixed',
@@ -857,7 +1006,27 @@ export default function PostDetail() {
                         <button
                             className={`interaction-btn ${bookmarked ? 'active' : ''}`}
                             title="收藏"
-                            onClick={() => setBookmarked(!bookmarked)}
+                            onClick={async () => {
+                                if (!post || bookmarking) return
+                                setBookmarking(true)
+                                try {
+                                    if (bookmarked) {
+                                        await communityApi.unbookmarkPost(post.id)
+                                    } else {
+                                        await communityApi.bookmarkPost(post.id)
+                                    }
+                                    // 更新本地 UI 状态
+                                    setBookmarked(!bookmarked)
+                                    setPost(prev => prev ? ({
+                                        ...prev,
+                                        bookmarkCount: Math.max(0, (prev.bookmarkCount ?? 0) + (bookmarked ? -1 : 1))
+                                    }) : prev)
+                                } catch (err) {
+                                    console.error('Failed to toggle bookmark:', err)
+                                } finally {
+                                    setBookmarking(false)
+                                }
+                            }}
                             style={{
                                 flex: 0,
                                 background: 'none',
@@ -870,6 +1039,7 @@ export default function PostDetail() {
                             }}
                         >
                             {bookmarked ? '🔖' : '☆'}
+                            <span style={{ fontSize: '12px', marginLeft: '2px' }}>{post.bookmarkCount ?? 0}</span>
                         </button>
                     </div>
                 ) : (

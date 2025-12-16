@@ -21,7 +21,7 @@ import { BookmarkDeleteDto } from './dto/bookmark-delete.dto';
 
 @Controller('api/v1/records')
 export class RecordController {
-  constructor(private readonly recordService: RecordService) { }
+  constructor(private readonly recordService: RecordService) {}
 
   @Post()
   @UseGuards(JwtAuthGuard)

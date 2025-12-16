@@ -98,17 +98,26 @@ export class CommunityService {
     return { postId: created.id };
   }
 
-  async getPost(postId: number) {
+  async getPost(postId: number, userId?: number) {
     const p = await this.prisma.post.findUnique({
       where: { id: postId },
       include: {
         author: { select: { id: true, username: true, avatarUrl: true } },
         attachments: true,
         tags: { include: { tag: true } },
-        _count: { select: { likes: true, comments: true } },
+        _count: { select: { likes: true, comments: true, bookmarks: true } },
       },
     });
     if (!p) return null;
+
+    // 查询当前用户是否已收藏
+    let bookmarked = false;
+    if (userId) {
+      const bookmark = await this.prisma.postBookmark.findFirst({
+        where: { postId, userId },
+      });
+      bookmarked = !!bookmark;
+    }
     return {
       id: p.id,
       authorId: p.authorId,
@@ -137,6 +146,8 @@ export class CommunityService {
       tags: p.tags?.map((t: any) => t.tag.name) ?? [],
       likeCount: p._count.likes,
       commentCount: p._count.comments,
+      bookmarkCount: p._count.bookmarks,
+      bookmarked,
       createdAt: p.createdAt,
       updatedAt: p.updatedAt ?? null,
     };
@@ -244,7 +255,8 @@ export class CommunityService {
         authorAvatar: r.author?.avatarUrl ?? null,
         replyToId: r.parent?.author?.id ?? null,
         replyToNickname: r.parent?.author?.username ?? null,
-        content: r.content,
+        content: r.deletedAt ? null : r.content,
+        isDeleted: !!r.deletedAt,
         likeCount: r._count.likes,
         createdAt: r.createdAt,
       }));
@@ -253,7 +265,8 @@ export class CommunityService {
         authorId: c.authorId,
         authorNickname: c.author?.username,
         authorAvatar: c.author?.avatarUrl ?? null,
-        content: c.content,
+        content: c.deletedAt ? null : c.content,
+        isDeleted: !!c.deletedAt,
         likeCount: c._count.likes,
         replyCount: replies.length,
         replies,
@@ -311,6 +324,29 @@ export class CommunityService {
 
   async unlikeComment(userId: number, commentId: number) {
     await this.prisma.commentLike.deleteMany({ where: { commentId, userId } });
+    return { ok: true };
+  }
+
+  async deleteComment(userId: number, commentId: number) {
+    // Ensure the user owns the comment; moderators can be supported later
+    const comment = await this.prisma.communityComment.findUnique({
+      where: { id: commentId },
+      select: { id: true, authorId: true, deletedAt: true },
+    });
+    if (!comment) {
+      return { ok: false, reason: 'not_found' };
+    }
+    if (comment.authorId !== userId) {
+      return { ok: false, reason: 'forbidden' };
+    }
+    if (comment.deletedAt) {
+      return { ok: false, reason: 'already_deleted' };
+    }
+    // 软删除：标记 deletedAt，不删除子回复，保留讨论上下文
+    await this.prisma.communityComment.update({
+      where: { id: commentId },
+      data: { deletedAt: new Date() },
+    });
     return { ok: true };
   }
 
@@ -378,6 +414,343 @@ export class CommunityService {
       recordId: i.id,
       title: i.title ?? '',
     }));
+    return { items: mapped, page, pageSize, total };
+  }
+
+  async getMyComments(userId: number, page = 1, pageSize = 20) {
+    const [items, total] = await this.prisma.$transaction([
+      this.prisma.communityComment.findMany({
+        where: {
+          authorId: userId,
+        },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          post: {
+            select: {
+              id: true,
+              title: true,
+              status: true,
+            },
+          },
+          author: {
+            select: {
+              id: true,
+              username: true,
+              avatarUrl: true,
+            },
+          },
+          parent: {
+            select: {
+              id: true,
+              authorId: true,
+              author: {
+                select: {
+                  id: true,
+                  username: true,
+                },
+              },
+            },
+          },
+        },
+      }),
+      this.prisma.communityComment.count({
+        where: {
+          authorId: userId,
+        },
+      }),
+    ]);
+
+    const mapped = items.map((c: any) => ({
+      id: c.id,
+      postId: c.postId,
+      postTitle: c.post?.title ?? null,
+      postStatus: c.post?.status ?? null,
+      parentId: c.parentId,
+      parentAuthorNickname: c.parent?.author?.username ?? null,
+      content: c.deletedAt ? null : c.content,
+      isDeleted: !!c.deletedAt,
+      createdAt: c.createdAt,
+      authorId: c.authorId,
+      authorNickname: c.author?.username,
+      authorAvatar: c.author?.avatarUrl ?? null,
+    }));
+
+    return { items: mapped, page, pageSize, total };
+  }
+
+  async recordPostView(userId: number, postId: number) {
+    await this.prisma.postView.upsert({
+      where: { postId_userId: { postId, userId } },
+      update: { updatedAt: new Date() },
+      create: { postId, userId },
+    });
+    return { ok: true };
+  }
+
+  async getMyViews(userId: number, page = 1, pageSize = 20) {
+    const [items, total] = await this.prisma.$transaction([
+      this.prisma.postView.findMany({
+        where: { userId },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        orderBy: { updatedAt: 'desc' },
+        include: {
+          post: {
+            select: {
+              id: true,
+              title: true,
+              status: true,
+            },
+          },
+        },
+      }),
+      this.prisma.postView.count({ where: { userId } }),
+    ]);
+
+    const mapped = items.map((v: any) => ({
+      postId: v.postId,
+      postTitle: v.post?.title ?? null,
+      postStatus: v.post?.status ?? null,
+      viewedAt: v.updatedAt,
+    }));
+
+    return { items: mapped, page, pageSize, total };
+  }
+
+  async clearMyViews(userId: number) {
+    await this.prisma.postView.deleteMany({ where: { userId } });
+    return { ok: true };
+  }
+
+  async getMyLikes(
+    userId: number,
+    type: 'all' | 'post' | 'comment' = 'all',
+    page = 1,
+    pageSize = 20,
+  ) {
+    if (type === 'post' || type === 'all') {
+      const [postLikes, postTotal] = await this.prisma.$transaction([
+        this.prisma.postLike.findMany({
+          where: { userId },
+          skip: type === 'post' ? (page - 1) * pageSize : 0,
+          take: type === 'post' ? pageSize : undefined,
+          orderBy: { createdAt: 'desc' },
+          include: {
+            post: {
+              select: {
+                id: true,
+                title: true,
+                content: true,
+                status: true,
+                author: { select: { username: true, avatarUrl: true } },
+                createdAt: true,
+                _count: { select: { likes: true, comments: true } },
+              },
+            },
+          },
+        }),
+        this.prisma.postLike.count({ where: { userId } }),
+      ]);
+
+      if (type === 'post') {
+        const mapped = postLikes.map((l: any) => ({
+          type: 'post',
+          id: l.post.id,
+          title: l.post.title,
+          excerpt: l.post.content?.slice(0, 100) ?? '',
+          authorNickname: l.post.author?.username,
+          authorAvatar: l.post.author?.avatarUrl ?? null,
+          likedAt: l.createdAt,
+          createdAt: l.post.createdAt,
+          postStatus: l.post.status,
+          postLikeCount: l.post._count?.likes ?? 0,
+          postCommentCount: l.post._count?.comments ?? 0,
+        }));
+        return { items: mapped, page, pageSize, total: postTotal };
+      }
+    }
+
+    if (type === 'comment' || type === 'all') {
+      const [commentLikes, commentTotal] = await this.prisma.$transaction([
+        this.prisma.commentLike.findMany({
+          where: { userId },
+          skip: type === 'comment' ? (page - 1) * pageSize : 0,
+          take: type === 'comment' ? pageSize : undefined,
+          orderBy: { createdAt: 'desc' },
+          include: {
+            comment: {
+              select: {
+                id: true,
+                content: true,
+                postId: true,
+                deletedAt: true,
+                author: { select: { username: true, avatarUrl: true } },
+                createdAt: true,
+                post: {
+                  select: {
+                    id: true,
+                    title: true,
+                    status: true,
+                    _count: { select: { likes: true, comments: true } },
+                  },
+                },
+                _count: { select: { likes: true } },
+              },
+            },
+          },
+        }),
+        this.prisma.commentLike.count({ where: { userId } }),
+      ]);
+
+      if (type === 'comment') {
+        const mapped = commentLikes.map((l: any) => ({
+          type: 'comment',
+          id: l.comment.id,
+          postId: l.comment.postId,
+          postTitle: l.comment.post?.title ?? null,
+          postStatus: l.comment.post?.status ?? null,
+          content: l.comment.deletedAt ? null : l.comment.content,
+          isDeleted: !!l.comment.deletedAt,
+          commentStatus: l.comment.deletedAt ? 'DELETED' : null,
+          authorNickname: l.comment.author?.username,
+          authorAvatar: l.comment.author?.avatarUrl ?? null,
+          likedAt: l.createdAt,
+          createdAt: l.comment.createdAt,
+          commentLikeCount: l.comment._count?.likes ?? 0,
+          postLikeCount: l.comment.post?._count?.likes ?? 0,
+          postCommentCount: l.comment.post?._count?.comments ?? 0,
+        }));
+        return { items: mapped, page, pageSize, total: commentTotal };
+      }
+    }
+
+    // type === 'all'
+    const [postLikes, commentLikes, postTotal, commentTotal] =
+      await this.prisma.$transaction([
+        this.prisma.postLike.findMany({
+          where: { userId },
+          orderBy: { createdAt: 'desc' },
+          include: {
+            post: {
+              select: {
+                id: true,
+                title: true,
+                content: true,
+                status: true,
+                author: { select: { username: true, avatarUrl: true } },
+                createdAt: true,
+                _count: { select: { likes: true, comments: true } },
+              },
+            },
+          },
+        }),
+        this.prisma.commentLike.findMany({
+          where: { userId },
+          orderBy: { createdAt: 'desc' },
+          include: {
+            comment: {
+              select: {
+                id: true,
+                content: true,
+                postId: true,
+                deletedAt: true,
+                author: { select: { username: true, avatarUrl: true } },
+                createdAt: true,
+                post: {
+                  select: {
+                    id: true,
+                    title: true,
+                    status: true,
+                    _count: { select: { likes: true, comments: true } },
+                  },
+                },
+                _count: { select: { likes: true } },
+              },
+            },
+          },
+        }),
+        this.prisma.postLike.count({ where: { userId } }),
+        this.prisma.commentLike.count({ where: { userId } }),
+      ]);
+
+    const allLikes = [
+      ...postLikes.map((l: any) => ({
+        type: 'post',
+        id: l.post.id,
+        title: l.post.title,
+        excerpt: l.post.content?.slice(0, 100) ?? '',
+        authorNickname: l.post.author?.username,
+        authorAvatar: l.post.author?.avatarUrl ?? null,
+        likedAt: l.createdAt,
+        createdAt: l.post.createdAt,
+        postStatus: l.post.status,
+        postLikeCount: l.post._count?.likes ?? 0,
+        postCommentCount: l.post._count?.comments ?? 0,
+      })),
+      ...commentLikes.map((l: any) => ({
+        type: 'comment',
+        id: l.comment.id,
+        postId: l.comment.postId,
+        postTitle: l.comment.post?.title ?? null,
+        postStatus: l.comment.post?.status ?? null,
+        content: l.comment.deletedAt ? null : l.comment.content,
+        isDeleted: !!l.comment.deletedAt,
+        commentStatus: l.comment.deletedAt ? 'DELETED' : null,
+        authorNickname: l.comment.author?.username,
+        authorAvatar: l.comment.author?.avatarUrl ?? null,
+        likedAt: l.createdAt,
+        createdAt: l.comment.createdAt,
+        commentLikeCount: l.comment._count?.likes ?? 0,
+        postLikeCount: l.comment.post?._count?.likes ?? 0,
+        postCommentCount: l.comment.post?._count?.comments ?? 0,
+      })),
+    ];
+
+    allLikes.sort(
+      (a, b) => new Date(b.likedAt).getTime() - new Date(a.likedAt).getTime(),
+    );
+    const paged = allLikes.slice((page - 1) * pageSize, page * pageSize);
+
+    return { items: paged, page, pageSize, total: postTotal + commentTotal };
+  }
+
+  async getMyBookmarks(userId: number, page = 1, pageSize = 20) {
+    const [items, total] = await this.prisma.$transaction([
+      this.prisma.postBookmark.findMany({
+        where: { userId },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          post: {
+            select: {
+              id: true,
+              title: true,
+              content: true,
+              author: { select: { username: true, avatarUrl: true } },
+              createdAt: true,
+              _count: { select: { likes: true, comments: true } },
+            },
+          },
+        },
+      }),
+      this.prisma.postBookmark.count({ where: { userId } }),
+    ]);
+
+    const mapped = items.map((b: any) => ({
+      postId: b.post.id,
+      title: b.post.title,
+      excerpt: b.post.content?.slice(0, 100) ?? '',
+      authorNickname: b.post.author?.username,
+      authorAvatar: b.post.author?.avatarUrl ?? null,
+      likeCount: b.post._count.likes,
+      commentCount: b.post._count.comments,
+      bookmarkedAt: b.createdAt,
+      createdAt: b.post.createdAt,
+    }));
+
     return { items: mapped, page, pageSize, total };
   }
 }
