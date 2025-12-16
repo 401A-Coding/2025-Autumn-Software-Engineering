@@ -10,11 +10,11 @@ interface LikeItem {
     postId?: number
     title?: string
     postTitle?: string | null
-    content?: string
     excerpt?: string
-    authorId?: number
-    authorNickname?: string
-    authorAvatar?: string | null
+    likeCount?: number
+    commentCount?: number
+    content?: string
+    commentLikeCount?: number
     likedAt: string
     createdAt: string
 }
@@ -111,70 +111,78 @@ export default function MyLikes() {
 
                 {!loading && likes.length > 0 && (
                     <div className="like-list">
-                        {likes.map((item) => (
-                            <div
-                                key={`${item.type}-${item.id}`}
-                                className="like-item"
-                                onClick={() => handleItemClick(item)}
-                            >
-                                <div className="like-item-header">
-                                    <div className="simple-avatar">
-                                        <div className="avatar-image" title={item.authorNickname}>
-                                            {item.authorAvatar ? (
-                                                <img src={item.authorAvatar} alt={item.authorNickname} />
-                                            ) : (
-                                                item.authorNickname?.[0] ?? '?'
-                                            )}
+                        {likes.map((item) => {
+                            const anyItem = item as any
+                            // 标题与摘要
+                            const postTitle = item.type === 'post' ? (item.title ?? anyItem.postTitle) : anyItem.postTitle
+                            const excerpt = item.excerpt ?? anyItem.excerpt ?? ''
+                            // 统计数值：支持嵌套结构和多命名
+                            const postLikeCount = item.type === 'post'
+                                ? (item.likeCount ?? anyItem.postLikeCount ?? anyItem.post_likes ?? anyItem.post?.likeCount ?? 0)
+                                : (anyItem.postLikeCount ?? anyItem.post_likes ?? anyItem.post?.likeCount ?? 0)
+                            const postCommentCount = item.type === 'post'
+                                ? (item.commentCount ?? anyItem.postCommentCount ?? anyItem.post_comments ?? anyItem.post?.commentCount ?? 0)
+                                : (anyItem.postCommentCount ?? anyItem.post_comments ?? anyItem.post?.commentCount ?? 0)
+                            const commentLikeCount = item.type === 'comment'
+                                ? (item.commentLikeCount ?? anyItem.commentLikeCount ?? anyItem.comment_likes ?? anyItem.likeCount ?? anyItem.comment?.likeCount ?? 0)
+                                : 0
+                            // 删除状态：优先用状态字段，其次用空标题或明确标志推断
+                            const postStatus: string | undefined = anyItem.postStatus ?? anyItem.status ?? anyItem.post?.status
+                            const commentStatus: string | undefined = anyItem.commentStatus ?? anyItem.status ?? anyItem.comment?.status
+                            const postRemoved = (postStatus === 'REMOVED' || postStatus === 'DELETED' || postStatus === 'deleted')
+                                || anyItem.postDeleted === true || anyItem.isDeleted === true || anyItem.postRemoved === true
+                                || (postTitle == null)
+                            const commentRemoved = (commentStatus === 'REMOVED' || commentStatus === 'DELETED' || commentStatus === 'deleted')
+                                || anyItem.commentDeleted === true || anyItem.commentRemoved === true
+                            const canNavigate = item.type === 'post'
+                                ? !postRemoved
+                                : (!postRemoved && !commentRemoved && !!item.postId)
+                            return (
+                                <div
+                                    key={`${item.type}-${item.id}`}
+                                    className={`like-item like-item--compact ${!canNavigate ? 'like-item--disabled' : ''}`}
+                                    style={{ cursor: canNavigate ? 'pointer' : 'default' }}
+                                    onClick={() => { if (canNavigate) handleItemClick(item) }}
+                                >
+                                    <div className="like-type-badge left">
+                                        {item.type === 'post' ? '主贴' : '回帖'}{!canNavigate ? ' · 已删除' : ''}
+                                    </div>
+                                    <div className="like-item-content left-align">
+                                        <div className="like-item-title">
+                                            {postTitle || '(无标题)'} {!canNavigate && <span className="muted text-12">(已删除)</span>}
+                                        </div>
+                                        {excerpt ? (
+                                            <div className="like-item-excerpt">{excerpt}</div>
+                                        ) : null}
+                                        <div className="like-item-stats">
+                                            <span>👍 {postLikeCount}</span>
+                                            <span>💬 {postCommentCount}</span>
                                         </div>
                                     </div>
-                                    <div className="like-item-meta">
-                                        <div className="like-item-author">{item.authorNickname}</div>
-                                        <div className="like-item-date">
-                                            {formatDate(item.createdAt)}
-                                        </div>
-                                    </div>
-                                    <span className="like-type-badge">
-                                        {item.type === 'post' ? '主贴' : '回帖'}
-                                    </span>
-                                </div>
-                                <div className="like-item-content">
-                                    {item.type === 'post' ? (
-                                        <>
-                                            <div className="like-item-title">{item.title || '(无标题)'}</div>
-                                            <div className="like-item-excerpt">{item.excerpt}</div>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <div className="like-item-post-title">
-                                                来自：{item.postTitle || '(无标题)'}
+                                    {item.type === 'comment' ? (
+                                        <div className="liked-comment-box">
+                                            <div className="liked-comment-header">
+                                                <span className="badge">被点赞的回帖</span>
+                                                <span className="liked-comment-stats">👍 {commentLikeCount}</span>
                                             </div>
-                                            <div className="like-item-comment-content">{item.content}</div>
-                                        </>
-                                    )}
+                                            {commentRemoved ? (
+                                                <div className="muted text-12" style={{ marginBottom: 6 }}>
+                                                    (该回复已被删除)
+                                                </div>
+                                            ) : postRemoved ? (
+                                                <div className="muted text-12" style={{ marginBottom: 6 }}>
+                                                    (所属主贴已删除，无法跳转)
+                                                </div>
+                                            ) : null}
+                                            <div className="liked-comment-content">{item.content || '(无内容)'}</div>
+                                        </div>
+                                    ) : null}
+                                    <div className="like-item-footer left-align">
+                                        点赞于 {formatDate(item.likedAt)}
+                                    </div>
                                 </div>
-                                <div className="like-item-footer">
-                                    点赞于 {formatDate(item.likedAt)}
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                )}
-
-                {!loading && total > pageSize && (
-                    <div className="pagination">
-                        <button
-                            onClick={() => setPage(p => Math.max(1, p - 1))}
-                            disabled={page === 1}
-                        >
-                            上一页
-                        </button>
-                        <span>第 {page} 页，共 {Math.ceil(total / pageSize)} 页</span>
-                        <button
-                            onClick={() => setPage(p => p + 1)}
-                            disabled={page >= Math.ceil(total / pageSize)}
-                        >
-                            下一页
-                        </button>
+                            )
+                        })}
                     </div>
                 )}
             </div>

@@ -259,6 +259,7 @@ model CommunityComment {
   replies   CommunityComment[] @relation("CommentReplies")
   likes     CommentLike[]
   content   String
+  deletedAt DateTime? // 软删除标记
   createdAt DateTime           @default(now())
   updatedAt DateTime           @updatedAt
 

@@ -317,6 +317,87 @@
     color: #2563eb;
 }
 
+.like-item--compact {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.left-align {
+    text-align: left;
+}
+
+.like-type-badge.left {
+    align-self: flex-start;
+    display: inline-block;
+    font-size: 12px;
+    color: #374151;
+    background: #f3f4f6;
+    border: 1px solid #e5e7eb;
+    padding: 2px 8px;
+    border-radius: 999px;
+}
+
+.like-item-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: #111827;
+}
+
+.like-item-excerpt {
+    margin-top: 4px;
+    color: #4b5563;
+    font-size: 14px;
+}
+
+.like-item-stats {
+    margin-top: 8px;
+    display: flex;
+    gap: 16px;
+    color: #6b7280;
+    font-size: 13px;
+}
+
+.liked-comment-box {
+    border: 1px dashed #c7d2fe;
+    background: #eef2ff;
+    border-radius: 8px;
+    padding: 10px;
+}
+
+.liked-comment-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+}
+
+.liked-comment-header .badge {
+    font-size: 12px;
+    color: #3730a3;
+    background: #e0e7ff;
+    border: 1px solid #c7d2fe;
+    padding: 2px 6px;
+    border-radius: 6px;
+}
+
+.liked-comment-stats {
+    font-size: 12px;
+    color: #4f46e5;
+}
+
+.liked-comment-content {
+    color: #1f2937;
+    font-size: 14px;
+    line-height: 1.5;
+    white-space: pre-wrap;
+}
+
+.like-item-footer.left-align {
+    font-size: 12px;
+    color: #6b7280;
+}
+
 .text-orange-700 {
     color: #92400e;
 }
@@ -994,6 +1075,17 @@
 .view-item.clickable:hover {
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
     border-color: #d1d5db;
+}
+
+/* 删除/不可导航的灰显样式 */
+.like-item--disabled {
+    opacity: 0.6;
+    filter: grayscale(30%);
+}
+
+.like-item--disabled:hover {
+    box-shadow: none;
+    border-color: #e5e7eb;
 }
 
 .view-item.deleted {

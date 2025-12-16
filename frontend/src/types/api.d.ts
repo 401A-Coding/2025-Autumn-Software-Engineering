@@ -830,11 +830,16 @@ export interface components {
             id?: number;
             postId?: number;
             postTitle?: string | null;
+            /** @description post status: PUBLISHED, REMOVED, DELETED */
+            postStatus?: string | null;
+            parentId?: number | null;
+            parentAuthorNickname?: string | null;
             content?: string;
             /** Format: date-time */
             createdAt?: string;
             authorId?: number;
             authorNickname?: string;
+            authorAvatar?: string | null;
         };
         ApiResponsePageMyComments: {
             /** @example 0 */

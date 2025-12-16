@@ -100,8 +100,11 @@ export class CommunityController {
   @UseGuards(JwtAuthGuard)
   @Delete('comments/:commentId')
   async deleteComment(@Req() req: any, @Param('commentId') commentId: string) {
-    // TODO: ownership/moderation checks in service
-    return { code: 0, message: 'success', data: { ok: true } };
+    const data = await this.service.deleteComment(
+      req.user?.sub,
+      Number(commentId),
+    );
+    return { code: 0, message: 'success', data };
   }
 
   @UseGuards(JwtAuthGuard)

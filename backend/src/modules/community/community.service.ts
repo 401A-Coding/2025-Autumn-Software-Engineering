@@ -244,7 +244,8 @@ export class CommunityService {
         authorAvatar: r.author?.avatarUrl ?? null,
         replyToId: r.parent?.author?.id ?? null,
         replyToNickname: r.parent?.author?.username ?? null,
-        content: r.content,
+        content: r.deletedAt ? null : r.content,
+        isDeleted: !!r.deletedAt,
         likeCount: r._count.likes,
         createdAt: r.createdAt,
       }));
@@ -253,7 +254,8 @@ export class CommunityService {
         authorId: c.authorId,
         authorNickname: c.author?.username,
         authorAvatar: c.author?.avatarUrl ?? null,
-        content: c.content,
+        content: c.deletedAt ? null : c.content,
+        isDeleted: !!c.deletedAt,
         likeCount: c._count.likes,
         replyCount: replies.length,
         replies,
@@ -311,6 +313,29 @@ export class CommunityService {
 
   async unlikeComment(userId: number, commentId: number) {
     await this.prisma.commentLike.deleteMany({ where: { commentId, userId } });
+    return { ok: true };
+  }
+
+  async deleteComment(userId: number, commentId: number) {
+    // Ensure the user owns the comment; moderators can be supported later
+    const comment = await this.prisma.communityComment.findUnique({
+      where: { id: commentId },
+      select: { id: true, authorId: true, deletedAt: true },
+    });
+    if (!comment) {
+      return { ok: false, reason: 'not_found' };
+    }
+    if (comment.authorId !== userId) {
+      return { ok: false, reason: 'forbidden' };
+    }
+    if (comment.deletedAt) {
+      return { ok: false, reason: 'already_deleted' };
+    }
+    // 软删除：标记 deletedAt，不删除子回复，保留讨论上下文
+    await this.prisma.communityComment.update({
+      where: { id: commentId },
+      data: { deletedAt: new Date() },
+    });
     return { ok: true };
   }
 
@@ -506,8 +531,10 @@ export class CommunityService {
                 id: true,
                 title: true,
                 content: true,
+                status: true,
                 author: { select: { username: true, avatarUrl: true } },
                 createdAt: true,
+                _count: { select: { likes: true, comments: true } },
               },
             },
           },
@@ -525,6 +552,9 @@ export class CommunityService {
           authorAvatar: l.post.author?.avatarUrl ?? null,
           likedAt: l.createdAt,
           createdAt: l.post.createdAt,
+          postStatus: l.post.status,
+          postLikeCount: l.post._count?.likes ?? 0,
+          postCommentCount: l.post._count?.comments ?? 0,
         }));
         return { items: mapped, page, pageSize, total: postTotal };
       }
@@ -543,9 +573,18 @@ export class CommunityService {
                 id: true,
                 content: true,
                 postId: true,
+                deletedAt: true,
                 author: { select: { username: true, avatarUrl: true } },
                 createdAt: true,
-                post: { select: { title: true } },
+                post: {
+                  select: {
+                    id: true,
+                    title: true,
+                    status: true,
+                    _count: { select: { likes: true, comments: true } },
+                  },
+                },
+                _count: { select: { likes: true } },
               },
             },
           },
@@ -559,11 +598,17 @@ export class CommunityService {
           id: l.comment.id,
           postId: l.comment.postId,
           postTitle: l.comment.post?.title ?? null,
-          content: l.comment.content,
+          postStatus: l.comment.post?.status ?? null,
+          content: l.comment.deletedAt ? null : l.comment.content,
+          isDeleted: !!l.comment.deletedAt,
+          commentStatus: l.comment.deletedAt ? 'DELETED' : null,
           authorNickname: l.comment.author?.username,
           authorAvatar: l.comment.author?.avatarUrl ?? null,
           likedAt: l.createdAt,
           createdAt: l.comment.createdAt,
+          commentLikeCount: l.comment._count?.likes ?? 0,
+          postLikeCount: l.comment.post?._count?.likes ?? 0,
+          postCommentCount: l.comment.post?._count?.comments ?? 0,
         }));
         return { items: mapped, page, pageSize, total: commentTotal };
       }
@@ -581,8 +626,10 @@ export class CommunityService {
                 id: true,
                 title: true,
                 content: true,
+                status: true,
                 author: { select: { username: true, avatarUrl: true } },
                 createdAt: true,
+                _count: { select: { likes: true, comments: true } },
               },
             },
           },
@@ -596,9 +643,18 @@ export class CommunityService {
                 id: true,
                 content: true,
                 postId: true,
+                deletedAt: true,
                 author: { select: { username: true, avatarUrl: true } },
                 createdAt: true,
-                post: { select: { title: true } },
+                post: {
+                  select: {
+                    id: true,
+                    title: true,
+                    status: true,
+                    _count: { select: { likes: true, comments: true } },
+                  },
+                },
+                _count: { select: { likes: true } },
               },
             },
           },
@@ -617,17 +673,26 @@ export class CommunityService {
         authorAvatar: l.post.author?.avatarUrl ?? null,
         likedAt: l.createdAt,
         createdAt: l.post.createdAt,
+        postStatus: l.post.status,
+        postLikeCount: l.post._count?.likes ?? 0,
+        postCommentCount: l.post._count?.comments ?? 0,
       })),
       ...commentLikes.map((l: any) => ({
         type: 'comment',
         id: l.comment.id,
         postId: l.comment.postId,
         postTitle: l.comment.post?.title ?? null,
-        content: l.comment.content,
+        postStatus: l.comment.post?.status ?? null,
+        content: l.comment.deletedAt ? null : l.comment.content,
+        isDeleted: !!l.comment.deletedAt,
+        commentStatus: l.comment.deletedAt ? 'DELETED' : null,
         authorNickname: l.comment.author?.username,
         authorAvatar: l.comment.author?.avatarUrl ?? null,
         likedAt: l.createdAt,
         createdAt: l.comment.createdAt,
+        commentLikeCount: l.comment._count?.likes ?? 0,
+        postLikeCount: l.comment.post?._count?.likes ?? 0,
+        postCommentCount: l.comment.post?._count?.comments ?? 0,
       })),
     ];
 

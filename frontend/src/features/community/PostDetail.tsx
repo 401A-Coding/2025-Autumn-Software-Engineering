@@ -575,7 +575,11 @@ export default function PostDetail() {
                                 </div>
                                 {/* 评论内容 */}
                                 <div style={{ padding: '12px', textAlign: 'left' }}>
-                                    <p className="mt-0 mb-0 whitespace-pre-wrap" style={{ textAlign: 'left' }}>{comment.content}</p>
+                                    {(comment as any).isDeleted ? (
+                                        <p className="mt-0 mb-0" style={{ color: '#999', fontStyle: 'italic' }}>该回复已被作者删除</p>
+                                    ) : (
+                                        <p className="mt-0 mb-0 whitespace-pre-wrap" style={{ textAlign: 'left' }}>{comment.content}</p>
+                                    )}
                                 </div>
 
                                 {/* 楼中楼回复区域 */}
@@ -619,7 +623,13 @@ export default function PostDetail() {
                                                         ) : (
                                                             <span>：</span>
                                                         )}
-                                                        <span>{reply.content}</span>
+                                                        <span>
+                                                            {(reply as any).isDeleted ? (
+                                                                <span style={{ color: '#999', fontStyle: 'italic' }}>该回复已被作者删除</span>
+                                                            ) : (
+                                                                reply.content
+                                                            )}
+                                                        </span>
                                                     </div>
                                                 ))}
                                                 {comment.replyCount > 2 && (
@@ -685,7 +695,9 @@ export default function PostDetail() {
 
                                                         {/* 回复内容 */}
                                                         <p style={{ margin: '0', fontSize: '13px', color: '#555', textAlign: 'left' }}>
-                                                            {reply.parentId && reply.parentId !== comment.id && reply.replyToNickname ? (
+                                                            {(reply as any).isDeleted ? (
+                                                                <span style={{ color: '#999', fontStyle: 'italic' }}>该回复已被作者删除</span>
+                                                            ) : reply.parentId && reply.parentId !== comment.id && reply.replyToNickname ? (
                                                                 <>
                                                                     回复{' '}
                                                                     <a

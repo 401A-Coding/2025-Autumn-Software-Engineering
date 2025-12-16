@@ -3,6 +3,7 @@
  */
 
 import type { components, operations } from '../types/api'
+import http from '../lib/http'
 
 const base = import.meta.env.VITE_API_BASE || ''
 
@@ -800,7 +801,7 @@ export const communityApi = {
 
   /** 获取浏览历史 */
   async getMyViews(page = 1, pageSize = 20) {
-    const res = await apiRequest<{
+    type ViewsData = {
       items: Array<{
         postId: number
         postTitle: string | null
@@ -810,31 +811,35 @@ export const communityApi = {
       page: number
       pageSize: number
       total: number
-    }>(`/api/v1/community/my-views?page=${page}&pageSize=${pageSize}`)
+    }
+    const res = await http.get<ViewsData>(
+      `/api/v1/community/my-views?page=${page}&pageSize=${pageSize}`
+    )
     return res.data
   },
 
   /** 清空浏览历史 */
   async clearMyViews() {
-    await apiRequest('/api/v1/community/my-views', {
-      method: 'DELETE',
-    })
+    await http.delete('/api/v1/community/my-views')
   },
 
   /** 获取点赞列表 */
   async getMyLikes(type: 'all' | 'post' | 'comment' = 'all', page = 1, pageSize = 20) {
-    const res = await apiRequest<{
+    type LikesData = {
       items: Array<any>
       page: number
       pageSize: number
       total: number
-    }>(`/api/v1/community/my-likes?type=${type}&page=${page}&pageSize=${pageSize}`)
+    }
+    const res = await http.get<LikesData>(
+      `/api/v1/community/my-likes?type=${type}&page=${page}&pageSize=${pageSize}`
+    )
     return res.data
   },
 
   /** 获取收藏列表 */
   async getMyBookmarks(page = 1, pageSize = 20) {
-    const res = await apiRequest<{
+    type BookmarksData = {
       items: Array<{
         postId: number
         title: string
@@ -849,7 +854,10 @@ export const communityApi = {
       page: number
       pageSize: number
       total: number
-    }>(`/api/v1/community/my-bookmarks?page=${page}&pageSize=${pageSize}`)
+    }
+    const res = await http.get<BookmarksData>(
+      `/api/v1/community/my-bookmarks?page=${page}&pageSize=${pageSize}`
+    )
     return res.data
   },
 }
