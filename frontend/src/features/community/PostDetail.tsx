@@ -81,6 +81,8 @@ export default function PostDetail() {
     const [bookmarked, setBookmarked] = useState(false)
     const [expandedComment, setExpandedComment] = useState(false)
     const commentsRef = useRef<HTMLDivElement>(null)
+    const commentInputRef = useRef<HTMLDivElement>(null)
+    const replyInputRefs = useRef<Map<number, HTMLDivElement>>(new Map())
     const [currentUserId, setCurrentUserId] = useState<number | null>(null)
     const [commentLikes, setCommentLikes] = useState<Record<number, boolean>>({})
     const [expandedReplies, setExpandedReplies] = useState<Record<number, boolean>>({})
@@ -88,6 +90,7 @@ export default function PostDetail() {
     const [replyingTo, setReplyingTo] = useState<number | null>(null)
     const [replyText, setReplyText] = useState('')
     const [replyTargetLabel, setReplyTargetLabel] = useState<string>('楼主')
+    const [replyTargetContent, setReplyTargetContent] = useState<string>('')
     const [replyLikes, setReplyLikes] = useState<Record<number, boolean>>({})
 
     async function loadPost() {
@@ -185,6 +188,35 @@ export default function PostDetail() {
         loadComments()
         loadCurrentUser()
     }, [postId])
+
+    // 处理主评论框失焦收起
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (expandedComment && commentInputRef.current && !commentInputRef.current.contains(event.target as Node)) {
+                setExpandedComment(false)
+            }
+        }
+        document.addEventListener('mousedown', handleClickOutside)
+        return () => document.removeEventListener('mousedown', handleClickOutside)
+    }, [expandedComment])
+
+    // 处理楼中楼回复框失焦收起
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (replyingOnComment !== null) {
+                const replyBox = replyInputRefs.current.get(replyingOnComment)
+                if (replyBox && !replyBox.contains(event.target as Node)) {
+                    setReplyingOnComment(null)
+                    setReplyingTo(null)
+                    setReplyText('')
+                    setReplyTargetLabel('楼主')
+                    setReplyTargetContent('')
+                }
+            }
+        }
+        document.addEventListener('mousedown', handleClickOutside)
+        return () => document.removeEventListener('mousedown', handleClickOutside)
+    }, [replyingOnComment])
 
     // 当评论加载完成且有目标评论ID时，滚动到该评论
     useEffect(() => {
@@ -430,13 +462,27 @@ export default function PostDetail() {
 
     return (
         <div style={{ paddingBottom: expandedComment ? '400px' : '90px' }}>
-            {/* 返回按钮 */}
-            <button className="btn-ghost mb-12" onClick={handleBack}>
+            {/* 返回按钮 - 左上角固定 */}
+            <button
+                className="btn-ghost"
+                onClick={handleBack}
+                style={{
+                    position: 'fixed',
+                    top: '16px',
+                    left: '16px',
+                    zIndex: 999,
+                    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                    backdropFilter: 'blur(4px)',
+                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+                    padding: '8px 16px',
+                    borderRadius: '8px',
+                }}
+            >
                 ← 返回
             </button>
 
             {/* 帖子内容 */}
-            <section className="paper-card mb-12" style={{ padding: 0, overflow: 'hidden' }}>
+            <section className="paper-card mb-12" style={{ padding: 0, overflow: 'hidden', marginTop: '60px' }}>
                 {/* 用户信息区域 */}
                 <div style={{ padding: '16px 20px', backgroundColor: '#fafafa', borderBottom: '1px solid #e0e0e0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     <UserAvatar
@@ -759,6 +805,7 @@ export default function PostDetail() {
                                                                     setReplyingOnComment(comment.id)
                                                                     setReplyingTo(reply.id)
                                                                     setReplyTargetLabel(reply.authorNickname || '匿名')
+                                                                    setReplyTargetContent(reply.content || '')
                                                                 }}
                                                                 style={{
                                                                     background: 'none',
@@ -797,7 +844,13 @@ export default function PostDetail() {
                                 {/* 回复输入框 */}
                                 <div style={{ padding: '12px', borderTop: '1px solid #e0e0e0' }}>
                                     {replyingOnComment === comment.id ? (
-                                        <div>
+                                        <div ref={(el) => { if (el) replyInputRefs.current.set(comment.id, el) }}>
+                                            {/* 回复提示 */}
+                                            {replyTargetContent && (
+                                                <div style={{ fontSize: '12px', color: '#999', marginBottom: '8px', lineHeight: '1.5', textAlign: 'left' }}>
+                                                    回复 {replyTargetLabel}：{replyTargetContent.length > 50 ? replyTargetContent.slice(0, 50) + '...' : replyTargetContent}
+                                                </div>
+                                            )}
                                             <textarea
                                                 autoFocus
                                                 value={replyText}
@@ -815,7 +868,13 @@ export default function PostDetail() {
                                             />
                                             <div style={{ marginTop: '8px', display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
                                                 <button
-                                                    onClick={() => { setReplyingTo(null); setReplyText('') }}
+                                                    onClick={() => {
+                                                        setReplyingOnComment(null)
+                                                        setReplyingTo(null)
+                                                        setReplyText('')
+                                                        setReplyTargetLabel('楼主')
+                                                        setReplyTargetContent('')
+                                                    }}
                                                     style={{
                                                         padding: '6px 12px',
                                                         borderRadius: '4px',
@@ -850,6 +909,7 @@ export default function PostDetail() {
                                                 setReplyingOnComment(comment.id)
                                                 setReplyingTo(comment.id)
                                                 setReplyTargetLabel(comment.authorNickname || '楼主')
+                                                setReplyTargetContent(comment.content || '')
                                             }}
                                             style={{
                                                 background: 'none',
@@ -872,6 +932,7 @@ export default function PostDetail() {
 
             {/* 底部交互栏 - 固定 */}
             <div
+                ref={commentInputRef}
                 className="post-detail-bottom-bar"
                 style={{
                     position: 'fixed',
