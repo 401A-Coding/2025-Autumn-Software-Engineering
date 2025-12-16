@@ -119,7 +119,7 @@ export default function UserProfile() {
                     </div>
 
                     {/* 右侧信息分三行 */}
-                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px', textAlign: 'left' }}>
                         {/* 第一行：昵称 */}
                         <div>
                             <h2 style={{ margin: 0, fontSize: '16px', fontWeight: 600 }}>{user.nickname}</h2>
