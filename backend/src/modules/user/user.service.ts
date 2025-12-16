@@ -16,7 +16,7 @@ export class UserService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
-  ) { }
+  ) {}
 
   // 注册
   async register(dto: CreateUserDto) {
@@ -356,7 +356,12 @@ export class UserService {
   // 基于 userId 更新当前用户信息（配合 JwtAuthGuard 使用）
   async updateMeByUserId(
     userId: number,
-    patch: { password?: string; avatarUrl?: string | null; nickname?: string; bio?: string | null },
+    patch: {
+      password?: string;
+      avatarUrl?: string | null;
+      nickname?: string;
+      bio?: string | null;
+    },
   ) {
     const data: {
       password?: string;

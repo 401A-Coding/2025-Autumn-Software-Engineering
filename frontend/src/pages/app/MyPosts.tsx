@@ -27,7 +27,8 @@ type Comment = {
     postStatus: string | null
     parentId: number | null
     parentAuthorNickname: string | null
-    content: string
+    content: string | null
+    isDeleted?: boolean
     createdAt: string
     authorId: number
     authorNickname?: string
@@ -228,7 +229,11 @@ export default function MyPosts() {
                                                 <span style={{ color: '#666' }}>
                                                     回复 {comment.parentAuthorNickname ? `${comment.parentAuthorNickname}` : '楼主'}：
                                                 </span>
-                                                {comment.content}
+                                                {comment.isDeleted ? (
+                                                    <span style={{ color: '#999', fontStyle: 'italic' }}>（该回复已被删除）</span>
+                                                ) : (
+                                                    comment.content
+                                                )}
                                             </div>
                                         </div>
 
