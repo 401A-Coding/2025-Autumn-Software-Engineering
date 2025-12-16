@@ -89,7 +89,7 @@ export default function UserProfile() {
 
             {/* 用户信息卡片 */}
             <section className="paper-card card-pad">
-                {/* 头像+用户信息同一行 */}
+                {/* 头像+用户信息同一行，右侧信息分三行 */}
                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: '16px', marginBottom: '16px' }}>
                     {/* 头像 */}
                     <div
@@ -118,39 +118,42 @@ export default function UserProfile() {
                         )}
                     </div>
 
-                    {/* 右侧信息 */}
+                    {/* 右侧信息分三行 */}
                     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                        {/* 昵称、UID、加入时间同一行 */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-                            <h2 style={{ margin: 0, fontSize: '18px', fontWeight: 600 }}>{user.nickname}</h2>
-                            <div style={{ fontSize: '14px', color: '#8a7f73', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                <span>UID：{user.id}</span>
-                                <button className="btn-compact btn-ghost" onClick={() => copyUid(user.id)} style={{ padding: '2px 6px', fontSize: '12px' }}>
-                                    复制
-                                </button>
-                            </div>
-                            <div style={{ fontSize: '14px', color: '#8a7f73' }}>
-                                📅 {new Date(user.createdAt).toLocaleDateString('zh-CN')}
-                            </div>
+                        {/* 第一行：昵称 */}
+                        <div>
+                            <h2 style={{ margin: 0, fontSize: '16px', fontWeight: 600 }}>{user.nickname}</h2>
                         </div>
-                        {/* 签名/自我介绍 */}
-                        <div style={{ fontSize: '14px', color: '#555', lineHeight: '1.5' }}>
-                            {user.bio && user.bio.trim().length > 0 ? user.bio : '该用户还没有填写签名...'}
+                        {/* 第二行：UID + 复制按钮 */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '14px', color: '#8a7f73' }}>
+                            <span>UID：{user.id}</span>
+                            <button className="btn-compact btn-ghost" onClick={() => copyUid(user.id)} style={{ padding: '2px 6px', fontSize: '12px' }}>
+                                复制
+                            </button>
+                        </div>
+                        {/* 第三行：加入时间 */}
+                        <div style={{ fontSize: '14px', color: '#8a7f73' }}>
+                            📅 加入于 {new Date(user.createdAt).toLocaleDateString('zh-CN')}
                         </div>
                     </div>
                 </div>
 
-                {/* 统计信息：同一行 */}
-                <div style={{ display: 'flex', gap: '32px', paddingTop: '12px', borderTop: '1px solid #e7d8b1' }}>
-                    <div>
+                {/* 签名/自我介绍 */}
+                <div style={{ fontSize: '14px', color: '#555', lineHeight: '1.5', marginBottom: '12px' }}>
+                    {user.bio && user.bio.trim().length > 0 ? user.bio : '该用户还没有填写签名...'}
+                </div>
+
+                {/* 统计信息：居中对齐，略微分散 */}
+                <div style={{ display: 'flex', justifyContent: 'space-around', paddingTop: '12px', borderTop: '1px solid #e7d8b1' }}>
+                    <div style={{ textAlign: 'center' }}>
                         <div style={{ fontSize: '18px', fontWeight: 600, marginBottom: '4px' }}>{user.stats?.posts ?? 0}</div>
                         <div style={{ fontSize: '13px', color: '#8a7f73' }}>帖子</div>
                     </div>
-                    <div>
+                    <div style={{ textAlign: 'center' }}>
                         <div style={{ fontSize: '18px', fontWeight: 600, marginBottom: '4px' }}>{user.stats?.comments ?? 0}</div>
                         <div style={{ fontSize: '13px', color: '#8a7f73' }}>评论</div>
                     </div>
-                    <div>
+                    <div style={{ textAlign: 'center' }}>
                         <div style={{ fontSize: '18px', fontWeight: 600, marginBottom: '4px' }}>{user.stats?.likes ?? 0}</div>
                         <div style={{ fontSize: '13px', color: '#8a7f73' }}>获赞</div>
                     </div>
