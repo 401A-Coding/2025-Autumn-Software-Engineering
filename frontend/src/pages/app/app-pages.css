@@ -1307,18 +1307,24 @@
 
 .bookmark-item-meta {
     flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    /* 昵称与日期左对齐靠头像 */
 }
 
 .bookmark-item-author {
     font-size: 14px;
     font-weight: 500;
     color: #1f2937;
+    text-align: left;
 }
 
 .bookmark-item-date {
     font-size: 12px;
     color: #9ca3af;
     margin-top: 2px;
+    text-align: left;
 }
 
 .bookmark-item-content {
@@ -1331,6 +1337,8 @@
     color: #1f2937;
     margin-bottom: 4px;
     word-break: break-word;
+    text-align: left;
+    /* 标题左对齐 */
 }
 
 .bookmark-item-excerpt {
@@ -1341,6 +1349,8 @@
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
+    text-align: left;
+    /* 正文预览左对齐 */
 }
 
 .bookmark-item-footer {
