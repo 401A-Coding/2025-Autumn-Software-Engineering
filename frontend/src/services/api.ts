@@ -790,4 +790,66 @@ export const communityApi = {
     )
     return res.data
   },
+
+  /** 记录帖子浏览 */
+  async recordPostView(postId: number) {
+    await apiRequest(`/api/v1/community/posts/${postId}/view`, {
+      method: 'POST',
+    })
+  },
+
+  /** 获取浏览历史 */
+  async getMyViews(page = 1, pageSize = 20) {
+    const res = await apiRequest<{
+      items: Array<{
+        postId: number
+        postTitle: string | null
+        postStatus: string | null
+        viewedAt: string
+      }>
+      page: number
+      pageSize: number
+      total: number
+    }>(`/api/v1/community/my-views?page=${page}&pageSize=${pageSize}`)
+    return res.data
+  },
+
+  /** 清空浏览历史 */
+  async clearMyViews() {
+    await apiRequest('/api/v1/community/my-views', {
+      method: 'DELETE',
+    })
+  },
+
+  /** 获取点赞列表 */
+  async getMyLikes(type: 'all' | 'post' | 'comment' = 'all', page = 1, pageSize = 20) {
+    const res = await apiRequest<{
+      items: Array<any>
+      page: number
+      pageSize: number
+      total: number
+    }>(`/api/v1/community/my-likes?type=${type}&page=${page}&pageSize=${pageSize}`)
+    return res.data
+  },
+
+  /** 获取收藏列表 */
+  async getMyBookmarks(page = 1, pageSize = 20) {
+    const res = await apiRequest<{
+      items: Array<{
+        postId: number
+        title: string
+        excerpt: string
+        authorNickname?: string
+        authorAvatar?: string | null
+        likeCount: number
+        commentCount: number
+        bookmarkedAt: string
+        createdAt: string
+      }>
+      page: number
+      pageSize: number
+      total: number
+    }>(`/api/v1/community/my-bookmarks?page=${page}&pageSize=${pageSize}`)
+    return res.data
+  },
 }

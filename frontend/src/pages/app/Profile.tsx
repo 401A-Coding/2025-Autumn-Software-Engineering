@@ -28,9 +28,9 @@ export default function Profile() {
     const communityLinks = [
         { title: '我的发帖', description: '我发布的帖子', to: '/app/my-posts', state: { tab: 'posts' } },
         { title: '我的回帖', description: '我参与的评论', to: '/app/my-posts', state: { tab: 'comments' } },
-        { title: '浏览历史', description: '我看过的帖子', to: '/app/community?scope=my-views' },
-        { title: '我的点赞', description: '我点过赞的帖子', to: '/app/community?scope=my-likes' },
-        { title: '我的收藏', description: '我收藏的帖子', to: '/app/community?scope=my-favorites' },
+        { title: '浏览历史', description: '我看过的帖子', to: '/app/my-views' },
+        { title: '我的点赞', description: '我点过赞的帖子', to: '/app/my-likes' },
+        { title: '我的收藏', description: '我收藏的帖子', to: '/app/my-bookmarks' },
     ]
 
     function formatDate(iso?: string | Date | null) {
@@ -175,7 +175,7 @@ export default function Profile() {
                                 textAlign: 'left',
                                 cursor: 'pointer'
                             }}
-                            onClick={() => navigate(item.to, { state: item.state })}
+                            onClick={() => navigate(item.to, item.state ? { state: item.state } : {})}
                         >
                             <div className="fw-600">{item.title}</div>
                             <div className="muted text-12 mt-4">{item.description}</div>

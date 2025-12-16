@@ -9,6 +9,9 @@ import Fun from './pages/app/Fun.tsx'
 import History from './pages/app/History.tsx'
 import Favorites from './pages/app/Favorites.tsx'
 import MyPosts from './pages/app/MyPosts.tsx'
+import MyViews from './pages/app/MyViews.tsx'
+import MyLikes from './pages/app/MyLikes.tsx'
+import MyBookmarks from './pages/app/MyBookmarks.tsx'
 import OnlineLobby from './pages/app/OnlineLobby.tsx'
 import Profile from './pages/app/Profile.tsx'
 import LocalPlay from './pages/app/LocalPlay.tsx'
@@ -46,6 +49,9 @@ function App() {
           <Route path="history" element={<History />} />
           <Route path="favorites" element={<Favorites />} />
           <Route path="my-posts" element={<MyPosts />} />
+          <Route path="my-views" element={<MyViews />} />
+          <Route path="my-likes" element={<MyLikes />} />
+          <Route path="my-bookmarks" element={<MyBookmarks />} />
           <Route path="community" element={<Community />} />
           <Route path="community/new" element={<CreatePost />} />
           <Route path="community/:postId/edit" element={<CreatePost />} />

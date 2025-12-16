@@ -3,7 +3,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 
 @Injectable()
 export class CommunityService {
-  constructor(private readonly prisma: PrismaService) { }
+  constructor(private readonly prisma: PrismaService) {}
 
   async listPosts(params: {
     page: number;
@@ -25,10 +25,10 @@ export class CommunityService {
       ];
     const tagFilter = tag
       ? {
-        tags: {
-          some: { tag: { name: { equals: tag, mode: 'insensitive' } } },
-        },
-      }
+          tags: {
+            some: { tag: { name: { equals: tag, mode: 'insensitive' } } },
+          },
+        }
       : {};
 
     const orderBy: any =
@@ -123,10 +123,10 @@ export class CommunityService {
         p.shareType === 'NONE'
           ? null
           : {
-            refType: String(p.shareType).toLowerCase(),
-            refId: p.shareRefId ?? 0,
-            snapshot: p.shareSnap ?? null,
-          },
+              refType: String(p.shareType).toLowerCase(),
+              refId: p.shareRefId ?? 0,
+              snapshot: p.shareSnap ?? null,
+            },
       attachments:
         p.attachments?.map((a: any) => ({
           url: a.url,
@@ -200,25 +200,25 @@ export class CommunityService {
     // 取出每个顶级评论下的所有楼中楼：直接子回复 + 子回复的子回复
     const allReplies = topIds.length
       ? await this.prisma.communityComment.findMany({
-        where: {
-          OR: [
-            { parentId: { in: topIds } },
-            { parent: { parentId: { in: topIds } } },
-          ],
-        },
-        orderBy: { createdAt: 'asc' },
-        include: {
-          author: { select: { id: true, username: true, avatarUrl: true } },
-          parent: {
-            select: {
-              id: true,
-              parentId: true,
-              author: { select: { id: true, username: true } },
-            },
+          where: {
+            OR: [
+              { parentId: { in: topIds } },
+              { parent: { parentId: { in: topIds } } },
+            ],
           },
-          _count: { select: { likes: true } },
-        },
-      })
+          orderBy: { createdAt: 'asc' },
+          include: {
+            author: { select: { id: true, username: true, avatarUrl: true } },
+            parent: {
+              select: {
+                id: true,
+                parentId: true,
+                author: { select: { id: true, username: true } },
+              },
+            },
+            _count: { select: { likes: true } },
+          },
+        })
       : [];
 
     const repliesByRoot: Record<number, any[]> = {};
@@ -357,10 +357,10 @@ export class CommunityService {
       ];
     const tagFilter = tag
       ? {
-        tags: {
-          some: { tag: { name: { equals: tag, mode: 'insensitive' } } },
-        },
-      }
+          tags: {
+            some: { tag: { name: { equals: tag, mode: 'insensitive' } } },
+          },
+        }
       : {};
     const [items, total] = await this.prisma.$transaction([
       this.prisma.post.findMany({
@@ -438,6 +438,240 @@ export class CommunityService {
       authorId: c.authorId,
       authorNickname: c.author?.username,
       authorAvatar: c.author?.avatarUrl ?? null,
+    }));
+
+    return { items: mapped, page, pageSize, total };
+  }
+
+  async recordPostView(userId: number, postId: number) {
+    await this.prisma.postView.upsert({
+      where: { postId_userId: { postId, userId } },
+      update: { updatedAt: new Date() },
+      create: { postId, userId },
+    });
+    return { ok: true };
+  }
+
+  async getMyViews(userId: number, page = 1, pageSize = 20) {
+    const [items, total] = await this.prisma.$transaction([
+      this.prisma.postView.findMany({
+        where: { userId },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        orderBy: { updatedAt: 'desc' },
+        include: {
+          post: {
+            select: {
+              id: true,
+              title: true,
+              status: true,
+            },
+          },
+        },
+      }),
+      this.prisma.postView.count({ where: { userId } }),
+    ]);
+
+    const mapped = items.map((v: any) => ({
+      postId: v.postId,
+      postTitle: v.post?.title ?? null,
+      postStatus: v.post?.status ?? null,
+      viewedAt: v.updatedAt,
+    }));
+
+    return { items: mapped, page, pageSize, total };
+  }
+
+  async clearMyViews(userId: number) {
+    await this.prisma.postView.deleteMany({ where: { userId } });
+    return { ok: true };
+  }
+
+  async getMyLikes(
+    userId: number,
+    type: 'all' | 'post' | 'comment' = 'all',
+    page = 1,
+    pageSize = 20,
+  ) {
+    if (type === 'post' || type === 'all') {
+      const [postLikes, postTotal] = await this.prisma.$transaction([
+        this.prisma.postLike.findMany({
+          where: { userId },
+          skip: type === 'post' ? (page - 1) * pageSize : 0,
+          take: type === 'post' ? pageSize : undefined,
+          orderBy: { createdAt: 'desc' },
+          include: {
+            post: {
+              select: {
+                id: true,
+                title: true,
+                content: true,
+                author: { select: { username: true, avatarUrl: true } },
+                createdAt: true,
+              },
+            },
+          },
+        }),
+        this.prisma.postLike.count({ where: { userId } }),
+      ]);
+
+      if (type === 'post') {
+        const mapped = postLikes.map((l: any) => ({
+          type: 'post',
+          id: l.post.id,
+          title: l.post.title,
+          excerpt: l.post.content?.slice(0, 100) ?? '',
+          authorNickname: l.post.author?.username,
+          authorAvatar: l.post.author?.avatarUrl ?? null,
+          likedAt: l.createdAt,
+          createdAt: l.post.createdAt,
+        }));
+        return { items: mapped, page, pageSize, total: postTotal };
+      }
+    }
+
+    if (type === 'comment' || type === 'all') {
+      const [commentLikes, commentTotal] = await this.prisma.$transaction([
+        this.prisma.commentLike.findMany({
+          where: { userId },
+          skip: type === 'comment' ? (page - 1) * pageSize : 0,
+          take: type === 'comment' ? pageSize : undefined,
+          orderBy: { createdAt: 'desc' },
+          include: {
+            comment: {
+              select: {
+                id: true,
+                content: true,
+                postId: true,
+                author: { select: { username: true, avatarUrl: true } },
+                createdAt: true,
+                post: { select: { title: true } },
+              },
+            },
+          },
+        }),
+        this.prisma.commentLike.count({ where: { userId } }),
+      ]);
+
+      if (type === 'comment') {
+        const mapped = commentLikes.map((l: any) => ({
+          type: 'comment',
+          id: l.comment.id,
+          postId: l.comment.postId,
+          postTitle: l.comment.post?.title ?? null,
+          content: l.comment.content,
+          authorNickname: l.comment.author?.username,
+          authorAvatar: l.comment.author?.avatarUrl ?? null,
+          likedAt: l.createdAt,
+          createdAt: l.comment.createdAt,
+        }));
+        return { items: mapped, page, pageSize, total: commentTotal };
+      }
+    }
+
+    // type === 'all'
+    const [postLikes, commentLikes, postTotal, commentTotal] =
+      await this.prisma.$transaction([
+        this.prisma.postLike.findMany({
+          where: { userId },
+          orderBy: { createdAt: 'desc' },
+          include: {
+            post: {
+              select: {
+                id: true,
+                title: true,
+                content: true,
+                author: { select: { username: true, avatarUrl: true } },
+                createdAt: true,
+              },
+            },
+          },
+        }),
+        this.prisma.commentLike.findMany({
+          where: { userId },
+          orderBy: { createdAt: 'desc' },
+          include: {
+            comment: {
+              select: {
+                id: true,
+                content: true,
+                postId: true,
+                author: { select: { username: true, avatarUrl: true } },
+                createdAt: true,
+                post: { select: { title: true } },
+              },
+            },
+          },
+        }),
+        this.prisma.postLike.count({ where: { userId } }),
+        this.prisma.commentLike.count({ where: { userId } }),
+      ]);
+
+    const allLikes = [
+      ...postLikes.map((l: any) => ({
+        type: 'post',
+        id: l.post.id,
+        title: l.post.title,
+        excerpt: l.post.content?.slice(0, 100) ?? '',
+        authorNickname: l.post.author?.username,
+        authorAvatar: l.post.author?.avatarUrl ?? null,
+        likedAt: l.createdAt,
+        createdAt: l.post.createdAt,
+      })),
+      ...commentLikes.map((l: any) => ({
+        type: 'comment',
+        id: l.comment.id,
+        postId: l.comment.postId,
+        postTitle: l.comment.post?.title ?? null,
+        content: l.comment.content,
+        authorNickname: l.comment.author?.username,
+        authorAvatar: l.comment.author?.avatarUrl ?? null,
+        likedAt: l.createdAt,
+        createdAt: l.comment.createdAt,
+      })),
+    ];
+
+    allLikes.sort(
+      (a, b) => new Date(b.likedAt).getTime() - new Date(a.likedAt).getTime(),
+    );
+    const paged = allLikes.slice((page - 1) * pageSize, page * pageSize);
+
+    return { items: paged, page, pageSize, total: postTotal + commentTotal };
+  }
+
+  async getMyBookmarks(userId: number, page = 1, pageSize = 20) {
+    const [items, total] = await this.prisma.$transaction([
+      this.prisma.postBookmark.findMany({
+        where: { userId },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          post: {
+            select: {
+              id: true,
+              title: true,
+              content: true,
+              author: { select: { username: true, avatarUrl: true } },
+              createdAt: true,
+              _count: { select: { likes: true, comments: true } },
+            },
+          },
+        },
+      }),
+      this.prisma.postBookmark.count({ where: { userId } }),
+    ]);
+
+    const mapped = items.map((b: any) => ({
+      postId: b.post.id,
+      title: b.post.title,
+      excerpt: b.post.content?.slice(0, 100) ?? '',
+      authorNickname: b.post.author?.username,
+      authorAvatar: b.post.author?.avatarUrl ?? null,
+      likeCount: b.post._count.likes,
+      commentCount: b.post._count.comments,
+      bookmarkedAt: b.createdAt,
+      createdAt: b.post.createdAt,
     }));
 
     return { items: mapped, page, pageSize, total };
