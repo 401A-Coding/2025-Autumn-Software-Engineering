@@ -89,7 +89,8 @@ export default function UserProfile() {
 
             {/* 用户信息卡片 */}
             <section className="paper-card card-pad">
-                <div className="row-start gap-12 align-center mb-12 flex-wrap">
+                {/* 头像+用户信息同一行 */}
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '16px', marginBottom: '16px' }}>
                     {/* 头像 */}
                     <div
                         style={{
@@ -117,40 +118,41 @@ export default function UserProfile() {
                         )}
                     </div>
 
-                    {/* 同行展示：昵称、UID（可复制）、加入时间 */}
-                    <div className="flex-1">
-                        <div className="row-start align-center gap-8 flex-wrap mb-6">
-                            <h2 className="mt-0 mb-0" style={{ lineHeight: 1 }}>{user.nickname}</h2>
-                            <div className="text-14 muted row-start gap-4 align-center">
+                    {/* 右侧信息 */}
+                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        {/* 昵称、UID、加入时间同一行 */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                            <h2 style={{ margin: 0, fontSize: '18px', fontWeight: 600 }}>{user.nickname}</h2>
+                            <div style={{ fontSize: '14px', color: '#8a7f73', display: 'flex', alignItems: 'center', gap: '6px' }}>
                                 <span>UID：{user.id}</span>
-                                <button className="btn-compact btn-ghost" onClick={() => copyUid(user.id)} style={{ padding: '2px 6px' }}>
+                                <button className="btn-compact btn-ghost" onClick={() => copyUid(user.id)} style={{ padding: '2px 6px', fontSize: '12px' }}>
                                     复制
                                 </button>
                             </div>
-                        </div>
-                        <div className="text-14 muted mb-8">
-                            📅 加入于 {new Date(user.createdAt).toLocaleDateString('zh-CN')}
+                            <div style={{ fontSize: '14px', color: '#8a7f73' }}>
+                                📅 {new Date(user.createdAt).toLocaleDateString('zh-CN')}
+                            </div>
                         </div>
                         {/* 签名/自我介绍 */}
-                        <div className="text-14" style={{ color: '#555', lineHeight: 1.5 }}>
+                        <div style={{ fontSize: '14px', color: '#555', lineHeight: '1.5' }}>
                             {user.bio && user.bio.trim().length > 0 ? user.bio : '该用户还没有填写签名...'}
                         </div>
                     </div>
                 </div>
 
                 {/* 统计信息：同一行 */}
-                <div className="row-start gap-24 pt-12 border-top">
+                <div style={{ display: 'flex', gap: '32px', paddingTop: '12px', borderTop: '1px solid #e7d8b1' }}>
                     <div>
-                        <div className="text-18 fw-600" style={{ marginBottom: '4px' }}>{user.stats?.posts ?? 0}</div>
-                        <div className="text-13 muted">帖子</div>
+                        <div style={{ fontSize: '18px', fontWeight: 600, marginBottom: '4px' }}>{user.stats?.posts ?? 0}</div>
+                        <div style={{ fontSize: '13px', color: '#8a7f73' }}>帖子</div>
                     </div>
                     <div>
-                        <div className="text-18 fw-600" style={{ marginBottom: '4px' }}>{user.stats?.comments ?? 0}</div>
-                        <div className="text-13 muted">评论</div>
+                        <div style={{ fontSize: '18px', fontWeight: 600, marginBottom: '4px' }}>{user.stats?.comments ?? 0}</div>
+                        <div style={{ fontSize: '13px', color: '#8a7f73' }}>评论</div>
                     </div>
                     <div>
-                        <div className="text-18 fw-600" style={{ marginBottom: '4px' }}>{user.stats?.likes ?? 0}</div>
-                        <div className="text-13 muted">获赞</div>
+                        <div style={{ fontSize: '18px', fontWeight: 600, marginBottom: '4px' }}>{user.stats?.likes ?? 0}</div>
+                        <div style={{ fontSize: '13px', color: '#8a7f73' }}>获赞</div>
                     </div>
                 </div>
             </section>
