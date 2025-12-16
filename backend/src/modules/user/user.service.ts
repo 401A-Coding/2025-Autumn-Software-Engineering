@@ -16,7 +16,7 @@ export class UserService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
-  ) {}
+  ) { }
 
   // 注册
   async register(dto: CreateUserDto) {
@@ -260,6 +260,7 @@ export class UserService {
             avatarUrl: true,
             role: true,
             createdAt: true,
+            bio: true,
           },
         }),
         this.prisma.post.count({
@@ -290,6 +291,7 @@ export class UserService {
     return {
       ...rest,
       nickname: username,
+      bio: (user as any).bio ?? null,
       stats: {
         posts: postCount,
         comments: commentCount,
@@ -354,12 +356,13 @@ export class UserService {
   // 基于 userId 更新当前用户信息（配合 JwtAuthGuard 使用）
   async updateMeByUserId(
     userId: number,
-    patch: { password?: string; avatarUrl?: string | null; nickname?: string },
+    patch: { password?: string; avatarUrl?: string | null; nickname?: string; bio?: string | null },
   ) {
     const data: {
       password?: string;
       avatarUrl?: string | null;
       username?: string;
+      bio?: string | null;
     } = {};
     if (
       typeof patch.nickname === 'string' &&
@@ -373,6 +376,9 @@ export class UserService {
     if (typeof patch.password === 'string' && patch.password.length > 0) {
       data.password = await bcrypt.hash(patch.password, 10);
     }
+    if (typeof patch.bio === 'string' || patch.bio === null) {
+      data.bio = patch.bio;
+    }
     try {
       const updated = await this.prisma.user.update({
         where: { id: userId },
@@ -384,6 +390,7 @@ export class UserService {
           avatarUrl: true,
           role: true,
           createdAt: true,
+          bio: true,
         },
       });
       const { username, ...rest } = updated;

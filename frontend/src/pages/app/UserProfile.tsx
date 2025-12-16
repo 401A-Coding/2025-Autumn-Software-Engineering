@@ -9,6 +9,7 @@ type UserProfile = {
     avatarUrl?: string | null
     role: string
     createdAt: string
+    bio?: string | null
     stats?: {
         posts: number
         comments: number
@@ -55,6 +56,15 @@ export default function UserProfile() {
         }
     }, [userId])
 
+    const copyUid = async (uid: number) => {
+        try {
+            await navigator.clipboard.writeText(String(uid))
+            alert('已复制UID')
+        } catch {
+            alert('复制失败')
+        }
+    }
+
     if (loading) {
         return <div className="muted text-center py-24">加载中...</div>
     }
@@ -79,7 +89,7 @@ export default function UserProfile() {
 
             {/* 用户信息卡片 */}
             <section className="paper-card card-pad">
-                <div className="row-start gap-16 align-start mb-16">
+                <div className="row-start gap-12 align-center mb-12 flex-wrap">
                     {/* 头像 */}
                     <div
                         style={{
@@ -107,29 +117,40 @@ export default function UserProfile() {
                         )}
                     </div>
 
-                    {/* 用户信息 */}
+                    {/* 同行展示：昵称、UID（可复制）、加入时间 */}
                     <div className="flex-1">
-                        <h2 className="mt-0 mb-4">{user.nickname}</h2>
-                        <div className="text-14 muted mb-2">用户ID：{user.id}</div>
-                        <div className="text-14 muted">
+                        <div className="row-start align-center gap-8 flex-wrap mb-6">
+                            <h2 className="mt-0 mb-0" style={{ lineHeight: 1 }}>{user.nickname}</h2>
+                            <div className="text-14 muted row-start gap-4 align-center">
+                                <span>UID：{user.id}</span>
+                                <button className="btn-compact btn-ghost" onClick={() => copyUid(user.id)} style={{ padding: '2px 6px' }}>
+                                    复制
+                                </button>
+                            </div>
+                        </div>
+                        <div className="text-14 muted mb-8">
                             📅 加入于 {new Date(user.createdAt).toLocaleDateString('zh-CN')}
+                        </div>
+                        {/* 签名/自我介绍 */}
+                        <div className="text-14" style={{ color: '#555', lineHeight: 1.5 }}>
+                            {user.bio && user.bio.trim().length > 0 ? user.bio : '该用户还没有填写签名...'}
                         </div>
                     </div>
                 </div>
 
-                {/* 统计信息 */}
-                <div className="row-start gap-16 pt-16 border-top">
-                    <div className="text-center">
-                        <div className="text-20 fw-600 mb-4">{user.stats?.posts ?? 0}</div>
-                        <div className="text-12 muted">帖子</div>
+                {/* 统计信息：同一行 */}
+                <div className="row-start gap-24 pt-12 border-top">
+                    <div>
+                        <div className="text-18 fw-600" style={{ marginBottom: '4px' }}>{user.stats?.posts ?? 0}</div>
+                        <div className="text-13 muted">帖子</div>
                     </div>
-                    <div className="text-center">
-                        <div className="text-20 fw-600 mb-4">{user.stats?.comments ?? 0}</div>
-                        <div className="text-12 muted">评论</div>
+                    <div>
+                        <div className="text-18 fw-600" style={{ marginBottom: '4px' }}>{user.stats?.comments ?? 0}</div>
+                        <div className="text-13 muted">评论</div>
                     </div>
-                    <div className="text-center">
-                        <div className="text-20 fw-600 mb-4">{user.stats?.likes ?? 0}</div>
-                        <div className="text-12 muted">获赞</div>
+                    <div>
+                        <div className="text-18 fw-600" style={{ marginBottom: '4px' }}>{user.stats?.likes ?? 0}</div>
+                        <div className="text-13 muted">获赞</div>
                     </div>
                 </div>
             </section>
@@ -140,11 +161,15 @@ export default function UserProfile() {
                 {user.posts && user.posts.length > 0 ? (
                     <div className="col gap-8">
                         {user.posts.map((p) => (
-                            <div key={p.id} className="paper-card pad-12">
+                            <div
+                                key={p.id}
+                                className="paper-card pad-12 cursor-pointer"
+                                onClick={() => navigate(`/app/community/${p.id}`)}
+                            >
                                 <div className="row-between align-start">
                                     <div>
-                                        <div className="fw-600 mb-4">{p.title}</div>
-                                        <div className="muted text-13 line-clamp-2 mb-6">{p.excerpt || '(无内容)'}</div>
+                                        <div className="fw-600 mb-4" style={{ textAlign: 'left' }}>{p.title}</div>
+                                        <div className="muted text-13 line-clamp-2 mb-6" style={{ textAlign: 'left' }}>{p.excerpt || '(无内容)'}</div>
                                         <div className="text-12 muted row-start gap-10">
                                             <span>{new Date(p.createdAt).toLocaleDateString()}</span>
                                             <span>👍 {p.likeCount}</span>

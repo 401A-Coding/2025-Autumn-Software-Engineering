@@ -14,6 +14,7 @@ export default function Profile() {
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
     const [newNickname, setNewNickname] = useState<string>('')
+    const [newBio, setNewBio] = useState<string>('')
     const [saving, setSaving] = useState(false)
     const [uploading, setUploading] = useState(false)
     const [showEdit, setShowEdit] = useState(false)
@@ -46,6 +47,7 @@ export default function Profile() {
                 const data = await userApi.getMe()
                 setMe(data)
                 setNewNickname(data.nickname || '')
+                setNewBio((data as any).bio || '')
             } catch (e) {
                 setError(e instanceof Error ? e.message : '加载失败')
             } finally {
@@ -63,7 +65,7 @@ export default function Profile() {
         setSaving(true)
         setError(null)
         try {
-            const updated = await userApi.updateMe({ nickname: newNickname })
+            const updated = await userApi.updateMe({ nickname: newNickname, bio: newBio || null })
             setMe(updated)
             setShowEdit(false)
         } catch (e) {
@@ -230,12 +232,21 @@ export default function Profile() {
 
                             {/* 昵称编辑 */}
                             <div className="minw-220 flex-1">
-                                <div className="row-start gap-8">
+                                <div className="row-start gap-8 mb-8">
                                     <strong>昵称：</strong>
                                     <input
                                         value={newNickname}
                                         onChange={(e) => setNewNickname(e.target.value)}
                                         placeholder="输入新昵称"
+                                    />
+                                </div>
+                                <div className="row-start gap-8">
+                                    <strong>签名：</strong>
+                                    <textarea
+                                        value={newBio}
+                                        onChange={(e) => setNewBio(e.target.value)}
+                                        placeholder="输入签名或自我介绍"
+                                        style={{ minHeight: 80, resize: 'vertical' }}
                                     />
                                 </div>
                             </div>
