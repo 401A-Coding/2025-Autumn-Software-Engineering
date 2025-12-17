@@ -101,10 +101,28 @@ export default function ResourceSelector({ value, onChange }: ResourceSelectorPr
         })
     }
 
-    const containerStyle = { backgroundColor: '#f4f6fb', borderColor: '#cdd6e5' }
-    const cardBaseStyle = { backgroundColor: '#f9fafb', borderColor: '#cbd5e1' }
-    const recordSelectedStyle = { backgroundColor: '#e2f2ff', borderColor: '#3b82f6', boxShadow: '0 0 0 2px rgba(59, 130, 246, 0.25)' }
-    const boardSelectedStyle = { backgroundColor: '#e8fff2', borderColor: '#10b981', boxShadow: '0 0 0 2px rgba(16, 185, 129, 0.25)' }
+    const containerStyle = { backgroundColor: '#eef1f7', border: '1px solid #cdd6e5' }
+    const cardBaseStyle = {
+        backgroundColor: '#f9fafb',
+        borderColor: '#cbd5e1',
+        borderWidth: 1,
+        borderStyle: 'solid',
+        boxShadow: '0 1px 2px rgba(15, 23, 42, 0.05)',
+    }
+    const recordSelectedStyle = {
+        backgroundColor: '#e2f2ff',
+        borderColor: '#3b82f6',
+        borderWidth: 2,
+        borderStyle: 'solid',
+        boxShadow: '0 0 0 2px rgba(59, 130, 246, 0.25), 0 4px 10px rgba(59, 130, 246, 0.15)',
+    }
+    const boardSelectedStyle = {
+        backgroundColor: '#e8fff2',
+        borderColor: '#10b981',
+        borderWidth: 2,
+        borderStyle: 'solid',
+        boxShadow: '0 0 0 2px rgba(16, 185, 129, 0.25), 0 4px 10px rgba(16, 185, 129, 0.15)',
+    }
 
     return (
         <div className="space-y-4">
@@ -136,14 +154,14 @@ export default function ResourceSelector({ value, onChange }: ResourceSelectorPr
                         </div>
                     ) : (
                         <div
-                            className="max-h-64 overflow-y-auto space-y-3 p-3 rounded-lg border"
+                            className="max-h-64 overflow-y-auto space-y-3 p-3 rounded-lg"
                             style={containerStyle}
                         >
                             {records.map((record) => (
                                 <div
                                     key={record.id}
                                     role="button"
-                                    className={`p-3 rounded-lg border-2 cursor-pointer transition shadow-sm ${value.shareRefId === record.id
+                                    className={`p-3 rounded-lg cursor-pointer transition ${value.shareRefId === record.id
                                         ? 'hover:shadow-md'
                                         : 'hover:border-blue-300 hover:shadow'
                                         }`}
@@ -204,14 +222,14 @@ export default function ResourceSelector({ value, onChange }: ResourceSelectorPr
                         </div>
                     ) : (
                         <div
-                            className="max-h-64 overflow-y-auto space-y-3 p-3 rounded-lg border"
+                            className="max-h-64 overflow-y-auto space-y-3 p-3 rounded-lg"
                             style={containerStyle}
                         >
                             {boards.map((board) => (
                                 <div
                                     key={board.id}
                                     role="button"
-                                    className={`p-3 rounded-lg border-2 cursor-pointer transition shadow-sm ${value.shareRefId === board.id
+                                    className={`p-3 rounded-lg cursor-pointer transition ${value.shareRefId === board.id
                                         ? 'hover:shadow-md'
                                         : 'hover:border-emerald-300 hover:shadow'
                                         }`}
