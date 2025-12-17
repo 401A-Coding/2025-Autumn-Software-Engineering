@@ -46,10 +46,26 @@ export default function ResourceSelector({ value, onChange }: ResourceSelectorPr
     async function loadBoards() {
         try {
             setLoadingBoards(true)
-            const data = await boardApi.getMine(1, 50)
-            setBoards(data.items || [])
+            // 加载我的棋盘（包括自己创建的模板）
+            const myData = await boardApi.getMine(1, 50)
+            const myBoards = (myData as any).items || myData || []
+
+            // 也尝试加载公共模板
+            try {
+                const templates = await boardApi.getTemplates()
+                const allBoards = [...myBoards, ...(Array.isArray(templates) ? templates : [])]
+                // 去重（基于ID）
+                const uniqueBoards = Array.from(
+                    new Map(allBoards.map(b => [b.id, b])).values()
+                )
+                setBoards(uniqueBoards)
+            } catch (e) {
+                // 如果获取模板失败，至少显示我的棋盘
+                setBoards(myBoards)
+            }
         } catch (err) {
             console.error('Failed to load boards:', err)
+            setBoards([])
         } finally {
             setLoadingBoards(false)
         }
@@ -111,8 +127,8 @@ export default function ResourceSelector({ value, onChange }: ResourceSelectorPr
                                 <div
                                     key={record.id}
                                     className={`p-3 rounded-lg border cursor-pointer transition ${value.shareRefId === record.id
-                                            ? 'bg-blue-100 border-blue-300'
-                                            : 'bg-white border-gray-200 hover:border-blue-200'
+                                        ? 'bg-blue-100 border-blue-300'
+                                        : 'bg-white border-gray-200 hover:border-blue-200'
                                         }`}
                                     onClick={() => handleSelectRecord(record.id)}
                                 >
@@ -146,8 +162,8 @@ export default function ResourceSelector({ value, onChange }: ResourceSelectorPr
                                 <div
                                     key={board.id}
                                     className={`p-3 rounded-lg border cursor-pointer transition ${value.shareRefId === board.id
-                                            ? 'bg-green-100 border-green-300'
-                                            : 'bg-white border-gray-200 hover:border-green-200'
+                                        ? 'bg-green-100 border-green-300'
+                                        : 'bg-white border-gray-200 hover:border-green-200'
                                         }`}
                                     onClick={() => handleSelectBoard(board.id)}
                                 >
