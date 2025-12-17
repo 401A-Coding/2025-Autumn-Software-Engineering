@@ -130,14 +130,14 @@ export default function ResourceSelector({ value, onChange }: ResourceSelectorPr
                             暂无对局记录，请先完成一场对局
                         </div>
                     ) : (
-                        <div className="max-h-64 overflow-y-auto space-y-3 p-2 bg-gray-50 rounded-lg border">
+                        <div className="max-h-64 overflow-y-auto space-y-3 p-3 bg-slate-50 rounded-lg border border-slate-200">
                             {records.map((record) => (
                                 <div
                                     key={record.id}
                                     role="button"
                                     className={`p-3 rounded-lg border cursor-pointer transition shadow-sm ${value.shareRefId === record.id
-                                        ? 'bg-blue-50 border-blue-500 ring-2 ring-blue-200 shadow-md'
-                                        : 'bg-white border-gray-200 hover:border-blue-300 hover:shadow'
+                                        ? 'bg-blue-100 border-blue-500 ring-2 ring-blue-200 shadow-md'
+                                        : 'bg-white border-slate-300 hover:border-blue-300 hover:shadow-sm'
                                         }`}
                                     onClick={() => handleSelectRecord(record.id)}
                                 >
@@ -194,14 +194,14 @@ export default function ResourceSelector({ value, onChange }: ResourceSelectorPr
                             {boardCategory === 'endgame' ? '暂无残局，请先创建或保存一个残局' : '暂无自定义棋局，请先创建一个'}
                         </div>
                     ) : (
-                        <div className="max-h-64 overflow-y-auto space-y-3 p-2 bg-gray-50 rounded-lg border">
+                        <div className="max-h-64 overflow-y-auto space-y-3 p-3 bg-slate-50 rounded-lg border border-slate-200">
                             {boards.map((board) => (
                                 <div
                                     key={board.id}
                                     role="button"
                                     className={`p-3 rounded-lg border cursor-pointer transition shadow-sm ${value.shareRefId === board.id
-                                        ? 'bg-green-50 border-green-500 ring-2 ring-green-200 shadow-md'
-                                        : 'bg-white border-gray-200 hover:border-green-300 hover:shadow'
+                                        ? 'bg-emerald-100 border-emerald-600 ring-2 ring-emerald-200 shadow-md'
+                                        : 'bg-white border-slate-300 hover:border-emerald-300 hover:shadow-sm'
                                         }`}
                                     onClick={() => handleSelectBoard(board.id)}
                                 >
