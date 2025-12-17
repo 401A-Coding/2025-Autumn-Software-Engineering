@@ -95,12 +95,12 @@ export default function RecordReplay() {
 
     // 旧的添加方法已替换为 prompt 交互，保留位置注释避免误用
 
-    // 胜负标题与颜色
+    // 胜负标题与颜色（result 是相对红方的：red=红胜，black=黑胜，draw=平）
     const result = record.result
     let titleText = '平局'
     let titleClass = 'replay-title--draw'
-    if (result === 'red') { titleText = '我方胜'; titleClass = 'replay-title--red' }
-    else if (result === 'black') { titleText = '对方胜'; titleClass = 'replay-title--black' }
+    if (result === 'red') { titleText = '先胜'; titleClass = 'replay-title--red' }
+    else if (result === 'black') { titleText = '先负'; titleClass = 'replay-title--black' }
     else if (!result || (record as any)?.result === 'unfinished') { titleText = '未结束'; titleClass = 'replay-title--ongoing' }
 
     return (

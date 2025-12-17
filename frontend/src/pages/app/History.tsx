@@ -298,26 +298,30 @@ function HistoryCard({ r, meProfile, batchMode, isBatchModeAllowed, selected, on
     const moreCount = hasTags ? Math.max(0, (r.keyTags as string[]).length - visibleTags.length) : 0
     const sourceLabel = (r.keyTags || []).includes('在线匹配') ? '在线匹配' : (r.keyTags || []).includes('好友对战') ? '好友对战' : '本地对战'
     const rounds = (r.moves || []).length
+    const resultDisplay = r.result === 'red' ? '先胜' : r.result === 'black' ? '先负' : r.result === 'draw' ? '平局' : '未结束'
+
     return (
         <div className="paper-card pad-12">
             <div className="row-between align-center">
                 <div className="muted">{sourceLabel}</div>
                 <div className="fw-600">{new Date(r.startedAt).toLocaleString()}</div>
             </div>
-            <div className="row-between align-center mt-8">
-                <div className="row-start align-center gap-8">
+            {/* 对手头像 + 居中战果 + 我的头像 */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 12 }}>
+                <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8 }}>
                     {oppProfile && (
                         <UserAvatar userId={oppProfile.id} nickname={oppProfile.nickname} avatarUrl={oppProfile.avatarUrl} size="medium" showTime={false} />
                     )}
                 </div>
-                <div className="fw-600">{r.result === 'red' ? '先胜' : r.result === 'black' ? '先负' : r.result === 'draw' ? '平局' : '未结束'}</div>
-                <div className="row-end align-center gap-8">
+                <div className="fw-600" style={{ flex: 0, textAlign: 'center', minWidth: 60 }}>{resultDisplay}</div>
+                <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8 }}>
                     {meProfile && (
                         <UserAvatar userId={meProfile.id} nickname={meProfile.nickname} avatarUrl={meProfile.avatarUrl} size="medium" showTime={false} />
                     )}
                 </div>
             </div>
-            <div className="row-between mt-6 text-14">
+            {/* 对手昵称 + 回合数 + 我的昵称 */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 6, fontSize: 14 }}>
                 <div>{oppProfile?.nickname || '对手'}</div>
                 <div className="muted">{rounds} 回合</div>
                 <div>{meProfile?.nickname || '我'}</div>
@@ -332,7 +336,7 @@ function HistoryCard({ r, meProfile, batchMode, isBatchModeAllowed, selected, on
                     )}
                 </div>
             )}
-            <div className="row-start gap-8">
+            <div className="row-start gap-8" style={{ marginTop: 12 }}>
                 {batchMode && isBatchModeAllowed && (
                     <input
                         type="checkbox"
