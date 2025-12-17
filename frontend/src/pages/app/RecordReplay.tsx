@@ -80,30 +80,31 @@ export default function RecordReplay() {
 
     return (
         <div>
-            <section className="paper-card card-pad pos-rel">
-                <div className="row-between align-center mb-8">
-                    <h2 className={`mt-0 mb-0 ${titleClass}`}>{titleText}</h2>
-                    <button
-                        className="btn-ghost"
-                        title={record.favorite ? '取消收藏' : '收藏'}
-                        onClick={async () => {
-                            try {
-                                if (record.favorite) {
-                                    await recordsApi.unfavorite(record.id)
-                                    setRecord({ ...record, favorite: false })
-                                } else {
-                                    await recordsApi.favorite(record.id)
-                                    setRecord({ ...record, favorite: true })
-                                }
-                            } catch (e) {
-                                console.error('Failed to toggle favorite:', e)
+            <div className="row-between align-center mb-12" style={{ gap: 12 }}>
+                <button className="btn-ghost" onClick={() => navigate('/app/history')}>← 返回列表</button>
+                <h2 className={`mt-0 mb-0 ${titleClass}`} style={{ margin: 0, flex: 1, textAlign: 'center' }}>{titleText}</h2>
+                <button
+                    className="btn-ghost"
+                    title={record.favorite ? '取消收藏' : '收藏'}
+                    onClick={async () => {
+                        try {
+                            if (record.favorite) {
+                                await recordsApi.unfavorite(record.id)
+                                setRecord({ ...record, favorite: false })
+                            } else {
+                                await recordsApi.favorite(record.id)
+                                setRecord({ ...record, favorite: true })
                             }
-                        }}
-                        style={{ fontSize: '28px', lineHeight: 1 }}
-                    >
-                        {record.favorite ? '❤️' : '🤍'}
-                    </button>
-                </div>
+                        } catch (e) {
+                            console.error('Failed to toggle favorite:', e)
+                        }
+                    }}
+                    style={{ fontSize: '28px', lineHeight: 1 }}
+                >
+                    {record.favorite ? '❤️' : '🤍'}
+                </button>
+            </div>
+            <section className="paper-card card-pad pos-rel">
 
                 <div className="muted text-13">
                     开始：{new Date(record.startedAt).toLocaleString()} · 结束：{record.endedAt ? new Date(record.endedAt).toLocaleString() : '—'}
@@ -234,22 +235,6 @@ export default function RecordReplay() {
 
                 {/* 评论与书签合并展示，见上方书签列表 */}
 
-                <div className="mt-24">
-                    <button className="btn-ghost" onClick={() => navigate('/app/history')}>返回列表</button>
-                    <button
-                        className="btn-ghost ml-8"
-                        onClick={async () => {
-                            if (!record) return
-                            try {
-                                await recordStore.remove(record.id)
-                                navigate('/app/history')
-                            } catch {
-                                navigate('/app/history')
-                            }
-                        }}
-                        title="删除本条记录"
-                    >删除记录</button>
-                </div>
             </section>
             {showBookmarkSheet && (
                 <div
