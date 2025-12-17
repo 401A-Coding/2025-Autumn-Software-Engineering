@@ -297,12 +297,12 @@ export class BattlesService {
     if (!this.records) return;
     const b = this.battles.get(payload.battleId);
     if (!b) return;
-    // 目前只为双方玩家各落一份记录，后续可扩展观战者等
-    // 统一存储为棋方结果：'red' | 'black' | 'draw'
-    let gameResult: 'red' | 'black' | 'draw' = 'draw';
+    // 确定胜者棋方
+    // b.players[0] 是红方，b.players[1] 是黑方
+    let winnerSide: 'red' | 'black' | null = null;
     if (b.winnerId !== null && typeof b.winnerId !== 'undefined') {
-      if (b.players[0] === b.winnerId) gameResult = 'red';
-      else if (b.players[1] === b.winnerId) gameResult = 'black';
+      if (b.players[0] === b.winnerId) winnerSide = 'red';
+      else if (b.players[1] === b.winnerId) winnerSide = 'black';
     }
 
     // 将对局内存中的 moves 映射为 Record 模块可接受的结构
@@ -317,13 +317,24 @@ export class BattlesService {
     // 对每个玩家各写一条记录
     for (const pid of b.players) {
       const opponentId = b.players.find((id) => id !== pid) ?? null;
+      const playerSide = pid === b.players[0] ? 'red' : 'black';
+      // 计算该玩家视角的游戏结果
+      let playerResult: 'red' | 'black' | 'draw' = 'draw';
+      if (winnerSide === null) {
+        playerResult = 'draw';
+      } else if (winnerSide === playerSide) {
+        playerResult = 'red'; // 该玩家赢了，记录为 'red'
+      } else {
+        playerResult = 'black'; // 该玩家输了，记录为 'black'
+      }
+
       try {
         const sourceLabel = b.source === 'match' ? '在线匹配' : '好友对战';
         await this.records.create(pid, {
           opponent: opponentId ? String(opponentId) : '对手',
           startedAt: new Date(b.createdAt).toISOString(),
           endedAt: new Date().toISOString(),
-          result: gameResult,
+          result: playerResult,
           endReason: b.finishReason ?? 'other',
           keyTags: [sourceLabel],
           moves: movesPayload,

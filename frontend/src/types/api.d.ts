@@ -158,6 +158,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/boards/endgames": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List my endgames (isEndgame=true) */
+        get: operations["boardsEndgames"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/boards/standard": {
         parameters: {
             query?: never;
@@ -1767,6 +1784,29 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ApiResponsePageBoardTemplates"];
+                };
+            };
+        };
+    };
+    boardsEndgames: {
+        parameters: {
+            query?: {
+                page?: number;
+                pageSize?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description My endgames */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponsePageBoards"];
                 };
             };
         };

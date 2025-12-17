@@ -365,3 +365,5 @@ function HistoryCard({ r, meProfile, batchMode, isBatchModeAllowed, selected, on
         </div>
     )
 }
+
+export { HistoryCard }

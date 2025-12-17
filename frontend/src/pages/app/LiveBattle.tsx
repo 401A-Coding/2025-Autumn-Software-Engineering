@@ -706,7 +706,7 @@ export default function LiveBattle() {
                                 })}
                             </div>
                             {(snapshot.status !== 'waiting' || (snapshot.players?.length ?? 0) >= 2) ? (
-                                <div className="livebattle-board-wrapper">
+                                <div className="livebattle-board-wrapper" style={{ position: 'relative' }}>
                                     <OnlineBoard
                                         moves={moves}
                                         turnIndex={snapshot.turnIndex}
@@ -718,6 +718,35 @@ export default function LiveBattle() {
                                         snapshotMoves={snapshot.moves}
                                         onAttemptMove={handleAttemptMove}
                                     />
+                                    {/* Avatars overlay inside board */}
+                                    {opponentProfile && (
+                                        <div style={{ position: 'absolute', top: 8, left: 8, zIndex: 50 }}>
+                                            <div className="paper-card" style={{ padding: 8, borderRadius: 12 }}>
+                                                <UserAvatar
+                                                    userId={opponentProfile.id}
+                                                    nickname={opponentProfile.nickname}
+                                                    avatarUrl={opponentProfile.avatarUrl}
+                                                    size="medium"
+                                                    showTime={false}
+                                                    onClick={() => setShowProfileModal({ userId: opponentProfile.id })}
+                                                />
+                                            </div>
+                                        </div>
+                                    )}
+                                    {myProfile && (
+                                        <div style={{ position: 'absolute', bottom: 8, right: 8, zIndex: 50 }}>
+                                            <div className="paper-card" style={{ padding: 8, borderRadius: 12 }}>
+                                                <UserAvatar
+                                                    userId={myProfile.id}
+                                                    nickname={myProfile.nickname}
+                                                    avatarUrl={myProfile.avatarUrl}
+                                                    size="medium"
+                                                    showTime={false}
+                                                    onClick={() => setShowProfileModal({ userId: myProfile.id })}
+                                                />
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             ) : (
                                 <div className="empty-center livebattle-board-wrapper">
@@ -746,40 +775,6 @@ export default function LiveBattle() {
                 <div className="livebattle-return-bar">
                     <button className="btn-ghost" onClick={() => navigate('/app')}>返回主页</button>
                 </div>
-            )}
-
-            {/* Avatars overlay when in room */}
-            {inRoom && (
-                <>
-                    {opponentProfile && (
-                        <div style={{ position: 'fixed', top: 16, left: 16, zIndex: 50 }}>
-                            <div className="paper-card" style={{ padding: 8, borderRadius: 12 }}>
-                                <UserAvatar
-                                    userId={opponentProfile.id}
-                                    nickname={opponentProfile.nickname}
-                                    avatarUrl={opponentProfile.avatarUrl}
-                                    size="large"
-                                    showTime={false}
-                                    onClick={() => setShowProfileModal({ userId: opponentProfile.id })}
-                                />
-                            </div>
-                        </div>
-                    )}
-                    {myProfile && (
-                        <div style={{ position: 'fixed', bottom: 16, right: 16, zIndex: 50 }}>
-                            <div className="paper-card" style={{ padding: 8, borderRadius: 12 }}>
-                                <UserAvatar
-                                    userId={myProfile.id}
-                                    nickname={myProfile.nickname}
-                                    avatarUrl={myProfile.avatarUrl}
-                                    size="large"
-                                    showTime={false}
-                                    onClick={() => setShowProfileModal({ userId: myProfile.id })}
-                                />
-                            </div>
-                        </div>
-                    )}
-                </>
             )}
 
             {/* Profile modal */}
