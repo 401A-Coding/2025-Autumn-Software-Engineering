@@ -112,6 +112,10 @@
 
 .livebattle-board-wrapper {
     margin-top: 12px;
+    width: 360px;
+    max-width: 100%;
+    margin-left: auto;
+    margin-right: auto;
 }
 
 .livebattle-offline-hint {
@@ -184,5 +188,19 @@
     to {
         opacity: 1;
         transform: translateY(0);
+    }
+}
+
+@keyframes pulse-border {
+
+    0%,
+    100% {
+        opacity: 1;
+        box-shadow: 0 0 0 0 rgba(200, 16, 46, 0.4);
+    }
+
+    50% {
+        opacity: 0.7;
+        box-shadow: 0 0 8px 2px rgba(200, 16, 46, 0.6);
     }
 }

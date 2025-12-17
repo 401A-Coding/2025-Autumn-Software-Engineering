@@ -76,7 +76,7 @@ export class BattlesService {
     @Optional() private readonly metrics?: MetricsService,
     @Optional() private readonly events?: EventEmitter2,
     @Optional() private readonly records?: RecordService,
-  ) {}
+  ) { }
 
   verifyBearer(authorization?: string) {
     if (!authorization || !authorization.toLowerCase().startsWith('bearer ')) {
@@ -297,12 +297,22 @@ export class BattlesService {
     if (!this.records) return;
     const b = this.battles.get(payload.battleId);
     if (!b) return;
-    // 目前只为双方玩家各落一份记录，后续可扩展观战者等
-    // 统一存储为棋方结果：'red' | 'black' | 'draw'
+
+    // 调试信息
+    console.log(
+      '[battle.finished] battle moves count:',
+      b.moves.length,
+      'moves:',
+      b.moves,
+    );
+
+    // 确定游戏结果（相对于红方）
+    // b.players[0] 是红方，b.players[1] 是黑方
     let gameResult: 'red' | 'black' | 'draw' = 'draw';
     if (b.winnerId !== null && typeof b.winnerId !== 'undefined') {
-      if (b.players[0] === b.winnerId) gameResult = 'red';
-      else if (b.players[1] === b.winnerId) gameResult = 'black';
+      if (b.players[0] === b.winnerId)
+        gameResult = 'red'; // 红方赢
+      else if (b.players[1] === b.winnerId) gameResult = 'black'; // 黑方赢
     }
 
     // 将对局内存中的 moves 映射为 Record 模块可接受的结构
@@ -314,17 +324,40 @@ export class BattlesService {
         side: mv.by === b.players[0] ? 'red' : 'black',
       },
     }));
-    // 对每个玩家各写一条记录
+
+    // 调试信息：输出 movesPayload
+    console.log(
+      '[battle.finished] movesPayload count:',
+      movesPayload.length,
+      'gameResult:',
+      gameResult,
+    );
+
+    // 对每个玩家各写一条记录（都用同一个 gameResult，并标记该玩家的棋方）
     for (const pid of b.players) {
       const opponentId = b.players.find((id) => id !== pid) ?? null;
+      const playerSide = pid === b.players[0] ? 'red' : 'black';
       try {
+        const sourceLabel = b.source === 'match' ? '在线匹配' : '好友对战';
+        // 在 keyTags 中标记该玩家的棋方
+        const sideLabel = playerSide === 'red' ? '我方:红' : '我方:黑';
+        console.log(
+          '[battle.finished] creating record for player',
+          pid,
+          'side:',
+          playerSide,
+          'result:',
+          gameResult,
+          'movesCount:',
+          movesPayload.length,
+        );
         await this.records.create(pid, {
           opponent: opponentId ? String(opponentId) : '对手',
           startedAt: new Date(b.createdAt).toISOString(),
           endedAt: new Date().toISOString(),
           result: gameResult,
           endReason: b.finishReason ?? 'other',
-          keyTags: [],
+          keyTags: [sourceLabel, sideLabel],
           moves: movesPayload,
           bookmarks: [],
         } as any);

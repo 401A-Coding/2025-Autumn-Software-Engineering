@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react'
 import './app-pages.css'
 import { recordStore } from '../../features/records/recordStore'
 import { useNavigate } from 'react-router-dom'
-import { recordsApi } from '../../services/api'
+import { recordsApi, userApi } from '../../services/api'
+import UserAvatar from '../../components/UserAvatar'
 
 export default function History() {
     const navigate = useNavigate()
@@ -10,6 +11,7 @@ export default function History() {
     const [showSettings, setShowSettings] = useState(false)
     const [list, setList] = useState<any[]>([])
     const [loading, setLoading] = useState(true)
+    const [meProfile, setMeProfile] = useState<{ id: number; nickname?: string; avatarUrl?: string } | null>(null)
 
     async function refresh() {
         setLoading(true)
@@ -36,6 +38,10 @@ export default function History() {
                     // 后端不可用时，使用默认值
                     setKeepLimit(30)
                 }
+                try {
+                    const me = await userApi.getMe()
+                    if (mounted) setMeProfile({ id: me.id as number, nickname: (me as any).nickname, avatarUrl: (me as any).avatarUrl })
+                } catch { }
                 await refresh()
             })()
         return () => { mounted = false }
@@ -88,13 +94,13 @@ export default function History() {
                         )}
                     </div>
                 </div>
-                <RecordsList filter="all" list={list} loading={loading} onRefresh={refresh} />
+                <RecordsList filter="all" list={list} loading={loading} onRefresh={refresh} meProfile={meProfile} />
             </section>
         </div>
     );
 }
 
-function RecordsList({ filter, list, loading, onRefresh }: { filter: 'all' | 'favorite', list: any[], loading: boolean, onRefresh: () => Promise<void> }) {
+function RecordsList({ filter, list, loading, onRefresh, meProfile }: { filter: 'all' | 'favorite', list: any[], loading: boolean, onRefresh: () => Promise<void>, meProfile: { id: number; nickname?: string; avatarUrl?: string } | null }) {
     const navigate = useNavigate()
     const [showTagModal, setShowTagModal] = useState(false)
     const [editingRecordId, setEditingRecordId] = useState<string | null>(null)
@@ -152,70 +158,19 @@ function RecordsList({ filter, list, loading, onRefresh }: { filter: 'all' | 'fa
             )}
 
             <div className="col gap-8" style={{ height: 420, overflowY: 'auto', paddingRight: 4 }}>
-                {filtered.map(r => {
-                    const hasTags = Array.isArray(r.keyTags) && r.keyTags.length > 0
-                    const visibleTags = hasTags ? (r.keyTags as string[]).slice(0, 3) : []
-                    const moreCount = hasTags ? Math.max(0, (r.keyTags as string[]).length - visibleTags.length) : 0
-                    return (
-                        <div key={r.id} className="paper-card pad-12 row-between align-center">
-                            <div>
-                                <div className="row-start wrap gap-6 align-center">
-                                    <div className="fw-600">{new Date(r.startedAt).toLocaleString()}</div>
-                                    {hasTags && visibleTags.map((t: string, idx: number) => (
-                                        <span
-                                            key={`${r.id}-tag-${idx}`}
-                                            className="text-12 fw-600"
-                                            style={{ background: '#f5f5f5', borderRadius: 999, padding: '2px 8px' }}
-                                        >{t}</span>
-                                    ))}
-                                    {hasTags && moreCount > 0 && (
-                                        <span className="text-12 muted" style={{ background: '#f5f5f5', borderRadius: 999, padding: '2px 8px' }}>+{moreCount}</span>
-                                    )}
-                                </div>
-                                <div className="muted text-12 mt-2">
-                                    对手：{r.opponent || '—'} · 结果：{r.result || '—'}
-                                </div>
-                            </div>
-                            <div className="row-start gap-8">
-                                {batchMode && isBatchModeAllowed && (
-                                    <input
-                                        type="checkbox"
-                                        aria-label="选择此记录"
-                                        checked={!!selectedIds[String(r.id)]}
-                                        onChange={() => setSelectedIds(prev => ({ ...prev, [String(r.id)]: !prev[String(r.id)] }))}
-                                    />
-                                )}
-                                <button
-                                    className="btn-ghost"
-                                    title={r.favorite ? '取消收藏' : '收藏'}
-                                    onClick={async () => {
-                                        try {
-                                            if (r.favorite) {
-                                                await recordsApi.unfavorite(Number(r.id))
-                                            } else {
-                                                await recordsApi.favorite(Number(r.id))
-                                            }
-                                            await onRefresh()
-                                        } catch (e) {
-                                            console.error('Failed to toggle favorite:', e)
-                                        }
-                                    }}
-                                >
-                                    {r.favorite ? '❤️' : '🤍'}
-                                </button>
-                                <button className="btn-ghost" onClick={() => navigate(`/app/record/${r.id}`)}>复盘</button>
-                                <button
-                                    className="btn-ghost"
-                                    onClick={() => {
-                                        setEditingRecordId(String(r.id))
-                                        setTagInput((r.keyTags || []).join('/'))
-                                        setShowTagModal(true)
-                                    }}
-                                >标签</button>
-                            </div>
-                        </div>
-                    )
-                })}
+                {filtered.map(r => (
+                    <HistoryCard
+                        key={r.id}
+                        r={r}
+                        meProfile={meProfile}
+                        batchMode={batchMode}
+                        isBatchModeAllowed={isBatchModeAllowed}
+                        selected={!!selectedIds[String(r.id)]}
+                        onToggleSelected={() => setSelectedIds(prev => ({ ...prev, [String(r.id)]: !prev[String(r.id)] }))}
+                        onRefresh={onRefresh}
+                        onEditTags={(id: string, currentTags: string[]) => { setEditingRecordId(String(id)); setTagInput((currentTags || []).join('/')); setShowTagModal(true); }}
+                    />
+                ))}
             </div>
 
             {/* 下方操作栏：仅在批量模式时显示 */}
@@ -309,3 +264,117 @@ function RecordsList({ filter, list, loading, onRefresh }: { filter: 'all' | 'fa
         </div>
     )
 }
+
+function HistoryCard({ r, meProfile, batchMode, isBatchModeAllowed, selected, onToggleSelected, onRefresh, onEditTags }: {
+    r: any,
+    meProfile: { id: number; nickname?: string; avatarUrl?: string } | null,
+    batchMode: boolean,
+    isBatchModeAllowed: boolean,
+    selected: boolean,
+    onToggleSelected: () => void,
+    onRefresh: () => Promise<void>,
+    onEditTags: (id: string, currentTags: string[]) => void,
+}) {
+    const navigate = useNavigate()
+    const [oppProfile, setOppProfile] = useState<{ id: number; nickname?: string; avatarUrl?: string } | null>(null)
+    useEffect(() => {
+        let mounted = true
+            ; (async () => {
+                const oppId = r.opponent && /^\d+$/.test(String(r.opponent)) ? Number(r.opponent) : null
+                if (oppId) {
+                    try {
+                        const info = await userApi.getById(oppId)
+                        if (mounted) setOppProfile({ id: info.id, nickname: info.nickname, avatarUrl: info.avatarUrl || undefined })
+                    } catch { }
+                } else if (meProfile && mounted) {
+                    setOppProfile({ ...meProfile })
+                }
+            })()
+        return () => { mounted = false }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [])
+    const hasTags = Array.isArray(r.keyTags) && r.keyTags.length > 0
+    const visibleTags = hasTags ? (r.keyTags as string[]).filter(t => !t.startsWith('我方:')).slice(0, 3) : []
+    const moreCount = hasTags ? Math.max(0, (r.keyTags as string[]).filter(t => !t.startsWith('我方:')).length - visibleTags.length) : 0
+    const sourceLabel = (r.keyTags || []).includes('在线匹配') ? '在线匹配' : (r.keyTags || []).includes('好友对战') ? '好友对战' : '本地对局'
+    const rounds = (r.moves || []).length
+
+    // 判断我方是红方还是黑方
+    const mySide = (r.keyTags || []).find(t => t.startsWith('我方:'))?.split(':')[1] || 'red'
+    const isRedSide = mySide === '红'
+
+    // 计算显示顺序：红方在左（先手），黑方在右（后手）
+    const leftProfile = isRedSide ? meProfile : oppProfile
+    const rightProfile = isRedSide ? oppProfile : meProfile
+
+    // 战果显示：相对于红方
+    const resultDisplay = r.result === 'red' ? '先胜' : r.result === 'black' ? '先负' : r.result === 'draw' ? '平局' : '未结束'
+
+    return (
+        <div className="paper-card pad-12">
+            <div className="row-between align-center">
+                <div className="muted">{sourceLabel}</div>
+                <div className="fw-600">{new Date(r.startedAt).toLocaleString()}</div>
+            </div>
+            {/* 红方（先手）在左，黑方（后手）在右 */}
+            <div style={{ display: 'flex', alignItems: 'center', marginTop: 12, gap: 8 }}>
+                <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8 }}>
+                    {leftProfile && (
+                        <UserAvatar userId={leftProfile.id} nickname={leftProfile.nickname} avatarUrl={leftProfile.avatarUrl} size="medium" showTime={false} />
+                    )}
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                    <div className="fw-600">{resultDisplay}</div>
+                    <div className="muted" style={{ fontSize: 12 }}>{rounds} 回合</div>
+                </div>
+                <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8 }}>
+                    {rightProfile && (
+                        <UserAvatar userId={rightProfile.id} nickname={rightProfile.nickname} avatarUrl={rightProfile.avatarUrl} size="medium" showTime={false} />
+                    )}
+                </div>
+            </div>
+            {hasTags && (
+                <div className="row-start wrap gap-6 align-center mt-8">
+                    {visibleTags.map((t: string, idx: number) => (
+                        <span key={`${r.id}-tag-${idx}`} className="text-12 fw-600" style={{ background: '#f5f5f5', borderRadius: 999, padding: '2px 8px' }}>{t}</span>
+                    ))}
+                    {moreCount > 0 && (
+                        <span className="text-12 muted" style={{ background: '#f5f5f5', borderRadius: 999, padding: '2px 8px' }}>+{moreCount}</span>
+                    )}
+                </div>
+            )}
+            <div className="row-start gap-8" style={{ marginTop: 12 }}>
+                {batchMode && isBatchModeAllowed && (
+                    <input
+                        type="checkbox"
+                        aria-label="选择此记录"
+                        checked={selected}
+                        onChange={onToggleSelected}
+                    />
+                )}
+                <button
+                    className="btn-ghost"
+                    title={r.favorite ? '取消收藏' : '收藏'}
+                    onClick={async () => {
+                        try {
+                            if (r.favorite) {
+                                await recordsApi.unfavorite(Number(r.id))
+                            } else {
+                                await recordsApi.favorite(Number(r.id))
+                            }
+                            await onRefresh()
+                        } catch (e) {
+                            console.error('Failed to toggle favorite:', e)
+                        }
+                    }}
+                >
+                    {r.favorite ? '❤️' : '🤍'}
+                </button>
+                <button className="btn-ghost" onClick={() => navigate(`/app/record/${r.id}`)}>复盘</button>
+                <button className="btn-ghost" onClick={() => onEditTags(String(r.id), r.keyTags || [])}>标签</button>
+            </div>
+        </div>
+    )
+}
+
+export { HistoryCard }
