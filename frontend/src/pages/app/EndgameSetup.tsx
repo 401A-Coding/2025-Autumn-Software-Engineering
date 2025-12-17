@@ -210,7 +210,7 @@ export default function EndgameSetup() {
                             setSaveMsg('')
                             setSaving(true)
                             try {
-                                const req: any = { name: name || '未命名残局', layout: { ...layout, turn }, preview: '', isTemplate: true }
+                                const req: any = { name: name || '未命名残局', layout: { ...layout, turn }, preview: '', isEndgame: true }
                                 await boardApi.createTemplate(req)
                                 setSaveMsg('已保存到我的残局（模板）')
                             } catch (e: any) {
@@ -245,7 +245,7 @@ export default function EndgameSetup() {
                                     name: name || '未命名残局',
                                     layout: { ...layout, turn },
                                     preview: '',
-                                    isTemplate: true,
+                                    isEndgame: true,
                                 }
                                 const res = await boardApi.createTemplate(payload)
                                 const boardId = (res as any)?.boardId ?? (res as any)?.id

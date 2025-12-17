@@ -13,8 +13,9 @@ export default function EndgameSaved() {
     useEffect(() => {
         (async () => {
             try {
-                const templates = await boardApi.getTemplates()
-                setBoards(Array.isArray(templates) ? templates : [])
+                const res = await boardApi.getMyEndgames(1, 50)
+                const items = (res as any)?.items || []
+                setBoards(Array.isArray(items) ? items : [])
             } finally {
                 setLoading(false)
             }

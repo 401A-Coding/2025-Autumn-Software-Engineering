@@ -148,7 +148,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List board templates */
+        /** List custom board templates (isTemplate=true; exclude endgames) */
         get: operations["boardsTemplates"];
         put?: never;
         post?: never;
@@ -199,7 +199,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List my boards */
+        /** List my custom boards (exclude endgames) */
         get: operations["boardsMine"];
         put?: never;
         post?: never;
@@ -874,6 +874,16 @@ export interface components {
             /** @example 中炮对屏风马 */
             name?: string;
             description?: string | null;
+            /**
+             * @description 是否为残局（用于残局模块）
+             * @example true
+             */
+            isEndgame?: boolean;
+            /**
+             * @description 是否为自定义棋局模板（非残局）
+             * @example false
+             */
+            isTemplate?: boolean;
             layout?: {
                 pieces?: {
                     /** @example car */
@@ -893,17 +903,30 @@ export interface components {
             name?: string;
             /** @example /img/t1.png */
             preview?: string;
+            /** @example true */
+            isTemplate?: boolean;
         };
         BoardCreateRequest: {
             name: string;
             description?: string | null;
             layout: Record<string, never>;
+            /** @description 展示用预览字符串，可为空字符串 */
+            preview: string;
+            /** @description 是否保存为残局，默认 false（与 isTemplate 互斥） */
+            isEndgame?: boolean;
+            /** @description 是否保存为自定义棋局模板，默认 false（与 isEndgame 互斥） */
+            isTemplate?: boolean;
             rules?: components["schemas"]["Rules"];
         };
         BoardUpdateRequest: {
             name?: string;
             description?: string | null;
             layout?: Record<string, never>;
+            preview?: string;
+            /** @description 设为 true 时自动将 isTemplate 置为 false */
+            isEndgame?: boolean;
+            /** @description 设为 true 时自动将 isEndgame 置为 false */
+            isTemplate?: boolean;
             rules?: components["schemas"]["Rules"];
         };
         ApiResponseBoardTemplates: {

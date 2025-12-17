@@ -402,7 +402,7 @@ paths:
   /api/v1/boards/templates:
     get:
       tags: [Boards]
-      summary: List board templates
+      summary: List custom board templates (isTemplate=true; exclude endgames)
       operationId: boardsTemplates
       parameters:
         - in: query
@@ -418,6 +418,28 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiResponsePageBoardTemplates"
+
+  /api/v1/boards/endgames:
+    get:
+      tags: [Boards]
+      summary: List my endgames (isEndgame=true)
+      operationId: boardsEndgames
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer, default: 1, minimum: 1 }
+        - in: query
+          name: pageSize
+          schema: { type: integer, default: 10, minimum: 1, maximum: 100 }
+      responses:
+        "200":
+          description: My endgames
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponsePageBoards"
 
   /api/v1/boards/standard:
     get:
@@ -471,7 +493,7 @@ paths:
   /api/v1/boards/mine:
     get:
       tags: [Boards]
-      summary: List my boards
+      summary: List my custom boards (exclude endgames)
       operationId: boardsMine
       security:
         - bearerAuth: []
@@ -1646,6 +1668,8 @@ components:
         id: { type: integer, example: 301 }
         name: { type: string, example: 中炮对屏风马 }
         description: { type: string, nullable: true }
+        isEndgame: { type: boolean, example: true, description: 是否为残局（用于残局模块） }
+        isTemplate: { type: boolean, example: false, description: 是否为自定义棋局模板（非残局） }
         layout:
           type: object
           properties:
@@ -1666,13 +1690,17 @@ components:
         id: { type: integer, example: 1 }
         name: { type: string, example: 中炮对屏风马 }
         preview: { type: string, example: /img/t1.png }
+        isTemplate: { type: boolean, example: true }
     BoardCreateRequest:
       type: object
-      required: [name, layout]
+      required: [name, layout, preview]
       properties:
         name: { type: string }
         description: { type: string, nullable: true }
         layout: { type: object }
+        preview: { type: string, description: 展示用预览字符串，可为空字符串 }
+        isEndgame: { type: boolean, description: 是否保存为残局，默认 false（与 isTemplate 互斥） }
+        isTemplate: { type: boolean, description: 是否保存为自定义棋局模板，默认 false（与 isEndgame 互斥） }
         rules:
           $ref: "#/components/schemas/Rules"
     BoardUpdateRequest:
@@ -1681,6 +1709,9 @@ components:
         name: { type: string }
         description: { type: string, nullable: true }
         layout: { type: object }
+        preview: { type: string }
+        isEndgame: { type: boolean, description: 设为 true 时自动将 isTemplate 置为 false }
+        isTemplate: { type: boolean, description: 设为 true 时自动将 isEndgame 置为 false }
         rules:
           $ref: "#/components/schemas/Rules"
     ApiResponseBoardTemplates:

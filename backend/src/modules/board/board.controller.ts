@@ -20,7 +20,7 @@ import { Request } from 'express';
 
 @Controller('api/v1/boards')
 export class BoardController {
-  constructor(private readonly boardService: BoardService) {}
+  constructor(private readonly boardService: BoardService) { }
 
   @Get('standard')
   getStandard() {
@@ -67,6 +67,28 @@ export class BoardController {
     const p = page ? parseInt(page, 10) : 1;
     const ps = pageSize ? parseInt(pageSize, 10) : 10;
     return this.boardService.findMinePaginated(ownerId, p, ps);
+  }
+
+  @Get('endgames')
+  @UseGuards(JwtAuthGuard)
+  async findMyEndgames(
+    @Req() req: Request & { user?: { sub: number } },
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
+  ) {
+    const ownerId = req.user!.sub;
+    const p = page ? parseInt(page, 10) : 1;
+    const ps = pageSize ? parseInt(pageSize, 10) : 10;
+    const all = await this.boardService.findMyEndgames(ownerId);
+    const total = all.length;
+    const start = (Math.max(p, 1) - 1) * Math.min(Math.max(ps, 1), 100);
+    const items = all.slice(start, start + Math.min(Math.max(ps, 1), 100));
+    return {
+      items,
+      page: Math.max(p, 1),
+      pageSize: Math.min(Math.max(ps, 1), 100),
+      total,
+    };
   }
 
   @Get(':id')
