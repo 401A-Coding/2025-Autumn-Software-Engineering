@@ -101,12 +101,14 @@ export default function ResourceSelector({ value, onChange }: ResourceSelectorPr
         })
     }
 
-    const containerStyle = { backgroundColor: '#eef1f7', border: '1px solid #cdd6e5' }
+    const radius = 12
+    const containerStyle = { backgroundColor: '#eef1f7', border: '1px solid #cdd6e5', borderRadius: radius }
     const cardBaseStyle = {
         backgroundColor: '#f9fafb',
         borderColor: '#cbd5e1',
         borderWidth: 1,
         borderStyle: 'solid',
+        borderRadius: radius,
         boxShadow: '0 1px 2px rgba(15, 23, 42, 0.05)',
     }
     const recordSelectedStyle = {
@@ -114,6 +116,7 @@ export default function ResourceSelector({ value, onChange }: ResourceSelectorPr
         borderColor: '#3b82f6',
         borderWidth: 2,
         borderStyle: 'solid',
+        borderRadius: radius,
         boxShadow: '0 0 0 2px rgba(59, 130, 246, 0.25), 0 4px 10px rgba(59, 130, 246, 0.15)',
     }
     const boardSelectedStyle = {
@@ -121,6 +124,7 @@ export default function ResourceSelector({ value, onChange }: ResourceSelectorPr
         borderColor: '#10b981',
         borderWidth: 2,
         borderStyle: 'solid',
+        borderRadius: radius,
         boxShadow: '0 0 0 2px rgba(16, 185, 129, 0.25), 0 4px 10px rgba(16, 185, 129, 0.15)',
     }
 
