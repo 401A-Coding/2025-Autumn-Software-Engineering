@@ -294,10 +294,20 @@ function HistoryCard({ r, meProfile, batchMode, isBatchModeAllowed, selected, on
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
     const hasTags = Array.isArray(r.keyTags) && r.keyTags.length > 0
-    const visibleTags = hasTags ? (r.keyTags as string[]).slice(0, 3) : []
-    const moreCount = hasTags ? Math.max(0, (r.keyTags as string[]).length - visibleTags.length) : 0
-    const sourceLabel = (r.keyTags || []).includes('在线匹配') ? '在线匹配' : (r.keyTags || []).includes('好友对战') ? '好友对战' : '本地对战'
+    const visibleTags = hasTags ? (r.keyTags as string[]).filter(t => !t.startsWith('我方:')).slice(0, 3) : []
+    const moreCount = hasTags ? Math.max(0, (r.keyTags as string[]).filter(t => !t.startsWith('我方:')).length - visibleTags.length) : 0
+    const sourceLabel = (r.keyTags || []).includes('在线匹配') ? '在线匹配' : (r.keyTags || []).includes('好友对战') ? '好友对战' : '本地对局'
     const rounds = (r.moves || []).length
+
+    // 判断我方是红方还是黑方
+    const mySide = (r.keyTags || []).find(t => t.startsWith('我方:'))?.split(':')[1] || 'red'
+    const isRedSide = mySide === '红'
+
+    // 计算显示顺序：红方在左（先手），黑方在右（后手）
+    const leftProfile = isRedSide ? meProfile : oppProfile
+    const rightProfile = isRedSide ? oppProfile : meProfile
+
+    // 战果显示：相对于红方
     const resultDisplay = r.result === 'red' ? '先胜' : r.result === 'black' ? '先负' : r.result === 'draw' ? '平局' : '未结束'
 
     return (
@@ -306,25 +316,22 @@ function HistoryCard({ r, meProfile, batchMode, isBatchModeAllowed, selected, on
                 <div className="muted">{sourceLabel}</div>
                 <div className="fw-600">{new Date(r.startedAt).toLocaleString()}</div>
             </div>
-            {/* 对手头像 + 居中战果 + 我的头像 */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 12 }}>
+            {/* 红方（先手）在左，黑方（后手）在右 */}
+            <div style={{ display: 'flex', alignItems: 'center', marginTop: 12, gap: 8 }}>
                 <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8 }}>
-                    {oppProfile && (
-                        <UserAvatar userId={oppProfile.id} nickname={oppProfile.nickname} avatarUrl={oppProfile.avatarUrl} size="medium" showTime={false} />
+                    {leftProfile && (
+                        <UserAvatar userId={leftProfile.id} nickname={leftProfile.nickname} avatarUrl={leftProfile.avatarUrl} size="medium" showTime={false} />
                     )}
                 </div>
-                <div className="fw-600" style={{ flex: 0, textAlign: 'center', minWidth: 60 }}>{resultDisplay}</div>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                    <div className="fw-600">{resultDisplay}</div>
+                    <div className="muted" style={{ fontSize: 12 }}>{rounds} 回合</div>
+                </div>
                 <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8 }}>
-                    {meProfile && (
-                        <UserAvatar userId={meProfile.id} nickname={meProfile.nickname} avatarUrl={meProfile.avatarUrl} size="medium" showTime={false} />
+                    {rightProfile && (
+                        <UserAvatar userId={rightProfile.id} nickname={rightProfile.nickname} avatarUrl={rightProfile.avatarUrl} size="medium" showTime={false} />
                     )}
                 </div>
-            </div>
-            {/* 对手昵称 + 回合数 + 我的昵称 */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 6, fontSize: 14 }}>
-                <div>{oppProfile?.nickname || '对手'}</div>
-                <div className="muted">{rounds} 回合</div>
-                <div>{meProfile?.nickname || '我'}</div>
             </div>
             {hasTags && (
                 <div className="row-start wrap gap-6 align-center mt-8">

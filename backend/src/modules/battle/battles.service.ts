@@ -333,14 +333,19 @@ export class BattlesService {
       gameResult,
     );
 
-    // 对每个玩家各写一条记录（都用同一个 gameResult）
+    // 对每个玩家各写一条记录（都用同一个 gameResult，并标记该玩家的棋方）
     for (const pid of b.players) {
       const opponentId = b.players.find((id) => id !== pid) ?? null;
+      const playerSide = pid === b.players[0] ? 'red' : 'black';
       try {
         const sourceLabel = b.source === 'match' ? '在线匹配' : '好友对战';
+        // 在 keyTags 中标记该玩家的棋方
+        const sideLabel = playerSide === 'red' ? '我方:红' : '我方:黑';
         console.log(
           '[battle.finished] creating record for player',
           pid,
+          'side:',
+          playerSide,
           'result:',
           gameResult,
           'movesCount:',
@@ -352,7 +357,7 @@ export class BattlesService {
           endedAt: new Date().toISOString(),
           result: gameResult,
           endReason: b.finishReason ?? 'other',
-          keyTags: [sourceLabel],
+          keyTags: [sourceLabel, sideLabel],
           moves: movesPayload,
           bookmarks: [],
         } as any);
