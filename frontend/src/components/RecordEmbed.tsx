@@ -153,6 +153,7 @@ export default function RecordEmbed({ recordId }: RecordEmbedProps) {
                 },
                 preview: '',
                 isTemplate: true,
+                isEndgame: true,
             })
 
             alert(`成功保存为残局模板: ${templateName}`)

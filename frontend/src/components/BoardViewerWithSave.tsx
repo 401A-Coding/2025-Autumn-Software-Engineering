@@ -45,6 +45,7 @@ export default function BoardViewerWithSave({ boardId, initialLayout, title }: B
                 },
                 preview: '',
                 isTemplate: true,
+                isEndgame: true,
             })
 
             setSaved(true)
