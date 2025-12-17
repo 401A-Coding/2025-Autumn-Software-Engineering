@@ -109,13 +109,7 @@ export default function RecordReplay() {
                     开始：{new Date(record.startedAt).toLocaleString()} · 结束：{record.endedAt ? new Date(record.endedAt).toLocaleString() : '—'}
                 </div>
 
-                {/* 未结束时提供选择操作 */}
-                {(!record.result || (record as any).result === 'unfinished') && (
-                    <div className="mt-12 row-start gap-8">
-                        <button className="btn-primary" onClick={() => {/* 回顾对局：保持当前复盘视图 */ }}>回顾对局</button>
-                        <button className="btn-ghost" onClick={() => {/* 继续对战：占位，后续实现跳转或恢复对局 */ }}>继续对战</button>
-                    </div>
-                )}
+                {/* 未结束操作区已移除（统一用“残局导出”流程） */}
 
                 <div className="mt-12">
                     <BoardViewer moves={record.moves} step={step} initialLayout={record.initialLayout as any} />

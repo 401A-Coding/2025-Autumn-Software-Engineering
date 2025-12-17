@@ -54,6 +54,7 @@ model Board {
   description String?
   layout      Json
   rules       Json
+  isEndgame   Boolean  @default(false)
   isTemplate  Boolean  @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -63,6 +64,7 @@ model Board {
 
   @@index([ownerId])
   @@index([isTemplate])
+  @@index([isEndgame])
 }
 
 // 对局记录主表

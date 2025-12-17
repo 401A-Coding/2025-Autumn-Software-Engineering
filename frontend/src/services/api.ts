@@ -79,6 +79,19 @@ export const boardApi = {
   },
 
   /**
+   * 获取我的残局列表（需登录）
+   */
+  async getMyEndgames(page = 1, pageSize = 20): Promise<
+    NonNullable<operations['boardsEndgames']['responses'][200]['content']['application/json']['data']>
+  > {
+    type EndgamesData = NonNullable<
+      operations['boardsEndgames']['responses'][200]['content']['application/json']['data']
+    >
+    const res = await apiRequest<EndgamesData>(`/api/v1/boards/endgames?page=${page}&pageSize=${pageSize}`)
+    return res.data
+  },
+
+  /**
    * 创建自定义棋盘
    */
   async create(request: BoardCreateRequest): Promise<
@@ -95,8 +108,8 @@ export const boardApi = {
   },
 
   /**
-   * 创建残局模板（与对战无关的独立保存）
-   * 自动设置 isTemplate=true 与默认 preview 字段
+   * 创建残局（与对战无关的独立保存）
+   * 自动设置 isEndgame=true、isTemplate=false 与默认 preview 字段
    */
   async createTemplate(request: BoardCreateRequest): Promise<
     NonNullable<operations['boardsCreate']['responses'][200]['content']['application/json']['data']>
@@ -107,7 +120,8 @@ export const boardApi = {
       // 由于 BoardCreateRequest 类型不含 isTemplate/preview（来自 OpenAPI 旧版），此处按后端约定附加字段
       ...(request as any),
     }
-      ; (payload as any).isTemplate = true
+      ; (payload as any).isEndgame = true
+      ; (payload as any).isTemplate = false
     if ((payload as any).preview === undefined) (payload as any).preview = ''
     const res = await apiRequest<
       NonNullable<operations['boardsCreate']['responses'][200]['content']['application/json']['data']>
