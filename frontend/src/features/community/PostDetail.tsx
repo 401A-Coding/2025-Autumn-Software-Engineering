@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams, useLocation } from 'react-router-dom'
 import '../../pages/app/app-pages.css'
-import { communityApi, userApi } from '../../services/api'
+import { communityApi, userApi, boardApi } from '../../services/api'
 import UserAvatar from '../../components/UserAvatar'
 import DropdownMenu, { type MenuAction } from '../../components/DropdownMenu'
 
 import { useRef } from 'react'
 import BoardPreview from '../../components/BoardPreview'
+import BoardViewerWithSave from '../../components/BoardViewerWithSave'
 import RecordEmbed from '../../components/RecordEmbed'
 
 type Post = {
@@ -53,6 +54,46 @@ type Reply = {
     content: string
     likeCount: number
     createdAt?: string
+}
+
+// 棋盘显示组件（支持保存为模板）
+function BoardDisplayWithSave({ boardId }: { boardId: number }) {
+    const [board, setBoard] = useState<any>(null)
+    const [loading, setLoading] = useState(true)
+    const [error, setError] = useState<string | null>(null)
+
+    useEffect(() => {
+        async function loadBoard() {
+            try {
+                setLoading(true)
+                setError(null)
+                const data = await boardApi.get(boardId)
+                setBoard(data)
+            } catch (err) {
+                console.error('Failed to load board:', err)
+                setError('加载棋局失败')
+            } finally {
+                setLoading(false)
+            }
+        }
+        loadBoard()
+    }, [boardId])
+
+    if (loading) {
+        return <div className="border rounded-lg p-4 bg-gray-50 text-sm text-gray-600">加载中...</div>
+    }
+
+    if (error || !board) {
+        return <div className="border rounded-lg p-4 bg-red-50 text-sm text-red-600">{error || '棋局不可用'}</div>
+    }
+
+    return (
+        <BoardViewerWithSave
+            boardId={boardId}
+            initialLayout={board.layout}
+            title={board.name}
+        />
+    )
 }
 
 export default function PostDetail() {
@@ -498,10 +539,7 @@ export default function PostDetail() {
                     )}
                     {post.shareType === 'board' && post.shareRefId && (
                         <div className="mb-16">
-                            <BoardPreview
-                                boardId={post.shareRefId}
-                                onClick={() => navigate(`/app/boards/${post.shareRefId}`)}
-                            />
+                            <BoardDisplayWithSave boardId={post.shareRefId} />
                         </div>
                     )}
 
