@@ -130,14 +130,14 @@ export default function ResourceSelector({ value, onChange }: ResourceSelectorPr
                             暂无对局记录，请先完成一场对局
                         </div>
                     ) : (
-                        <div className="max-h-64 overflow-y-auto space-y-3 p-3 bg-slate-50 rounded-lg border border-slate-200">
+                        <div className="max-h-64 overflow-y-auto space-y-3 p-3 bg-slate-100 rounded-lg border border-slate-300">
                             {records.map((record) => (
                                 <div
                                     key={record.id}
                                     role="button"
-                                    className={`p-3 rounded-lg border cursor-pointer transition shadow-sm ${value.shareRefId === record.id
-                                        ? 'bg-blue-100 border-blue-500 ring-2 ring-blue-200 shadow-md'
-                                        : 'bg-white border-slate-300 hover:border-blue-300 hover:shadow-sm'
+                                    className={`p-3 rounded-lg border-2 cursor-pointer transition shadow-sm ${value.shareRefId === record.id
+                                        ? 'bg-blue-50 border-blue-600 ring-2 ring-blue-300 shadow-md'
+                                        : 'bg-slate-50 border-slate-300 hover:border-blue-300 hover:shadow'
                                         }`}
                                     onClick={() => handleSelectRecord(record.id)}
                                 >
@@ -194,14 +194,14 @@ export default function ResourceSelector({ value, onChange }: ResourceSelectorPr
                             {boardCategory === 'endgame' ? '暂无残局，请先创建或保存一个残局' : '暂无自定义棋局，请先创建一个'}
                         </div>
                     ) : (
-                        <div className="max-h-64 overflow-y-auto space-y-3 p-3 bg-slate-50 rounded-lg border border-slate-200">
+                        <div className="max-h-64 overflow-y-auto space-y-3 p-3 bg-slate-100 rounded-lg border border-slate-300">
                             {boards.map((board) => (
                                 <div
                                     key={board.id}
                                     role="button"
-                                    className={`p-3 rounded-lg border cursor-pointer transition shadow-sm ${value.shareRefId === board.id
-                                        ? 'bg-emerald-100 border-emerald-600 ring-2 ring-emerald-200 shadow-md'
-                                        : 'bg-white border-slate-300 hover:border-emerald-300 hover:shadow-sm'
+                                    className={`p-3 rounded-lg border-2 cursor-pointer transition shadow-sm ${value.shareRefId === board.id
+                                        ? 'bg-emerald-50 border-emerald-600 ring-2 ring-emerald-300 shadow-md'
+                                        : 'bg-slate-50 border-slate-300 hover:border-emerald-300 hover:shadow'
                                         }`}
                                     onClick={() => handleSelectBoard(board.id)}
                                 >
