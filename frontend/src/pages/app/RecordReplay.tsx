@@ -95,6 +95,67 @@ export default function RecordReplay() {
 
     // 旧的添加方法已替换为 prompt 交互，保留位置注释避免误用
 
+    // 解析我方棋色（从 keyTags 中提取 '我方:红' 或 '我方:黑'）
+    const mySide = (record.keyTags || []).find((t: string) => t.startsWith('我方:'))?.split(':')[1] || 'red'
+    const isRedSide = mySide === '红'
+
+    // 计算显示顺序：红方在左（先手），黑方在右（后手）
+    const leftProfile = isRedSide ? myProfile : opponentProfile
+    const rightProfile = isRedSide ? opponentProfile : myProfile
+
+    const renderFramedAvatar = (
+        profile: { id: number; nickname?: string; avatarUrl?: string } | null,
+        color: string,
+    ) => {
+        if (!profile) return null
+        const size = 48
+        const initials = (profile.nickname || '?').slice(0, 2).toUpperCase()
+        return (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+                <div
+                    className="cursor-pointer"
+                    onClick={() => navigate(`/app/users/${profile.id}`)}
+                    style={{
+                        width: size,
+                        height: size,
+                        borderRadius: '50%',
+                        border: `3px solid ${color}`,
+                        overflow: 'hidden',
+                        backgroundColor: profile.avatarUrl ? 'transparent' : '#e0e0e0',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexShrink: 0,
+                    }}
+                >
+                    {profile.avatarUrl ? (
+                        <img
+                            src={profile.avatarUrl}
+                            alt={profile.nickname || '玩家头像'}
+                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        />
+                    ) : (
+                        <span style={{ fontSize: 14, fontWeight: 600, color: '#666' }}>{initials}</span>
+                    )}
+                </div>
+                <div
+                    style={{
+                        fontWeight: 600,
+                        fontSize: 14,
+                        color: '#333',
+                        textAlign: 'center',
+                        maxWidth: 120,
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                    }}
+                >
+                    {profile.nickname || '匿名用户'}
+                </div>
+            </div>
+        )
+    }
+
     // 胜负标题与颜色（result 是相对红方的：red=红胜，black=黑胜，draw=平）
     const result = record.result
     let titleText = '平局'
@@ -130,29 +191,16 @@ export default function RecordReplay() {
                 </button>
             </div>
             <section className="paper-card card-pad pos-rel">
-                {/* Avatars and result line */}
-                <div className="row-between align-center mt-4">
-                    <div className="row-start gap-8 align-center">
-                        {opponentProfile && (
-                            <UserAvatar userId={opponentProfile.id} nickname={opponentProfile.nickname} avatarUrl={opponentProfile.avatarUrl} size="medium" showTime={false} />
-                        )}
+                {/* 战果居中显示，两侧头像 */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 16, gap: 16 }}>
+                    <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-end' }}>
+                        {renderFramedAvatar(leftProfile, '#c8102e')}
                     </div>
-                    <div className="fw-600" style={{ textAlign: 'center', minWidth: 120 }}>
+                    <div className="fw-600" style={{ textAlign: 'center', fontSize: 18 }}>
                         {result === 'red' ? '先胜' : result === 'black' ? '先负' : result === 'draw' ? '平局' : '未结束'}
                     </div>
-                    <div className="row-end gap-8 align-center">
-                        {myProfile && (
-                            <UserAvatar userId={myProfile.id} nickname={myProfile.nickname} avatarUrl={myProfile.avatarUrl} size="medium" showTime={false} />
-                        )}
-                    </div>
-                </div>
-                <div className="row-between mt-4 text-14">
-                    <div className="row-start gap-8 align-center">
-                        <span>{opponentProfile?.nickname || '对手'}</span>
-                    </div>
-                    <div className="muted">{(record.moves?.length ?? 0)} 回合</div>
-                    <div className="row-end gap-8 align-center">
-                        <span>{myProfile?.nickname || '我'}</span>
+                    <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-start' }}>
+                        {renderFramedAvatar(rightProfile, '#333')}
                     </div>
                 </div>
 
@@ -162,8 +210,22 @@ export default function RecordReplay() {
 
                 {/* 未结束操作区已移除（统一用“残局导出”流程） */}
 
-                <div className="mt-12">
-                    <BoardViewer moves={record.moves} step={step} initialLayout={record.initialLayout as any} />
+                {/* 棋盘区域：上方黑方（棋盘上半），中间棋盘，下方红方（棋盘下半） */}
+                <div className="mt-12" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
+                    {/* 上方：黑方玩家（棋盘上半部分）- 黑色边框 */}
+                    <div style={{ display: 'flex', justifyContent: 'center' }}>
+                        {renderFramedAvatar(rightProfile, '#333')}
+                    </div>
+
+                    {/* 中间：棋盘 */}
+                    <div>
+                        <BoardViewer moves={record.moves} step={step} initialLayout={record.initialLayout as any} />
+                    </div>
+
+                    {/* 下方：红方玩家（棋盘下半部分）- 红色边框 */}
+                    <div style={{ display: 'flex', justifyContent: 'center' }}>
+                        {renderFramedAvatar(leftProfile, '#c8102e')}
+                    </div>
                 </div>
 
                 {/* 步数控制 */}

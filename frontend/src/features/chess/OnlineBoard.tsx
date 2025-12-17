@@ -135,25 +135,9 @@ export default function OnlineBoard({ moves, turnIndex, players, myUserId, onAtt
 
     return (
         <div>
-            <div className="board-toolbar">
-                <div className="board-toolbar__left">
-                    <div>
-                        我方：<b className={mySide === 'red' ? 'turn-red' : mySide === 'black' ? 'turn-black' : 'turn-draw'}>
-                            {mySide === 'spectator' ? '观战' : mySide === 'red' ? '红' : '黑'}
-                        </b>
-                        <span className="ml-12">
-                            当前手：<b className={turn === 'red' ? 'turn-red' : 'turn-black'}>{turn === 'red' ? '红' : '黑'}</b>
-                        </span>
-                    </div>
-                    {inCheck && !gameOver && (
-                        <div className="incheck-banner pulse">⚠️ 将军！</div>
-                    )}
-                </div>
-                <div className="board-toolbar__actions">
-                    {/* 在线对战暂不支持重新开始；悔棋按钮保留占位（禁用） */}
-                    <button className="btn-ghost" disabled>悔棋</button>
-                </div>
-            </div>
+            {inCheck && !gameOver && (
+                <div className="incheck-banner pulse" style={{ marginBottom: 8, textAlign: 'center' }}>⚠️ 将军！</div>
+            )}
 
             <div className={`board ${isFlipped ? 'board--flip' : ''}`}>
                 {Array.from({ length: 10 }).map((_, row) => (
