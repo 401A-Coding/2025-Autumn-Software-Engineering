@@ -12,9 +12,10 @@ interface BoardViewerWithSaveProps {
     boardId?: number // 如果是从Board模板展示
     initialLayout?: { pieces?: { type: string; side: Side; x: number; y: number }[] }
     title?: string
+    enableSave?: boolean // 可选隐藏保存按钮，用于列表/预览
 }
 
-export default function BoardViewerWithSave({ boardId, initialLayout, title }: BoardViewerWithSaveProps) {
+export default function BoardViewerWithSave({ boardId, initialLayout, title, enableSave = true }: BoardViewerWithSaveProps) {
     const [saving, setSaving] = useState(false)
     const [saved, setSaved] = useState(false)
 
@@ -69,19 +70,22 @@ export default function BoardViewerWithSave({ boardId, initialLayout, title }: B
 
             <BoardViewer moves={[]} step={0} initialLayout={initialLayout} />
 
-            <div className="row-start gap-8 mt-8">
-                <button
-                    onClick={handleSaveAsTemplate}
-                    disabled={saving || saved || !initialLayout?.pieces}
-                    className={`btn-ghost ${saved ? 'opacity-50' : ''}`}
-                    title="保存此棋盘为您的残局模板"
-                >
-                    {saved ? '✓ 已保存' : saving ? '保存中...' : '💾 保存为模板'}
-                </button>
-                {saved && (
-                    <span className="text-13 muted">已保存到您的模板库</span>
-                )}
-            </div>
+            {enableSave && (
+                <div className="row-start gap-8 mt-8">
+                    <button
+                        type="button"
+                        onClick={handleSaveAsTemplate}
+                        disabled={saving || saved || !initialLayout?.pieces}
+                        className={`btn-ghost ${saved ? 'opacity-50' : ''}`}
+                        title="保存此棋盘为您的残局模板"
+                    >
+                        {saved ? '✓ 已保存' : saving ? '保存中...' : '💾 保存为模板'}
+                    </button>
+                    {saved && (
+                        <span className="text-13 muted">已保存到您的模板库</span>
+                    )}
+                </div>
+            )}
         </div>
     )
 }

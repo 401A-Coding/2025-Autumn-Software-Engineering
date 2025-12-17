@@ -4,7 +4,7 @@ import '../../pages/app/app-pages.css'
 import { communityApi } from '../../services/api'
 import TagInput from '../../components/TagInput'
 import ResourceSelector from '../../components/ResourceSelector'
-import BoardPreview from '../../components/BoardPreview'
+import BoardEmbed from '../../components/BoardEmbed'
 import RecordEmbed from '../../components/RecordEmbed'
 
 export default function CreatePost() {
@@ -161,14 +161,15 @@ export default function CreatePost() {
                     {/* 引用预览 */}
                     {resource.shareType === 'RECORD' && resource.shareRefId && (
                         <div className="edit-area mb-16">
-                            <RecordEmbed recordId={resource.shareRefId} />
+                            <RecordEmbed recordId={resource.shareRefId} enableSave={false} />
                         </div>
                     )}
                     {resource.shareType === 'BOARD' && resource.shareRefId && (
                         <div className="edit-area mb-16">
-                            <BoardPreview
+                            <BoardEmbed
                                 boardId={resource.shareRefId}
-                                onClick={() => navigate(`/app/boards/${resource.shareRefId}`)}
+                                enableSave={false}
+                                titleOverride="帖子引用的残局"
                             />
                         </div>
                     )}
