@@ -5,7 +5,10 @@ import { useEffect, useMemo, useState, useCallback } from 'react'
 import BoardViewer from '../features/chess/BoardViewer'
 import { recordStore } from '../features/records/recordStore'
 import { boardApi } from '../services/api'
+import { createInitialBoard } from '../features/chess/types'
+import { movePiece } from '../features/chess/rules'
 import type { ChessRecord } from '../features/records/types'
+import type { Side } from '../features/chess/types'
 
 interface RecordEmbedProps {
     recordId: number
@@ -92,10 +95,51 @@ export default function RecordEmbed({ recordId }: RecordEmbedProps) {
                 return
             }
 
-            // 获取当前盘面（通过应用moves）
-            const currentLayout = record.initialLayout || { pieces: [] }
-            // 注意：这里简化处理，实际需要计算当前盘面
-            // 完整实现应该在这里调用chess引擎来计算当前盘面状态
+            // 计算当前步数的实际盘面
+            const board = (() => {
+                // 构建初始棋盘
+                if (record.initialLayout && Array.isArray(record.initialLayout.pieces)) {
+                    const base = Array.from({ length: 10 }, () => Array.from({ length: 9 }, () => null as any))
+                    let id = 0
+                    for (const p of record.initialLayout.pieces) {
+                        const x = Math.max(0, Math.min(8, p.x))
+                        const y = Math.max(0, Math.min(9, p.y))
+                        base[y][x] = { id: `init-${id++}`, type: p.type, side: p.side }
+                    }
+                    return base
+                }
+                return createInitialBoard()
+            })()
+
+            // 应用所有走子步骤到当前步数
+            for (let i = 0; i < Math.min(step, record.moves.length); i++) {
+                const m = record.moves[i]
+                const newBoard = movePiece(board, m.from, m.to)
+                // 更新棋盘状态
+                for (let y = 0; y < 10; y++) {
+                    for (let x = 0; x < 9; x++) {
+                        board[y][x] = newBoard[y][x]
+                    }
+                }
+            }
+
+            // 将棋盘转换为 layout 格式
+            const pieces: { type: string; side: Side; x: number; y: number }[] = []
+            for (let y = 0; y < 10; y++) {
+                for (let x = 0; x < 9; x++) {
+                    const piece = board[y][x]
+                    if (piece) {
+                        pieces.push({
+                            type: piece.type,
+                            side: piece.side,
+                            x,
+                            y,
+                        })
+                    }
+                }
+            }
+
+            const currentLayout = { pieces }
 
             await boardApi.create({
                 name: templateName,
