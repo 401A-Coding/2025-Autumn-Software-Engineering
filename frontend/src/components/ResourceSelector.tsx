@@ -101,6 +101,11 @@ export default function ResourceSelector({ value, onChange }: ResourceSelectorPr
         })
     }
 
+    const containerStyle = { backgroundColor: '#f4f6fb', borderColor: '#cdd6e5' }
+    const cardBaseStyle = { backgroundColor: '#f9fafb', borderColor: '#cbd5e1' }
+    const recordSelectedStyle = { backgroundColor: '#e2f2ff', borderColor: '#3b82f6', boxShadow: '0 0 0 2px rgba(59, 130, 246, 0.25)' }
+    const boardSelectedStyle = { backgroundColor: '#e8fff2', borderColor: '#10b981', boxShadow: '0 0 0 2px rgba(16, 185, 129, 0.25)' }
+
     return (
         <div className="space-y-4">
             <div>
@@ -130,15 +135,19 @@ export default function ResourceSelector({ value, onChange }: ResourceSelectorPr
                             暂无对局记录，请先完成一场对局
                         </div>
                     ) : (
-                        <div className="max-h-64 overflow-y-auto space-y-3 p-3 bg-slate-100 rounded-lg border border-slate-300">
+                        <div
+                            className="max-h-64 overflow-y-auto space-y-3 p-3 rounded-lg border"
+                            style={containerStyle}
+                        >
                             {records.map((record) => (
                                 <div
                                     key={record.id}
                                     role="button"
                                     className={`p-3 rounded-lg border-2 cursor-pointer transition shadow-sm ${value.shareRefId === record.id
-                                        ? 'bg-blue-50 border-blue-600 ring-2 ring-blue-300 shadow-md'
-                                        : 'bg-slate-50 border-slate-300 hover:border-blue-300 hover:shadow'
+                                        ? 'hover:shadow-md'
+                                        : 'hover:border-blue-300 hover:shadow'
                                         }`}
+                                    style={value.shareRefId === record.id ? recordSelectedStyle : cardBaseStyle}
                                     onClick={() => handleSelectRecord(record.id)}
                                 >
                                     <div className="font-medium text-gray-900">
@@ -194,15 +203,19 @@ export default function ResourceSelector({ value, onChange }: ResourceSelectorPr
                             {boardCategory === 'endgame' ? '暂无残局，请先创建或保存一个残局' : '暂无自定义棋局，请先创建一个'}
                         </div>
                     ) : (
-                        <div className="max-h-64 overflow-y-auto space-y-3 p-3 bg-slate-100 rounded-lg border border-slate-300">
+                        <div
+                            className="max-h-64 overflow-y-auto space-y-3 p-3 rounded-lg border"
+                            style={containerStyle}
+                        >
                             {boards.map((board) => (
                                 <div
                                     key={board.id}
                                     role="button"
                                     className={`p-3 rounded-lg border-2 cursor-pointer transition shadow-sm ${value.shareRefId === board.id
-                                        ? 'bg-emerald-50 border-emerald-600 ring-2 ring-emerald-300 shadow-md'
-                                        : 'bg-slate-50 border-slate-300 hover:border-emerald-300 hover:shadow'
+                                        ? 'hover:shadow-md'
+                                        : 'hover:border-emerald-300 hover:shadow'
                                         }`}
+                                    style={value.shareRefId === board.id ? boardSelectedStyle : cardBaseStyle}
                                     onClick={() => handleSelectBoard(board.id)}
                                 >
                                     <div className="font-medium text-gray-900 row-start gap-6">
