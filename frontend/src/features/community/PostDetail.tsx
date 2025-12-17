@@ -1038,8 +1038,10 @@ export default function PostDetail() {
                                 fontWeight: bookmarked ? '600' : '400',
                             }}
                         >
-                            {bookmarked ? '🔖' : '☆'}
-                            <span style={{ fontSize: '12px', marginLeft: '2px' }}>{post.bookmarkCount ?? 0}</span>
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
+                                <span>{bookmarked ? '🔖' : '☆'}</span>
+                                <span style={{ fontSize: '12px' }}>{post.bookmarkCount ?? 0}</span>
+                            </div>
                         </button>
                     </div>
                 ) : (
