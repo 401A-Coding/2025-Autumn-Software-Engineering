@@ -310,7 +310,7 @@ function HistoryCard({ r, meProfile, batchMode, isBatchModeAllowed, selected, on
                         <UserAvatar userId={oppProfile.id} nickname={oppProfile.nickname} avatarUrl={oppProfile.avatarUrl} size="medium" showTime={false} />
                     )}
                 </div>
-                <div className="fw-600">{r.result === 'red' || r.result === 'black' ? '先胜' : r.result === 'draw' ? '平局' : '未结束'}</div>
+                <div className="fw-600">{r.result === 'red' ? '先胜' : r.result === 'black' ? '先负' : r.result === 'draw' ? '平局' : '未结束'}</div>
                 <div className="row-end align-center gap-8">
                     {meProfile && (
                         <UserAvatar userId={meProfile.id} nickname={meProfile.nickname} avatarUrl={meProfile.avatarUrl} size="medium" showTime={false} />

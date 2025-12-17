@@ -297,6 +297,10 @@ export class BattlesService {
     if (!this.records) return;
     const b = this.battles.get(payload.battleId);
     if (!b) return;
+
+    // 调试信息
+    console.log('[battle.finished] battle moves count:', b.moves.length, 'moves:', b.moves);
+
     // 确定胜者棋方
     // b.players[0] 是红方，b.players[1] 是黑方
     let winnerSide: 'red' | 'black' | null = null;
@@ -314,6 +318,10 @@ export class BattlesService {
         side: mv.by === b.players[0] ? 'red' : 'black',
       },
     }));
+
+    // 调试信息：输出 movesPayload
+    console.log('[battle.finished] movesPayload count:', movesPayload.length, 'payload:', movesPayload);
+
     // 对每个玩家各写一条记录
     for (const pid of b.players) {
       const opponentId = b.players.find((id) => id !== pid) ?? null;
@@ -330,6 +338,7 @@ export class BattlesService {
 
       try {
         const sourceLabel = b.source === 'match' ? '在线匹配' : '好友对战';
+        console.log('[battle.finished] creating record for player', pid, 'result:', playerResult, 'movesCount:', movesPayload.length);
         await this.records.create(pid, {
           opponent: opponentId ? String(opponentId) : '对手',
           startedAt: new Date(b.createdAt).toISOString(),

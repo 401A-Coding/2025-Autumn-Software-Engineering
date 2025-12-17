@@ -99,8 +99,8 @@ export default function RecordReplay() {
     const result = record.result
     let titleText = '平局'
     let titleClass = 'replay-title--draw'
-    if (result === 'red') { titleText = '红方胜'; titleClass = 'replay-title--red' }
-    else if (result === 'black') { titleText = '黑方胜'; titleClass = 'replay-title--black' }
+    if (result === 'red') { titleText = '我方胜'; titleClass = 'replay-title--red' }
+    else if (result === 'black') { titleText = '对方胜'; titleClass = 'replay-title--black' }
     else if (!result || (record as any)?.result === 'unfinished') { titleText = '未结束'; titleClass = 'replay-title--ongoing' }
 
     return (
@@ -138,7 +138,7 @@ export default function RecordReplay() {
                         )}
                     </div>
                     <div className="fw-600" style={{ textAlign: 'center', minWidth: 120 }}>
-                        {result === 'red' || result === 'black' ? '先胜' : result === 'draw' ? '平局' : '未结束'}
+                        {result === 'red' ? '先胜' : result === 'black' ? '先负' : result === 'draw' ? '平局' : '未结束'}
                     </div>
                     <div className="row-end gap-8 align-center">
                         {myProfile && (
