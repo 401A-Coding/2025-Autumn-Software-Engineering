@@ -210,12 +210,63 @@ export default function EndgameSetup() {
                             setSaveMsg('')
                             setSaving(true)
                             try {
-                                const req: any = { name: name || '未命名残局', layout: { ...layout, turn }, preview: '', isTemplate: true }
+                                // 兼容后端验证：
+                                // 1) layout 仅允许 { pieces }，不包含 turn（turn 由对局/记录使用）
+                                // 2) 规范化棋子类型到后端允许集合
+                                const normType = (t: string): PieceType => {
+                                    const s = String(t || '').toLowerCase().trim()
+                                    // 支持中英别名、拼音、FEN 单字母等
+                                    const m: Record<string, PieceType> = {
+                                        // 将/帅
+                                        general: 'general', king: 'general', 'k': 'general', 'jiang': 'general', 'shuai': 'general', '将': 'general', '帥': 'general', '帅': 'general', '將': 'general',
+                                        // 士/仕
+                                        advisor: 'advisor', guard: 'advisor', 'a': 'advisor', 'shi': 'advisor', '士': 'advisor', '仕': 'advisor',
+                                        // 象/相
+                                        elephant: 'elephant', bishop: 'elephant', 'e': 'elephant', 'xiang': 'elephant', '象': 'elephant', '相': 'elephant',
+                                        // 马
+                                        horse: 'horse', knight: 'horse', 'n': 'horse', 'ma': 'horse', '马': 'horse', '馬': 'horse',
+                                        // 车
+                                        rook: 'rook', chariot: 'rook', car: 'rook', 'r': 'rook', 'ju': 'rook', '车': 'rook', '車': 'rook', '俥': 'rook',
+                                        // 炮
+                                        cannon: 'cannon', 'c': 'cannon', 'pao': 'cannon', '炮': 'cannon', '砲': 'cannon',
+                                        // 兵/卒
+                                        soldier: 'soldier', pawn: 'soldier', 'p': 'soldier', 'bing': 'soldier', 'zu': 'soldier', '兵': 'soldier', '卒': 'soldier',
+                                    }
+                                    const mapped = (m[s] ?? 'soldier') as PieceType
+                                    // 二次收敛到后端允许的最终集合
+                                    const allowed: PieceType[] = ['general', 'advisor', 'elephant', 'horse', 'rook', 'cannon', 'soldier']
+                                    // 后端也接受 'chariot'，这里与 'rook' 归一到 'rook'
+                                    return allowed.includes(mapped) ? mapped : 'soldier'
+                                }
+                                const sanitizedPieces = pieces.map(p => ({ ...p, type: normType((p as any).type) }))
+                                // 调试：输出一次类型分布，便于定位线上数据来源问题
+                                try {
+                                    const typeStat = sanitizedPieces.reduce<Record<string, number>>((acc, it) => {
+                                        acc[it.type] = (acc[it.type] || 0) + 1; return acc
+                                    }, {})
+                                    console.log('[EndgameSetup] Saving template. Type stat =', typeStat)
+                                } catch { }
+                                const req: any = {
+                                    name: name || '未命名残局',
+                                    layout: { pieces: sanitizedPieces },
+                                    preview: '',
+                                    isTemplate: true,
+                                }
                                 await boardApi.createTemplate(req)
                                 setSaveMsg('已保存到我的残局（模板）')
                             } catch (e: any) {
                                 console.error('保存残局模板失败: ', e)
-                                const msg = e?.message || '保存失败（需登录后端才能保存）。'
+                                let msg = e?.message || '保存失败（需登录后端才能保存）。'
+                                // 尝试从错误消息中提取后端 details
+                                try {
+                                    const match = String(e?.message || '').match(/\{\"code\":.*\}\}?$/)
+                                    if (match) {
+                                        const body = JSON.parse(match[0])
+                                        if (body?.data?.details && Array.isArray(body.data.details)) {
+                                            msg = `保存失败：${body.data.details.join(', ')}`
+                                        }
+                                    }
+                                } catch { }
                                 setSaveMsg(msg)
                             } finally {
                                 setSaving(false)
