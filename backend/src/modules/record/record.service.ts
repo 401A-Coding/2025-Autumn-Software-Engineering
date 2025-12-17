@@ -29,7 +29,7 @@ type CreateBookmarkInput = {
 
 @Injectable()
 export class RecordService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   async create(userId: number, dto: CreateRecordDto) {
     // 基础校验（放宽 result / endReason；moves 可为空）
@@ -59,30 +59,30 @@ export class RecordService {
       moves:
         Array.isArray(movesInput) && movesInput.length > 0
           ? {
-              create: movesInput.map((m: any) => ({
-                moveIndex: m.moveIndex,
-                fromX: m.from?.x ?? m.fromX ?? 0,
-                fromY: m.from?.y ?? m.fromY ?? 0,
-                toX: m.to?.x ?? m.toX ?? 0,
-                toY: m.to?.y ?? m.toY ?? 0,
-                pieceType: m.piece?.type ?? m.pieceType ?? 'unknown',
-                pieceSide: m.piece?.side ?? m.pieceSide ?? 'red',
-                capturedType: m.capturedType ?? null,
-                capturedSide: m.capturedSide ?? null,
-                timeSpentMs: m.timeSpentMs ?? 0,
-                san: m.san ?? null,
-              })),
-            }
+            create: movesInput.map((m: any) => ({
+              moveIndex: m.moveIndex,
+              fromX: m.from?.x ?? m.fromX ?? 0,
+              fromY: m.from?.y ?? m.fromY ?? 0,
+              toX: m.to?.x ?? m.toX ?? 0,
+              toY: m.to?.y ?? m.toY ?? 0,
+              pieceType: m.piece?.type ?? m.pieceType ?? 'unknown',
+              pieceSide: m.piece?.side ?? m.pieceSide ?? 'red',
+              capturedType: m.capturedType ?? null,
+              capturedSide: m.capturedSide ?? null,
+              timeSpentMs: m.timeSpentMs ?? 0,
+              san: m.san ?? null,
+            })),
+          }
           : undefined,
       bookmarks:
         Array.isArray(bookmarksInput) && bookmarksInput.length > 0
           ? {
-              create: bookmarksInput.map((b: any) => ({
-                step: b.step,
-                label: b.label ?? 'bookmark',
-                note: b.note ?? '',
-              })),
-            }
+            create: bookmarksInput.map((b: any) => ({
+              step: b.step,
+              label: b.label ?? 'bookmark',
+              note: b.note ?? '',
+            })),
+          }
           : undefined,
     } as any;
 
@@ -164,6 +164,7 @@ export class RecordService {
         take,
         include: {
           owner: { select: { id: true, username: true, avatarUrl: true } },
+          moves: true,
           favorites: true,
           shares: true,
         },
