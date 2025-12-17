@@ -37,7 +37,13 @@ export default function BoardViewerWithSave({ boardId, initialLayout, title }: B
                 name: newBoardName,
                 description: `从社区帖子保存: ${title || '残局'}`,
                 layout: initialLayout,
-                rules: {}, // 使用默认规则
+                rules: {
+                    layoutSource: 'empty',
+                    coordinateSystem: 'relativeToSide',
+                    mode: 'analysis',
+                    pieceRules: {},
+                },
+                preview: '',
                 isTemplate: true,
             })
 
@@ -66,7 +72,7 @@ export default function BoardViewerWithSave({ boardId, initialLayout, title }: B
                 <button
                     onClick={handleSaveAsTemplate}
                     disabled={saving || saved || !initialLayout?.pieces}
-                    className={`btn-primary text-13 ${saved ? 'opacity-50' : ''}`}
+                    className={`btn-ghost ${saved ? 'opacity-50' : ''}`}
                     title="保存此棋盘为您的残局模板"
                 >
                     {saved ? '✓ 已保存' : saving ? '保存中...' : '💾 保存为模板'}

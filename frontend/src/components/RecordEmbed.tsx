@@ -101,7 +101,13 @@ export default function RecordEmbed({ recordId }: RecordEmbedProps) {
                 name: templateName,
                 description: `从对局记录保存: ${record.opponent || '对局'} 第${step}步`,
                 layout: currentLayout,
-                rules: {},
+                rules: {
+                    layoutSource: 'empty',
+                    coordinateSystem: 'relativeToSide',
+                    mode: 'analysis',
+                    pieceRules: {},
+                },
+                preview: '',
                 isTemplate: true,
             })
 
@@ -161,7 +167,7 @@ export default function RecordEmbed({ recordId }: RecordEmbedProps) {
                     终局
                 </button>
                 <button
-                    className="btn-primary text-13"
+                    className="btn-ghost"
                     onClick={handleSaveAsEndgame}
                     disabled={saving || !record}
                     title="保存当前步数的盘面为残局模板"
