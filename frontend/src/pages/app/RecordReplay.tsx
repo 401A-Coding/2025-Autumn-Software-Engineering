@@ -4,7 +4,8 @@ import { createInitialBoard } from '../../features/chess/types'
 import { movePiece } from '../../features/chess/rules'
 import BoardViewer from '../../features/chess/BoardViewer'
 import { recordStore } from '../../features/records/recordStore'
-import { recordsApi } from '../../services/api'
+import { recordsApi, userApi } from '../../services/api'
+import UserAvatar from '../../components/UserAvatar'
 import type { ChessRecord, Bookmark } from '../../features/records/types'
 // 书签即评论，统一用 bookmarks 展示
 import './app-pages.css'
@@ -23,6 +24,9 @@ export default function RecordReplay() {
     const [bmLabel, setBmLabel] = useState('')
     // 速度设置弹窗
     const [showSpeedSheet, setShowSpeedSheet] = useState(false)
+    // Profiles for header
+    const [myProfile, setMyProfile] = useState<{ id: number; nickname?: string; avatarUrl?: string } | null>(null)
+    const [opponentProfile, setOpponentProfile] = useState<{ id: number; nickname?: string; avatarUrl?: string } | null>(null)
 
     // 计算总步数（在 hooks 之前，避免条件 hooks）
     const total = record?.moves.length ?? 0
@@ -39,6 +43,27 @@ export default function RecordReplay() {
                 }
             })()
     }, [id])
+
+    useEffect(() => {
+        // Load profiles once record is ready
+        (async () => {
+            try {
+                const me = await userApi.getMe()
+                setMyProfile({ id: me.id as number, nickname: (me as any).nickname, avatarUrl: (me as any).avatarUrl })
+            } catch { }
+            try {
+                const oppId = record && record.opponent && /^\d+$/.test(String(record.opponent)) ? Number(record.opponent) : null
+                if (oppId) {
+                    const info = await userApi.getById(oppId)
+                    setOpponentProfile({ id: info.id, nickname: info.nickname, avatarUrl: info.avatarUrl || undefined })
+                } else if (myProfile) {
+                    // local self vs self
+                    setOpponentProfile({ ...myProfile })
+                }
+            } catch { }
+        })()
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [record])
 
     function jumpToBookmarkStep(bm: Bookmark) {
         setStep(Math.max(0, Math.min(bm.step, total)))
@@ -105,6 +130,31 @@ export default function RecordReplay() {
                 </button>
             </div>
             <section className="paper-card card-pad pos-rel">
+                {/* Avatars and result line */}
+                <div className="row-between align-center mt-4">
+                    <div className="row-start gap-8 align-center">
+                        {opponentProfile && (
+                            <UserAvatar userId={opponentProfile.id} nickname={opponentProfile.nickname} avatarUrl={opponentProfile.avatarUrl} size="medium" showTime={false} />
+                        )}
+                    </div>
+                    <div className="fw-600" style={{ textAlign: 'center', minWidth: 120 }}>
+                        {result === 'red' || result === 'black' ? '先胜' : result === 'draw' ? '平局' : '未结束'}
+                    </div>
+                    <div className="row-end gap-8 align-center">
+                        {myProfile && (
+                            <UserAvatar userId={myProfile.id} nickname={myProfile.nickname} avatarUrl={myProfile.avatarUrl} size="medium" showTime={false} />
+                        )}
+                    </div>
+                </div>
+                <div className="row-between mt-4 text-14">
+                    <div className="row-start gap-8 align-center">
+                        <span>{opponentProfile?.nickname || '对手'}</span>
+                    </div>
+                    <div className="muted">{(record.moves?.length ?? 0)} 回合</div>
+                    <div className="row-end gap-8 align-center">
+                        <span>{myProfile?.nickname || '我'}</span>
+                    </div>
+                </div>
 
                 <div className="muted text-13">
                     开始：{new Date(record.startedAt).toLocaleString()} · 结束：{record.endedAt ? new Date(record.endedAt).toLocaleString() : '—'}

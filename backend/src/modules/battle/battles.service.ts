@@ -76,7 +76,7 @@ export class BattlesService {
     @Optional() private readonly metrics?: MetricsService,
     @Optional() private readonly events?: EventEmitter2,
     @Optional() private readonly records?: RecordService,
-  ) {}
+  ) { }
 
   verifyBearer(authorization?: string) {
     if (!authorization || !authorization.toLowerCase().startsWith('bearer ')) {
@@ -318,13 +318,14 @@ export class BattlesService {
     for (const pid of b.players) {
       const opponentId = b.players.find((id) => id !== pid) ?? null;
       try {
+        const sourceLabel = b.source === 'match' ? '在线匹配' : '好友对战';
         await this.records.create(pid, {
           opponent: opponentId ? String(opponentId) : '对手',
           startedAt: new Date(b.createdAt).toISOString(),
           endedAt: new Date().toISOString(),
           result: gameResult,
           endReason: b.finishReason ?? 'other',
-          keyTags: [],
+          keyTags: [sourceLabel],
           moves: movesPayload,
           bookmarks: [],
         } as any);

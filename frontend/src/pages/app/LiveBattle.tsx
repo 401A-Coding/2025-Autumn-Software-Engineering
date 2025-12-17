@@ -4,6 +4,7 @@ import { connectBattle } from '../../services/battlesSocket';
 import type { BattleMove, BattleSnapshot } from '../../services/battlesSocket';
 import { battleApi, userApi } from '../../services/api';
 import OnlineBoard from '../../features/chess/OnlineBoard';
+import UserAvatar from '../../components/UserAvatar';
 import './LiveBattle.css';
 
 export default function LiveBattle() {
@@ -33,6 +34,10 @@ export default function LiveBattle() {
     const createLockRef = useRef(false);
     const matchLockRef = useRef(false);
     const autoActionRef = useRef(false);
+    // Profiles for overlay and modal
+    const [myProfile, setMyProfile] = useState<{ id: number; nickname?: string; avatarUrl?: string } | null>(null);
+    const [opponentProfile, setOpponentProfile] = useState<{ id: number; nickname?: string; avatarUrl?: string } | null>(null);
+    const [showProfileModal, setShowProfileModal] = useState<{ userId: number } | null>(null);
 
     const conn = useMemo(() => {
         const c = connectBattle();
@@ -52,6 +57,18 @@ export default function LiveBattle() {
             console.log('[WS] snapshot', s, 'myUserId=', myUserId);
             latestSnapshotRef.current = s;
             setSnapshot(s);
+            // derive opponent profile when possible
+            if (myUserId && Array.isArray(s.players)) {
+                const oppId = s.players.find((uid) => uid !== myUserId);
+                if (typeof oppId === 'number') {
+                    (async () => {
+                        try {
+                            const info = await userApi.getById(oppId);
+                            setOpponentProfile({ id: info.id, nickname: info.nickname, avatarUrl: info.avatarUrl || undefined });
+                        } catch { }
+                    })();
+                }
+            }
 
             // 若对局结束，给出一次性的结束提示（尽量使用 myUserId 判别阵营；缺失时也给基础提示）
             if (s.status === 'finished') {
@@ -256,6 +273,7 @@ export default function LiveBattle() {
                 const me = await userApi.getMe();
                 console.log('[ME] got user', me);
                 setMyUserId(me.id as number);
+                setMyProfile({ id: me.id as number, nickname: (me as any).nickname, avatarUrl: (me as any).avatarUrl });
             } catch (e) {
                 console.error('[ME] getMe failed', e);
                 setMyUserId(null);
@@ -530,7 +548,7 @@ export default function LiveBattle() {
     }, [inRoom, snapshot]);
 
     return (
-        <div className="card-pad">
+        <div className="card-pad pos-rel">
             <h2>在线对战</h2>
             {endMessage && (
                 <div
@@ -727,6 +745,71 @@ export default function LiveBattle() {
             {!inRoom && (
                 <div className="livebattle-return-bar">
                     <button className="btn-ghost" onClick={() => navigate('/app')}>返回主页</button>
+                </div>
+            )}
+
+            {/* Avatars overlay when in room */}
+            {inRoom && (
+                <>
+                    {opponentProfile && (
+                        <div style={{ position: 'fixed', top: 16, left: 16, zIndex: 50 }}>
+                            <div className="paper-card" style={{ padding: 8, borderRadius: 12 }}>
+                                <UserAvatar
+                                    userId={opponentProfile.id}
+                                    nickname={opponentProfile.nickname}
+                                    avatarUrl={opponentProfile.avatarUrl}
+                                    size="large"
+                                    showTime={false}
+                                    onClick={() => setShowProfileModal({ userId: opponentProfile.id })}
+                                />
+                            </div>
+                        </div>
+                    )}
+                    {myProfile && (
+                        <div style={{ position: 'fixed', bottom: 16, right: 16, zIndex: 50 }}>
+                            <div className="paper-card" style={{ padding: 8, borderRadius: 12 }}>
+                                <UserAvatar
+                                    userId={myProfile.id}
+                                    nickname={myProfile.nickname}
+                                    avatarUrl={myProfile.avatarUrl}
+                                    size="large"
+                                    showTime={false}
+                                    onClick={() => setShowProfileModal({ userId: myProfile.id })}
+                                />
+                            </div>
+                        </div>
+                    )}
+                </>
+            )}
+
+            {/* Profile modal */}
+            {showProfileModal && (
+                <div role="dialog" aria-modal="true" className="modal-mask" onClick={() => setShowProfileModal(null)}>
+                    <div className="paper-card modal-card mw-420" onClick={(e) => e.stopPropagation()}>
+                        <div className="row-between align-center">
+                            <h4 className="mt-0 mb-0">玩家信息</h4>
+                            <button className="btn-ghost" aria-label="关闭" onClick={() => setShowProfileModal(null)}>×</button>
+                        </div>
+                        <div className="mt-12">
+                            {(() => {
+                                const uid = showProfileModal.userId;
+                                const p = myProfile && myProfile.id === uid ? myProfile : opponentProfile && opponentProfile.id === uid ? opponentProfile : null;
+                                return p ? (
+                                    <div className="row-start gap-12 align-center">
+                                        <div>
+                                            <UserAvatar userId={p.id} nickname={p.nickname} avatarUrl={p.avatarUrl} size="large" showTime={false} />
+                                        </div>
+                                        <div>
+                                            <div className="fw-600">{p.nickname || '匿名用户'}</div>
+                                            <div className="muted">ID: {p.id}</div>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="muted">加载中或不可用</div>
+                                );
+                            })()}
+                        </div>
+                    </div>
                 </div>
             )}
         </div>
