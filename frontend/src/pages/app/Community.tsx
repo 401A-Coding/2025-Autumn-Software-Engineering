@@ -4,7 +4,7 @@ import './app-pages.css'
 import { communityApi, userApi } from '../../services/api'
 import UserAvatar from '../../components/UserAvatar'
 import RecordEmbed from '../../components/RecordEmbed'
-import BoardPreview from '../../components/BoardPreview'
+import BoardEmbed from '../../components/BoardEmbed'
 import DropdownMenu, { type MenuAction } from '../../components/DropdownMenu'
 
 type Post = {
@@ -242,12 +242,7 @@ export default function Community() {
                                         )}
                                         {post.shareType === 'board' && post.shareRefId && (
                                             <div className="mb-8">
-                                                <BoardPreview
-                                                    boardId={post.shareRefId}
-                                                    onClick={() => {
-                                                        navigate(`/app/boards/${post.shareRefId}`)
-                                                    }}
-                                                />
+                                                <BoardEmbed boardId={post.shareRefId} enableSave={false} />
                                             </div>
                                         )}
 

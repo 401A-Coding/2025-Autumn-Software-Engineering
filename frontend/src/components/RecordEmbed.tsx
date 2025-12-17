@@ -12,9 +12,10 @@ import type { Side } from '../features/chess/types'
 
 interface RecordEmbedProps {
     recordId: number
+    enableSave?: boolean
 }
 
-export default function RecordEmbed({ recordId }: RecordEmbedProps) {
+export default function RecordEmbed({ recordId, enableSave = true }: RecordEmbedProps) {
     const [record, setRecord] = useState<ChessRecord | null>(null)
     const [step, setStep] = useState(0)
     const [loading, setLoading] = useState(true)
@@ -153,6 +154,7 @@ export default function RecordEmbed({ recordId }: RecordEmbedProps) {
                 },
                 preview: '',
                 isTemplate: true,
+                isEndgame: true,
             })
 
             alert(`成功保存为残局模板: ${templateName}`)
@@ -190,30 +192,32 @@ export default function RecordEmbed({ recordId }: RecordEmbedProps) {
             <BoardViewer moves={record.moves} step={step} initialLayout={record.initialLayout as any} />
 
             <div className="row-start gap-8 mt-8 text-13 flex-wrap">
-                <button className="btn-ghost" disabled={step <= 0} onClick={() => { setStep((s) => Math.max(0, s - 1)); setIsAutoPlaying(false) }}>
+                <button type="button" className="btn-ghost" disabled={step <= 0} onClick={() => { setStep((s) => Math.max(0, s - 1)); setIsAutoPlaying(false) }}>
                     ◀ 上一步
                 </button>
                 <button
+                    type="button"
                     className={`btn-ghost ${isAutoPlaying ? 'fw-600' : ''}`}
                     onClick={() => setIsAutoPlaying(!isAutoPlaying)}
                     title={isAutoPlaying ? '停止播放' : '自动播放'}
                 >
                     {isAutoPlaying ? '⏸ 停止' : '▶ 播放'}
                 </button>
-                <button className="btn-ghost" disabled={step >= total} onClick={() => { setStep((s) => Math.min(total, s + 1)); setIsAutoPlaying(false) }}>
+                <button type="button" className="btn-ghost" disabled={step >= total} onClick={() => { setStep((s) => Math.min(total, s + 1)); setIsAutoPlaying(false) }}>
                     下一步 ▶
                 </button>
                 <div className="text-13 muted">{step} / {total}</div>
-                <button className="btn-ghost" onClick={() => { setStep(0); setIsAutoPlaying(false) }}>
+                <button type="button" className="btn-ghost" onClick={() => { setStep(0); setIsAutoPlaying(false) }}>
                     开局
                 </button>
-                <button className="btn-ghost" onClick={() => { setStep(total); setIsAutoPlaying(false) }}>
+                <button type="button" className="btn-ghost" onClick={() => { setStep(total); setIsAutoPlaying(false) }}>
                     终局
                 </button>
                 <button
+                    type="button"
                     className="btn-ghost"
                     onClick={handleSaveAsEndgame}
-                    disabled={saving || !record}
+                    disabled={saving || !record || !enableSave}
                     title="保存当前步数的盘面为残局模板"
                 >
                     {saving ? '保存中...' : '💾 保存为残局'}

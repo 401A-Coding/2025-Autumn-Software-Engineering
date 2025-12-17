@@ -22,14 +22,15 @@ export default function ResourceSelector({ value, onChange }: ResourceSelectorPr
     const [boards, setBoards] = useState<any[]>([])
     const [loadingRecords, setLoadingRecords] = useState(false)
     const [loadingBoards, setLoadingBoards] = useState(false)
+    const [boardCategory, setBoardCategory] = useState<'board' | 'endgame'>('board')
 
     useEffect(() => {
         if (value.shareType === 'RECORD') {
             loadRecords()
         } else if (value.shareType === 'BOARD') {
-            loadBoards()
+            loadBoards(boardCategory)
         }
-    }, [value.shareType])
+    }, [value.shareType, boardCategory])
 
     async function loadRecords() {
         try {
@@ -43,9 +44,16 @@ export default function ResourceSelector({ value, onChange }: ResourceSelectorPr
         }
     }
 
-    async function loadBoards() {
+    async function loadBoards(category: 'board' | 'endgame' = 'board') {
         try {
             setLoadingBoards(true)
+            if (category === 'endgame') {
+                const endgameData = await boardApi.getMyEndgames(1, 50)
+                const endgames = (endgameData as any).items || endgameData || []
+                setBoards(endgames)
+                return
+            }
+
             // 加载我的棋盘（包括自己创建的模板）
             const myData = await boardApi.getMine(1, 50)
             const myBoards = (myData as any).items || myData || []
@@ -148,13 +156,41 @@ export default function ResourceSelector({ value, onChange }: ResourceSelectorPr
             {value.shareType === 'BOARD' && (
                 <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                        选择自定义棋局
+                        选择自定义棋局 / 残局
                     </label>
+
+                    <div className="row-start gap-8 mb-8">
+                        <button
+                            type="button"
+                            className={`btn ${boardCategory === 'board' ? 'btn-primary' : 'btn-ghost'}`}
+                            onClick={() => {
+                                setBoardCategory('board')
+                                if (value.shareType === 'BOARD') {
+                                    onChange({ shareType: 'BOARD', shareRefId: null })
+                                }
+                            }}
+                        >
+                            自定义/模板
+                        </button>
+                        <button
+                            type="button"
+                            className={`btn ${boardCategory === 'endgame' ? 'btn-primary' : 'btn-ghost'}`}
+                            onClick={() => {
+                                setBoardCategory('endgame')
+                                if (value.shareType === 'BOARD') {
+                                    onChange({ shareType: 'BOARD', shareRefId: null })
+                                }
+                            }}
+                        >
+                            残局
+                        </button>
+                    </div>
+
                     {loadingBoards ? (
                         <div className="text-sm text-gray-500">加载中...</div>
                     ) : boards.length === 0 ? (
                         <div className="text-sm text-gray-500">
-                            暂无自定义棋局，请先创建一个
+                            {boardCategory === 'endgame' ? '暂无残局，请先创建或保存一个残局' : '暂无自定义棋局，请先创建一个'}
                         </div>
                     ) : (
                         <div className="max-h-64 overflow-y-auto space-y-2 border rounded-lg p-3 bg-gray-50">
@@ -167,8 +203,9 @@ export default function ResourceSelector({ value, onChange }: ResourceSelectorPr
                                         }`}
                                     onClick={() => handleSelectBoard(board.id)}
                                 >
-                                    <div className="font-medium text-gray-900">
-                                        {board.name || '自定义棋局'}
+                                    <div className="font-medium text-gray-900 row-start gap-6">
+                                        <span>{board.name || '自定义棋局'}</span>
+                                        {board.isEndgame && <span className="badge badge-light">残局</span>}
                                     </div>
                                     <div className="text-xs text-gray-500 mt-1">
                                         {new Date(board.createdAt).toLocaleDateString()}
