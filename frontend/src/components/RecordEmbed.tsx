@@ -13,9 +13,11 @@ import type { Side } from '../features/chess/types'
 interface RecordEmbedProps {
     recordId: number
     enableSave?: boolean
+    // 可选：当无权限获取记录时，用于回退渲染的快照数据（来自帖子 shareReference）
+    recordSnapshot?: any
 }
 
-export default function RecordEmbed({ recordId, enableSave = true }: RecordEmbedProps) {
+export default function RecordEmbed({ recordId, enableSave = true, recordSnapshot }: RecordEmbedProps) {
     const [record, setRecord] = useState<ChessRecord | null>(null)
     const [step, setStep] = useState(0)
     const [loading, setLoading] = useState(true)
@@ -32,12 +34,45 @@ export default function RecordEmbed({ recordId, enableSave = true }: RecordEmbed
                 const rec = await recordStore.get(String(recordId))
                 if (!mounted) return
                 if (!rec) {
-                    setError('记录不存在或无权限访问')
-                    setRecord(null)
-                    return
+                    // 若无权限或不存在，尝试使用帖子中携带的快照数据进行回退渲染
+                    const snap = recordSnapshot && typeof recordSnapshot === 'object' ? recordSnapshot : null
+                    const src: any = snap && snap.snapshot ? snap.snapshot : snap
+
+                    const snapMoves = Array.isArray(src?.moves) ? src.moves : (Array.isArray(src?.record?.moves) ? src.record.moves : null)
+                    const snapInitial = src?.initialLayout ?? src?.record?.initialLayout
+                    const snapResult = src?.result ?? src?.record?.result
+                    const snapOpponent = src?.opponent ?? src?.record?.opponent
+
+                    if (snapMoves && Array.isArray(snapMoves)) {
+                        const fallback: ChessRecord = {
+                            id: String(recordId),
+                            startedAt: new Date().toISOString(),
+                            endedAt: undefined,
+                            opponent: snapOpponent,
+                            result: snapResult,
+                            keyTags: [],
+                            favorite: false,
+                            moves: snapMoves.map((m: any) => ({
+                                from: { x: m.from?.x ?? m.fromX ?? 0, y: m.from?.y ?? m.fromY ?? 0 },
+                                to: { x: m.to?.x ?? m.toX ?? 0, y: m.to?.y ?? m.toY ?? 0 },
+                                turn: (m.piece?.side as any) ?? (m.pieceSide as any) ?? 'red',
+                                ts: Date.now(),
+                            })),
+                            bookmarks: [],
+                            notes: [],
+                            initialLayout: snapInitial,
+                        }
+                        setRecord(fallback)
+                        setStep(fallback.moves.length)
+                    } else {
+                        setError('记录不存在或无权限访问')
+                        setRecord(null)
+                        return
+                    }
+                } else {
+                    setRecord(rec)
+                    setStep(rec.moves.length) // 默认展示终局
                 }
-                setRecord(rec)
-                setStep(rec.moves.length) // 默认展示终局
             } catch (e) {
                 if (!mounted) return
                 setError('加载记录失败')
@@ -50,7 +85,7 @@ export default function RecordEmbed({ recordId, enableSave = true }: RecordEmbed
         return () => {
             mounted = false
         }
-    }, [recordId])
+    }, [recordId, recordSnapshot])
 
     // 自动播放逻辑
     useEffect(() => {
