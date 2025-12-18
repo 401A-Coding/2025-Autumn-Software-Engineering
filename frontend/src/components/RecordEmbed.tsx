@@ -27,56 +27,73 @@ export default function RecordEmbed({ recordId, enableSave = true, recordSnapsho
 
     useEffect(() => {
         let mounted = true
+
+        // 尝试从快照直接渲染，避免无权限时多余请求
+        const trySnapshot = () => {
+            const snap = recordSnapshot && typeof recordSnapshot === 'object' ? recordSnapshot : null
+            const src: any = snap && snap.snapshot ? snap.snapshot : snap
+
+            const snapMoves = Array.isArray(src?.moves) ? src.moves : (Array.isArray(src?.record?.moves) ? src.record.moves : null)
+            const snapInitial = src?.initialLayout ?? src?.record?.initialLayout
+            const snapResult = src?.result ?? src?.record?.result
+            const snapOpponent = src?.opponent ?? src?.record?.opponent
+
+            if (snapMoves && Array.isArray(snapMoves)) {
+                const fallback: ChessRecord = {
+                    id: String(recordId),
+                    startedAt: new Date().toISOString(),
+                    endedAt: undefined,
+                    opponent: snapOpponent,
+                    result: snapResult,
+                    keyTags: [],
+                    favorite: false,
+                    moves: snapMoves.map((m: any) => ({
+                        from: { x: m.from?.x ?? m.fromX ?? 0, y: m.from?.y ?? m.fromY ?? 0 },
+                        to: { x: m.to?.x ?? m.toX ?? 0, y: m.to?.y ?? m.toY ?? 0 },
+                        turn: (m.piece?.side as any) ?? (m.pieceSide as any) ?? 'red',
+                        ts: Date.now(),
+                    })),
+                    bookmarks: [],
+                    notes: [],
+                    initialLayout: snapInitial,
+                }
+                setRecord(fallback)
+                setStep(fallback.moves.length)
+                return true
+            }
+            return false
+        }
+
         async function load() {
             try {
                 setLoading(true)
                 setError(null)
+
+                // 优先使用快照回退，避免不必要的 404/403
+                const snapshotUsed = trySnapshot()
+                if (snapshotUsed) return
+
                 const rec = await recordStore.get(String(recordId))
                 if (!mounted) return
                 if (!rec) {
-                    // 若无权限或不存在，尝试使用帖子中携带的快照数据进行回退渲染
-                    const snap = recordSnapshot && typeof recordSnapshot === 'object' ? recordSnapshot : null
-                    const src: any = snap && snap.snapshot ? snap.snapshot : snap
-
-                    const snapMoves = Array.isArray(src?.moves) ? src.moves : (Array.isArray(src?.record?.moves) ? src.record.moves : null)
-                    const snapInitial = src?.initialLayout ?? src?.record?.initialLayout
-                    const snapResult = src?.result ?? src?.record?.result
-                    const snapOpponent = src?.opponent ?? src?.record?.opponent
-
-                    if (snapMoves && Array.isArray(snapMoves)) {
-                        const fallback: ChessRecord = {
-                            id: String(recordId),
-                            startedAt: new Date().toISOString(),
-                            endedAt: undefined,
-                            opponent: snapOpponent,
-                            result: snapResult,
-                            keyTags: [],
-                            favorite: false,
-                            moves: snapMoves.map((m: any) => ({
-                                from: { x: m.from?.x ?? m.fromX ?? 0, y: m.from?.y ?? m.fromY ?? 0 },
-                                to: { x: m.to?.x ?? m.toX ?? 0, y: m.to?.y ?? m.toY ?? 0 },
-                                turn: (m.piece?.side as any) ?? (m.pieceSide as any) ?? 'red',
-                                ts: Date.now(),
-                            })),
-                            bookmarks: [],
-                            notes: [],
-                            initialLayout: snapInitial,
-                        }
-                        setRecord(fallback)
-                        setStep(fallback.moves.length)
-                    } else {
+                    // 再次尝试用快照（防御性）
+                    const snapshotUsedAgain = trySnapshot()
+                    if (!snapshotUsedAgain) {
                         setError('记录不存在或无权限访问')
                         setRecord(null)
-                        return
                     }
-                } else {
-                    setRecord(rec)
-                    setStep(rec.moves.length) // 默认展示终局
+                    return
                 }
+                setRecord(rec)
+                setStep(rec.moves.length) // 默认展示终局
             } catch (e) {
                 if (!mounted) return
-                setError('加载记录失败')
-                setRecord(null)
+                // 请求失败时仍尝试快照，否则提示无法加载
+                const snapshotUsed = trySnapshot()
+                if (!snapshotUsed) {
+                    setError('加载记录失败')
+                    setRecord(null)
+                }
             } finally {
                 if (mounted) setLoading(false)
             }
