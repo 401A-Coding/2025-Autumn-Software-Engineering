@@ -496,7 +496,6 @@ export default function PostDetail() {
                         timestamp={post.createdAt}
                         size="large"
                     />
-                    <DropdownMenu actions={getPostActions()} />
                 </div>
 
                 {/* 帖子内容区域 */}
