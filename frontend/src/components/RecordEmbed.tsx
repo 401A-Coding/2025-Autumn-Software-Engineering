@@ -15,9 +15,11 @@ interface RecordEmbedProps {
     enableSave?: boolean
     // 可选：当无权限获取记录时，用于回退渲染的快照数据（来自帖子 shareReference）
     recordSnapshot?: any
+    // 可选：是否允许向记录 API 发起请求；若 false 则仅依赖 recordSnapshot
+    allowFetch?: boolean
 }
 
-export default function RecordEmbed({ recordId, enableSave = true, recordSnapshot }: RecordEmbedProps) {
+export default function RecordEmbed({ recordId, enableSave = true, recordSnapshot, allowFetch = true }: RecordEmbedProps) {
     const [record, setRecord] = useState<ChessRecord | null>(null)
     const [step, setStep] = useState(0)
     const [loading, setLoading] = useState(true)
@@ -76,6 +78,12 @@ export default function RecordEmbed({ recordId, enableSave = true, recordSnapsho
                         setError('记录快照不可用，作者未公开此记录')
                         setRecord(null)
                     }
+                    return
+                }
+
+                if (!allowFetch) {
+                    setError('记录未公开，且未提供快照')
+                    setRecord(null)
                     return
                 }
 
