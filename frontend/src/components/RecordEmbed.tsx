@@ -69,31 +69,29 @@ export default function RecordEmbed({ recordId, enableSave = true, recordSnapsho
                 setLoading(true)
                 setError(null)
 
-                // 优先使用快照回退，避免不必要的 404/403
-                const snapshotUsed = trySnapshot()
-                if (snapshotUsed) return
+                // 如果帖子已附带 shareReference，则只尝试快照，避免再去请求记录接口导致 404/403
+                if (recordSnapshot) {
+                    const snapshotUsed = trySnapshot()
+                    if (!snapshotUsed) {
+                        setError('记录快照不可用，作者未公开此记录')
+                        setRecord(null)
+                    }
+                    return
+                }
 
                 const rec = await recordStore.get(String(recordId))
                 if (!mounted) return
                 if (!rec) {
-                    // 再次尝试用快照（防御性）
-                    const snapshotUsedAgain = trySnapshot()
-                    if (!snapshotUsedAgain) {
-                        setError('记录不存在或无权限访问')
-                        setRecord(null)
-                    }
+                    setError('记录不存在或无权限访问')
+                    setRecord(null)
                     return
                 }
                 setRecord(rec)
                 setStep(rec.moves.length) // 默认展示终局
             } catch (e) {
                 if (!mounted) return
-                // 请求失败时仍尝试快照，否则提示无法加载
-                const snapshotUsed = trySnapshot()
-                if (!snapshotUsed) {
-                    setError('加载记录失败')
-                    setRecord(null)
-                }
+                setError('加载记录失败')
+                setRecord(null)
             } finally {
                 if (mounted) setLoading(false)
             }
