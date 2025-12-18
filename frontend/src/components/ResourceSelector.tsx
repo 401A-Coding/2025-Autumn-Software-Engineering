@@ -4,10 +4,17 @@
  */
 
 import { useState, useEffect } from 'react'
-import { recordsApi, boardApi } from '../services/api'
+import { recordsApi, boardApi, userApi } from '../services/api'
 import Segmented from './Segmented'
+import UserAvatar from './UserAvatar'
 
 type ShareType = 'NONE' | 'RECORD' | 'BOARD'
+
+interface CurrentUser {
+    id: number
+    nickname?: string
+    avatarUrl?: string
+}
 
 interface ResourceSelectorProps {
     value: {
@@ -23,6 +30,22 @@ export default function ResourceSelector({ value, onChange }: ResourceSelectorPr
     const [loadingRecords, setLoadingRecords] = useState(false)
     const [loadingBoards, setLoadingBoards] = useState(false)
     const [boardCategory, setBoardCategory] = useState<'board' | 'endgame'>('board')
+    const [recordProfiles, setRecordProfiles] = useState<Record<number, any>>({})
+    const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null)
+
+    useEffect(() => {
+        (async () => {
+            try {
+                const me = await userApi.getMe()
+                setCurrentUser({
+                    id: me.id as number,
+                    nickname: (me as any).nickname || '匿名用户',
+                    avatarUrl: (me as any).avatarUrl,
+                })
+            } catch { }
+        })()
+    }, [])
+
 
     useEffect(() => {
         if (value.shareType === 'RECORD') {
@@ -36,7 +59,20 @@ export default function ResourceSelector({ value, onChange }: ResourceSelectorPr
         try {
             setLoadingRecords(true)
             const data = await recordsApi.list(1, 50)
-            setRecords(data.items || [])
+            const items = data.items || []
+            setRecords(items)
+
+            // 预加载对手信息
+            const profiles: Record<number, any> = {}
+            for (const r of items) {
+                if (r.opponent && /^\d+$/.test(String(r.opponent))) {
+                    try {
+                        const info = await userApi.getById(Number(r.opponent))
+                        profiles[Number(r.opponent)] = info
+                    } catch { }
+                }
+            }
+            setRecordProfiles(profiles)
         } catch (err) {
             console.error('Failed to load records:', err)
         } finally {
@@ -101,6 +137,111 @@ export default function ResourceSelector({ value, onChange }: ResourceSelectorPr
         })
     }
 
+    // 渲染改进过的战绩卡片
+    const renderRecordCard = (record: any) => {
+        const sourceLabel = (record.keyTags || []).includes('在线匹配') ? '在线匹配' : (record.keyTags || []).includes('好友对战') ? '好友对战' : '本地对局'
+        const rounds = (record.moves || []).length
+
+        const mySide = (record.keyTags || []).find((t: string) => t.startsWith('我方:'))?.split(':')[1] || 'red'
+        const isRedSide = mySide === '红'
+
+        const oppId = record.opponent && /^\d+$/.test(String(record.opponent)) ? Number(record.opponent) : null
+
+        const me = currentUser || { id: 0, nickname: '匿名用户', avatarUrl: undefined }
+
+        // 本地对战自己对自己的情况，对手就是自己
+        let opponent: any
+        if (oppId) {
+            // 对手存在，从缓存中获取或使用默认值
+            if (currentUser && oppId === currentUser.id) {
+                opponent = currentUser
+            } else {
+                const oppProfile = recordProfiles[oppId]
+                opponent = oppProfile || { id: oppId, nickname: '对手', avatarUrl: undefined }
+            }
+        } else {
+            // 对手不存在，说明是自己对自己（本地对局）
+            opponent = currentUser || { id: 0, nickname: '匿名用户', avatarUrl: undefined }
+        }
+
+        const leftProfile = isRedSide ? me : opponent
+        const rightProfile = isRedSide ? opponent : me
+
+        const resultDisplay = record.result === 'red' ? '先胜' : record.result === 'black' ? '先负' : record.result === 'draw' ? '平局' : '未结束'
+
+        const isSelected = value.shareRefId === record.id
+        const borderColor = isSelected ? '#3b82f6' : '#cbd5e1'
+        const bgColor = isSelected ? '#e2f2ff' : '#f9fafb'
+        const boxShadow = isSelected ? '0 0 0 2px rgba(59, 130, 246, 0.25), 0 4px 10px rgba(59, 130, 246, 0.15)' : '0 1px 2px rgba(15, 23, 42, 0.05)'
+
+        return (
+            <div
+                key={record.id}
+                role="button"
+                className="cursor-pointer transition"
+                style={{
+                    padding: 12,
+                    borderRadius: 12,
+                    borderWidth: 2,
+                    borderStyle: 'solid',
+                    borderColor,
+                    backgroundColor: bgColor,
+                    boxShadow,
+                }}
+                onClick={() => handleSelectRecord(record.id)}
+            >
+                <div className="row-between align-center" style={{ marginBottom: 8 }}>
+                    <div className="muted" style={{ fontSize: 12 }}>{sourceLabel}</div>
+                    <div className="muted" style={{ fontSize: 12 }}>{new Date(record.startedAt).toLocaleString()}</div>
+                </div>
+
+                {/* 红方（先手）在左，黑方（后手）在右 */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                    <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 6 }}>
+                        {leftProfile && (
+                            <UserAvatar
+                                userId={leftProfile.id}
+                                nickname={leftProfile.nickname}
+                                avatarUrl={leftProfile.avatarUrl}
+                                size="small"
+                                showTime={false}
+                            />
+                        )}
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                        <div className="fw-600" style={{ fontSize: 14 }}>{resultDisplay}</div>
+                        <div className="muted" style={{ fontSize: 12 }}>{rounds} 回合</div>
+                    </div>
+                    <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6 }}>
+                        {rightProfile && (
+                            <UserAvatar
+                                userId={rightProfile.id}
+                                nickname={rightProfile.nickname}
+                                avatarUrl={rightProfile.avatarUrl}
+                                size="small"
+                                showTime={false}
+                            />
+                        )}
+                    </div>
+                </div>
+
+                {/* 标签 */}
+                {Array.isArray(record.keyTags) && record.keyTags.length > 0 && (
+                    <div className="row-start wrap gap-4" style={{ fontSize: 11 }}>
+                        {(record.keyTags as string[]).filter(t => !t.startsWith('我方:')).slice(0, 2).map((t: string, idx: number) => (
+                            <span key={`${record.id}-tag-${idx}`} style={{ background: '#f5f5f5', borderRadius: 999, padding: '2px 6px' }}>{t}</span>
+                        ))}
+                        {(record.keyTags as string[]).filter(t => !t.startsWith('我方:')).length > 2 && (
+                            <span className="muted" style={{ background: '#f5f5f5', borderRadius: 999, padding: '2px 6px' }}>
+                                +{(record.keyTags as string[]).filter(t => !t.startsWith('我方:')).length - 2}
+                            </span>
+                        )}
+                    </div>
+                )}
+            </div>
+        )
+    }
+
     const radius = 12
     const containerStyle = { backgroundColor: '#eef1f7', border: '1px solid #cdd6e5', borderRadius: radius }
     const cardBaseStyle = {
@@ -110,14 +251,6 @@ export default function ResourceSelector({ value, onChange }: ResourceSelectorPr
         borderStyle: 'solid',
         borderRadius: radius,
         boxShadow: '0 1px 2px rgba(15, 23, 42, 0.05)',
-    }
-    const recordSelectedStyle = {
-        backgroundColor: '#e2f2ff',
-        borderColor: '#3b82f6',
-        borderWidth: 2,
-        borderStyle: 'solid',
-        borderRadius: radius,
-        boxShadow: '0 0 0 2px rgba(59, 130, 246, 0.25), 0 4px 10px rgba(59, 130, 246, 0.15)',
     }
     const boardSelectedStyle = {
         backgroundColor: '#e8fff2',
@@ -158,28 +291,17 @@ export default function ResourceSelector({ value, onChange }: ResourceSelectorPr
                         </div>
                     ) : (
                         <div
-                            className="max-h-64 overflow-y-auto space-y-3 p-3 rounded-lg"
-                            style={containerStyle}
+                            style={{
+                                ...containerStyle,
+                                maxHeight: 300,
+                                overflowY: 'auto',
+                                padding: 12,
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: 12,
+                            }}
                         >
-                            {records.map((record) => (
-                                <div
-                                    key={record.id}
-                                    role="button"
-                                    className={`p-3 rounded-lg cursor-pointer transition ${value.shareRefId === record.id
-                                        ? 'hover:shadow-md'
-                                        : 'hover:border-blue-300 hover:shadow'
-                                        }`}
-                                    style={value.shareRefId === record.id ? recordSelectedStyle : cardBaseStyle}
-                                    onClick={() => handleSelectRecord(record.id)}
-                                >
-                                    <div className="font-medium text-gray-900">
-                                        {record.title || '对局记录'}
-                                    </div>
-                                    <div className="text-xs text-gray-500 mt-1">
-                                        {new Date(record.createdAt).toLocaleDateString()}
-                                    </div>
-                                </div>
-                            ))}
+                            {records.map((record) => renderRecordCard(record))}
                         </div>
                     )}
                 </div>
@@ -226,8 +348,15 @@ export default function ResourceSelector({ value, onChange }: ResourceSelectorPr
                         </div>
                     ) : (
                         <div
-                            className="max-h-64 overflow-y-auto space-y-3 p-3 rounded-lg"
-                            style={containerStyle}
+                            style={{
+                                ...containerStyle,
+                                maxHeight: 300,
+                                overflowY: 'auto',
+                                padding: 12,
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: 12,
+                            }}
                         >
                             {boards.map((board) => (
                                 <div
