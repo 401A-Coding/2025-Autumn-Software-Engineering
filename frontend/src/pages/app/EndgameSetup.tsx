@@ -92,9 +92,12 @@ export default function EndgameSetup() {
 
     return (
         <div>
-            <button className="btn-ghost mb-12" onClick={() => nav('/app/endgame')}>← 返回</button>
+            <div className="row align-center mb-12">
+                <button className="btn-ghost" onClick={() => nav('/app/endgame')}>← 返回</button>
+                <h2 style={{ margin: 0, flex: 1, textAlign: 'center' }}>布置残局</h2>
+                <div style={{ width: 64 }} />
+            </div>
             <section className="paper-card card-pad">
-                <h2 className="mt-0">布置残局</h2>
                 {!initialLayout ? (
                     <div className="note-muted">提示：可从复盘页“残局导出”带入局面，或在下方直接摆子。</div>
                 ) : (

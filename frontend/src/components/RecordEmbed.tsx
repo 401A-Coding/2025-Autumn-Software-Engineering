@@ -244,9 +244,6 @@ export default function RecordEmbed({ recordId, enableSave = true, recordSnapsho
         <div className="border rounded-lg p-3 bg-white" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }}>
             <div className="row-between align-center mb-8">
                 <div className="fw-600">{title}</div>
-                <div className="text-12 muted">
-                    步数：{total} · 对手：{record.opponent || '未知'}
-                </div>
             </div>
 
             <BoardViewer moves={record.moves} step={step} initialLayout={record.initialLayout as any} />
