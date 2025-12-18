@@ -59,7 +59,6 @@ function App() {
           <Route path="users/:userId" element={<UserProfile />} />
           <Route path="record/:id" element={<RecordReplay />} />
           <Route path="endgame" element={<EndgameHome />} />
-          <Route path="endgame/saved" element={<EndgameSaved />} />
           <Route path="endgame/setup" element={<EndgameSetup />} />
           <Route path="profile" element={<Profile />} />
           <Route path="online-lobby" element={<OnlineLobby />} />
