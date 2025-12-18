@@ -65,12 +65,18 @@ export default function CreatePost() {
         setSubmitting(true)
         setError('')
         try {
+            // 后端期望 shareType 为小写（record/board），前端内部使用大写枚举
+            const shareTypePayload =
+                resource.shareType === 'RECORD' ? 'record'
+                    : resource.shareType === 'BOARD' ? 'board'
+                        : undefined
+
             const postData = {
                 title,
                 content,
                 tags: tags,
-                ...(resource.shareType !== 'NONE' && {
-                    shareType: resource.shareType,
+                ...(shareTypePayload && {
+                    shareType: shareTypePayload,
                     shareRefId: resource.shareRefId,
                 }),
             }
