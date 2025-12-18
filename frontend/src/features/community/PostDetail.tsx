@@ -462,10 +462,28 @@ export default function PostDetail() {
 
     return (
         <div style={{ paddingBottom: expandedComment ? '400px' : '90px' }}>
-            {/* 返回按钮 */}
-            <button className="btn-ghost mb-12" onClick={handleBack}>
-                ← 返回
-            </button>
+            <div className="row align-center mb-12">
+                <button className="btn-ghost" onClick={handleBack}>
+                    ← 返回
+                </button>
+                <div style={{ flex: 1 }} />
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <button
+                        className="btn-ghost"
+                        title="搜索帖子内容"
+                        onClick={() => {
+                            // 简单的页面内搜索占位：跳到浏览器查找或触发展示搜索模态（后续实现）
+                            const q = window.prompt('输入要搜索的关键词：')
+                            if (q) {
+                                // 以简易方式在控制台提示，完整实现留到后续
+                                console.log('Search in post:', q)
+                                alert('搜索功能尚未实现（仅占位）')
+                            }
+                        }}
+                    >🔍</button>
+                    <DropdownMenu actions={getPostActions()} />
+                </div>
+            </div>
 
             {/* 帖子内容 */}
             <section className="paper-card mb-12" style={{ padding: 0, overflow: 'hidden' }}>

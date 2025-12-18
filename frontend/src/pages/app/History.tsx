@@ -56,11 +56,14 @@ export default function History() {
 
     return (
         <div>
-            <button className="btn-ghost mb-12" onClick={() => navigate('/app/profile')}>
-                ← 返回
-            </button>
+            <div className="row align-center mb-12">
+                <button className="btn-ghost" onClick={() => navigate('/app/profile')}>
+                    ← 返回
+                </button>
+                <h3 style={{ margin: 0, flex: 1, textAlign: 'center' }}>对局记录</h3>
+                <div style={{ width: 64 }} />
+            </div>
             <section className="paper-card card-pad pos-rel">
-                <h3 className="mt-0">对局记录</h3>
                 <div className="row-between mb-12">
                     <div className="pos-rel">
                         <button

@@ -33,11 +33,14 @@ export default function Favorites() {
 
     return (
         <div>
-            <button className="btn-ghost mb-12" onClick={() => navigate('/app/profile')}>
-                ← 返回
-            </button>
+            <div className="row align-center mb-12">
+                <button className="btn-ghost" onClick={() => navigate('/app/profile')}>
+                    ← 返回
+                </button>
+                <h3 style={{ margin: 0, flex: 1, textAlign: 'center' }}>收藏对局</h3>
+                <div style={{ width: 64 }} />
+            </div>
             <section className="paper-card card-pad">
-                <h3 className="mt-0">收藏对局</h3>
                 {loading ? (
                     <div className="muted">加载中...</div>
                 ) : list.length === 0 ? (

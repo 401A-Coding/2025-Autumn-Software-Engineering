@@ -116,14 +116,16 @@ export default function CreatePost() {
 
     return (
         <div>
-            {/* 返回按钮 */}
-            <button className="btn-ghost mb-12" onClick={() => navigate(isEditMode ? `/app/community/${postId}` : '/app/community')}>
-                ← 返回
-            </button>
+            <div className="row align-center mb-12">
+                <button className="btn-ghost" onClick={() => navigate(isEditMode ? `/app/community/${postId}` : '/app/community')}>
+                    ← 返回
+                </button>
+                <h2 style={{ margin: 0, flex: 1, textAlign: 'center' }}>{isEditMode ? '编辑帖子' : '发布新帖'}</h2>
+                <div style={{ width: 64 }} />
+            </div>
 
             {/* 发帖表单 */}
             <section className="paper-card card-pad">
-                <h2 className="mt-0 mb-20">{isEditMode ? '编辑帖子' : '发布新帖'}</h2>
 
                 {error && <div className="alert alert-error mb-16">{error}</div>}
 

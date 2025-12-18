@@ -6,9 +6,12 @@ export default function EndgameHome() {
     const nav = useNavigate()
     return (
         <div>
-            <button className="btn-ghost mb-12" onClick={() => nav('/app')}>← 返回</button>
+            <div className="row align-center mb-12">
+                <button className="btn-ghost" onClick={() => nav('/app')}>← 返回</button>
+                <h2 style={{ margin: 0, flex: 1, textAlign: 'center' }}>残局对战</h2>
+                <div style={{ width: 64 }} />
+            </div>
             <section className="paper-card card-pad">
-                <h2 className="mt-0">残局对战</h2>
                 <div className="row-start gap-12 mt-12">
                     <Link to="/app/endgame/setup" className="btn-primary" title="从零或导出局面来布置残局">布置残局</Link>
                     <button

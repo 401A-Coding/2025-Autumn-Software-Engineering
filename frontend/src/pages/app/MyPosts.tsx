@@ -101,12 +101,12 @@ export default function MyPosts() {
 
     return (
         <div>
-            <div className="row-between align-center mb-12">
+            <div className="row align-center mb-12">
                 <button className="btn-ghost" onClick={() => navigate('/app/profile')}>
                     ← 返回
                 </button>
-                <h3 className="mt-0 mb-0">我的帖子</h3>
-                <div style={{ width: 64 }}></div>
+                <h3 style={{ margin: 0, flex: 1, textAlign: 'center' }}>我的帖子</h3>
+                <div style={{ width: 64 }} />
             </div>
 
             <section className="paper-card card-pad">
