@@ -493,7 +493,12 @@ export default function PostDetail() {
                     {/* 引用资源预览 */}
                     {post.shareType === 'record' && post.shareRefId && (
                         <div className="mb-16">
-                            <RecordEmbed recordId={post.shareRefId} />
+                            {/* 传入 shareReference 作为无权限时的回退快照；若无快照则不再请求记录接口，避免 404 */}
+                            <RecordEmbed
+                                recordId={post.shareRefId}
+                                recordSnapshot={post.shareReference}
+                                allowFetch={!!post.shareReference}
+                            />
                         </div>
                     )}
                     {post.shareType === 'board' && post.shareRefId && (

@@ -13,9 +13,13 @@ import type { Side } from '../features/chess/types'
 interface RecordEmbedProps {
     recordId: number
     enableSave?: boolean
+    // 可选：当无权限获取记录时，用于回退渲染的快照数据（来自帖子 shareReference）
+    recordSnapshot?: any
+    // 可选：是否允许向记录 API 发起请求；若 false 则仅依赖 recordSnapshot
+    allowFetch?: boolean
 }
 
-export default function RecordEmbed({ recordId, enableSave = true }: RecordEmbedProps) {
+export default function RecordEmbed({ recordId, enableSave = true, recordSnapshot, allowFetch = true }: RecordEmbedProps) {
     const [record, setRecord] = useState<ChessRecord | null>(null)
     const [step, setStep] = useState(0)
     const [loading, setLoading] = useState(true)
@@ -25,10 +29,66 @@ export default function RecordEmbed({ recordId, enableSave = true }: RecordEmbed
 
     useEffect(() => {
         let mounted = true
+
+        // 尝试从快照直接渲染，避免无权限时多余请求
+        const trySnapshot = () => {
+            const snap = recordSnapshot && typeof recordSnapshot === 'object' ? recordSnapshot : null
+            const src: any = snap && snap.snapshot ? snap.snapshot : snap
+
+            const snapMoves = Array.isArray(src?.moves) ? src.moves : (Array.isArray(src?.record?.moves) ? src.record.moves : null)
+            const snapInitial = src?.initialLayout ?? src?.record?.initialLayout
+            const snapResult = src?.result ?? src?.record?.result
+            const snapOpponent = src?.opponent ?? src?.record?.opponent
+
+            if (snapMoves && Array.isArray(snapMoves)) {
+                const fallback: ChessRecord = {
+                    id: String(recordId),
+                    startedAt: new Date().toISOString(),
+                    endedAt: undefined,
+                    opponent: snapOpponent,
+                    result: snapResult,
+                    keyTags: [],
+                    favorite: false,
+                    moves: snapMoves.map((m: any) => ({
+                        from: { x: m.from?.x ?? m.fromX ?? 0, y: m.from?.y ?? m.fromY ?? 0 },
+                        to: { x: m.to?.x ?? m.toX ?? 0, y: m.to?.y ?? m.toY ?? 0 },
+                        turn: (m.piece?.side as any) ?? (m.pieceSide as any) ?? 'red',
+                        ts: Date.now(),
+                    })),
+                    bookmarks: [],
+                    notes: [],
+                    initialLayout: snapInitial,
+                }
+                setRecord(fallback)
+                setStep(fallback.moves.length)
+                return true
+            }
+            return false
+        }
+
         async function load() {
             try {
                 setLoading(true)
                 setError(null)
+
+                // 如果帖子已附带 shareReference，则优先尝试快照；若快照不可用且允许拉取，则回退到接口请求
+                if (recordSnapshot) {
+                    const snapshotUsed = trySnapshot()
+                    if (snapshotUsed) return
+                    if (!allowFetch) {
+                        setError('记录快照不可用，作者未公开此记录')
+                        setRecord(null)
+                        return
+                    }
+                    // 否则继续向下走，尝试接口获取
+                }
+
+                if (!allowFetch) {
+                    setError('记录未公开，且未提供快照')
+                    setRecord(null)
+                    return
+                }
+
                 const rec = await recordStore.get(String(recordId))
                 if (!mounted) return
                 if (!rec) {
@@ -50,7 +110,7 @@ export default function RecordEmbed({ recordId, enableSave = true }: RecordEmbed
         return () => {
             mounted = false
         }
-    }, [recordId])
+    }, [recordId, recordSnapshot])
 
     // 自动播放逻辑
     useEffect(() => {

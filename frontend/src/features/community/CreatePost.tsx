@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import '../../pages/app/app-pages.css'
-import { communityApi } from '../../services/api'
+import { communityApi, recordsApi } from '../../services/api'
 import TagInput from '../../components/TagInput'
 import ResourceSelector from '../../components/ResourceSelector'
 import BoardEmbed from '../../components/BoardEmbed'
@@ -65,22 +65,44 @@ export default function CreatePost() {
         setSubmitting(true)
         setError('')
         try {
-            const postData = {
+            // 后端期望 shareType 为小写（record/board），前端内部使用大写枚举
+            const shareTypePayload =
+                resource.shareType === 'RECORD' ? 'record'
+                    : resource.shareType === 'BOARD' ? 'board'
+                        : undefined
+
+            const createPayload = {
                 title,
                 content,
                 tags: tags,
-                ...(resource.shareType !== 'NONE' && {
-                    shareType: resource.shareType,
+                ...(shareTypePayload && {
+                    shareType: shareTypePayload,
                     shareRefId: resource.shareRefId,
                 }),
             }
 
+            const updatePayload = {
+                title,
+                content,
+                tags: tags,
+            }
+
+            // 若引用的是“对局记录”，在发帖前尝试执行共享，确保他人可查看（由后端生成公共引用/快照）。仅新建时执行，避免编辑时误发 shareType/Ref 触发校验错误。
+            if (!isEditMode && resource.shareType === 'RECORD' && resource.shareRefId) {
+                try {
+                    await recordsApi.share(resource.shareRefId, { title, tags })
+                } catch (shareErr) {
+                    // 共享失败不阻塞发帖，仅记录日志
+                    console.warn('记录共享失败（仍尝试继续发帖）：', shareErr)
+                }
+            }
+
             if (isEditMode && postId) {
-                await communityApi.updatePost(Number(postId), postData)
+                await communityApi.updatePost(Number(postId), updatePayload)
                 alert('更新成功！')
                 navigate(`/app/community/${postId}`)
             } else {
-                await communityApi.createPost(postData)
+                await communityApi.createPost(createPayload)
                 alert('发帖成功！')
                 navigate('/app/community')
             }
