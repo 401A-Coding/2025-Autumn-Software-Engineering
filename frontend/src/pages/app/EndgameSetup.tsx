@@ -227,7 +227,7 @@ export default function EndgameSetup() {
                     </div>
 
                     {saveMsg && (
-                        <div className="note-info text-13">{saveMsg} <button className="btn-ghost btn-xs" onClick={() => nav('/app/endgame/saved')}>查看我的残局</button></div>
+                        <div className="note-info text-13">{saveMsg} <button className="btn-ghost btn-xs" onClick={() => nav('/app/endgame')}>查看我的残局</button></div>
                     )}
 
                     <div className="row-start gap-12">
