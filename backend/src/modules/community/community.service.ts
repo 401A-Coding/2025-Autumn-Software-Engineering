@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { Prisma, ShareType } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 
 @Injectable()
@@ -31,7 +32,8 @@ export class CommunityService {
       },
     });
     if (!record) return undefined;
-    if (ownerId && record.ownerId && record.ownerId !== ownerId) return undefined; // do not leak others' records
+    if (ownerId && record.ownerId && record.ownerId !== ownerId)
+      return undefined; // do not leak others' records
     return {
       recordId: record.id,
       opponent: record.opponent,
@@ -98,52 +100,67 @@ export class CommunityService {
       }),
     ]);
 
-    const mapped = items.map((p: any) => ({
-      id: p.id,
-      authorId: p.authorId,
-      authorNickname: p.author?.username,
-      authorAvatar: p.author?.avatarUrl ?? null,
-      title: p.title ?? null,
-      excerpt: p.content?.slice(0, 200) ?? '',
-      shareType:
-        p.shareType === 'NONE' ? null : String(p.shareType).toLowerCase(),
-      shareRefId: p.shareType === 'NONE' ? null : p.shareRefId,
-      shareReference:
-        p.shareType === 'NONE'
-          ? null
-          : {
-            refType: String(p.shareType).toLowerCase(),
-            refId: p.shareRefId ?? 0,
-            snapshot: (p as any).shareSnap ?? null,
-          },
-      createdAt: p.createdAt,
-      likeCount: p._count.likes,
-      commentCount: p._count.comments,
-      tags: p.tags?.map((t: any) => t.tag.name) ?? [],
-    }));
+    const mapped = [] as any[];
+    for (const p of items) {
+      let snapshot = null as any;
+      if (p.shareType === 'RECORD' && p.shareRefId) {
+        snapshot =
+          (await this.buildRecordSnapshot(p.shareRefId, p.authorId)) ?? null;
+        // Persist latest snapshot for downstream fetches
+        await this.prisma.post.update({
+          where: { id: p.id },
+          data: { shareSnap: snapshot },
+        });
+      }
+
+      mapped.push({
+        id: p.id,
+        authorId: p.authorId,
+        authorNickname: p.author?.username,
+        authorAvatar: p.author?.avatarUrl ?? null,
+        title: p.title ?? null,
+        excerpt: p.content?.slice(0, 200) ?? '',
+        shareType:
+          p.shareType === 'NONE' ? null : String(p.shareType).toLowerCase(),
+        shareRefId: p.shareType === 'NONE' ? null : p.shareRefId,
+        shareReference:
+          p.shareType === 'NONE'
+            ? null
+            : {
+              refType: String(p.shareType).toLowerCase(),
+              refId: p.shareRefId ?? 0,
+              snapshot,
+            },
+        createdAt: p.createdAt,
+        likeCount: p._count.likes,
+        commentCount: p._count.comments,
+        tags: p.tags?.map((t: any) => t.tag.name) ?? [],
+      });
+    }
 
     return { items: mapped, page, pageSize, total };
   }
 
   async createPost(userId: number, data: any) {
-    const shareType = data.shareType?.toUpperCase() ?? 'NONE';
+    const shareType = (data.shareType?.toUpperCase() ?? 'NONE') as ShareType;
     const shareRefId = data.shareRefId ?? null;
     const shareSnap =
       shareType === 'RECORD' && shareRefId
-        ? await this.buildRecordSnapshot(shareRefId, userId)
-        : undefined;
+        ? (await this.buildRecordSnapshot(shareRefId, userId)) ?? Prisma.JsonNull
+        : Prisma.JsonNull;
 
     const created = await this.prisma.post.create({
       data: {
         authorId: userId,
         title: data.title ?? null,
-        content: data.content,
+        content: data.content ?? null,
         shareType,
         shareRefId,
         shareSnap,
         status: 'PUBLISHED',
       },
     });
+
     if (Array.isArray(data.tags) && data.tags.length > 0) {
       for (const name of data.tags) {
         const tag = await this.prisma.tag.upsert({
@@ -156,6 +173,7 @@ export class CommunityService {
         });
       }
     }
+
     return { postId: created.id };
   }
 
@@ -171,20 +189,16 @@ export class CommunityService {
     });
     if (!p) return null;
 
-    // Auto-backfill snapshot for record shares to support viewers without record permission
-    let shareSnapshot = p.shareSnap;
-    if (!shareSnapshot && p.shareType === 'RECORD' && p.shareRefId) {
-      const builtSnapshot = await this.buildRecordSnapshot(p.shareRefId, p.authorId);
-      if (builtSnapshot) {
-        shareSnapshot = builtSnapshot;
-        await this.prisma.post.update({
-          where: { id: postId },
-          data: { shareSnap: builtSnapshot },
-        });
-      }
+    let shareSnapshot = null as any;
+    if (p.shareType === 'RECORD' && p.shareRefId) {
+      shareSnapshot =
+        (await this.buildRecordSnapshot(p.shareRefId, p.authorId)) ?? null;
+      await this.prisma.post.update({
+        where: { id: postId },
+        data: { shareSnap: shareSnapshot },
+      });
     }
 
-    // 查询当前用户是否已收藏
     let bookmarked = false;
     if (userId) {
       const bookmark = await this.prisma.postBookmark.findFirst({
@@ -192,6 +206,7 @@ export class CommunityService {
       });
       bookmarked = !!bookmark;
     }
+
     return {
       id: p.id,
       authorId: p.authorId,
@@ -232,11 +247,62 @@ export class CommunityService {
     if (!post || post.authorId !== userId) {
       throw new Error('Forbidden');
     }
+
+    const shareTypePatchRaw = patch.shareType;
+    const shareTypePatch =
+      typeof shareTypePatchRaw === 'string'
+        ? String(shareTypePatchRaw).toUpperCase()
+        : undefined;
+    const shareRefPatch = Object.prototype.hasOwnProperty.call(
+      patch,
+      'shareRefId',
+    )
+      ? patch.shareRefId
+      : undefined;
+
+    let nextShareType: ShareType = post.shareType as ShareType;
+    let nextShareRefId = post.shareRefId;
+    let nextShareSnap: any = post.shareSnap;
+
+    const shouldUpdateShare =
+      shareTypePatch !== undefined || shareRefPatch !== undefined;
+
+    if (shouldUpdateShare) {
+      nextShareType = (shareTypePatch as ShareType) ?? (post.shareType as ShareType);
+      nextShareRefId =
+        shareRefPatch !== undefined ? shareRefPatch : post.shareRefId;
+
+      if (nextShareType === 'NONE') {
+        nextShareRefId = null;
+        nextShareSnap = null;
+      } else if (nextShareType === 'RECORD' && nextShareRefId) {
+        nextShareSnap =
+          (await this.buildRecordSnapshot(nextShareRefId, post.authorId)) ??
+          null;
+      } else {
+        // Other share types: clear snapshot by default
+        nextShareSnap = null;
+      }
+    }
+
     const updated = await this.prisma.post.update({
       where: { id: postId },
       data: {
         title: patch.title ?? post.title,
         content: patch.content ?? post.content,
+        ...(shouldUpdateShare
+          ? {
+            shareType: nextShareType,
+            shareRefId:
+              nextShareType === 'NONE' ? null : (nextShareRefId ?? null),
+            shareSnap:
+              nextShareType === 'NONE'
+                ? Prisma.JsonNull
+                : nextShareType === 'RECORD' && nextShareRefId
+                  ? (nextShareSnap ?? Prisma.JsonNull)
+                  : Prisma.JsonNull,
+          }
+          : {}),
       },
       include: { tags: { include: { tag: true } } },
     });
@@ -402,25 +468,20 @@ export class CommunityService {
   }
 
   async deleteComment(userId: number, commentId: number) {
-    // Ensure the user owns the comment; moderators can be supported later
     const comment = await this.prisma.communityComment.findUnique({
       where: { id: commentId },
       select: { id: true, authorId: true, deletedAt: true },
     });
-    if (!comment) {
-      return { ok: false, reason: 'not_found' };
-    }
-    if (comment.authorId !== userId) {
-      return { ok: false, reason: 'forbidden' };
-    }
-    if (comment.deletedAt) {
-      return { ok: false, reason: 'already_deleted' };
-    }
-    // 软删除：标记 deletedAt，不删除子回复，保留讨论上下文
+    if (!comment) return { ok: false, reason: 'not_found' };
+    if (comment.authorId !== userId) return { ok: false, reason: 'forbidden' };
+    if (comment.deletedAt) return { ok: false, reason: 'already_deleted' };
+
+    // soft delete: mark deletedAt to retain thread context
     await this.prisma.communityComment.update({
       where: { id: commentId },
       data: { deletedAt: new Date() },
     });
+
     return { ok: true };
   }
 

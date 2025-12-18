@@ -20,7 +20,7 @@ import { Request } from 'express';
 
 @Controller('api/v1/boards')
 export class BoardController {
-  constructor(private readonly boardService: BoardService) { }
+  constructor(private readonly boardService: BoardService) {}
 
   @Get('standard')
   getStandard() {
