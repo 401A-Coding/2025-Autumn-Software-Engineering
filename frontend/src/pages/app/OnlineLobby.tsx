@@ -17,9 +17,7 @@ export default function OnlineLobby() {
                 <button className="btn-ghost" onClick={() => navigate('/app/live-battle?action=join')}>加入房间</button>
                 <button className="btn-ghost" onClick={() => navigate('/app/live-battle?action=match')}>快速匹配</button>
             </div>
-            <div className="mt-16">
-                <button className="btn-ghost" onClick={() => navigate('/app/home')}>返回主页</button>
-            </div>
+
         </section>
     )
 }
