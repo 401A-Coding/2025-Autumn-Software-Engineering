@@ -71,7 +71,7 @@ export default function CreatePost() {
                     : resource.shareType === 'BOARD' ? 'board'
                         : undefined
 
-            const postData = {
+            const createPayload = {
                 title,
                 content,
                 tags: tags,
@@ -81,8 +81,14 @@ export default function CreatePost() {
                 }),
             }
 
-            // 若引用的是“对局记录”，在发帖前尝试执行共享，确保他人可查看（由后端生成公共引用/快照）
-            if (resource.shareType === 'RECORD' && resource.shareRefId) {
+            const updatePayload = {
+                title,
+                content,
+                tags: tags,
+            }
+
+            // 若引用的是“对局记录”，在发帖前尝试执行共享，确保他人可查看（由后端生成公共引用/快照）。仅新建时执行，避免编辑时误发 shareType/Ref 触发校验错误。
+            if (!isEditMode && resource.shareType === 'RECORD' && resource.shareRefId) {
                 try {
                     await recordsApi.share(resource.shareRefId, { title, tags })
                 } catch (shareErr) {
@@ -92,11 +98,11 @@ export default function CreatePost() {
             }
 
             if (isEditMode && postId) {
-                await communityApi.updatePost(Number(postId), postData)
+                await communityApi.updatePost(Number(postId), updatePayload)
                 alert('更新成功！')
                 navigate(`/app/community/${postId}`)
             } else {
-                await communityApi.createPost(postData)
+                await communityApi.createPost(createPayload)
                 alert('发帖成功！')
                 navigate('/app/community')
             }

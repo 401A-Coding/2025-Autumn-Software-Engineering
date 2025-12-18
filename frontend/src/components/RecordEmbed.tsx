@@ -71,14 +71,16 @@ export default function RecordEmbed({ recordId, enableSave = true, recordSnapsho
                 setLoading(true)
                 setError(null)
 
-                // 如果帖子已附带 shareReference，则只尝试快照，避免再去请求记录接口导致 404/403
+                // 如果帖子已附带 shareReference，则优先尝试快照；若快照不可用且允许拉取，则回退到接口请求
                 if (recordSnapshot) {
                     const snapshotUsed = trySnapshot()
-                    if (!snapshotUsed) {
+                    if (snapshotUsed) return
+                    if (!allowFetch) {
                         setError('记录快照不可用，作者未公开此记录')
                         setRecord(null)
+                        return
                     }
-                    return
+                    // 否则继续向下走，尝试接口获取
                 }
 
                 if (!allowFetch) {

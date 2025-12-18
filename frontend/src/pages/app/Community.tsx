@@ -16,6 +16,7 @@ type Post = {
     excerpt: string
     shareType: string | null // backend returns lower-case, e.g. 'record' | 'board' | null
     shareRefId: number | null
+    shareReference?: any
     createdAt: string
     likeCount: number
     commentCount: number
@@ -237,7 +238,11 @@ export default function Community() {
                                         {/* 引用资源预览 */}
                                         {post.shareType === 'record' && post.shareRefId && (
                                             <div className="mb-8">
-                                                <RecordEmbed recordId={post.shareRefId} />
+                                                <RecordEmbed
+                                                    recordId={post.shareRefId}
+                                                    recordSnapshot={post.shareReference}
+                                                    allowFetch={!!post.shareReference}
+                                                />
                                             </div>
                                         )}
                                         {post.shareType === 'board' && post.shareRefId && (
