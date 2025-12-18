@@ -8,7 +8,7 @@ import { defaultRules } from './dto/rules.dto';
 
 @Injectable()
 export class BoardService {
-  constructor(private readonly prisma: PrismaService) { } // Assume prisma is properly injected
+  constructor(private readonly prisma: PrismaService) {} // Assume prisma is properly injected
   /**
    * 返回中国象棋“标准开局”的只读定义（不落库）。
    * 结构与 Board Editor 的 LayoutDto/PieceDto 保持一致：
@@ -63,8 +63,8 @@ export class BoardService {
   }
   create(createBoardDto: CreateBoardDto, ownerId?: number) {
     // 规范化互斥：残局优先，其次模板；二者不可同时为 true
-    const endgame = !!createBoardDto.isEndgame
-    const template = !!createBoardDto.isTemplate && !endgame
+    const endgame = !!createBoardDto.isEndgame;
+    const template = !!createBoardDto.isTemplate && !endgame;
     return this.prisma.board.create({
       data: {
         name: createBoardDto.name,
@@ -146,24 +146,28 @@ export class BoardService {
         : {}),
       ...(updateBoardDto.layout !== undefined
         ? {
-          layout: instanceToPlain(
-            updateBoardDto.layout,
-          ) as Prisma.InputJsonObject,
-        }
+            layout: instanceToPlain(
+              updateBoardDto.layout,
+            ) as Prisma.InputJsonObject,
+          }
         : {}),
       ...(updateBoardDto.rules !== undefined
         ? {
-          rules: instanceToPlain(
-            updateBoardDto.rules,
-          ) as Prisma.InputJsonObject,
-        }
+            rules: instanceToPlain(
+              updateBoardDto.rules,
+            ) as Prisma.InputJsonObject,
+          }
         : {}),
       ...(updateBoardDto.preview !== undefined
         ? { preview: updateBoardDto.preview }
         : {}),
-      ...(updateBoardDto.isEndgame === true ? { isEndgame: true, isTemplate: false } : {}),
+      ...(updateBoardDto.isEndgame === true
+        ? { isEndgame: true, isTemplate: false }
+        : {}),
       ...(updateBoardDto.isEndgame === false ? { isEndgame: false } : {}),
-      ...(updateBoardDto.isTemplate === true ? { isTemplate: true, isEndgame: false } : {}),
+      ...(updateBoardDto.isTemplate === true
+        ? { isTemplate: true, isEndgame: false }
+        : {}),
       ...(updateBoardDto.isTemplate === false ? { isTemplate: false } : {}),
     };
     return await this.prisma.board.update({

@@ -3,7 +3,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 
 @Injectable()
 export class CommunityService {
-  constructor(private readonly prisma: PrismaService) { }
+  constructor(private readonly prisma: PrismaService) {}
 
   // Build a lightweight record snapshot so posts can render embeds without hitting record permissions
   private async buildRecordSnapshot(recordId: number, ownerId?: number) {
@@ -31,7 +31,8 @@ export class CommunityService {
       },
     });
     if (!record) return undefined;
-    if (ownerId && record.ownerId && record.ownerId !== ownerId) return undefined; // do not leak others' records
+    if (ownerId && record.ownerId && record.ownerId !== ownerId)
+      return undefined; // do not leak others' records
     return {
       recordId: record.id,
       opponent: record.opponent,
@@ -70,10 +71,10 @@ export class CommunityService {
       ];
     const tagFilter = tag
       ? {
-        tags: {
-          some: { tag: { name: { equals: tag, mode: 'insensitive' } } },
-        },
-      }
+          tags: {
+            some: { tag: { name: { equals: tag, mode: 'insensitive' } } },
+          },
+        }
       : {};
 
     const orderBy: any =
@@ -98,29 +99,48 @@ export class CommunityService {
       }),
     ]);
 
-    const mapped = items.map((p: any) => ({
-      id: p.id,
-      authorId: p.authorId,
-      authorNickname: p.author?.username,
-      authorAvatar: p.author?.avatarUrl ?? null,
-      title: p.title ?? null,
-      excerpt: p.content?.slice(0, 200) ?? '',
-      shareType:
-        p.shareType === 'NONE' ? null : String(p.shareType).toLowerCase(),
-      shareRefId: p.shareType === 'NONE' ? null : p.shareRefId,
-      shareReference:
-        p.shareType === 'NONE'
-          ? null
-          : {
-            refType: String(p.shareType).toLowerCase(),
-            refId: p.shareRefId ?? 0,
-            snapshot: (p as any).shareSnap ?? null,
-          },
-      createdAt: p.createdAt,
-      likeCount: p._count.likes,
-      commentCount: p._count.comments,
-      tags: p.tags?.map((t: any) => t.tag.name) ?? [],
-    }));
+    const mapped = [] as any[];
+    for (const p of items) {
+      let snapshot = (p as any).shareSnap ?? null;
+      if (
+        p.shareType === 'RECORD' &&
+        p.shareRefId &&
+        (!snapshot || (snapshot as any).recordId !== p.shareRefId)
+      ) {
+        snapshot =
+          (await this.buildRecordSnapshot(p.shareRefId, p.authorId)) ?? null;
+        if (snapshot) {
+          await this.prisma.post.update({
+            where: { id: p.id },
+            data: { shareSnap: snapshot },
+          });
+        }
+      }
+
+      mapped.push({
+        id: p.id,
+        authorId: p.authorId,
+        authorNickname: p.author?.username,
+        authorAvatar: p.author?.avatarUrl ?? null,
+        title: p.title ?? null,
+        excerpt: p.content?.slice(0, 200) ?? '',
+        shareType:
+          p.shareType === 'NONE' ? null : String(p.shareType).toLowerCase(),
+        shareRefId: p.shareType === 'NONE' ? null : p.shareRefId,
+        shareReference:
+          p.shareType === 'NONE'
+            ? null
+            : {
+                refType: String(p.shareType).toLowerCase(),
+                refId: p.shareRefId ?? 0,
+                snapshot,
+              },
+        createdAt: p.createdAt,
+        likeCount: p._count.likes,
+        commentCount: p._count.comments,
+        tags: p.tags?.map((t: any) => t.tag.name) ?? [],
+      });
+    }
 
     return { items: mapped, page, pageSize, total };
   }
@@ -173,14 +193,23 @@ export class CommunityService {
 
     // Auto-backfill snapshot for record shares to support viewers without record permission
     let shareSnapshot = p.shareSnap;
-    if (!shareSnapshot && p.shareType === 'RECORD' && p.shareRefId) {
-      const builtSnapshot = await this.buildRecordSnapshot(p.shareRefId, p.authorId);
+    const needsSnapshot =
+      p.shareType === 'RECORD' && p.shareRefId &&
+      (!shareSnapshot || (shareSnapshot as any).recordId !== p.shareRefId);
+
+    if (needsSnapshot) {
+      const builtSnapshot = await this.buildRecordSnapshot(
+        p.shareRefId,
+        p.authorId,
+      );
       if (builtSnapshot) {
         shareSnapshot = builtSnapshot;
         await this.prisma.post.update({
           where: { id: postId },
           data: { shareSnap: builtSnapshot },
         });
+      } else {
+        shareSnapshot = null;
       }
     }
 
@@ -206,10 +235,10 @@ export class CommunityService {
         p.shareType === 'NONE'
           ? null
           : {
-            refType: String(p.shareType).toLowerCase(),
-            refId: p.shareRefId ?? 0,
-            snapshot: shareSnapshot ?? null,
-          },
+              refType: String(p.shareType).toLowerCase(),
+              refId: p.shareRefId ?? 0,
+              snapshot: shareSnapshot ?? null,
+            },
       attachments:
         p.attachments?.map((a: any) => ({
           url: a.url,
@@ -232,11 +261,62 @@ export class CommunityService {
     if (!post || post.authorId !== userId) {
       throw new Error('Forbidden');
     }
+
+    const shareTypePatchRaw = patch.shareType;
+    const shareTypePatch =
+      typeof shareTypePatchRaw === 'string'
+        ? String(shareTypePatchRaw).toUpperCase()
+        : undefined;
+    const shareRefPatch = Object.prototype.hasOwnProperty.call(
+      patch,
+      'shareRefId',
+    )
+      ? patch.shareRefId
+      : undefined;
+
+    let nextShareType = post.shareType;
+    let nextShareRefId = post.shareRefId;
+    let nextShareSnap: any = post.shareSnap;
+
+    const shouldUpdateShare =
+      shareTypePatch !== undefined || shareRefPatch !== undefined;
+
+    if (shouldUpdateShare) {
+      nextShareType = shareTypePatch ?? post.shareType;
+      nextShareRefId =
+        shareRefPatch !== undefined ? shareRefPatch : post.shareRefId;
+
+      if (nextShareType === 'NONE') {
+        nextShareRefId = null;
+        nextShareSnap = null;
+      } else if (nextShareType === 'RECORD' && nextShareRefId) {
+        nextShareSnap =
+          (await this.buildRecordSnapshot(nextShareRefId, post.authorId)) ??
+          null;
+      } else {
+        // Other share types: clear snapshot by default
+        nextShareSnap = null;
+      }
+    }
+
     const updated = await this.prisma.post.update({
       where: { id: postId },
       data: {
         title: patch.title ?? post.title,
         content: patch.content ?? post.content,
+        ...(shouldUpdateShare
+          ? {
+              shareType: nextShareType,
+              shareRefId:
+                nextShareType === 'NONE' ? null : (nextShareRefId ?? null),
+              shareSnap:
+                nextShareType === 'NONE'
+                  ? null
+                  : nextShareType === 'RECORD' && nextShareRefId
+                    ? (nextShareSnap ?? null)
+                    : null,
+            }
+          : {}),
       },
       include: { tags: { include: { tag: true } } },
     });
@@ -285,25 +365,25 @@ export class CommunityService {
     // 取出每个顶级评论下的所有楼中楼：直接子回复 + 子回复的子回复
     const allReplies = topIds.length
       ? await this.prisma.communityComment.findMany({
-        where: {
-          OR: [
-            { parentId: { in: topIds } },
-            { parent: { parentId: { in: topIds } } },
-          ],
-        },
-        orderBy: { createdAt: 'asc' },
-        include: {
-          author: { select: { id: true, username: true, avatarUrl: true } },
-          parent: {
-            select: {
-              id: true,
-              parentId: true,
-              author: { select: { id: true, username: true } },
-            },
+          where: {
+            OR: [
+              { parentId: { in: topIds } },
+              { parent: { parentId: { in: topIds } } },
+            ],
           },
-          _count: { select: { likes: true } },
-        },
-      })
+          orderBy: { createdAt: 'asc' },
+          include: {
+            author: { select: { id: true, username: true, avatarUrl: true } },
+            parent: {
+              select: {
+                id: true,
+                parentId: true,
+                author: { select: { id: true, username: true } },
+              },
+            },
+            _count: { select: { likes: true } },
+          },
+        })
       : [];
 
     const repliesByRoot: Record<number, any[]> = {};
@@ -467,10 +547,10 @@ export class CommunityService {
       ];
     const tagFilter = tag
       ? {
-        tags: {
-          some: { tag: { name: { equals: tag, mode: 'insensitive' } } },
-        },
-      }
+          tags: {
+            some: { tag: { name: { equals: tag, mode: 'insensitive' } } },
+          },
+        }
       : {};
     const [items, total] = await this.prisma.$transaction([
       this.prisma.post.findMany({

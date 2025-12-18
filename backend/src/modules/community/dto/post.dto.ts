@@ -77,4 +77,13 @@ export class PostPatchDto {
   @IsOptional()
   @IsArray()
   tags?: string[];
+
+  @IsOptional()
+  @IsString()
+  @IsIn(['record', 'board', 'clip', 'none'])
+  shareType?: string | null;
+
+  @IsOptional()
+  @IsInt()
+  shareRefId?: number | null;
 }
