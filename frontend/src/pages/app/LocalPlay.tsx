@@ -81,14 +81,14 @@ export default function LocalPlay() {
     }
     return (
         <div className="pad-16">
-            <div className="row-between mb-8">
-                <button className="btn-ghost" onClick={handleExitClick}>退出对局</button>
-                <div className="fw-700">本地对战</div>
-                <div className="w-64" />
-            </div>
-
             <div className="row-center">
                 <div>
+                    <div className="row-between mb-8">
+                        <button className="btn-ghost" onClick={handleExitClick}>退出对局</button>
+                        <div className="fw-700">本地对战</div>
+                        <div className="w-64" />
+                    </div>
+
                     <Board
                         initialBoard={injectedInitialBoard}
                         initialTurn={injectedInitialTurn}
