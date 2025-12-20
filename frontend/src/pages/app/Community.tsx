@@ -164,29 +164,38 @@ export default function Community() {
                     </div>
                 </div>
 
-                {/* 搜索栏 */}
-                <form onSubmit={handleSearch} className="row-start gap-8 mb-12">
-                    <input
-                        type="text"
-                        placeholder="搜索帖子..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="flex-1"
-                    />
-                    <button type="submit" className="btn-ghost" title="搜索">
-                        🔍
-                    </button>
-                    {isSearching && (
+                {/* 搜索栏：点击输入框或搜索按钮均跳转到独立搜索页 */}
+                <div className="mb-12">
+                    <div className="row-start gap-8" style={{ width: '100%' }}>
+                        <input
+                            type="text"
+                            placeholder="点击搜索帖子或记录（在搜索页输入关键词）"
+                            value={searchQuery}
+                            readOnly
+                            onClick={() => navigate('/app/community/search')}
+                            className="flex-1"
+                            style={{ cursor: 'pointer' }}
+                        />
                         <button
                             type="button"
                             className="btn-ghost"
-                            title="清除搜索"
-                            onClick={handleClearSearch}
+                            title="进入搜索"
+                            onClick={() => navigate('/app/community/search')}
                         >
-                            ✕
+                            🔍
                         </button>
-                    )}
-                </form>
+                        {isSearching && (
+                            <button
+                                type="button"
+                                className="btn-ghost"
+                                title="清除搜索"
+                                onClick={handleClearSearch}
+                            >
+                                ✕
+                            </button>
+                        )}
+                    </div>
+                </div>
 
                 {isSearching && (
                     <div className="muted text-12">

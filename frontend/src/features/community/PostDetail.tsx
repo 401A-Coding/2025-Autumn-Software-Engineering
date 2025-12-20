@@ -471,15 +471,7 @@ export default function PostDetail() {
                     <button
                         className="btn-ghost"
                         title="搜索帖子内容"
-                        onClick={() => {
-                            // 简单的页面内搜索占位：跳到浏览器查找或触发展示搜索模态（后续实现）
-                            const q = window.prompt('输入要搜索的关键词：')
-                            if (q) {
-                                // 以简易方式在控制台提示，完整实现留到后续
-                                console.log('Search in post:', q)
-                                alert('搜索功能尚未实现（仅占位）')
-                            }
-                        }}
+                        onClick={() => navigate('/app/community/search')}
                     >🔍</button>
                     <DropdownMenu actions={getPostActions()} />
                 </div>
