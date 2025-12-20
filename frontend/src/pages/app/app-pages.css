@@ -398,6 +398,26 @@
     color: #6b7280;
 }
 
+/* Community search input style: rounded, light gray background, full-width */
+.search-input-full {
+    background: #f3f4f6;
+    border: 1px solid #e5e7eb;
+    padding: 8px 12px;
+    border-radius: 12px;
+    color: #111827;
+    outline: none;
+    transition: box-shadow 0.12s, border-color 0.12s;
+}
+
+.search-input-full:focus {
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.08);
+    border-color: #93c5fd;
+}
+
+.search-input-full[readonly] {
+    cursor: pointer;
+}
+
 .text-orange-700 {
     color: #92400e;
 }

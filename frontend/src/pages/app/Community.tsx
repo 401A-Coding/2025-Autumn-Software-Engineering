@@ -173,8 +173,7 @@ export default function Community() {
                             value={searchQuery}
                             readOnly
                             onClick={() => navigate('/app/community/search')}
-                            className="flex-1"
-                            style={{ cursor: 'pointer' }}
+                            className="flex-1 search-input-full"
                         />
                         <button
                             type="button"
