@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import http from '../../lib/http'
 import { setTokens } from '../../lib/auth'
@@ -11,6 +11,7 @@ export default function Login() {
     const [phone, setPhone] = useState('')
     const [password, setPassword] = useState('')
     const [confirmPassword, setConfirmPassword] = useState('')
+    const [remember, setRemember] = useState(false)
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const navigate = useNavigate()
@@ -28,6 +29,11 @@ export default function Login() {
             const res = await http.post<LoginData>('/api/v1/auth/login', body)
             const data = res.data
             if (data?.accessToken && data?.refreshToken) setTokens(data)
+            if (remember) {
+                try { localStorage.setItem('rememberLogin', JSON.stringify({ phone, password })) } catch {}
+            } else {
+                try { localStorage.removeItem('rememberLogin') } catch {}
+            }
             navigate('/app/home', { replace: true })
         } catch (e: unknown) {
             const msg = e instanceof Error ? e.message : '登录失败'
@@ -36,6 +42,20 @@ export default function Login() {
             setLoading(false)
         }
     }
+
+    useEffect(() => {
+        try {
+            const raw = localStorage.getItem('rememberLogin')
+            if (raw) {
+                const obj = JSON.parse(raw)
+                if (obj?.phone) setPhone(obj.phone)
+                if (obj?.password) setPassword(obj.password)
+                setRemember(true)
+            }
+        } catch {
+            // ignore
+        }
+    }, [])
 
     return (
         <div className="auth-container">
@@ -73,6 +93,13 @@ export default function Login() {
                             placeholder="请再次输入密码"
                         />
                     </label>
+                    <div className="row-between" style={{ alignItems: 'center' }}>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
+                            记住密码
+                        </label>
+                        <Link to="/forgot-password" className="muted">忘记密码？</Link>
+                    </div>
                     {error && <div className="auth-error">{error}</div>}
                     <button type="submit" disabled={loading} className="btn-primary auth-submit">
                         {loading ? '请稍候…' : '登录'}
