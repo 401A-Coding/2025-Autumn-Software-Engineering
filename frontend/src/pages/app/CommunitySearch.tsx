@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
-import { useSearchParams, Link, useNavigate } from 'react-router-dom'
+import { useSearchParams, Link, useNavigate, useLocation } from 'react-router-dom'
 import { communityApi } from '../../services/api'
+import PostPreview from '../../features/community/PostPreview'
 
 export default function CommunitySearch() {
     const [searchParams, setSearchParams] = useSearchParams()
@@ -12,7 +13,9 @@ export default function CommunitySearch() {
     const [total, setTotal] = useState(0)
     const [posts, setPosts] = useState<any[]>([])
     const [loading, setLoading] = useState(false)
+    const [hasSearched, setHasSearched] = useState(false)
     const navigate = useNavigate()
+    const location = useLocation()
 
     const doSearch = useCallback(async (opts?: { page?: number; q?: string; tag?: string; updateURL?: boolean }) => {
         try {
@@ -45,6 +48,7 @@ export default function CommunitySearch() {
                         const filtered = [v, ...arr.filter(a => a !== v)].slice(0, 20)
                         localStorage.setItem(key, JSON.stringify(filtered))
                         setHistory(filtered)
+                        setHasSearched(true)
                     }
                 } catch (e) {
                     // ignore
@@ -55,18 +59,26 @@ export default function CommunitySearch() {
         }
     }, [q, tag, page, pageSize, setSearchParams])
 
-    // initial load from URL
+    // initial load from URL and react to searchParams changes (so back/forward works)
     useEffect(() => {
         const initialQ = searchParams.get('q') ?? ''
         const initialTag = searchParams.get('tag') ?? ''
         const initialPage = Number(searchParams.get('page') ?? '1') || 1
-        setQ(initialQ)
+        setQ(initialQ || initialTag)
         setTag(initialTag)
         setPage(initialPage)
         if (initialQ || initialTag) {
+            setHasSearched(true)
             doSearch({ page: initialPage, q: initialQ, tag: initialTag, updateURL: false })
+        } else {
+            // no query -> reset search state
+            setHasSearched(false)
+            setPosts([])
+            setTotal(0)
         }
-    }, [])
+        // only react to URL param changes; avoid including `doSearch` in deps to prevent loops
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [searchParams.toString()])
 
     // load search history
     const loadHistory = useCallback(() => {
@@ -93,23 +105,31 @@ export default function CommunitySearch() {
                         onKeyDown={(e) => { if (e.key === 'Enter') { doSearch({ page: 1, q, tag, updateURL: true }); } }}
                         autoFocus
                     />
-                    <button className="btn" onClick={() => doSearch({ page: 1, q, tag, updateURL: true })}>搜索</button>
+                    <button className="btn-ghost" style={{ minWidth: 48 }} onClick={() => doSearch({ page: 1, q, tag, updateURL: true })}>🔍</button>
                 </div>
             </div>
 
             {/* Search history tags (shown before/after) */}
-            {history && history.length > 0 && (
-                <div className="mb-6 row-start gap-4 flex-wrap">
-                    {history.map((h, idx) => (
-                        <button key={idx} className="badge badge-light" onClick={() => { setQ(h); doSearch({ page: 1, q: h, updateURL: true }); }}>
-                            {h}
-                        </button>
-                    ))}
+            {!hasSearched && history && history.length > 0 && (
+                <div className="mb-6 search-history">
+                    <div className="row-between mb-2">
+                        <div className="muted">搜索历史</div>
+                        <div>
+                            <button className="history-clear btn-ghost" onClick={() => { localStorage.removeItem('community_search_history'); setHistory([]); }} style={{ marginLeft: 8 }}>清除</button>
+                        </div>
+                    </div>
+                    <div className="history-list row-start gap-4 flex-wrap" style={{ alignItems: 'center' }}>
+                        {history.map((h, idx) => (
+                            <button key={idx} className="badge badge-light history-tag" onClick={() => { setQ(h); doSearch({ page: 1, q: h, updateURL: true }); }}>
+                                {h}
+                            </button>
+                        ))}
+                    </div>
                 </div>
             )}
 
             {/* Results area: after search show posts in community preview style */}
-            {loading ? (
+            {hasSearched && (loading ? (
                 <div className="muted">加载中...</div>
             ) : (
                 <div>
@@ -120,29 +140,11 @@ export default function CommunitySearch() {
                     ) : (
                         <div className="col gap-12">
                             {posts.map((post: any) => (
-                                <div
+                                <PostPreview
                                     key={post.id}
-                                    className="paper-card cursor-pointer hover:shadow-md transition-shadow"
-                                    style={{ padding: 0, overflow: 'hidden' }}
-                                    onClick={() => navigate(`/app/community/${post.id}`)}
-                                >
-                                    <div style={{ padding: '12px 16px', backgroundColor: '#fafafa', borderBottom: '1px solid #e0e0e0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                                            <img src={post.authorAvatar || ''} alt="" style={{ width: 36, height: 36, borderRadius: '50%' }} />
-                                            <div>
-                                                <div className="fw-600">{post.title || '(无标题)'}</div>
-                                                <div className="muted text-12">{post.authorNickname || '匿名'}</div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div style={{ padding: '12px 16px' }}>
-                                        <p className="muted mb-8 text-14 line-clamp-2">{post.excerpt || '(无内容)'}</p>
-                                        <div className="row-start gap-12 text-12 muted">
-                                            <span>👍 {post.likeCount}</span>
-                                            <span>💬 {post.commentCount}</span>
-                                        </div>
-                                    </div>
-                                </div>
+                                    post={post}
+                                    onClick={() => navigate(`/app/community/${post.id}`, { state: { from: location.pathname + location.search } })}
+                                />
                             ))}
                         </div>
                     )}
@@ -155,7 +157,7 @@ export default function CommunitySearch() {
                         <div className="muted">第 {page} 页</div>
                     </div>
                 </div>
-            )}
+            ))}
         </div>
     )
 }

@@ -59,16 +59,26 @@ export default function PostDetail() {
     const navigate = useNavigate()
     const location = useLocation()
     const { postId } = useParams<{ postId: string }>()
-    const fromPage = (location.state as { from?: string })?.from || '/app/community'
+    const fromPage = (location.state as { from?: string })?.from
     const targetCommentId = (location.state as { commentId?: number })?.commentId
     const returnTab = (location.state as { tab?: 'posts' | 'comments' })?.tab
 
     const handleBack = () => {
+        // If user came from a known in-app location, go back in history to preserve navigation stack
         if (returnTab && fromPage === '/app/my-posts') {
+            // preserve the original behavior for my-posts with tab state
             navigate(fromPage, { state: { tab: returnTab } })
-        } else {
-            navigate(fromPage)
+            return
         }
+
+        if (fromPage) {
+            // go back one entry instead of pushing the fromPage again
+            navigate(-1)
+            return
+        }
+
+        // fallback to community home
+        navigate('/app/community')
     }
     const [post, setPost] = useState<Post | null>(null)
     const [comments, setComments] = useState<Comment[]>([])
@@ -527,7 +537,7 @@ export default function PostDetail() {
                                 {post.tags.map((tag, idx) => (
                                     <button
                                         key={idx}
-                                        onClick={() => navigate(`/app/community?search=${encodeURIComponent(tag)}`)}
+                                        onClick={() => navigate(`/app/community/search?tag=${encodeURIComponent(tag)}`)}
                                         style={{
                                             display: 'inline-flex',
                                             alignItems: 'center',
