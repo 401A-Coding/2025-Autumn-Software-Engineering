@@ -25,7 +25,14 @@ export default function ForgotPassword() {
                 setMsg('若手机号存在，已发送重置指令，请留意。')
             }
         } catch (e: any) {
-            setMsg(e?.message || '请求失败')
+            const resp = e?.response?.data
+            if (resp && resp.message) {
+                // Global exception filter returns { code, message, data }
+                if (resp.data && resp.data.details) setMsg(String(resp.data.details.join('; ')))
+                else setMsg(String(resp.message))
+            } else {
+                setMsg(e?.message || '请求失败')
+            }
         } finally {
             setLoading(false)
         }
@@ -41,7 +48,13 @@ export default function ForgotPassword() {
             alert('密码已重置，请使用新密码登录')
             navigate('/login')
         } catch (e: any) {
-            setMsg(e?.message || '重置失败')
+            const resp = e?.response?.data
+            if (resp && resp.message) {
+                if (resp.data && resp.data.details) setMsg(String(resp.data.details.join('; ')))
+                else setMsg(String(resp.message))
+            } else {
+                setMsg(e?.message || '重置失败')
+            }
         } finally { setLoading(false) }
     }
 
