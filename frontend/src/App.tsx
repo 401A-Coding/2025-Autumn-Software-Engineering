@@ -20,6 +20,8 @@ import CustomBattle from './pages/app/CustomBattle.tsx'
 import VisualRuleEditor from './pages/app/VisualRuleEditor.tsx'
 import TemplateManager from './pages/app/TemplateManager.tsx'
 import LiveBattle from './pages/app/LiveBattle.tsx'
+import CustomOnlineLobby from './pages/app/CustomOnlineLobby.tsx'
+import CustomOnlineLiveBattle from './pages/app/CustomOnlineLiveBattle.tsx'
 import RecordReplay from './pages/app/RecordReplay.tsx'
 import EndgameHome from './pages/app/EndgameHome.tsx'
 import EndgameSaved from './pages/app/EndgameSaved.tsx'
@@ -63,6 +65,8 @@ function App() {
           <Route path="profile" element={<Profile />} />
           <Route path="online-lobby" element={<OnlineLobby />} />
           <Route path="live-battle" element={<LiveBattle />} />
+          <Route path="custom-online-lobby" element={<CustomOnlineLobby />} />
+          <Route path="custom-online-live-battle" element={<CustomOnlineLiveBattle />} />
         </Route>
       </Route>
 

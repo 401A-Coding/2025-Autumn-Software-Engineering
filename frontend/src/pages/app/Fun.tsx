@@ -20,6 +20,9 @@ export default function Fun() {
                     <a className="btn-primary inline-block" href="/app/visual-editor">
                         🎨 可视化编辑器
                     </a>
+                    <a className="btn-secondary inline-block" href="/app/custom-online-lobby">
+                        ⚔️ 自定义在线对战
+                    </a>
                 </div>
             </section>
         </div>
