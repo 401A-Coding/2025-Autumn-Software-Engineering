@@ -28,6 +28,7 @@ import EndgameHome from './pages/app/EndgameHome.tsx'
 import EndgameSaved from './pages/app/EndgameSaved.tsx'
 import EndgameSetup from './pages/app/EndgameSetup.tsx'
 import Community from './pages/app/Community.tsx'
+import CommunitySearch from './pages/app/CommunitySearch.tsx'
 import PostDetail from './features/community/PostDetail.tsx'
 import CreatePost from './features/community/CreatePost.tsx'
 import UserProfile from './pages/app/UserProfile.tsx'
@@ -57,6 +58,7 @@ function App() {
           <Route path="my-likes" element={<MyLikes />} />
           <Route path="my-bookmarks" element={<MyBookmarks />} />
           <Route path="community" element={<Community />} />
+          <Route path="community/search" element={<CommunitySearch />} />
           <Route path="community/new" element={<CreatePost />} />
           <Route path="community/:postId/edit" element={<CreatePost />} />
           <Route path="community/:postId" element={<PostDetail />} />
