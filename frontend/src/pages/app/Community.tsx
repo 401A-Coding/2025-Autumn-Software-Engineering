@@ -6,6 +6,7 @@ import UserAvatar from '../../components/UserAvatar'
 import RecordEmbed from '../../components/RecordEmbed'
 import BoardEmbed from '../../components/BoardEmbed'
 import DropdownMenu, { type MenuAction } from '../../components/DropdownMenu'
+import PostPreview from '../../features/community/PostPreview'
 
 type Post = {
     id: number
@@ -164,29 +165,37 @@ export default function Community() {
                     </div>
                 </div>
 
-                {/* 搜索栏 */}
-                <form onSubmit={handleSearch} className="row-start gap-8 mb-12">
-                    <input
-                        type="text"
-                        placeholder="搜索帖子..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="flex-1"
-                    />
-                    <button type="submit" className="btn-ghost" title="搜索">
-                        🔍
-                    </button>
-                    {isSearching && (
+                {/* 搜索栏：点击输入框或搜索按钮均跳转到独立搜索页 */}
+                <div className="mb-12">
+                    <div className="row-start gap-8" style={{ width: '100%' }}>
+                        <input
+                            type="text"
+                            placeholder="点击搜索帖子或记录（在搜索页输入关键词）"
+                            value={searchQuery}
+                            readOnly
+                            onClick={() => navigate(`/app/community/search${searchQuery && searchQuery.trim() ? `?q=${encodeURIComponent(searchQuery.trim())}` : ''}`)}
+                            className="flex-1 search-input-full"
+                        />
                         <button
                             type="button"
                             className="btn-ghost"
-                            title="清除搜索"
-                            onClick={handleClearSearch}
+                            title="进入搜索"
+                            onClick={() => navigate(`/app/community/search${searchQuery && searchQuery.trim() ? `?q=${encodeURIComponent(searchQuery.trim())}` : ''}`)}
                         >
-                            ✕
+                            🔍
                         </button>
-                    )}
-                </form>
+                        {isSearching && (
+                            <button
+                                type="button"
+                                className="btn-ghost"
+                                title="清除搜索"
+                                onClick={handleClearSearch}
+                            >
+                                ✕
+                            </button>
+                        )}
+                    </div>
+                </div>
 
                 {isSearching && (
                     <div className="muted text-12">
@@ -205,75 +214,12 @@ export default function Community() {
                     <>
                         <div className="col gap-12">
                             {posts.map((post) => (
-                                <div
+                                <PostPreview
                                     key={post.id}
-                                    className="paper-card cursor-pointer hover:shadow-md transition-shadow"
-                                    style={{ padding: 0, overflow: 'hidden' }}
+                                    post={post}
                                     onClick={() => navigate(`/app/community/${post.id}`)}
-                                >
-                                    {/* 用户信息区域 */}
-                                    <div style={{ padding: '12px 16px', backgroundColor: '#fafafa', borderBottom: '1px solid #e0e0e0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                                        <UserAvatar
-                                            userId={post.authorId}
-                                            nickname={post.authorNickname}
-                                            avatarUrl={post.authorAvatar ?? undefined}
-                                            timestamp={post.createdAt}
-                                            size="medium"
-                                        />
-                                        <div onClick={(e) => e.stopPropagation()}>
-                                            <DropdownMenu actions={getPostActions(post)} />
-                                        </div>
-                                    </div>
-
-                                    {/* 帖子内容区域 */}
-                                    <div style={{ padding: '12px 16px' }}>
-                                        {/* 帖子标题 */}
-                                        <h4 className="mt-0 mb-6" style={{ textAlign: 'left' }}>{post.title || '(无标题)'}</h4>
-
-                                        {/* 帖子摘要 */}
-                                        <p className="muted mb-8 text-14 line-clamp-2" style={{ textAlign: 'left' }}>
-                                            {post.excerpt || '(无内容)'}
-                                        </p>
-
-                                        {/* 引用资源预览 */}
-                                        {post.shareType === 'record' && post.shareRefId && (
-                                            <div className="mb-8">
-                                                <RecordEmbed
-                                                    recordId={post.shareRefId}
-                                                    recordSnapshot={post.shareReference}
-                                                    allowFetch={!!post.shareReference}
-                                                />
-                                            </div>
-                                        )}
-                                        {post.shareType === 'board' && post.shareRefId && (
-                                            <div className="mb-8">
-                                                <BoardEmbed boardId={post.shareRefId} enableSave={false} />
-                                            </div>
-                                        )}
-
-                                        {/* 标签 */}
-                                        {post.tags && post.tags.length > 0 && (
-                                            <div className="row-start gap-4 mb-8 flex-wrap">
-                                                {post.tags.slice(0, 3).map((tag, idx) => (
-                                                    <span key={idx} className="badge badge-light text-12">
-                                                        {tag}
-                                                    </span>
-                                                ))}
-                                                {post.tags.length > 3 && (
-                                                    <span className="badge badge-light text-12">
-                                                        +{post.tags.length - 3}
-                                                    </span>
-                                                )}
-                                            </div>
-                                        )}
-
-                                        {/* 底部信息 */}
-                                        <div className="row-start gap-12 text-12 muted">
-                                            <span>👍 {post.likeCount}</span>
-                                            <span>💬 {post.commentCount}</span>
-                                        </div>
-                                    </div>
-                                </div>
+                                    actionsNode={<DropdownMenu actions={getPostActions(post)} />}
+                                />
                             ))}
                         </div>
 

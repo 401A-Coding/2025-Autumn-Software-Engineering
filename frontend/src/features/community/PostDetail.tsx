@@ -59,16 +59,26 @@ export default function PostDetail() {
     const navigate = useNavigate()
     const location = useLocation()
     const { postId } = useParams<{ postId: string }>()
-    const fromPage = (location.state as { from?: string })?.from || '/app/community'
+    const fromPage = (location.state as { from?: string })?.from
     const targetCommentId = (location.state as { commentId?: number })?.commentId
     const returnTab = (location.state as { tab?: 'posts' | 'comments' })?.tab
 
     const handleBack = () => {
+        // If user came from a known in-app location, go back in history to preserve navigation stack
         if (returnTab && fromPage === '/app/my-posts') {
+            // preserve the original behavior for my-posts with tab state
             navigate(fromPage, { state: { tab: returnTab } })
-        } else {
-            navigate(fromPage)
+            return
         }
+
+        if (fromPage) {
+            // go back one entry instead of pushing the fromPage again
+            navigate(-1)
+            return
+        }
+
+        // fallback to community home
+        navigate('/app/community')
     }
     const [post, setPost] = useState<Post | null>(null)
     const [comments, setComments] = useState<Comment[]>([])
@@ -471,15 +481,7 @@ export default function PostDetail() {
                     <button
                         className="btn-ghost"
                         title="搜索帖子内容"
-                        onClick={() => {
-                            // 简单的页面内搜索占位：跳到浏览器查找或触发展示搜索模态（后续实现）
-                            const q = window.prompt('输入要搜索的关键词：')
-                            if (q) {
-                                // 以简易方式在控制台提示，完整实现留到后续
-                                console.log('Search in post:', q)
-                                alert('搜索功能尚未实现（仅占位）')
-                            }
-                        }}
+                        onClick={() => navigate('/app/community/search')}
                     >🔍</button>
                     <DropdownMenu actions={getPostActions()} />
                 </div>
@@ -535,7 +537,7 @@ export default function PostDetail() {
                                 {post.tags.map((tag, idx) => (
                                     <button
                                         key={idx}
-                                        onClick={() => navigate(`/app/community?search=${encodeURIComponent(tag)}`)}
+                                        onClick={() => navigate(`/app/community/search?tag=${encodeURIComponent(tag)}`)}
                                         style={{
                                             display: 'inline-flex',
                                             alignItems: 'center',

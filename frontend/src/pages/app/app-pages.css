@@ -398,6 +398,26 @@
     color: #6b7280;
 }
 
+/* Community search input style: rounded, light gray background, full-width */
+.search-input-full {
+    background: #f3f4f6;
+    border: 1px solid #e5e7eb;
+    padding: 8px 12px;
+    border-radius: 12px;
+    color: #111827;
+    outline: none;
+    transition: box-shadow 0.12s, border-color 0.12s;
+}
+
+.search-input-full:focus {
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.08);
+    border-color: #93c5fd;
+}
+
+.search-input-full[readonly] {
+    cursor: pointer;
+}
+
 .text-orange-700 {
     color: #92400e;
 }
@@ -656,6 +676,48 @@
     border-radius: 8px;
     padding: 16px;
     color: var(--muted);
+}
+
+/* Search history area */
+.search-history {
+    padding: 10px;
+    background: #ffffff;
+    border: 1px solid #eef2f5;
+    border-radius: 10px;
+}
+
+.search-history .muted {
+    font-weight: 600;
+    color: #6b7280;
+}
+
+.history-list {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.history-tag {
+    background: #f8fafc;
+    border: 1px solid #e6eef6;
+    padding: 6px 10px;
+    border-radius: 999px;
+    font-size: 13px;
+    color: #0f172a;
+    cursor: pointer;
+    transition: background 0.12s, transform 0.08s;
+}
+
+.history-tag:hover {
+    background: #eef2ff;
+    transform: translateY(-1px);
+}
+
+.history-clear {
+    padding: 6px 8px;
+    font-size: 13px;
+    color: #6b7280;
 }
 
 .tip-box {
