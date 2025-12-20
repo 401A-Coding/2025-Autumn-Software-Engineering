@@ -45,6 +45,12 @@ export default function TemplateManager() {
     navigate('/app/visual-editor', { state: { layout: local, rules: boardData.rules } })
   }
 
+  const handlePlayLocally = (boardData: any) => {
+    // 直接打开本地对局模式，导入模板的布局和规则
+    const local = apiBoardToLocalFormat(boardData)
+    navigate('/app/custom-battle', { state: { layout: local, rules: boardData.rules } })
+  }
+
   const handleDelete = async (id: number) => {
     if (!confirm('确定删除该模板？此操作无法撤销')) return
     try {
@@ -113,7 +119,8 @@ export default function TemplateManager() {
               </div>
               <div className="text-13 text-slate mb-6">{t.description || ''}</div>
               <div className="row gap-8">
-                <button className="btn-primary btn-compact" onClick={() => handleApply(t)}>应用</button>
+                <button className="btn-primary btn-compact" onClick={() => handleApply(t)}>编辑</button>
+                <button className="btn-compact" onClick={() => handlePlayLocally(t)}>本地对局</button>
                 <button className="btn-compact" onClick={() => handleRename(t.id)}>重命名</button>
                 <button className="btn-danger btn-compact" onClick={() => handleDelete(t.id)}>删除</button>
               </div>
@@ -141,7 +148,8 @@ export default function TemplateManager() {
                 </div>
                 <div className="text-13 text-slate mb-6">{rt.preview || ''}</div>
                 <div className="row gap-8">
-                  <button className="btn-primary btn-compact" onClick={() => handleImportRemote(rt.id)}>导入到本地</button>
+                  <button className="btn-primary btn-compact" onClick={() => handleImportRemote(rt.id)}>编辑</button>
+                  <button className="btn-compact" onClick={async () => { try { const data = await boardApi.get(rt.id); handlePlayLocally(data); } catch(e) { alert('导入失败'); } }}>本地对局</button>
                 </div>
               </div>
             ))}

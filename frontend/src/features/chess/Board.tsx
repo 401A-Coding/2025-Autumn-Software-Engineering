@@ -87,13 +87,14 @@ export default function Board({ customRules: customRulesProp, initialBoard, init
         if (customRulesProp && isCustomRuleSet(customRulesProp)) {
             const ruleSet = customRulesProp as CustomRuleSet
             const pieceRule = ruleSet.pieceRules[p.type]
-            if (pieceRule) {
+            if (pieceRule && pieceRule.movePatterns && pieceRule.movePatterns.length > 0) {
                 const moves = generateMovesFromRules(state.board, { x, y }, pieceRule, state.turn)
                 return moves.filter(m => {
                     const target = state.board[m.y]?.[m.x]
                     return !target || target.side !== state.turn
                 })
             }
+            // 如果没有 movePatterns，降级到 customRules 或标准规则
         }
 
         if (state.customRules) {
