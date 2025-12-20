@@ -2,6 +2,7 @@ import './App.css'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import Login from './pages/auth/Login.tsx'
 import Register from './pages/auth/Register.tsx'
+import ForgotPassword from './pages/auth/ForgotPassword.tsx'
 import ProtectedRoute from './routes/ProtectedRoute.tsx'
 import AppLayout from './layouts/AppLayout.tsx'
 import Home from './pages/app/Home.tsx'
@@ -36,6 +37,7 @@ function App() {
     <Routes>
       <Route path="/" element={<Navigate to="/login" replace />} />
       <Route path="/login" element={<Login />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/register" element={<Register />} />
 
       <Route path="/app" element={<ProtectedRoute />}>
