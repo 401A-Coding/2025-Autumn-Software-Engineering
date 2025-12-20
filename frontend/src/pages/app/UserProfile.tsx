@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import './app-pages.css'
-import { userApi } from '../../services/api'
+import { userApi, communityApi } from '../../services/api'
+import PostPreview from '../../features/community/PostPreview'
 
 type UserProfile = {
     id: number
@@ -15,6 +16,7 @@ type UserProfile = {
         comments: number
         likes: number
     }
+    // legacy: userApi.getById used to return latest 10 posts
     posts?: {
         id: number
         title: string
@@ -31,6 +33,12 @@ export default function UserProfile() {
     const [user, setUser] = useState<UserProfile | null>(null)
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState('')
+    // posts pagination state (fetch from communityApi.listPosts)
+    const [posts, setPosts] = useState<any[]>([])
+    const [postsLoading, setPostsLoading] = useState(false)
+    const [postsPage, setPostsPage] = useState(1)
+    const [postsPageSize] = useState(10)
+    const [postsTotal, setPostsTotal] = useState(0)
 
     useEffect(() => {
         let alive = true
@@ -42,6 +50,8 @@ export default function UserProfile() {
                 const data = await userApi.getById(Number(userId))
                 if (!alive) return
                 setUser(data as unknown as UserProfile)
+                // load first page of posts by this author
+                loadPosts(1, Number(userId))
             } catch (e: any) {
                 if (!alive) return
                 setError(e?.message || '加载用户信息失败')
@@ -55,6 +65,28 @@ export default function UserProfile() {
             alive = false
         }
     }, [userId])
+
+    async function loadPosts(pageNum = 1, uid?: number) {
+        if (!userId && !uid) return
+        const author = uid ?? Number(userId)
+        setPostsLoading(true)
+        try {
+            const res = await communityApi.listPosts({ authorId: author, page: pageNum, pageSize: postsPageSize })
+            const items = (res as any).items || []
+            const total = (res as any).total || 0
+            if (pageNum <= 1) {
+                setPosts(items)
+            } else {
+                setPosts(prev => [...prev, ...items])
+            }
+            setPostsTotal(total)
+            setPostsPage(pageNum)
+        } catch (e) {
+            console.error('Failed to load user posts:', e)
+        } finally {
+            setPostsLoading(false)
+        }
+    }
 
     const copyUid = async (uid: number) => {
         try {
@@ -173,33 +205,33 @@ export default function UserProfile() {
                 </div>
             </section>
 
-            {/* 用户的帖子 */}
+            {/* 用户的帖子（分页加载） */}
             <section className="paper-card card-pad mt-12">
                 <h3 className="mt-0 mb-12">Ta 的帖子</h3>
-                {user.posts && user.posts.length > 0 ? (
-                    <div className="col gap-8">
-                        {user.posts.map((p) => (
-                            <div
-                                key={p.id}
-                                className="paper-card pad-12 cursor-pointer"
-                                onClick={() => navigate(`/app/community/${p.id}`, { state: { from: `/app/users/${userId}` } })}
-                            >
-                                <div className="row-between align-start">
-                                    <div>
-                                        <div className="fw-600 mb-4" style={{ textAlign: 'left' }}>{p.title}</div>
-                                        <div className="muted text-13 line-clamp-2 mb-6" style={{ textAlign: 'left' }}>{p.excerpt || '(无内容)'}</div>
-                                        <div className="text-12 muted row-start gap-10">
-                                            <span>{new Date(p.createdAt).toLocaleDateString()}</span>
-                                            <span>👍 {p.likeCount}</span>
-                                            <span>💬 {p.commentCount}</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                ) : (
+                {postsLoading && posts.length === 0 ? (
+                    <div className="muted text-center py-12">加载中...</div>
+                ) : posts.length === 0 ? (
                     <div className="empty-box">暂无帖子</div>
+                ) : (
+                    <>
+                        <div className="col gap-12">
+                            {posts.map((p) => (
+                                <PostPreview
+                                    key={p.id}
+                                    post={p}
+                                    onClick={() => navigate(`/app/community/${p.id}`, { state: { from: `/app/users/${userId}` } })}
+                                />
+                            ))}
+                        </div>
+
+                        {posts.length < postsTotal && (
+                            <div className="row-center mt-12">
+                                <button className="btn-ghost" disabled={postsLoading} onClick={() => loadPosts(postsPage + 1)}>
+                                    {postsLoading ? '加载中...' : '加载更多'}
+                                </button>
+                            </div>
+                        )}
+                    </>
                 )}
             </section>
         </div>
