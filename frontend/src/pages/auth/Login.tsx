@@ -30,9 +30,9 @@ export default function Login() {
             const data = res.data
             if (data?.accessToken && data?.refreshToken) setTokens(data)
             if (remember) {
-                try { localStorage.setItem('rememberLogin', JSON.stringify({ phone, password })) } catch {}
+                try { localStorage.setItem('rememberLogin', JSON.stringify({ phone, password })) } catch { }
             } else {
-                try { localStorage.removeItem('rememberLogin') } catch {}
+                try { localStorage.removeItem('rememberLogin') } catch { }
             }
             navigate('/app/home', { replace: true })
         } catch (e: unknown) {
