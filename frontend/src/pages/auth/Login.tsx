@@ -10,7 +10,6 @@ const phoneRegex = /^1[3-9]\d{9}$/
 export default function Login() {
     const [phone, setPhone] = useState('')
     const [password, setPassword] = useState('')
-    const [confirmPassword, setConfirmPassword] = useState('')
     const [remember, setRemember] = useState(false)
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
@@ -20,7 +19,6 @@ export default function Login() {
         e.preventDefault()
         if (!phoneRegex.test(phone)) return setError('请输入合法的手机号')
         if (password.length < 6) return setError('密码至少 6 位')
-        if (confirmPassword !== password) return setError('两次输入的密码不一致')
         setError(null); setLoading(true)
         try {
             type LoginReq = operations['authLogin']['requestBody']['content']['application/json']
@@ -81,16 +79,6 @@ export default function Login() {
                             value={password}
                             onChange={e => setPassword(e.target.value)}
                             placeholder="至少 6 位"
-                        />
-                    </label>
-                    <label className="auth-label">
-                        确认密码
-                        <input
-                            className="auth-input"
-                            type="password"
-                            value={confirmPassword}
-                            onChange={e => setConfirmPassword(e.target.value)}
-                            placeholder="请再次输入密码"
                         />
                     </label>
                     <div className="row-between" style={{ alignItems: 'center' }}>
