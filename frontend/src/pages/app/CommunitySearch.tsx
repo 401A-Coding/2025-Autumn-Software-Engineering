@@ -15,6 +15,7 @@ export default function CommunitySearch() {
     const [loading, setLoading] = useState(false)
     const [hasSearched, setHasSearched] = useState(false)
     const [authorId, setAuthorId] = useState<number | null>(null)
+    const [authorName, setAuthorName] = useState<string | null>(null)
     const navigate = useNavigate()
     const location = useLocation()
 
@@ -38,6 +39,7 @@ export default function CommunitySearch() {
                 if (localQ) params.q = localQ
                 if (localTag) params.tag = localTag
                 if (localAuthor) params.authorId = String(localAuthor)
+                if (authorName) params.authorName = authorName
                 if ((data.page ?? p) > 1) params.page = String(data.page ?? p)
                 setSearchParams(params)
 
@@ -62,21 +64,30 @@ export default function CommunitySearch() {
         } finally {
             setLoading(false)
         }
-    }, [q, tag, page, pageSize, setSearchParams, authorId])
+    }, [q, tag, page, pageSize, setSearchParams, authorId, authorName])
 
     // initial load from URL and react to searchParams changes (so back/forward works)
     useEffect(() => {
         const initialQ = searchParams.get('q') ?? ''
         const initialTag = searchParams.get('tag') ?? ''
         const initialAuthor = searchParams.get('authorId') ?? ''
+        const initialAuthorName = searchParams.get('authorName') ?? ''
         const initialPage = Number(searchParams.get('page') ?? '1') || 1
-        setQ(initialQ || initialTag || initialAuthor)
+        // do not populate the input with authorId; keep author as filter/placeholder only
+        setQ(initialQ || initialTag)
         setTag(initialTag)
         setAuthorId(initialAuthor ? Number(initialAuthor) : null)
+        setAuthorName(initialAuthorName || null)
         setPage(initialPage)
-        if (initialQ || initialTag || initialAuthor) {
+        if (initialQ || initialTag) {
+            // explicit query requested in URL -> run search
             setHasSearched(true)
-            doSearch({ page: initialPage, q: initialQ || initialTag || initialAuthor, tag: initialTag, authorId: initialAuthor ? Number(initialAuthor) : undefined, updateURL: false })
+            doSearch({ page: initialPage, q: initialQ || initialTag, tag: initialTag, authorId: initialAuthor ? Number(initialAuthor) : undefined, updateURL: false })
+        } else if (initialAuthor) {
+            // only author present -> show placeholder but do NOT auto-run search
+            setHasSearched(false)
+            setPosts([])
+            setTotal(0)
         } else {
             // no query -> reset search state
             setHasSearched(false)
@@ -106,7 +117,7 @@ export default function CommunitySearch() {
                     <button className="btn-ghost" onClick={() => navigate(-1)} style={{ minWidth: 48 }}>⬅</button>
                     <input
                         className="flex-1 search-input-full"
-                        placeholder="输入关键词后回车或点击搜索"
+                        placeholder={authorId && !hasSearched && !q ? `搜索${authorName || ''}的帖子` : '输入关键词后回车或点击搜索'}
                         value={q}
                         onChange={(e) => setQ(e.target.value)}
                         onKeyDown={(e) => { if (e.key === 'Enter') { doSearch({ page: 1, q, tag, updateURL: true }); } }}
@@ -117,7 +128,7 @@ export default function CommunitySearch() {
             </div>
 
             {/* Search history tags (shown before/after) */}
-            {!hasSearched && history && history.length > 0 && (
+            {!hasSearched && !authorId && history && history.length > 0 && (
                 <div className="mb-6 search-history">
                     <div className="row-between mb-2">
                         <div className="muted">搜索历史</div>

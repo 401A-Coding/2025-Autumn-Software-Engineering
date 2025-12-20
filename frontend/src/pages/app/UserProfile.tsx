@@ -92,10 +92,10 @@ export default function UserProfile() {
                 <div>
                     <button
                         className="btn-ghost"
-                        onClick={() => navigate(`/app/community/search?q=${encodeURIComponent(user.nickname)}&authorId=${user.id}`)}
+                        onClick={() => navigate(`/app/community/search?authorId=${user.id}&authorName=${encodeURIComponent(user.nickname)}`)}
                         title={`在社区中搜索 ${user.nickname} 的帖子`}
                     >
-                        🔍 搜索该用户的帖子
+                        🔍
                     </button>
                 </div>
             </div>
