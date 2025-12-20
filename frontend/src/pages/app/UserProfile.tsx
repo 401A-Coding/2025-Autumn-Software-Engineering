@@ -82,10 +82,23 @@ export default function UserProfile() {
 
     return (
         <div>
-            {/* 返回按钮 */}
-            <button className="btn-ghost mb-12" onClick={() => navigate(-1)}>
-                ← 返回
-            </button>
+            {/* 返回与搜索：同一行，返回在左，搜索在右 */}
+            <div className="row-between mb-12">
+                <div>
+                    <button className="btn-ghost" onClick={() => navigate(-1)}>
+                        ← 返回
+                    </button>
+                </div>
+                <div>
+                    <button
+                        className="btn-ghost"
+                        onClick={() => navigate(`/app/community/search?q=${encodeURIComponent(user.nickname)}&authorId=${user.id}`)}
+                        title={`在社区中搜索 ${user.nickname} 的帖子`}
+                    >
+                        🔍 搜索该用户的帖子
+                    </button>
+                </div>
+            </div>
 
             {/* 用户信息卡片 */}
             <section className="paper-card card-pad">
