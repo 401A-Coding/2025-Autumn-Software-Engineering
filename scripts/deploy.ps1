@@ -82,8 +82,15 @@ sudo systemctl reload nginx
         Run $scpScript 'upload remote deploy script'
 
         # execute remote script by passing required env vars to avoid quoting issues
-        $sshCmd = "ssh $SshExtraArgs $SshTarget 'REMOTE_TMP=$RemoteTemp REMOTE_WEBROOT=$RemoteWebRoot bash $RemoteTemp/_remote_deploy_frontend.sh'"
-        Run $sshCmd 'publish to nginx root and reload'
+        # Upload a small wrapper that normalizes CRLF and runs the target script under /bin/bash, then invoke it
+        $localWrapper = Join-Path $PSScriptRoot 'remote-run-bash.sh'
+        if (-not (Test-Path $localWrapper)) {
+            throw "Local wrapper $localWrapper not found; ensure scripts/remote-run-bash.sh exists in the repo"
+        }
+        $scpWrapper = 'scp ' + $ScpExtraArgs + ' "' + $localWrapper + '" ' + $SshTarget + ':' + $RemoteTemp + '/remote-run-bash.sh'
+        Run $scpWrapper 'upload remote-run-bash wrapper'
+        $sshCmd = "ssh $SshExtraArgs $SshTarget 'sudo chmod +x $RemoteTemp/remote-run-bash.sh; sudo $RemoteTemp/remote-run-bash.sh $RemoteTemp/_remote_deploy_frontend.sh'"
+        Run $sshCmd 'publish to nginx root and reload (via remote-run-bash)'
     }
     finally { Pop-Location }
 }
@@ -189,8 +196,15 @@ fi
     $envPart = 'DATABASE_URL="' + $escapedDb + '" JWT_SECRET="' + $escapedJwt + '" REMOTE_TMP=' + $RemoteTemp + ' REMOTE_WORK=' + $remoteWork
     $remoteScriptPath = $RemoteTemp + '/_remote_deploy_backend.sh'
     # run the remote backend deploy script as root so it can write to /tmp and manage containers
-    $sshCmd = "ssh $SshExtraArgs $SshTarget 'sudo env $envPart bash $remoteScriptPath'"
-    Run $sshCmd 'remote build image and restart container (sudo)'
+    # Upload wrapper and invoke it to normalize and run the remote backend deploy script
+    $localWrapper = Join-Path $PSScriptRoot 'remote-run-bash.sh'
+    if (-not (Test-Path $localWrapper)) {
+        throw "Local wrapper $localWrapper not found; ensure scripts/remote-run-bash.sh exists in the repo"
+    }
+    $scpWrapper = 'scp ' + $ScpExtraArgs + ' "' + $localWrapper + '" ' + $SshTarget + ':' + $RemoteTemp + '/remote-run-bash.sh'
+    Run $scpWrapper 'upload remote-run-bash wrapper'
+    $sshCmd = "ssh $SshExtraArgs $SshTarget 'sudo chmod +x $RemoteTemp/remote-run-bash.sh; sudo $RemoteTemp/remote-run-bash.sh $remoteScriptPath'"
+    Run $sshCmd 'remote build image and restart container (via remote-run-bash)'
 }
 
 switch ($Target) {
