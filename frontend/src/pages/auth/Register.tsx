@@ -7,6 +7,7 @@ import './auth.css'
 export default function Register() {
     const [phone, setPhone] = useState('');
     const [password, setPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const navigate = useNavigate();
@@ -15,6 +16,11 @@ export default function Register() {
         e.preventDefault();
         setError(null);
         setLoading(true);
+        if (password !== confirmPassword) {
+            setError('两次输入的密码不一致');
+            setLoading(false);
+            return;
+        }
         try {
             type RegisterReq = operations['authRegister']['requestBody']['content']['application/json']
             type RegisterData = operations['authRegister']['responses'][200]['content']['application/json']['data']
@@ -54,6 +60,17 @@ export default function Register() {
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             placeholder="请输入密码"
+                            required
+                        />
+                    </label>
+                    <label>
+                        确认密码
+                        <input
+                            className="auth-input"
+                            type="password"
+                            value={confirmPassword}
+                            onChange={(e) => setConfirmPassword(e.target.value)}
+                            placeholder="请再次输入密码"
                             required
                         />
                     </label>

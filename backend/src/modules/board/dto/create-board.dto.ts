@@ -32,4 +32,8 @@ export class CreateBoardDto {
   @IsOptional()
   @IsBoolean({ message: 'isTemplate must be a boolean' })
   isTemplate?: boolean;
+
+  @IsOptional()
+  @IsBoolean({ message: 'isEndgame must be a boolean' })
+  isEndgame?: boolean;
 }

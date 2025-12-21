@@ -112,6 +112,10 @@
 
 .livebattle-board-wrapper {
     margin-top: 12px;
+    width: 360px;
+    max-width: 100%;
+    margin-left: auto;
+    margin-right: auto;
 }
 
 .livebattle-offline-hint {
@@ -175,6 +179,32 @@
     border-color: var(--border);
 }
 
+.player-card {
+    flex: 1 1 260px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    background: #fff;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+}
+
+.player-card.active-turn {
+    animation: pulse-border 1s infinite;
+    border-color: var(--accent);
+}
+
+.player-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #888;
+}
+
+.player-dot.dot-red { background: #c8102e; }
+.player-dot.dot-black { background: #333; }
+
+.avatar-click { cursor: pointer; }
+
 @keyframes livebattle-fade-in {
     from {
         opacity: 0;
@@ -184,5 +214,19 @@
     to {
         opacity: 1;
         transform: translateY(0);
+    }
+}
+
+@keyframes pulse-border {
+
+    0%,
+    100% {
+        opacity: 1;
+        box-shadow: 0 0 0 0 rgba(200, 16, 46, 0.4);
+    }
+
+    50% {
+        opacity: 0.7;
+        box-shadow: 0 0 8px 2px rgba(200, 16, 46, 0.6);
     }
 }

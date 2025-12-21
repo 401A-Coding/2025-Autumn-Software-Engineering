@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import Board from '../../features/chess/Board'
 import type { CustomRuleSet } from '../../features/chess/ruleEngine'
 import { standardChessRules } from '../../features/chess/rulePresets'
-import { recordsApi, boardApi } from '../../services/api'
+import { boardApi } from '../../services/api'
 import { apiBoardToLocalFormat } from '../../features/chess/boardAdapter'
 import { recordStore } from '../../features/records/recordStore'
 import type { MoveRecord, ChessRecord } from '../../features/records/types'
@@ -20,7 +20,21 @@ export default function CustomBattle() {
         // 优先使用路由 state 传入的布局与规则（来自模板管理或编辑器）
         if (state.rules) {
             try {
-                setRuleSet(state.rules as CustomRuleSet)
+                const rules = state.rules as any
+                // 检查是否是完整的 CustomRuleSet 格式（有 pieceRules 字段）
+                if (rules && typeof rules === 'object' && rules.pieceRules && Object.keys(rules.pieceRules).length > 0) {
+                    // 验证每个 pieceRule 都有 movePatterns
+                    const hasValidMovePatterns = Object.values(rules.pieceRules).every((pr: any) => 
+                        pr && pr.movePatterns && Array.isArray(pr.movePatterns) && pr.movePatterns.length > 0
+                    )
+                    if (hasValidMovePatterns) {
+                        setRuleSet(rules as CustomRuleSet)
+                        return
+                    }
+                }
+                // 如果规则不完整或无法识别，使用标准规则
+                console.warn('Incomplete or unrecognized rules format, using standard chess rules', rules)
+                setRuleSet(standardChessRules)
             } catch (e) {
                 console.error('Invalid rules in navigation state', e)
                 setRuleSet(standardChessRules)
@@ -40,11 +54,21 @@ export default function CustomBattle() {
         if (boardIdStr) {
             const id = Number(boardIdStr)
             if (!Number.isNaN(id)) {
-                ;(async () => {
+                ; (async () => {
                     try {
                         const apiBoard = await boardApi.get(id)
                         // 将 API 格式转换为本地二维数组
                         setCustomBoard(apiBoardToLocalFormat(apiBoard as any))
+                        // 如果 apiBoard 有 rules，尝试使用它
+                        if (apiBoard.rules && typeof apiBoard.rules === 'object' && (apiBoard.rules as any).pieceRules) {
+                            const rules = apiBoard.rules as any
+                            const hasValidMovePatterns = Object.values(rules.pieceRules).every((pr: any) => 
+                                pr && pr.movePatterns && Array.isArray(pr.movePatterns) && pr.movePatterns.length > 0
+                            )
+                            if (hasValidMovePatterns) {
+                                setRuleSet(rules as CustomRuleSet)
+                            }
+                        }
                     } catch (e) {
                         console.error('Failed to load board from server', e)
                     }
@@ -75,7 +99,7 @@ export default function CustomBattle() {
             // Use recordStore.saveNew which will attempt server save if token exists,
             // otherwise fall back to local-only saving. This centralizes save logic and
             // avoids direct 401 errors from calling recordsApi.create here.
-            const { record, savedToServer } = await recordStore.saveNew(rec)
+            const { savedToServer } = await recordStore.saveNew(rec)
             if (savedToServer) {
                 alert('对局已保存到服务器')
             } else {

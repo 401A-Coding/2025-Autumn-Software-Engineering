@@ -8,13 +8,16 @@ export default function EndgameSaved() {
     const [loading, setLoading] = useState(true)
     const [selectMode, setSelectMode] = useState(false)
     const [selectedIds, setSelectedIds] = useState<number[]>([])
+    const [currentPage, setCurrentPage] = useState(1)
+    const itemsPerPage = 10
     const nav = useNavigate()
 
     useEffect(() => {
         (async () => {
             try {
-                const templates = await boardApi.getTemplates()
-                setBoards(Array.isArray(templates) ? templates : [])
+                const res = await boardApi.getMyEndgames(1, 100)
+                const items = (res as any)?.items || []
+                setBoards(Array.isArray(items) ? items : [])
             } finally {
                 setLoading(false)
             }
@@ -51,6 +54,13 @@ export default function EndgameSaved() {
         setSelectedIds([])
     }
 
+    // 分页逻辑
+    const totalPages = Math.ceil(boards.length / itemsPerPage)
+    const paginatedBoards = boards.slice(
+        (currentPage - 1) * itemsPerPage,
+        currentPage * itemsPerPage
+    )
+
     return (
         <section className="paper-card card-pad">
             <h2 className="mt-0">保存的残局（模板）</h2>
@@ -70,36 +80,61 @@ export default function EndgameSaved() {
                 <div className="empty-box">暂无保存的残局</div>
             ) : (
                 <div className="col gap-8 mt-12">
-                    {boards.map((b) => (
-                        <div key={b.id} className="paper-card pad-8 row-between" style={{ textAlign: 'left' }}>
-                            <div className="row-start gap-8 align-center">
-                                {selectMode && (
-                                    <input
-                                        type="checkbox"
-                                        checked={selectedIds.includes(b.id)}
-                                        onChange={() => toggleSelect(b.id)}
-                                        aria-label={`选择模板 ${b.name || b.id}`}
-                                    />
-                                )}
-                                <button
-                                    className="btn-ghost"
-                                    onClick={() => nav('/app/endgame/setup', { state: { layout: b.layout, name: b.name } })}
-                                    title="打开并编辑该残局"
-                                >
-                                    <div>
-                                        <div className="fw-600">{b.name || `残局 #${b.id}`}</div>
-                                        <div className="muted text-13">{new Date(b.updatedAt || b.createdAt).toLocaleString()}</div>
-                                    </div>
-                                </button>
+                    <div style={{ height: 'auto', maxHeight: '500px', overflowY: 'auto', paddingRight: 8 }}>
+                        {paginatedBoards.map((b) => (
+                            <div key={b.id} className="paper-card pad-8 row-between" style={{ textAlign: 'left' }}>
+                                <div className="row-start gap-8 align-center">
+                                    {selectMode && (
+                                        <input
+                                            type="checkbox"
+                                            checked={selectedIds.includes(b.id)}
+                                            onChange={() => toggleSelect(b.id)}
+                                            aria-label={`选择模板 ${b.name || b.id}`}
+                                        />
+                                    )}
+                                    <button
+                                        className="btn-ghost"
+                                        onClick={() => nav('/app/endgame/setup', { state: { layout: b.layout, name: b.name } })}
+                                        title="打开并编辑该残局"
+                                    >
+                                        <div>
+                                            <div className="fw-600">{b.name || `残局 #${b.id}`}</div>
+                                            <div className="muted text-13">{new Date(b.updatedAt || b.createdAt).toLocaleString()}</div>
+                                        </div>
+                                    </button>
+                                </div>
+                                <div className="row-start gap-8">
+                                    <button
+                                        className="btn-ghost"
+                                        onClick={() => nav('/app/endgame/setup', { state: { layout: b.layout, name: b.name } })}
+                                    >打开</button>
+                                    <button
+                                        className="btn-ghost"
+                                        title="以该残局模板创建好友房，邀请在线对战"
+                                        onClick={() => {
+                                            if (!b.id) return
+                                            nav(`/app/live-battle?action=create&initialBoardId=${b.id}`)
+                                        }}
+                                    >邀请对战</button>
+                                </div>
                             </div>
-                            <div className="row-start gap-8">
-                                <button
-                                    className="btn-ghost"
-                                    onClick={() => nav('/app/endgame/setup', { state: { layout: b.layout, name: b.name } })}
-                                >打开</button>
-                            </div>
+                        ))}
+                    </div>
+                    {totalPages > 1 && (
+                        <div className="row-center gap-8 mt-12">
+                            <button
+                                className="btn-ghost"
+                                disabled={currentPage === 1}
+                                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                            >← 上一页</button>
+                            <span className="muted">第 {currentPage} / {totalPages} 页</span>
+                            <button
+                                className="btn-ghost"
+                                disabled={currentPage === totalPages}
+                                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                            >下一页 →</button>
                         </div>
-                    ))}
+                    )}
                 </div>
             )}
         </section>

@@ -62,6 +62,9 @@ export class BoardService {
     };
   }
   create(createBoardDto: CreateBoardDto, ownerId?: number) {
+    // 规范化互斥：残局优先，其次模板；二者不可同时为 true
+    const endgame = !!createBoardDto.isEndgame;
+    const template = !!createBoardDto.isTemplate && !endgame;
     return this.prisma.board.create({
       data: {
         name: createBoardDto.name,
@@ -74,21 +77,34 @@ export class BoardService {
         ) as Prisma.InputJsonObject,
         preview: createBoardDto.preview,
         ownerId: ownerId ?? undefined,
-        isTemplate: createBoardDto.isTemplate ?? false,
+        isTemplate: template,
+        isEndgame: endgame,
       },
     });
   }
 
   findTemplates() {
+    // 自定义棋局模板：仅返回 isTemplate=true 且非残局
     return this.prisma.board.findMany({
-      where: { isTemplate: true },
+      where: { isTemplate: true, isEndgame: false },
+      orderBy: { updatedAt: 'desc' },
+    });
+  }
+
+  findMyEndgames(ownerId: number) {
+    return this.prisma.board.findMany({
+      where: { ownerId, isEndgame: true },
       orderBy: { updatedAt: 'desc' },
     });
   }
 
   findMine(ownerId: number) {
+    // “我的棋局”不包含残局，且排除旧模板：优先以 isEndgame=false 筛选
     return this.prisma.board.findMany({
-      where: { ownerId, isTemplate: false },
+      where: {
+        ownerId,
+        isEndgame: false,
+      },
       orderBy: { updatedAt: 'desc' },
     });
   }
@@ -108,18 +124,19 @@ export class BoardService {
     const skip = (Math.max(page, 1) - 1) * take;
     const [items, total] = await Promise.all([
       this.prisma.board.findMany({
-        where: { ownerId, isTemplate: false },
+        where: { ownerId, isEndgame: false },
         orderBy: { updatedAt: 'desc' },
         skip,
         take,
       }),
-      this.prisma.board.count({ where: { ownerId, isTemplate: false } }),
+      this.prisma.board.count({ where: { ownerId, isEndgame: false } }),
     ]);
     return { items, page: Math.max(page, 1), pageSize: take, total };
   }
 
   async update(id: number, updateBoardDto: UpdateBoardDto) {
     // Build partial update payload, converting nested DTOs to JSON where needed
+    // 互斥更新：当设为残局时强制取消模板；当设为模板时强制取消残局
     const data: Prisma.BoardUpdateInput = {
       ...(updateBoardDto.name !== undefined
         ? { name: updateBoardDto.name }
@@ -144,9 +161,14 @@ export class BoardService {
       ...(updateBoardDto.preview !== undefined
         ? { preview: updateBoardDto.preview }
         : {}),
-      ...(updateBoardDto.isTemplate !== undefined
-        ? { isTemplate: updateBoardDto.isTemplate }
+      ...(updateBoardDto.isEndgame === true
+        ? { isEndgame: true, isTemplate: false }
         : {}),
+      ...(updateBoardDto.isEndgame === false ? { isEndgame: false } : {}),
+      ...(updateBoardDto.isTemplate === true
+        ? { isTemplate: true, isEndgame: false }
+        : {}),
+      ...(updateBoardDto.isTemplate === false ? { isTemplate: false } : {}),
     };
     return await this.prisma.board.update({
       where: { id },

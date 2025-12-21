@@ -23,7 +23,7 @@ export default function TemplateManager() {
     void refresh()
     void refreshRemote()
     // remove local saved-boards listener because we no longer use local storage
-    return () => {}
+    return () => { }
   }, [])
 
   const [remoteTemplates, setRemoteTemplates] = useState<any[]>([])
@@ -41,9 +41,14 @@ export default function TemplateManager() {
 
   const handleApply = (boardData: any) => {
     // 将服务器上的布局与规则通过路由 state 传递给可视化编辑器（可在编辑器中直接加载）
-    const layout = boardData.layout || { pieces: [] }
     const local = apiBoardToLocalFormat(boardData)
     navigate('/app/visual-editor', { state: { layout: local, rules: boardData.rules } })
+  }
+
+  const handlePlayLocally = (boardData: any) => {
+    // 直接打开本地对局模式，导入模板的布局和规则
+    const local = apiBoardToLocalFormat(boardData)
+    navigate('/app/custom-battle', { state: { layout: local, rules: boardData.rules } })
   }
 
   const handleDelete = async (id: number) => {
@@ -59,7 +64,7 @@ export default function TemplateManager() {
     }
   }
 
-  
+
 
   const handleImportRemote = async (boardId?: number) => {
     if (!boardId) return
@@ -114,7 +119,8 @@ export default function TemplateManager() {
               </div>
               <div className="text-13 text-slate mb-6">{t.description || ''}</div>
               <div className="row gap-8">
-                <button className="btn-primary btn-compact" onClick={() => handleApply(t)}>应用</button>
+                <button className="btn-primary btn-compact" onClick={() => handleApply(t)}>编辑</button>
+                <button className="btn-compact" onClick={() => handlePlayLocally(t)}>本地对局</button>
                 <button className="btn-compact" onClick={() => handleRename(t.id)}>重命名</button>
                 <button className="btn-danger btn-compact" onClick={() => handleDelete(t.id)}>删除</button>
               </div>
@@ -142,7 +148,8 @@ export default function TemplateManager() {
                 </div>
                 <div className="text-13 text-slate mb-6">{rt.preview || ''}</div>
                 <div className="row gap-8">
-                  <button className="btn-primary btn-compact" onClick={() => handleImportRemote(rt.id)}>导入到本地</button>
+                  <button className="btn-primary btn-compact" onClick={() => handleImportRemote(rt.id)}>编辑</button>
+                  <button className="btn-compact" onClick={async () => { try { const data = await boardApi.get(rt.id); handlePlayLocally(data); } catch(e) { alert('导入失败'); } }}>本地对局</button>
                 </div>
               </div>
             ))}

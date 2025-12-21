@@ -233,7 +233,8 @@ Authorization: Bearer <token>
 | 接口     | 方法     | 路径                         | 鉴权 | 描述          |
 | ------ | ------ | -------------------------- | -- | ----------- |
 | 获取标准棋盘 | GET    | `/api/v1/boards/standard` | ❌  | 返回中国象棋标准开局 |
-| 获取模板列表 | GET    | `/api/v1/boards/templates` | ❌  | 获取系统预设棋局模板  |
+| 获取模板列表 | GET    | `/api/v1/boards/templates` | ❌  | 获取自定义棋局模板（isTemplate=true；不含残局） |
+| 获取我的残局 | GET    | `/api/v1/boards/endgames`  | ✅  | 获取本人保存的所有残局 |
 | 创建棋局   | POST   | `/api/v1/boards`           | ✅  | 用户自定义棋局     |
 | 查询我的棋局 | GET    | `/api/v1/boards/mine`      | ✅  | 获取自己创建的所有棋局 |
 | 查看棋局详情 | GET    | `/api/v1/boards/:boardId`  | ✅  | 读取棋局布局与规则   |
@@ -256,8 +257,8 @@ GET /api/v1/boards/standard
     "description": "中国象棋标准开局布局",
     "layout": {
       "pieces": [
-        { "type": "chariot", "side": "black", "x": 0, "y": 0 },
-        { "type": "chariot", "side": "black", "x": 8, "y": 0 },
+        { "type": "rook", "side": "black", "x": 0, "y": 0 },
+        { "type": "rook", "side": "black", "x": 8, "y": 0 },
         { "type": "horse", "side": "black", "x": 1, "y": 0 },
         { "type": "horse", "side": "black", "x": 7, "y": 0 },
         { "type": "elephant", "side": "black", "x": 2, "y": 0 },
@@ -272,8 +273,8 @@ GET /api/v1/boards/standard
         { "type": "soldier", "side": "black", "x": 4, "y": 3 },
         { "type": "soldier", "side": "black", "x": 6, "y": 3 },
         { "type": "soldier", "side": "black", "x": 8, "y": 3 },
-        { "type": "chariot", "side": "red", "x": 0, "y": 9 },
-        { "type": "chariot", "side": "red", "x": 8, "y": 9 },
+        { "type": "rook", "side": "red", "x": 0, "y": 9 },
+        { "type": "rook", "side": "red", "x": 8, "y": 9 },
         { "type": "horse", "side": "red", "x": 1, "y": 9 },
         { "type": "horse", "side": "red", "x": 7, "y": 9 },
         { "type": "elephant", "side": "red", "x": 2, "y": 9 },
@@ -314,6 +315,28 @@ GET /api/v1/boards/templates
     { "id": 2, "name": "反宫马", "preview": "/img/t2.png", "isTemplate": true }
   ]
 }
+
+获取我的残局示例（分页）
+
+```json
+GET /api/v1/boards/endgames?page=1&pageSize=10
+Authorization: Bearer <token>
+```
+
+响应
+
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "items": [ { "id": 401, "name": "马后炮妙杀", "isEndgame": true } ],
+    "page": 1,
+    "pageSize": 10,
+    "total": 1
+  }
+}
+```
 ```
 
 创建棋局示例
@@ -362,7 +385,7 @@ Authorization: Bearer <token>
   "code": 0,
   "message": "success",
   "data": {
-    "items": [ { "id": 301, "name": "中炮对屏风马", "isTemplate": false } ],
+    "items": [ { "id": 301, "name": "中炮对屏风马", "isEndgame": false } ],
     "page": 1,
     "pageSize": 10,
     "total": 1

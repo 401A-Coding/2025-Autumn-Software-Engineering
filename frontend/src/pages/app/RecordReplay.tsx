@@ -4,6 +4,8 @@ import { createInitialBoard } from '../../features/chess/types'
 import { movePiece } from '../../features/chess/rules'
 import BoardViewer from '../../features/chess/BoardViewer'
 import { recordStore } from '../../features/records/recordStore'
+import { recordsApi, userApi } from '../../services/api'
+import UserAvatar from '../../components/UserAvatar'
 import type { ChessRecord, Bookmark } from '../../features/records/types'
 // 书签即评论，统一用 bookmarks 展示
 import './app-pages.css'
@@ -22,6 +24,9 @@ export default function RecordReplay() {
     const [bmLabel, setBmLabel] = useState('')
     // 速度设置弹窗
     const [showSpeedSheet, setShowSpeedSheet] = useState(false)
+    // Profiles for header
+    const [myProfile, setMyProfile] = useState<{ id: number; nickname?: string; avatarUrl?: string } | null>(null)
+    const [opponentProfile, setOpponentProfile] = useState<{ id: number; nickname?: string; avatarUrl?: string } | null>(null)
 
     // 计算总步数（在 hooks 之前，避免条件 hooks）
     const total = record?.moves.length ?? 0
@@ -38,6 +43,27 @@ export default function RecordReplay() {
                 }
             })()
     }, [id])
+
+    useEffect(() => {
+        // Load profiles once record is ready
+        (async () => {
+            try {
+                const me = await userApi.getMe()
+                setMyProfile({ id: me.id as number, nickname: (me as any).nickname, avatarUrl: (me as any).avatarUrl })
+            } catch { }
+            try {
+                const oppId = record && record.opponent && /^\d+$/.test(String(record.opponent)) ? Number(record.opponent) : null
+                if (oppId) {
+                    const info = await userApi.getById(oppId)
+                    setOpponentProfile({ id: info.id, nickname: info.nickname, avatarUrl: info.avatarUrl || undefined })
+                } else if (myProfile) {
+                    // local self vs self
+                    setOpponentProfile({ ...myProfile })
+                }
+            } catch { }
+        })()
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [record])
 
     function jumpToBookmarkStep(bm: Bookmark) {
         setStep(Math.max(0, Math.min(bm.step, total)))
@@ -69,33 +95,137 @@ export default function RecordReplay() {
 
     // 旧的添加方法已替换为 prompt 交互，保留位置注释避免误用
 
-    // 胜负标题与颜色
+    // 解析我方棋色（从 keyTags 中提取 '我方:红' 或 '我方:黑'）
+    const mySide = (record.keyTags || []).find((t: string) => t.startsWith('我方:'))?.split(':')[1] || 'red'
+    const isRedSide = mySide === '红'
+
+    // 计算显示顺序：红方在左（先手），黑方在右（后手）
+    const leftProfile = isRedSide ? myProfile : opponentProfile
+    const rightProfile = isRedSide ? opponentProfile : myProfile
+
+    const renderFramedAvatar = (
+        profile: { id: number; nickname?: string; avatarUrl?: string } | null,
+        color: string,
+    ) => {
+        if (!profile) return null
+        const size = 48
+        const initials = (profile.nickname || '?').slice(0, 2).toUpperCase()
+        return (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+                <div
+                    className="cursor-pointer"
+                    onClick={() => navigate(`/app/users/${profile.id}`)}
+                    style={{
+                        width: size,
+                        height: size,
+                        borderRadius: '50%',
+                        border: `3px solid ${color}`,
+                        overflow: 'hidden',
+                        backgroundColor: profile.avatarUrl ? 'transparent' : '#e0e0e0',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexShrink: 0,
+                    }}
+                >
+                    {profile.avatarUrl ? (
+                        <img
+                            src={profile.avatarUrl}
+                            alt={profile.nickname || '玩家头像'}
+                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        />
+                    ) : (
+                        <span style={{ fontSize: 14, fontWeight: 600, color: '#666' }}>{initials}</span>
+                    )}
+                </div>
+                <div
+                    style={{
+                        fontWeight: 600,
+                        fontSize: 14,
+                        color: '#333',
+                        textAlign: 'center',
+                        maxWidth: 120,
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                    }}
+                >
+                    {profile.nickname || '匿名用户'}
+                </div>
+            </div>
+        )
+    }
+
+    // 胜负标题与颜色（result 是相对红方的：red=红胜，black=黑胜，draw=平）
     const result = record.result
     let titleText = '平局'
     let titleClass = 'replay-title--draw'
-    if (result === 'red') { titleText = '红方胜'; titleClass = 'replay-title--red' }
-    else if (result === 'black') { titleText = '黑方胜'; titleClass = 'replay-title--black' }
+    if (result === 'red') { titleText = '先胜'; titleClass = 'replay-title--red' }
+    else if (result === 'black') { titleText = '先负'; titleClass = 'replay-title--black' }
     else if (!result || (record as any)?.result === 'unfinished') { titleText = '未结束'; titleClass = 'replay-title--ongoing' }
 
     return (
         <div>
+            <div className="row-between align-center mb-12" style={{ gap: 12 }}>
+                <button className="btn-ghost" onClick={() => navigate('/app/history')}>← 返回列表</button>
+                <h2 className={`mt-0 mb-0 ${titleClass}`} style={{ margin: 0, flex: 1, textAlign: 'center' }}>{titleText}</h2>
+                <button
+                    className="btn-ghost"
+                    title={record.favorite ? '取消收藏' : '收藏'}
+                    onClick={async () => {
+                        try {
+                            if (record.favorite) {
+                                await recordsApi.unfavorite(record.id)
+                                setRecord({ ...record, favorite: false })
+                            } else {
+                                await recordsApi.favorite(record.id)
+                                setRecord({ ...record, favorite: true })
+                            }
+                        } catch (e) {
+                            console.error('Failed to toggle favorite:', e)
+                        }
+                    }}
+                    style={{ fontSize: '28px', lineHeight: 1 }}
+                >
+                    {record.favorite ? '❤️' : '🤍'}
+                </button>
+            </div>
             <section className="paper-card card-pad pos-rel">
-                <h2 className={`mt-0 ${titleClass}`}>{titleText}</h2>
+                {/* 战果居中显示，两侧头像 */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 16, gap: 16 }}>
+                    <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-end' }}>
+                        {renderFramedAvatar(leftProfile, '#c8102e')}
+                    </div>
+                    <div className="fw-600" style={{ textAlign: 'center', fontSize: 18 }}>
+                        {result === 'red' ? '先胜' : result === 'black' ? '先负' : result === 'draw' ? '平局' : '未结束'}
+                    </div>
+                    <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-start' }}>
+                        {renderFramedAvatar(rightProfile, '#333')}
+                    </div>
+                </div>
 
                 <div className="muted text-13">
                     开始：{new Date(record.startedAt).toLocaleString()} · 结束：{record.endedAt ? new Date(record.endedAt).toLocaleString() : '—'}
                 </div>
 
-                {/* 未结束时提供选择操作 */}
-                {(!record.result || (record as any).result === 'unfinished') && (
-                    <div className="mt-12 row-start gap-8">
-                        <button className="btn-primary" onClick={() => {/* 回顾对局：保持当前复盘视图 */ }}>回顾对局</button>
-                        <button className="btn-ghost" onClick={() => {/* 继续对战：占位，后续实现跳转或恢复对局 */ }}>继续对战</button>
-                    </div>
-                )}
+                {/* 未结束操作区已移除（统一用“残局导出”流程） */}
 
-                <div className="mt-12">
-                    <BoardViewer moves={record.moves} step={step} initialLayout={record.initialLayout as any} />
+                {/* 棋盘区域：上方黑方（棋盘上半），中间棋盘，下方红方（棋盘下半） */}
+                <div className="mt-12" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
+                    {/* 上方：黑方玩家（棋盘上半部分）- 黑色边框 */}
+                    <div style={{ display: 'flex', justifyContent: 'center' }}>
+                        {renderFramedAvatar(rightProfile, '#333')}
+                    </div>
+
+                    {/* 中间：棋盘 */}
+                    <div>
+                        <BoardViewer moves={record.moves} step={step} initialLayout={record.initialLayout as any} />
+                    </div>
+
+                    {/* 下方：红方玩家（棋盘下半部分）- 红色边框 */}
+                    <div style={{ display: 'flex', justifyContent: 'center' }}>
+                        {renderFramedAvatar(leftProfile, '#c8102e')}
+                    </div>
                 </div>
 
                 {/* 步数控制 */}
@@ -217,22 +347,6 @@ export default function RecordReplay() {
 
                 {/* 评论与书签合并展示，见上方书签列表 */}
 
-                <div className="mt-24">
-                    <button className="btn-ghost" onClick={() => navigate('/app/history')}>返回列表</button>
-                    <button
-                        className="btn-ghost ml-8"
-                        onClick={async () => {
-                            if (!record) return
-                            try {
-                                await recordStore.remove(record.id)
-                                navigate('/app/history')
-                            } catch {
-                                navigate('/app/history')
-                            }
-                        }}
-                        title="删除本条记录"
-                    >删除记录</button>
-                </div>
             </section>
             {showBookmarkSheet && (
                 <div

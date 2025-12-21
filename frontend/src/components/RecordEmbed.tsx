@@ -1,0 +1,285 @@
+/**
+ * 对局记录内嵌复盘组件，用于在发帖等场景内直接展示棋盘回放
+ */
+import { useEffect, useMemo, useState, useCallback } from 'react'
+import BoardViewer from '../features/chess/BoardViewer'
+import { recordStore } from '../features/records/recordStore'
+import { boardApi } from '../services/api'
+import { createInitialBoard } from '../features/chess/types'
+import { movePiece } from '../features/chess/rules'
+import type { ChessRecord } from '../features/records/types'
+import type { Side } from '../features/chess/types'
+
+interface RecordEmbedProps {
+    recordId: number
+    enableSave?: boolean
+    // 可选：当无权限获取记录时，用于回退渲染的快照数据（来自帖子 shareReference）
+    recordSnapshot?: any
+    // 可选：是否允许向记录 API 发起请求；若 false 则仅依赖 recordSnapshot
+    allowFetch?: boolean
+}
+
+export default function RecordEmbed({ recordId, enableSave = true, recordSnapshot, allowFetch = true }: RecordEmbedProps) {
+    const [record, setRecord] = useState<ChessRecord | null>(null)
+    const [step, setStep] = useState(0)
+    const [loading, setLoading] = useState(true)
+    const [error, setError] = useState<string | null>(null)
+    const [isAutoPlaying, setIsAutoPlaying] = useState(false)
+    const [saving, setSaving] = useState(false)
+
+    useEffect(() => {
+        let mounted = true
+
+        // 尝试从快照直接渲染，避免无权限时多余请求
+        const trySnapshot = () => {
+            const snap = recordSnapshot && typeof recordSnapshot === 'object' ? recordSnapshot : null
+            const src: any = snap && snap.snapshot ? snap.snapshot : snap
+
+            const snapMoves = Array.isArray(src?.moves) ? src.moves : (Array.isArray(src?.record?.moves) ? src.record.moves : null)
+            const snapInitial = src?.initialLayout ?? src?.record?.initialLayout
+            const snapResult = src?.result ?? src?.record?.result
+            const snapOpponent = src?.opponent ?? src?.record?.opponent
+
+            if (snapMoves && Array.isArray(snapMoves)) {
+                const fallback: ChessRecord = {
+                    id: String(recordId),
+                    startedAt: new Date().toISOString(),
+                    endedAt: undefined,
+                    opponent: snapOpponent,
+                    result: snapResult,
+                    keyTags: [],
+                    favorite: false,
+                    moves: snapMoves.map((m: any) => ({
+                        from: { x: m.from?.x ?? m.fromX ?? 0, y: m.from?.y ?? m.fromY ?? 0 },
+                        to: { x: m.to?.x ?? m.toX ?? 0, y: m.to?.y ?? m.toY ?? 0 },
+                        turn: (m.piece?.side as any) ?? (m.pieceSide as any) ?? 'red',
+                        ts: Date.now(),
+                    })),
+                    bookmarks: [],
+                    notes: [],
+                    initialLayout: snapInitial,
+                }
+                setRecord(fallback)
+                setStep(fallback.moves.length)
+                return true
+            }
+            return false
+        }
+
+        async function load() {
+            try {
+                setLoading(true)
+                setError(null)
+
+                // 如果帖子已附带 shareReference，则优先尝试快照；若快照不可用且允许拉取，则回退到接口请求
+                if (recordSnapshot) {
+                    const snapshotUsed = trySnapshot()
+                    if (snapshotUsed) return
+                    if (!allowFetch) {
+                        setError('记录快照不可用，作者未公开此记录')
+                        setRecord(null)
+                        return
+                    }
+                    // 否则继续向下走，尝试接口获取
+                }
+
+                if (!allowFetch) {
+                    setError('记录未公开，且未提供快照')
+                    setRecord(null)
+                    return
+                }
+
+                const rec = await recordStore.get(String(recordId))
+                if (!mounted) return
+                if (!rec) {
+                    setError('记录不存在或无权限访问')
+                    setRecord(null)
+                    return
+                }
+                setRecord(rec)
+                setStep(rec.moves.length) // 默认展示终局
+            } catch (e) {
+                if (!mounted) return
+                setError('加载记录失败')
+                setRecord(null)
+            } finally {
+                if (mounted) setLoading(false)
+            }
+        }
+        load()
+        return () => {
+            mounted = false
+        }
+    }, [recordId, recordSnapshot])
+
+    // 自动播放逻辑
+    useEffect(() => {
+        if (!isAutoPlaying || !record) return
+
+        const timer = setInterval(() => {
+            setStep(prevStep => {
+                if (prevStep >= record.moves.length) {
+                    setIsAutoPlaying(false)
+                    return prevStep
+                }
+                return prevStep + 1
+            })
+        }, 800) // 每800ms播放一步
+
+        return () => clearInterval(timer)
+    }, [isAutoPlaying, record])
+
+    const total = record?.moves.length ?? 0
+
+    const title = useMemo(() => {
+        if (!record) return '对局记录'
+        if (record.result === 'red') return '红方胜'
+        if (record.result === 'black') return '黑方胜'
+        if (record.result === 'draw') return '平局'
+        return '未结束'
+    }, [record])
+
+    const handleSaveAsEndgame = useCallback(async () => {
+        if (!record) {
+            alert('无有效的对局记录')
+            return
+        }
+
+        setSaving(true)
+        try {
+            const templateName = prompt(
+                '请输入残局模板名称：',
+                `${record.opponent || '对局'} - 第${step}步`
+            )
+            if (!templateName) {
+                setSaving(false)
+                return
+            }
+
+            // 计算当前步数的实际盘面
+            const board = (() => {
+                // 构建初始棋盘
+                if (record.initialLayout && Array.isArray(record.initialLayout.pieces)) {
+                    const base = Array.from({ length: 10 }, () => Array.from({ length: 9 }, () => null as any))
+                    let id = 0
+                    for (const p of record.initialLayout.pieces) {
+                        const x = Math.max(0, Math.min(8, p.x))
+                        const y = Math.max(0, Math.min(9, p.y))
+                        base[y][x] = { id: `init-${id++}`, type: p.type, side: p.side }
+                    }
+                    return base
+                }
+                return createInitialBoard()
+            })()
+
+            // 应用所有走子步骤到当前步数
+            for (let i = 0; i < Math.min(step, record.moves.length); i++) {
+                const m = record.moves[i]
+                const newBoard = movePiece(board, m.from, m.to)
+                // 更新棋盘状态
+                for (let y = 0; y < 10; y++) {
+                    for (let x = 0; x < 9; x++) {
+                        board[y][x] = newBoard[y][x]
+                    }
+                }
+            }
+
+            // 将棋盘转换为 layout 格式
+            const pieces: { type: string; side: Side; x: number; y: number }[] = []
+            for (let y = 0; y < 10; y++) {
+                for (let x = 0; x < 9; x++) {
+                    const piece = board[y][x]
+                    if (piece) {
+                        pieces.push({
+                            type: piece.type,
+                            side: piece.side,
+                            x,
+                            y,
+                        })
+                    }
+                }
+            }
+
+            const currentLayout = { pieces }
+
+            await boardApi.create({
+                name: templateName,
+                description: `从对局记录保存: ${record.opponent || '对局'} 第${step}步`,
+                layout: currentLayout,
+                rules: {
+                    layoutSource: 'empty',
+                    coordinateSystem: 'relativeToSide',
+                    mode: 'analysis',
+                    pieceRules: {},
+                },
+                preview: '',
+                isTemplate: true,
+                isEndgame: true,
+            })
+
+            alert(`成功保存为残局模板: ${templateName}`)
+        } catch (err) {
+            console.error('保存残局失败:', err)
+            alert('保存失败，请重试')
+        } finally {
+            setSaving(false)
+        }
+    }, [record, step])
+
+    if (loading) {
+        return (
+            <div className="border rounded-lg p-4 bg-gray-50 text-sm text-gray-600">加载中...</div>
+        )
+    }
+
+    if (error || !record) {
+        return (
+            <div className="border rounded-lg p-4 bg-red-50 text-sm text-red-600">
+                {error || '记录不可用'}
+            </div>
+        )
+    }
+
+    return (
+        <div className="border rounded-lg p-3 bg-white" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }}>
+            <div className="row-between align-center mb-8">
+                <div className="fw-600">{title}</div>
+            </div>
+
+            <BoardViewer moves={record.moves} step={step} initialLayout={record.initialLayout as any} />
+
+            <div className="row-start gap-8 mt-8 text-13 flex-wrap">
+                <button type="button" className="btn-ghost" disabled={step <= 0} onClick={() => { setStep((s) => Math.max(0, s - 1)); setIsAutoPlaying(false) }}>
+                    ◀ 上一步
+                </button>
+                <button
+                    type="button"
+                    className={`btn-ghost ${isAutoPlaying ? 'fw-600' : ''}`}
+                    onClick={() => setIsAutoPlaying(!isAutoPlaying)}
+                    title={isAutoPlaying ? '停止播放' : '自动播放'}
+                >
+                    {isAutoPlaying ? '⏸ 停止' : '▶ 播放'}
+                </button>
+                <button type="button" className="btn-ghost" disabled={step >= total} onClick={() => { setStep((s) => Math.min(total, s + 1)); setIsAutoPlaying(false) }}>
+                    下一步 ▶
+                </button>
+                <div className="text-13 muted">{step} / {total}</div>
+                <button type="button" className="btn-ghost" onClick={() => { setStep(0); setIsAutoPlaying(false) }}>
+                    开局
+                </button>
+                <button type="button" className="btn-ghost" onClick={() => { setStep(total); setIsAutoPlaying(false) }}>
+                    终局
+                </button>
+                <button
+                    type="button"
+                    className="btn-ghost"
+                    onClick={handleSaveAsEndgame}
+                    disabled={saving || !record || !enableSave}
+                    title="保存当前步数的盘面为残局模板"
+                >
+                    {saving ? '保存中...' : '💾 保存为残局'}
+                </button>
+            </div>
+        </div>
+    )
+}

@@ -10,6 +10,8 @@ import {
   BadRequestException,
   UseGuards,
   Req,
+  Param,
+  ParseIntPipe,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { UserService } from './user.service';
@@ -26,6 +28,13 @@ export class UsersController {
   @UseGuards(JwtAuthGuard)
   async me(@Req() req: Request & { user?: { sub: number } }) {
     return this.userService.getMeByUserId(req.user!.sub);
+  }
+
+  // 获取指定用户的公开信息（仅返回非敏感字段）
+  @Get(':id')
+  @HttpCode(200)
+  async getById(@Param('id', ParseIntPipe) id: number) {
+    return this.userService.getPublicProfileById(id);
   }
 
   @Patch('me')

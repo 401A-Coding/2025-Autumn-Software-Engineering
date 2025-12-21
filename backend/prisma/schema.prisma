@@ -37,6 +37,8 @@ model User {
   communityComments     CommunityComment[]
   postLikes             PostLike[]
   postBookmarks         PostBookmark[]
+  postViews             PostView[]
+  commentLikes          CommentLike[]
   reports               Report[]
   moderatorActions      ModeratorAction[]
 }
@@ -52,6 +54,7 @@ model Board {
   description String?
   layout      Json
   rules       Json
+  isEndgame   Boolean  @default(false)
   isTemplate  Boolean  @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -61,27 +64,28 @@ model Board {
 
   @@index([ownerId])
   @@index([isTemplate])
+  @@index([isEndgame])
 }
 
 // 对局记录主表
 model Record {
-  id        Int              @id @default(autoincrement())
-  ownerId   Int? // 记录拥有者（创建者）
-  owner     User?            @relation(fields: [ownerId], references: [id])
-  opponent  String // 对手标识（可能是用户名或外部来源）
-  startedAt DateTime
-  endedAt   DateTime
-  result    String // 结果，如 win / lose / draw / abandon 等
-  endReason String // 结束原因，如 checkmate / timeout / resign
-  keyTags   String[] // 关键标签
+  id            Int              @id @default(autoincrement())
+  ownerId       Int? // 记录拥有者（创建者）
+  owner         User?            @relation(fields: [ownerId], references: [id])
+  opponent      String // 对手标识（可能是用户名或外部来源）
+  startedAt     DateTime
+  endedAt       DateTime
+  result        String // 结果，如 win / lose / draw / abandon 等
+  endReason     String // 结束原因，如 checkmate / timeout / resign
+  keyTags       String[] // 关键标签
   initialLayout Json? // 初始布局（支持残局/自定义棋局），如 { pieces: [{type, side, x, y}] }
-  createdAt DateTime         @default(now())
-  updatedAt DateTime         @updatedAt
-  moves     Move[]
-  bookmarks Bookmark[]
-  comments  RecordComment[]
-  favorites RecordFavorite[]
-  shares    RecordShare[]
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  moves         Move[]
+  bookmarks     Bookmark[]
+  comments      RecordComment[]
+  favorites     RecordFavorite[]
+  shares        RecordShare[]
 
   @@index([ownerId])
   @@index([startedAt])
@@ -207,6 +211,7 @@ model Post {
   comments    CommunityComment[]
   likes       PostLike[]
   bookmarks   PostBookmark[]
+  views       PostView[]
   createdAt   DateTime           @default(now())
   updatedAt   DateTime           @updatedAt
 
@@ -254,12 +259,26 @@ model CommunityComment {
   parentId  Int? // 支持回复
   parent    CommunityComment?  @relation("CommentReplies", fields: [parentId], references: [id])
   replies   CommunityComment[] @relation("CommentReplies")
+  likes     CommentLike[]
   content   String
+  deletedAt DateTime? // 软删除标记
   createdAt DateTime           @default(now())
   updatedAt DateTime           @updatedAt
 
   @@index([postId])
   @@index([authorId])
+}
+
+model CommentLike {
+  id        Int              @id @default(autoincrement())
+  commentId Int
+  comment   CommunityComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  userId    Int
+  user      User             @relation(fields: [userId], references: [id])
+  createdAt DateTime         @default(now())
+
+  @@unique([commentId, userId])
+  @@index([userId])
 }
 
 model PostLike {
@@ -284,6 +303,20 @@ model PostBookmark {
 
   @@unique([postId, userId])
   @@index([userId])
+}
+
+model PostView {
+  id        Int      @id @default(autoincrement())
+  postId    Int
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  viewedAt  DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([postId, userId])
+  @@index([userId])
+  @@index([updatedAt])
 }
 
 enum ReportTargetType {

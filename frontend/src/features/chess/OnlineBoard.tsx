@@ -3,6 +3,9 @@ import type { BattleMove, BattleSnapshot } from '../../services/battlesSocket'
 import type { Board, Pos, Side } from './types'
 import { createInitialBoard } from './types'
 import { generateLegalMoves, movePiece, checkGameOver, isInCheck } from './rules'
+import type { CustomRules } from './types'
+import { generateCustomMoves } from './customRules'
+import { isInCheckWithCustomRules } from './rules'
 import './board.css'
 
 function PieceGlyph({ type, side }: { type: string; side: Side }) {
@@ -34,9 +37,11 @@ export type OnlineBoardProps = {
     authoritativeTurn?: Side
     // 用于与本地 moves 对齐的快照 moves（可为空）
     snapshotMoves?: BattleSnapshot['moves']
+    // 可选：自定义规则（仅自定义在线对战使用；存在则按自定义规则计算走子、将军与胜负）
+    customRules?: CustomRules
 }
 
-export default function OnlineBoard({ moves, turnIndex, players, myUserId, onAttemptMove, winnerId, authoritativeBoard, authoritativeTurn, snapshotMoves }: OnlineBoardProps) {
+export default function OnlineBoard({ moves, turnIndex, players, myUserId, onAttemptMove, winnerId, authoritativeBoard, authoritativeTurn, snapshotMoves, customRules }: OnlineBoardProps) {
     // 优先使用权威快照棋盘；若快照落后，则在其基础上补推增量 moves；再不行退回全量 moves 推演
     const board = useMemo(() => {
         // 无权威棋盘：从初始局面 + 全量 moves 推演
@@ -82,11 +87,15 @@ export default function OnlineBoard({ moves, turnIndex, players, myUserId, onAtt
         const { x, y } = selected
         const p = board[y][x]
         if (!p) return []
+        // 若提供自定义规则，使用自定义规则生成走子
+        if (customRules) return generateCustomMoves(board, { x, y }, customRules)
         return generateLegalMoves(board, { x, y }, p.side)
-    }, [board, selected])
+    }, [board, selected, customRules])
 
     // 将军提示
-    const inCheck = useMemo(() => isInCheck(board, turn), [board, turn])
+    const inCheck = useMemo(() => {
+        return customRules ? isInCheckWithCustomRules(board, turn, customRules) : isInCheck(board, turn)
+    }, [board, turn, customRules])
     const kingInCheckPos = useMemo(() => {
         if (!inCheck) return null
         for (let y = 0; y < 10; y++) {
@@ -102,9 +111,9 @@ export default function OnlineBoard({ moves, turnIndex, players, myUserId, onAtt
         // UI 层简单判断：若后端给 winnerId 则优先生效；否则按本地规则检测（仅参考）
         if (winnerId) return true
         const nextTurn: Side = turn === 'red' ? 'black' : 'red'
-        const r = checkGameOver(board, nextTurn)
+        const r = checkGameOver(board, nextTurn, customRules)
         return r !== null
-    }, [board, turn, winnerId])
+    }, [board, turn, winnerId, customRules])
 
     function onCellClick(x: number, y: number) {
         if (gameOver) return
@@ -135,25 +144,9 @@ export default function OnlineBoard({ moves, turnIndex, players, myUserId, onAtt
 
     return (
         <div>
-            <div className="board-toolbar">
-                <div className="board-toolbar__left">
-                    <div>
-                        我方：<b className={mySide === 'red' ? 'turn-red' : mySide === 'black' ? 'turn-black' : 'turn-draw'}>
-                            {mySide === 'spectator' ? '观战' : mySide === 'red' ? '红' : '黑'}
-                        </b>
-                        <span className="ml-12">
-                            当前手：<b className={turn === 'red' ? 'turn-red' : 'turn-black'}>{turn === 'red' ? '红' : '黑'}</b>
-                        </span>
-                    </div>
-                    {inCheck && !gameOver && (
-                        <div className="incheck-banner pulse">⚠️ 将军！</div>
-                    )}
-                </div>
-                <div className="board-toolbar__actions">
-                    {/* 在线对战暂不支持重新开始；悔棋按钮保留占位（禁用） */}
-                    <button className="btn-ghost" disabled>悔棋</button>
-                </div>
-            </div>
+            {inCheck && !gameOver && (
+                <div className="incheck-banner pulse" style={{ marginBottom: 8, textAlign: 'center' }}>⚠️ 将军！</div>
+            )}
 
             <div className={`board ${isFlipped ? 'board--flip' : ''}`}>
                 {Array.from({ length: 10 }).map((_, row) => (

@@ -20,7 +20,8 @@ export function boardToApiFormat(board: Board, name?: string, description?: stri
       const piece = board[y][x]
       if (piece) {
         pieces.push({
-          type: piece.type,
+          // 后端字段命名使用 chariot 代指车，这里做一次映射
+          type: (piece.type === 'rook' ? 'chariot' : piece.type) as any,
           x,
           y,
           side: piece.side,
@@ -31,7 +32,8 @@ export function boardToApiFormat(board: Board, name?: string, description?: stri
 
   return {
     name: name || '自定义棋局',
-    description: description || null,
+    // DTO 要求 string，这里用空串而不是 null 以通过验证
+    description: description || '',
     layout: { pieces },
   }
 }
@@ -60,7 +62,8 @@ export function apiBoardToLocalFormat(apiBoard: ApiBoard): Board {
     ) {
       const piece: Piece = {
         id: `${side}-${type}-${idCounter++}`,
-        type: type as Piece['type'],
+        // 与上行相反映射：后端的 chariot 在前端使用 rook
+        type: (type === 'chariot' ? 'rook' : (type as any)) as Piece['type'],
         side: side as 'red' | 'black',
       }
       board[y][x] = piece

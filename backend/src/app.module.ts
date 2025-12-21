@@ -7,6 +7,7 @@ import { BattleModule } from './modules/battle/battle.module';
 import { BoardModule } from './modules/board/board.module';
 import { RecordModule } from './modules/record/record.module';
 import { MetricsModule } from './modules/metrics/metrics.module';
+import { CommunityModule } from './modules/community/community.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { MetricsModule } from './modules/metrics/metrics.module';
     MetricsModule,
     BoardModule,
     RecordModule,
+    CommunityModule,
   ],
   controllers: [AppController],
   providers: [AppService],

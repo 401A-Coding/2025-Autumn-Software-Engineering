@@ -4,12 +4,18 @@ import { connectBattle } from '../../services/battlesSocket';
 import type { BattleMove, BattleSnapshot } from '../../services/battlesSocket';
 import { battleApi, userApi } from '../../services/api';
 import OnlineBoard from '../../features/chess/OnlineBoard';
+import UserAvatar from '../../components/UserAvatar';
 import './LiveBattle.css';
 
 export default function LiveBattle() {
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
     const action = searchParams.get('action'); // create | join | match | null
+    const joinRoomParam = searchParams.get('room');
+    const initialBoardIdParam = searchParams.get('initialBoardId');
+    const initialBoardId = initialBoardIdParam && /^\d+$/.test(initialBoardIdParam)
+        ? Number(initialBoardIdParam)
+        : undefined;
     const [battleId, setBattleId] = useState<number | ''>('');
     const [joinIdInput, setJoinIdInput] = useState<string>('');
     const [connected, setConnected] = useState(false);
@@ -28,6 +34,11 @@ export default function LiveBattle() {
     const createLockRef = useRef(false);
     const matchLockRef = useRef(false);
     const autoActionRef = useRef(false);
+    // Profiles for overlay and modal
+    const [myProfile, setMyProfile] = useState<{ id: number; nickname?: string; avatarUrl?: string } | null>(null);
+    const [opponentProfile, setOpponentProfile] = useState<{ id: number; nickname?: string; avatarUrl?: string } | null>(null);
+    const [showProfileModal, setShowProfileModal] = useState<{ userId: number } | null>(null);
+    const [profileDetail, setProfileDetail] = useState<{ loading: boolean; data: any | null; error?: string }>({ loading: false, data: null });
 
     const conn = useMemo(() => {
         const c = connectBattle();
@@ -47,6 +58,18 @@ export default function LiveBattle() {
             console.log('[WS] snapshot', s, 'myUserId=', myUserId);
             latestSnapshotRef.current = s;
             setSnapshot(s);
+            // derive opponent profile when possible
+            if (myUserId && Array.isArray(s.players)) {
+                const oppId = s.players.find((uid) => uid !== myUserId);
+                if (typeof oppId === 'number') {
+                    (async () => {
+                        try {
+                            const info = await userApi.getById(oppId);
+                            setOpponentProfile({ id: info.id, nickname: info.nickname, avatarUrl: info.avatarUrl || undefined });
+                        } catch { }
+                    })();
+                }
+            }
 
             // 若对局结束，给出一次性的结束提示（尽量使用 myUserId 判别阵营；缺失时也给基础提示）
             if (s.status === 'finished') {
@@ -244,6 +267,28 @@ export default function LiveBattle() {
         };
     }, []);
 
+    // 拉取弹窗内的完整用户信息，避免跳出对局
+    useEffect(() => {
+        if (!showProfileModal) {
+            setProfileDetail({ loading: false, data: null, error: undefined });
+            return;
+        }
+        const uid = showProfileModal.userId;
+        let alive = true;
+        (async () => {
+            setProfileDetail({ loading: true, data: null, error: undefined });
+            try {
+                const data = await userApi.getById(uid);
+                if (!alive) return;
+                setProfileDetail({ loading: false, data: data as any, error: undefined });
+            } catch (e: any) {
+                if (!alive) return;
+                setProfileDetail({ loading: false, data: null, error: e?.message || '加载用户信息失败' });
+            }
+        })();
+        return () => { alive = false; };
+    }, [showProfileModal]);
+
     useEffect(() => {
         // 拉取当前用户信息，用于判定阵营
         (async () => {
@@ -251,6 +296,7 @@ export default function LiveBattle() {
                 const me = await userApi.getMe();
                 console.log('[ME] got user', me);
                 setMyUserId(me.id as number);
+                setMyProfile({ id: me.id as number, nickname: (me as any).nickname, avatarUrl: (me as any).avatarUrl });
             } catch (e) {
                 console.error('[ME] getMe failed', e);
                 setMyUserId(null);
@@ -264,6 +310,19 @@ export default function LiveBattle() {
         const id = Number(raw);
         try {
             // 先走 REST 入座，确保服务端把当前用户加入 players
+            await battleApi.join(id);
+        } catch (e) {
+            const msg = e instanceof Error ? e.message : String(e);
+            alert(`加入房间失败：${msg}`);
+        }
+        setBattleId(id);
+        conn.join(id, 0);
+        conn.snapshot(id);
+    };
+
+    // 通过 query 参数自动加入指定房间（用于“加入好友房”直达）
+    const handleAutoJoin = async (id: number) => {
+        try {
             await battleApi.join(id);
         } catch (e) {
             const msg = e instanceof Error ? e.message : String(e);
@@ -289,7 +348,11 @@ export default function LiveBattle() {
         if (createLockRef.current) return;
         createLockRef.current = true;
         try {
-            const data = await battleApi.create({ mode: 'pvp' } as { mode: string });
+            const req: any = { mode: 'pvp' };
+            if (typeof initialBoardId === 'number') {
+                req.initialBoardId = initialBoardId;
+            }
+            const data = await battleApi.create(req as { mode: string });
             const id: number = (data as { battleId: number }).battleId;
             setBattleId(id);
             conn.join(id, 0);
@@ -319,19 +382,24 @@ export default function LiveBattle() {
         }
     };
 
-    // 若来自模式选择页，则自动执行创建/匹配一次
+    // 若来自模式选择页或直达参数，则自动执行创建/匹配/加入一次
     useEffect(() => {
-        if (!action || autoActionRef.current) return;
+        if (autoActionRef.current) return;
         if (!battleId) {
             if (action === 'create') {
                 handleCreate();
+                autoActionRef.current = true;
             } else if (action === 'match') {
                 handleMatch();
+                autoActionRef.current = true;
+            } else if (action === 'join' && joinRoomParam && /^\d+$/.test(joinRoomParam)) {
+                const id = Number(joinRoomParam);
+                handleAutoJoin(id);
+                autoActionRef.current = true;
             }
-            autoActionRef.current = true; // 标记已自动执行一次，避免重复
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [action, battleId]);
+    }, [action, battleId, joinRoomParam]);
 
     const inRoom = battleId !== '' && Number(battleId) > 0;
 
@@ -503,7 +571,7 @@ export default function LiveBattle() {
     }, [inRoom, snapshot]);
 
     return (
-        <div className="card-pad">
+        <div className="card-pad pos-rel">
             <h2>在线对战</h2>
             {endMessage && (
                 <div
@@ -644,36 +712,159 @@ export default function LiveBattle() {
                                     <button className="btn-ghost" onClick={handleReconnect}>重试连接</button>
                                 </div>
                             )}
-                            <div className="muted livebattle-players-line">玩家（在线高亮） · 我：{myUserId ?? '-'}</div>
-                            <div className="livebattle-players-wrap">
-                                {snapshot.players.map(pid => {
-                                    const online = snapshot.onlineUserIds?.includes(pid);
-                                    return (
-                                        <div
-                                            key={pid}
-                                            data-testid={`player-pill-${pid}`}
-                                            className={"livebattle-player-pill" + (online ? " online" : "")}
-                                        >
-                                            <span className="livebattle-player-dot" />
-                                            <span>{pid}{pid === myUserId ? ' (我)' : ''}</span>
-                                        </div>
-                                    );
-                                })}
+                            {/* 玩家在线状态与对局状态信息在同一行，宽度与棋盘一致 */}
+                            <div className="livebattle-board-wrapper" style={{ marginTop: 8, marginBottom: 8 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                                    <div className="livebattle-players-wrap">
+                                        {snapshot.players.map(pid => {
+                                            const online = snapshot.onlineUserIds?.includes(pid);
+                                            return (
+                                                <div
+                                                    key={pid}
+                                                    data-testid={`player-pill-${pid}`}
+                                                    className={"livebattle-player-pill" + (online ? " online" : "")}
+                                                >
+                                                    <span className="livebattle-player-dot" />
+                                                    <span>{pid}{pid === myUserId ? ' (我)' : ''}</span>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                    {(() => {
+                                        const turn = snapshot.turn ?? (snapshot.turnIndex === 0 ? 'red' : 'black');
+                                        const redUser = snapshot.players?.[0];
+                                        const blackUser = snapshot.players?.[1];
+                                        const mySide = myUserId === redUser ? 'red' : myUserId === blackUser ? 'black' : 'spectator';
+                                        return (
+                                            <div style={{ fontSize: 14 }}>
+                                                我方：<b className={mySide === 'red' ? 'turn-red' : mySide === 'black' ? 'turn-black' : 'turn-draw'}>
+                                                    {mySide === 'spectator' ? '观战' : mySide === 'red' ? '红' : '黑'}
+                                                </b>
+                                                <span style={{ marginLeft: 12 }}>
+                                                    当前手：<b className={turn === 'red' ? 'turn-red' : 'turn-black'}>{turn === 'red' ? '红' : '黑'}</b>
+                                                </span>
+                                            </div>
+                                        );
+                                    })()}
+                                </div>
                             </div>
                             {(snapshot.status !== 'waiting' || (snapshot.players?.length ?? 0) >= 2) ? (
-                                <div className="livebattle-board-wrapper">
-                                    <OnlineBoard
-                                        moves={moves}
-                                        turnIndex={snapshot.turnIndex}
-                                        players={snapshot.players}
-                                        myUserId={myUserId}
-                                        winnerId={snapshot.winnerId}
-                                        authoritativeBoard={snapshot.board}
-                                        authoritativeTurn={snapshot.turn}
-                                        snapshotMoves={snapshot.moves}
-                                        onAttemptMove={handleAttemptMove}
-                                    />
-                                </div>
+                                <>
+                                    {(() => {
+                                        const turn = snapshot.turn ?? (snapshot.turnIndex === 0 ? 'red' : 'black');
+                                        const redUser = snapshot.players?.[0];
+                                        const blackUser = snapshot.players?.[1];
+                                        const mySide = myUserId === redUser ? 'red' : myUserId === blackUser ? 'black' : 'spectator';
+                                        const opponentSide = mySide === 'red' ? 'black' : mySide === 'black' ? 'red' : null;
+                                        const isMyTurn = mySide !== 'spectator' && turn === mySide;
+                                        const isOpponentTurn = opponentSide !== null && turn === opponentSide;
+
+                                        // 计算头像尺寸
+                                        const avatarSize = 40; // medium size
+
+                                        return (
+                                            <>
+                                                {/* 对手头像：左对齐，头像在左侧 */}
+                                                {opponentProfile && opponentSide && (
+                                                    <div className="livebattle-board-wrapper" style={{ marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
+                                                        <div
+                                                            className="cursor-pointer"
+                                                            onClick={() => setShowProfileModal({ userId: opponentProfile.id })}
+                                                            style={{
+                                                                width: avatarSize,
+                                                                height: avatarSize,
+                                                                borderRadius: '50%',
+                                                                border: `3px solid ${opponentSide === 'red' ? '#c8102e' : '#333'}`,
+                                                                overflow: 'hidden',
+                                                                flexShrink: 0,
+                                                                animation: isOpponentTurn ? 'pulse-border 1s infinite' : 'none',
+                                                                backgroundColor: opponentProfile.avatarUrl ? 'transparent' : '#e0e0e0',
+                                                                display: 'flex',
+                                                                alignItems: 'center',
+                                                                justifyContent: 'center'
+                                                            }}
+                                                        >
+                                                            {opponentProfile.avatarUrl ? (
+                                                                <img
+                                                                    src={opponentProfile.avatarUrl}
+                                                                    alt={opponentProfile.nickname || '对手'}
+                                                                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                                                />
+                                                            ) : (
+                                                                <span style={{ fontSize: 14, fontWeight: 600, color: '#666' }}>
+                                                                    {(opponentProfile.nickname || '?').slice(0, 2).toUpperCase()}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                        <div
+                                                            className="cursor-pointer"
+                                                            onClick={() => setShowProfileModal({ userId: opponentProfile.id })}
+                                                            style={{ fontWeight: 600, fontSize: 14, color: '#333' }}
+                                                        >
+                                                            {opponentProfile.nickname || '匿名用户'}
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                                <div className="livebattle-board-wrapper" style={{ position: 'relative' }}>
+                                                    <OnlineBoard
+                                                        moves={moves}
+                                                        turnIndex={snapshot.turnIndex}
+                                                        players={snapshot.players}
+                                                        myUserId={myUserId}
+                                                        winnerId={snapshot.winnerId}
+                                                        authoritativeBoard={snapshot.board}
+                                                        authoritativeTurn={snapshot.turn}
+                                                        snapshotMoves={snapshot.moves}
+                                                        onAttemptMove={handleAttemptMove}
+                                                    />
+                                                </div>
+
+                                                {/* 我的头像在棋盘下方：头像右对齐，昵称在左 */}
+                                                {myProfile && mySide !== 'spectator' && (
+                                                    <div className="livebattle-board-wrapper" style={{ marginTop: 8, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8 }}>
+                                                        <div
+                                                            className="cursor-pointer"
+                                                            onClick={() => setShowProfileModal({ userId: myProfile.id })}
+                                                            style={{ fontWeight: 600, fontSize: 14, color: '#333' }}
+                                                        >
+                                                            {myProfile.nickname || '匿名用户'}
+                                                        </div>
+                                                        <div
+                                                            className="cursor-pointer"
+                                                            onClick={() => setShowProfileModal({ userId: myProfile.id })}
+                                                            style={{
+                                                                width: avatarSize,
+                                                                height: avatarSize,
+                                                                borderRadius: '50%',
+                                                                border: `3px solid ${mySide === 'red' ? '#c8102e' : '#333'}`,
+                                                                overflow: 'hidden',
+                                                                flexShrink: 0,
+                                                                animation: isMyTurn ? 'pulse-border 1s infinite' : 'none',
+                                                                backgroundColor: myProfile.avatarUrl ? 'transparent' : '#e0e0e0',
+                                                                display: 'flex',
+                                                                alignItems: 'center',
+                                                                justifyContent: 'center'
+                                                            }}
+                                                        >
+                                                            {myProfile.avatarUrl ? (
+                                                                <img
+                                                                    src={myProfile.avatarUrl}
+                                                                    alt={myProfile.nickname || '我'}
+                                                                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                                                />
+                                                            ) : (
+                                                                <span style={{ fontSize: 14, fontWeight: 600, color: '#666' }}>
+                                                                    {(myProfile.nickname || '?').slice(0, 2).toUpperCase()}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </>
+                                        );
+                                    })()}
+                                </>
                             ) : (
                                 <div className="empty-center livebattle-board-wrapper">
                                     <div className="livebattle-offline-hint">
@@ -700,6 +891,129 @@ export default function LiveBattle() {
             {!inRoom && (
                 <div className="livebattle-return-bar">
                     <button className="btn-ghost" onClick={() => navigate('/app')}>返回主页</button>
+                </div>
+            )}
+
+            {/* Profile modal */}
+            {showProfileModal && (
+                <div role="dialog" aria-modal="true" className="modal-mask" onClick={() => setShowProfileModal(null)}>
+                    <div className="paper-card modal-card" style={{ maxWidth: 720, maxHeight: '80vh', overflowY: 'auto' }} onClick={(e) => e.stopPropagation()}>
+                        <div className="row-between align-center">
+                            <h4 className="mt-0 mb-0">玩家信息</h4>
+                            <button className="btn-ghost" aria-label="关闭" onClick={() => setShowProfileModal(null)}>×</button>
+                        </div>
+                        <div className="mt-12">
+                            {(() => {
+                                const uid = showProfileModal.userId;
+                                const p = myProfile && myProfile.id === uid ? myProfile : opponentProfile && opponentProfile.id === uid ? opponentProfile : null;
+                                const detail = profileDetail.data as any;
+                                const redUser = snapshot?.players?.[0];
+                                const blackUser = snapshot?.players?.[1];
+                                const sideLabel = (() => {
+                                    if (!snapshot) return '未知';
+                                    if (uid === redUser) return '红方';
+                                    if (uid === blackUser) return '黑方';
+                                    return '观战';
+                                })();
+                                const isOnline = snapshot?.onlineUserIds?.includes(uid);
+                                const roleLabel = uid === myUserId ? '你' : uid === redUser || uid === blackUser ? '对手' : '其他玩家';
+
+                                if (profileDetail.loading) {
+                                    return <div className="muted">加载中...</div>;
+                                }
+                                if (profileDetail.error) {
+                                    return <div className="muted">{profileDetail.error}</div>;
+                                }
+
+                                const user = detail || p;
+                                if (!user) return <div className="muted">加载中或不可用</div>;
+
+                                const stats = user.stats || {};
+                                const posts = user.posts || [];
+                                const joinDate = user.createdAt ? new Date(user.createdAt).toLocaleDateString('zh-CN') : '未知';
+
+                                return (
+                                    <div className="col-start gap-12">
+                                        <div className="row-start gap-12 align-center">
+                                            <div
+                                                style={{
+                                                    width: 80,
+                                                    height: 80,
+                                                    borderRadius: '50%',
+                                                    backgroundColor: user.avatarUrl ? 'transparent' : '#e0e0e0',
+                                                    overflow: 'hidden',
+                                                    flexShrink: 0,
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                }}
+                                            >
+                                                {user.avatarUrl ? (
+                                                    <img src={user.avatarUrl} alt={user.nickname} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                                ) : (
+                                                    <span style={{ fontSize: 28, fontWeight: 600, color: '#666' }}>
+                                                        {(user.nickname || '?').slice(0, 2).toUpperCase()}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8, textAlign: 'left' }}>
+                                                <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>{user.nickname || '匿名用户'}</h2>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, color: '#8a7f73' }}>
+                                                    <span>UID：{user.id}</span>
+                                                    <button className="btn-compact btn-ghost" onClick={() => navigator.clipboard?.writeText(String(user.id)).catch(() => { })} style={{ padding: '2px 6px', fontSize: 12 }}>复制</button>
+                                                </div>
+                                                <div style={{ fontSize: 14, color: '#8a7f73' }}>📅 加入于 {joinDate}</div>
+                                                <div className="muted">身份：{roleLabel} · 阵营：{sideLabel} · 状态：{isOnline ? '在线' : '离线'}</div>
+                                            </div>
+                                        </div>
+
+                                        <div style={{ fontSize: 14, color: '#555', lineHeight: '1.5' }}>
+                                            {user.bio && user.bio.trim().length > 0 ? user.bio : '该用户还没有填写签名...'}
+                                        </div>
+
+                                        <div style={{ display: 'flex', justifyContent: 'space-around', paddingTop: 12, borderTop: '1px solid #e7d8b1' }}>
+                                            <div style={{ textAlign: 'center' }}>
+                                                <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 4 }}>{stats.posts ?? 0}</div>
+                                                <div style={{ fontSize: 13, color: '#8a7f73' }}>帖子</div>
+                                            </div>
+                                            <div style={{ textAlign: 'center' }}>
+                                                <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 4 }}>{stats.comments ?? 0}</div>
+                                                <div style={{ fontSize: 13, color: '#8a7f73' }}>评论</div>
+                                            </div>
+                                            <div style={{ textAlign: 'center' }}>
+                                                <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 4 }}>{stats.likes ?? 0}</div>
+                                                <div style={{ fontSize: 13, color: '#8a7f73' }}>获赞</div>
+                                            </div>
+                                        </div>
+
+                                        <div className="col gap-8" style={{ marginTop: 12 }}>
+                                            <h4 className="mt-0 mb-0">Ta 的帖子</h4>
+                                            {posts.length > 0 ? (
+                                                <div className="col gap-8">
+                                                    {posts.map((pp: any) => (
+                                                        <div
+                                                            key={pp.id}
+                                                            className="paper-card pad-12"
+                                                        >
+                                                            <div className="fw-600 mb-4" style={{ textAlign: 'left' }}>{pp.title}</div>
+                                                            <div className="muted text-13 line-clamp-2 mb-6" style={{ textAlign: 'left' }}>{pp.excerpt || '(无内容)'}</div>
+                                                            <div className="text-12 muted row-start gap-10">
+                                                                <span>{new Date(pp.createdAt).toLocaleDateString()}</span>
+                                                                <span>👍 {pp.likeCount}</span>
+                                                                <span>💬 {pp.commentCount}</span>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            ) : (
+                                                <div className="empty-box">暂无帖子</div>
+                                            )}
+                                        </div>
+                                    </div>
+                                );
+                            })()}
+                        </div>
+                    </div>
                 </div>
             )}
         </div>
