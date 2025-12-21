@@ -167,7 +167,7 @@ export default function Community() {
                     <div className="row-start gap-8" style={{ width: '100%' }}>
                         <input
                             type="text"
-                            placeholder="点击搜索帖子或记录（在搜索页输入关键词）"
+                            placeholder="点击搜索"
                             value={searchQuery}
                             readOnly
                             onClick={() => navigate(`/app/community/search${searchQuery && searchQuery.trim() ? `?q=${encodeURIComponent(searchQuery.trim())}` : ''}`)}
