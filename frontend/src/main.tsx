@@ -3,7 +3,6 @@ import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import './index.css'
 import App from './App.tsx'
-import { registerSW } from 'virtual:pwa-register'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
@@ -13,9 +12,9 @@ createRoot(document.getElementById('root')!).render(
   </StrictMode>,
 )
 
-// register service worker (vite-plugin-pwa virtual helper)
-try {
-  registerSW({ immediate: true })
-} catch (e) {
-  // noop if PWA plugin not installed in dev
+// register service worker manually
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => { })
+  })
 }
