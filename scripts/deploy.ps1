@@ -82,9 +82,16 @@ sudo systemctl reload nginx
         Run $scpScript 'upload remote deploy script'
 
         # execute remote script by passing required env vars to avoid quoting issues
-        # Normalize remote script line endings and run with bash to avoid /bin/sh incompatibilities
-        $sshCmd = "ssh $SshExtraArgs $SshTarget 'REMOTE_TMP=$RemoteTemp REMOTE_WEBROOT=$RemoteWebRoot sudo sed -i \"s/\\r`$//\" $RemoteTemp/_remote_deploy_frontend.sh 2>/dev/null || true; sudo /bin/bash $RemoteTemp/_remote_deploy_frontend.sh'"
-        Run $sshCmd 'publish to nginx root and reload (normalize CRLF and run with bash)'
+        # Upload a small wrapper that normalizes CRLF and runs the target script under /bin/bash, then invoke it
+        $localWrapper = Join-Path $PSScriptRoot 'remote-run-bash.sh'
+        if (-not (Test-Path $localWrapper)) {
+            Write-Host "Creating local wrapper $localWrapper"
+            Set-Content -Path $localWrapper -Value "#!/usr/bin/env bash`nset -euo pipefail`nif [ \"$#\" -lt 1 ]; then echo \"usage: \$0 <remote-script-path>\" >&2; exit 2; fi`nTARGET=\"\$1\"`nsed -i 's/\\r$//' \"\$TARGET\" || true`n/bin/bash \"\$TARGET\"" -Encoding UTF8
+        }
+        $scpWrapper = 'scp ' + $ScpExtraArgs + ' "' + $localWrapper + '" ' + $SshTarget + ':' + $RemoteTemp + '/remote-run-bash.sh'
+        Run $scpWrapper 'upload remote-run-bash wrapper'
+        $sshCmd = "ssh $SshExtraArgs $SshTarget 'sudo chmod +x $RemoteTemp/remote-run-bash.sh; sudo $RemoteTemp/remote-run-bash.sh $RemoteTemp/_remote_deploy_frontend.sh'"
+        Run $sshCmd 'publish to nginx root and reload (via remote-run-bash)'
     }
     finally { Pop-Location }
 }
@@ -190,9 +197,16 @@ fi
     $envPart = 'DATABASE_URL="' + $escapedDb + '" JWT_SECRET="' + $escapedJwt + '" REMOTE_TMP=' + $RemoteTemp + ' REMOTE_WORK=' + $remoteWork
     $remoteScriptPath = $RemoteTemp + '/_remote_deploy_backend.sh'
     # run the remote backend deploy script as root so it can write to /tmp and manage containers
-    # Ensure remote script uses LF and run under /bin/bash to support bash-specific options like 'set -o pipefail'
-    $sshCmd = "ssh $SshExtraArgs $SshTarget 'sudo sed -i \"s/\\r`$//\" $remoteScriptPath 2>/dev/null || true; sudo /bin/bash $remoteScriptPath'"
-    Run $sshCmd 'remote build image and restart container (sudo, normalize CRLF and run with bash)'
+    # Upload wrapper and invoke it to normalize and run the remote backend deploy script
+    $localWrapper = Join-Path $PSScriptRoot 'remote-run-bash.sh'
+    if (-not (Test-Path $localWrapper)) {
+        Write-Host "Creating local wrapper $localWrapper"
+        Set-Content -Path $localWrapper -Value "#!/usr/bin/env bash`nset -euo pipefail`nif [ \"$#\" -lt 1 ]; then echo \"usage: \$0 <remote-script-path>\" >&2; exit 2; fi`nTARGET=\"\$1\"`nsed -i 's/\\r$//' \"\$TARGET\" || true`n/bin/bash \"\$TARGET\"" -Encoding UTF8
+    }
+    $scpWrapper = 'scp ' + $ScpExtraArgs + ' "' + $localWrapper + '" ' + $SshTarget + ':' + $RemoteTemp + '/remote-run-bash.sh'
+    Run $scpWrapper 'upload remote-run-bash wrapper'
+    $sshCmd = "ssh $SshExtraArgs $SshTarget 'sudo chmod +x $RemoteTemp/remote-run-bash.sh; sudo $RemoteTemp/remote-run-bash.sh $remoteScriptPath'"
+    Run $sshCmd 'remote build image and restart container (via remote-run-bash)'
 }
 
 switch ($Target) {
