@@ -5,7 +5,6 @@ import { movePiece } from '../../features/chess/rules'
 import BoardViewer from '../../features/chess/BoardViewer'
 import { recordStore } from '../../features/records/recordStore'
 import { recordsApi, userApi } from '../../services/api'
-import UserAvatar from '../../components/UserAvatar'
 import type { ChessRecord, Bookmark } from '../../features/records/types'
 // 书签即评论，统一用 bookmarks 展示
 import './app-pages.css'

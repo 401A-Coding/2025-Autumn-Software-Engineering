@@ -205,8 +205,9 @@ export default function RecordEmbed({ recordId, enableSave = true, recordSnapsho
             await boardApi.create({
                 name: templateName,
                 description: `从对局记录保存: ${record.opponent || '对局'} 第${step}步`,
-                layout: currentLayout,
+                layout: currentLayout as any,
                 rules: {
+                    ruleVersion: 1,
                     layoutSource: 'empty',
                     coordinateSystem: 'relativeToSide',
                     mode: 'analysis',

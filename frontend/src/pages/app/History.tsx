@@ -104,7 +104,6 @@ export default function History() {
 }
 
 function RecordsList({ filter, list, loading, onRefresh, meProfile }: { filter: 'all' | 'favorite', list: any[], loading: boolean, onRefresh: () => Promise<void>, meProfile: { id: number; nickname?: string; avatarUrl?: string } | null }) {
-    const navigate = useNavigate()
     const [showTagModal, setShowTagModal] = useState(false)
     const [editingRecordId, setEditingRecordId] = useState<string | null>(null)
     const [tagInput, setTagInput] = useState('')
@@ -297,13 +296,13 @@ function HistoryCard({ r, meProfile, batchMode, isBatchModeAllowed, selected, on
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
     const hasTags = Array.isArray(r.keyTags) && r.keyTags.length > 0
-    const visibleTags = hasTags ? (r.keyTags as string[]).filter(t => !t.startsWith('我方:')).slice(0, 3) : []
-    const moreCount = hasTags ? Math.max(0, (r.keyTags as string[]).filter(t => !t.startsWith('我方:')).length - visibleTags.length) : 0
+    const visibleTags = hasTags ? (r.keyTags as string[]).filter((t: string) => !t.startsWith('我方:')).slice(0, 3) : []
+    const moreCount = hasTags ? Math.max(0, (r.keyTags as string[]).filter((t: string) => !t.startsWith('我方:')).length - visibleTags.length) : 0
     const sourceLabel = (r.keyTags || []).includes('在线匹配') ? '在线匹配' : (r.keyTags || []).includes('好友对战') ? '好友对战' : '本地对局'
     const rounds = (r.moves || []).length
 
     // 判断我方是红方还是黑方
-    const mySide = (r.keyTags || []).find(t => t.startsWith('我方:'))?.split(':')[1] || 'red'
+    const mySide = (r.keyTags || []).find((t: string) => t.startsWith('我方:'))?.split(':')[1] || 'red'
     const isRedSide = mySide === '红'
 
     // 计算显示顺序：红方在左（先手），黑方在右（后手）

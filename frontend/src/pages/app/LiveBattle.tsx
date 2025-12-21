@@ -4,7 +4,6 @@ import { connectBattle } from '../../services/battlesSocket';
 import type { BattleMove, BattleSnapshot } from '../../services/battlesSocket';
 import { battleApi, userApi } from '../../services/api';
 import OnlineBoard from '../../features/chess/OnlineBoard';
-import UserAvatar from '../../components/UserAvatar';
 import './LiveBattle.css';
 
 export default function LiveBattle() {

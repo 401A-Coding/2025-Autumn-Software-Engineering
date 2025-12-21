@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { useSearchParams, Link, useNavigate, useLocation } from 'react-router-dom'
+import { useSearchParams, useNavigate, useLocation } from 'react-router-dom'
 import { communityApi } from '../../services/api'
 import PostPreview from '../../features/community/PostPreview'
 
@@ -9,7 +9,6 @@ export default function CommunitySearch() {
     const [tag, setTag] = useState('')
     const [page, setPage] = useState(1)
     const [pageSize] = useState(10)
-    const [items, setItems] = useState<any[]>([])
     const [total, setTotal] = useState(0)
     const [posts, setPosts] = useState<any[]>([])
     const [loading, setLoading] = useState(false)

@@ -1,5 +1,5 @@
 import { NavLink, Outlet } from 'react-router-dom'
-import { IconHome, IconFun, IconHistory, IconProfile, IconCommunity } from '../components/icons'
+import { IconHome, IconFun, IconProfile, IconCommunity } from '../components/icons'
 import { logout } from '../lib/session'
 import './app-layout.css'
 
