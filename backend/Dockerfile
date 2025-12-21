@@ -47,7 +47,8 @@ RUN npx prisma generate
 COPY docker-entrypoint.sh ./docker-entrypoint.sh
 # Ensure Prisma engines mirror is available at runtime too
 ENV PRISMA_ENGINES_MIRROR=https://npmmirror.com/mirrors/prisma/
-RUN chmod +x ./docker-entrypoint.sh
+# Normalize line endings (in case repo has CRLF on Windows) and make executable
+RUN sed -i 's/\r$//' ./docker-entrypoint.sh && chmod +x ./docker-entrypoint.sh
 
 EXPOSE 3000
 ENTRYPOINT ["./docker-entrypoint.sh"]
