@@ -41,28 +41,44 @@ function Invoke-FrontendDeploy {
         if (-not (Test-Path $distLocal)) { throw 'frontend/dist not found after build' }
 
         $remoteTmp = $RemoteTemp + '/chess-dist'
-        $scpCmd = 'scp ' + $ScpExtraArgs + ' -r "' + $distLocal + '" ' + $SshTarget + ':"' + $remoteTmp + '"'
-        Run $scpCmd 'upload dist to server'
 
-        $remoteCmd = @(
-            'set -e',
-            'ts=$(date +%Y%m%d-%H%M%S)',
-            'backup="' + $RemoteTemp + '/chess-backup-$ts.tar.gz"',
-            # 备份当前线上静态资源（若为空则忽略失败）
-            'sudo mkdir -p ' + $RemoteWebRoot,
-            'sudo tar -czf "$backup" -C "' + $RemoteWebRoot + '" . 2>/dev/null || true',
-            # 覆盖部署
-            'sudo rm -rf ' + $RemoteWebRoot + '/*',
-            'sudo mkdir -p ' + $RemoteWebRoot,
-            'sudo cp -r ' + $remoteTmp + '/dist/* ' + $RemoteWebRoot + '/',
-            'sudo chown -R www-data:www-data ' + $RemoteWebRoot,
-            # Nginx 配置校验失败则回滚
-            'if ! sudo nginx -t; then echo ''nginx -t failed, restoring backup'' >&2; sudo rm -rf ' + $RemoteWebRoot + '/*; sudo mkdir -p ' + $RemoteWebRoot + '; sudo tar -xzf "$backup" -C ' + $RemoteWebRoot + ' 2>/dev/null || true; exit 1; fi',
-            # 通过后 reload
-            'sudo systemctl reload nginx'
-        ) -join '; '
-        $sshCmd = 'ssh ' + $SshExtraArgs + ' ' + $SshTarget + ' "' + $remoteCmd + '"'
-        Run $sshCmd 'publish to nginx root and reload'
+        # write remote script locally to avoid complex quoting/escaping
+        $localScript = Join-Path $PSScriptRoot '_remote_deploy_frontend.sh'
+        $scriptContent = @"
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    ts=$(date +%Y%m%d-%H%M%S)
+    backup=\"$RemoteTemp/chess-backup-$ts.tar.gz\"
+
+    sudo mkdir -p $RemoteWebRoot
+    sudo tar -czf "$backup" -C "$RemoteWebRoot" . 2>/dev/null || true
+    sudo rm -rf $RemoteWebRoot/*
+    sudo mkdir -p $RemoteWebRoot
+    sudo cp -r $remoteTmp/dist/* $RemoteWebRoot/
+    sudo chown -R www-data:www-data $RemoteWebRoot
+    if ! sudo nginx -t; then
+      echo 'nginx -t failed, restoring backup' >&2
+      sudo rm -rf $RemoteWebRoot/*
+      sudo mkdir -p $RemoteWebRoot
+      sudo tar -xzf "$backup" -C $RemoteWebRoot 2>/dev/null || true
+      exit 1
+    fi
+    sudo systemctl reload nginx
+    "@
+
+        Set-Content -Path $localScript -Value $scriptContent -Encoding UTF8
+
+        # upload dist and script
+        $scpDist = 'scp ' + $ScpExtraArgs + ' -r "' + $distLocal + '" ' + $SshTarget + ':' + $remoteTmp
+        Run $scpDist 'upload dist to server'
+
+        $scpScript = 'scp ' + $ScpExtraArgs + ' "' + $localScript + '" ' + $SshTarget + ':' + $RemoteTemp + '/_remote_deploy_frontend.sh'
+        Run $scpScript 'upload remote deploy script'
+
+        # execute remote script (no inline remote variable expansion needed)
+        $sshRun = 'ssh ' + $SshExtraArgs + ' ' + $SshTarget + ' bash ' + $RemoteTemp + '/_remote_deploy_frontend.sh'
+        Run $sshRun 'publish to nginx root and reload'
     }
     finally { Pop-Location }
 }
@@ -82,36 +98,57 @@ function Invoke-BackendDeploy {
     $scpCmd = 'scp ' + $ScpExtraArgs + ' "' + $archive + '" ' + $SshTarget + ':"' + $remoteTgz + '"'
     Run $scpCmd 'upload backend archive'
 
-    # 远端解压、docker build、替换容器并启动
-    $remoteWork = $RemoteTemp + '/chess-backend-src'
-    $remoteCmds = @(
-        'set -e',
-        'rm -rf ' + $remoteWork + ' && mkdir -p ' + $remoteWork,
-        'tar -xzf ' + $remoteTgz + ' -C ' + $remoteWork,
-        'cd ' + $remoteWork,
-        'docker build -t ' + $BackendImageName + ' .',
-        # 记录旧镜像ID（若容器存在）
-        'old_image=$(docker inspect -f ''{{.Image}}'' ' + $BackendContainer + ' 2>/dev/null || true)',
-        # 替换容器
-        'docker rm -f ' + $BackendContainer + ' 2>/dev/null || true',
-        (@(
-            'docker run -d --name ' + $BackendContainer + ' --restart unless-stopped --network host',
-            '-e DATABASE_URL=''' + $DatabaseUrl + '''',
-            '-e JWT_SECRET=''' + $JwtSecret + '''',
-            $BackendImageName
-        ) -join ' '),
-        # 健康性粗检：是否处于 running 状态，否则回滚旧镜像（若存在）
-        'sleep 2',
-        'if [ -z "$(docker ps --filter name=' + $BackendContainer + ' --filter status=running -q)" ]; then echo ''New backend container not running, rolling back...'' >&2; if [ -n "' + '$old_image' + '" ]; then docker rm -f ' + $BackendContainer + ' 2>/dev/null || true; docker run -d --name ' + $BackendContainer + ' --restart unless-stopped --network host -e DATABASE_URL=''' + $DatabaseUrl + ''' -e JWT_SECRET=''' + $JwtSecret + ''' "' + '$old_image' + '"; fi; exit 1; fi'
-    ) -join '; '
-    $sshCmd = 'ssh ' + $SshExtraArgs + ' ' + $SshTarget + ' "' + $remoteCmds + '"'
-    Run $sshCmd 'remote build image and restart container'
-}
+        # 远端解压、docker build、替换容器并启动
+        $remoteWork = $RemoteTemp + '/chess-backend-src'
 
-switch ($Target) {
-    'frontend' { Invoke-FrontendDeploy }
-    'backend' { Invoke-BackendDeploy }
-    'all' { Invoke-FrontendDeploy; Invoke-BackendDeploy }
-}
+        $localScript = Join-Path $PSScriptRoot '_remote_deploy_backend.sh'
+        $scriptContent = @"
+#!/usr/bin/env bash
+set -euo pipefail
 
-Write-Host "`nDone." -ForegroundColor Green
+REMOTE_WORK=$remoteWork
+ZIP_PATH=$remoteTgz
+BACKEND_IMAGE=$BackendImageName
+BACKEND_CONTAINER=$BackendContainer
+DATABASE_URL="$DatabaseUrl"
+JWT_SECRET="$JwtSecret"
+
+rm -rf "$REMOTE_WORK" && mkdir -p "$REMOTE_WORK"
+tar -xzf "$ZIP_PATH" -C "$REMOTE_WORK"
+cd "$REMOTE_WORK"
+docker build -t "$BACKEND_IMAGE" .
+old_image=$(docker inspect -f '{{.Image}}' "$BACKEND_CONTAINER" 2>/dev/null || true)
+docker rm -f "$BACKEND_CONTAINER" 2>/dev/null || true
+docker run -d --name "$BACKEND_CONTAINER" --restart unless-stopped --network host \
+    -e DATABASE_URL="$DATABASE_URL" -e JWT_SECRET="$JWT_SECRET" "$BACKEND_IMAGE"
+sleep 2
+if [ -z "$(docker ps --filter name=$BACKEND_CONTAINER --filter status=running -q)" ]; then
+    echo 'New backend container not running, rolling back...' >&2
+    if [ -n "$old_image" ]; then
+        docker rm -f "$BACKEND_CONTAINER" 2>/dev/null || true
+        docker run -d --name "$BACKEND_CONTAINER" --restart unless-stopped --network host -e DATABASE_URL="$DATABASE_URL" -e JWT_SECRET="$JWT_SECRET" "$old_image"
+    fi
+    exit 1
+fi
+"@
+
+        Set-Content -Path $localScript -Value $scriptContent -Encoding UTF8
+
+        # upload archive and script
+        $scpCmd = 'scp ' + $ScpExtraArgs + ' "' + $archive + '" ' + $SshTarget + ':' + $remoteTgz
+        Run $scpCmd 'upload backend archive'
+
+        $scpScript = 'scp ' + $ScpExtraArgs + ' "' + $localScript + '" ' + $SshTarget + ':' + $RemoteTemp + '/_remote_deploy_backend.sh'
+        Run $scpScript 'upload remote backend deploy script'
+
+        $sshCmd = 'ssh ' + $SshExtraArgs + ' ' + $SshTarget + ' bash ' + $RemoteTemp + '/_remote_deploy_backend.sh'
+        Run $sshCmd 'remote build image and restart container'
+    }
+
+    switch ($Target) {
+        'frontend' { Invoke-FrontendDeploy }
+        'backend' { Invoke-BackendDeploy }
+        'all' { Invoke-FrontendDeploy; Invoke-BackendDeploy }
+    }
+
+    Write-Host "`nDone." -ForegroundColor Green
