@@ -95,6 +95,17 @@ function Invoke-BackendDeploy {
 
     # 打包源码（排除 node_modules/.git/dist）到本地临时 tgz
     $archive = Join-Path $LocalTemp ("backend-src-" + [Guid]::NewGuid().ToString() + ".tar.gz")
+
+    # 如果仓库根目录存在 docs/openapi.yaml，临时拷贝到 backend/docs/openapi.yaml
+    $openapiSrc = Join-Path $RepoRoot 'docs\openapi.yaml'
+    $copiedOpenapi = $false
+    if (Test-Path $openapiSrc) {
+        $destDocs = Join-Path $beDir 'docs'
+        if (-not (Test-Path $destDocs)) { New-Item -ItemType Directory -Path $destDocs | Out-Null }
+        Copy-Item -Path $openapiSrc -Destination (Join-Path $destDocs 'openapi.yaml') -Force
+        $copiedOpenapi = $true
+    }
+
     $tarCmd = "tar -czf `"$archive`" --exclude=node_modules --exclude=.git --exclude=dist -C `"$beDir`" ."
     Run $tarCmd "archive backend to $archive"
 
@@ -150,6 +161,20 @@ fi
 
     $scpScript = 'scp ' + $ScpExtraArgs + ' "' + $localScript + '" ' + $SshTarget + ':' + $RemoteTemp + '/_remote_deploy_backend.sh'
     Run $scpScript 'upload remote backend deploy script'
+
+    # cleanup temporary openapi copy if created
+    if ($copiedOpenapi) {
+        try {
+            $tmpOpenapi = Join-Path (Join-Path $beDir 'docs') 'openapi.yaml'
+            if (Test-Path $tmpOpenapi) { Remove-Item -Path $tmpOpenapi -Force }
+            # remove docs folder if empty
+            $docsDir = Join-Path $beDir 'docs'
+            if ((Get-ChildItem -Path $docsDir -Force -ErrorAction SilentlyContinue) -eq $null) { Remove-Item -Path $docsDir -Force -Recurse -ErrorAction SilentlyContinue }
+        }
+        catch {
+            Write-Host "Warning: failed to cleanup temporary openapi copy: $_" -ForegroundColor Yellow
+        }
+    }
 
     # escape possible double-quotes in sensitive vars before embedding (preserve quotes for remote env)
     $escapedDb = $DatabaseUrl -replace '"', '\"'
