@@ -50,5 +50,9 @@ ENV PRISMA_ENGINES_MIRROR=https://npmmirror.com/mirrors/prisma/
 # Normalize line endings (in case repo has CRLF on Windows) and make executable
 RUN sed -i 's/\r$//' ./docker-entrypoint.sh && chmod +x ./docker-entrypoint.sh
 
+## Include OpenAPI spec so Swagger UI can load it at runtime
+# The deploy process places `docs/openapi.yaml` under the build context when present
+COPY ./docs/openapi.yaml /docs/openapi.yaml
+
 EXPOSE 3000
 ENTRYPOINT ["./docker-entrypoint.sh"]
