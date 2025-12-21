@@ -178,10 +178,10 @@ export default function RecordReplay() {
                         onClick={async () => {
                             try {
                                 if (record.favorite) {
-                                    await recordsApi.unfavorite(record.id)
+                                    await recordsApi.unfavorite(Number(record.id))
                                     setRecord({ ...record, favorite: false })
                                 } else {
-                                    await recordsApi.favorite(record.id)
+                                    await recordsApi.favorite(Number(record.id))
                                     setRecord({ ...record, favorite: true })
                                 }
                             } catch (e) {
