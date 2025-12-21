@@ -6,3 +6,14 @@
 .tabbar.with-safe-area {
     padding-bottom: env(safe-area-inset-bottom);
 }
+
+/* Remove horizontal edges on small screens for the root page container */
+@media (max-width: 420px) {
+    .page-container {
+        max-width: 100% !important;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+    }
+}
