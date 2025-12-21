@@ -17,7 +17,13 @@ rm -rf "$REMOTE_WORK" && mkdir -p "$REMOTE_WORK"
 tar -xzf "$ZIP_PATH" -C "$REMOTE_WORK"
 cd "$REMOTE_WORK"
 
-docker build -t "$BACKEND_IMAGE" .
+# Normalize line endings of entrypoint in extracted source to avoid CRLF issues
+if [ -f "./docker-entrypoint.sh" ]; then
+  sed -i 's/\r$//' ./docker-entrypoint.sh || true
+fi
+
+# Build image without cache to ensure any Dockerfile changes (e.g. CRLF normalization) take effect
+docker build --no-cache -t "$BACKEND_IMAGE" .
 old_image=$(docker inspect -f '{{.Image}}' "$BACKEND_CONTAINER" 2>/dev/null || true)
 
 docker rm -f "$BACKEND_CONTAINER" 2>/dev/null || true

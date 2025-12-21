@@ -44,30 +44,35 @@ function Invoke-FrontendDeploy {
 
         # write remote script locally to avoid complex quoting/escaping
         $localScript = Join-Path $PSScriptRoot '_remote_deploy_frontend.sh'
-        $scriptContent = @"
-    #!/usr/bin/env bash
-    set -euo pipefail
+        if (Test-Path $localScript) {
+            Write-Host "Using existing script: $localScript"
+        }
+        else {
+            $scriptContent = @'
+#!/usr/bin/env bash
+set -euo pipefail
 
-    ts=$(date +%Y%m%d-%H%M%S)
-    backup=\"$RemoteTemp/chess-backup-$ts.tar.gz\"
+ts=$(date +%Y%m%d-%H%M%S)
+backup="$RemoteTemp/chess-backup-$ts.tar.gz"
 
-    sudo mkdir -p $RemoteWebRoot
-    sudo tar -czf "$backup" -C "$RemoteWebRoot" . 2>/dev/null || true
+sudo mkdir -p $RemoteWebRoot
+sudo tar -czf "$backup" -C "$RemoteWebRoot" . 2>/dev/null || true
+sudo rm -rf $RemoteWebRoot/*
+sudo mkdir -p $RemoteWebRoot
+sudo cp -r $remoteTmp/dist/* $RemoteWebRoot/
+sudo chown -R www-data:www-data $RemoteWebRoot
+if ! sudo nginx -t; then
+    echo 'nginx -t failed, restoring backup' >&2
     sudo rm -rf $RemoteWebRoot/*
     sudo mkdir -p $RemoteWebRoot
-    sudo cp -r $remoteTmp/dist/* $RemoteWebRoot/
-    sudo chown -R www-data:www-data $RemoteWebRoot
-    if ! sudo nginx -t; then
-      echo 'nginx -t failed, restoring backup' >&2
-      sudo rm -rf $RemoteWebRoot/*
-      sudo mkdir -p $RemoteWebRoot
-      sudo tar -xzf "$backup" -C $RemoteWebRoot 2>/dev/null || true
-      exit 1
-    fi
-    sudo systemctl reload nginx
-    "@
+    sudo tar -xzf "$backup" -C $RemoteWebRoot 2>/dev/null || true
+    exit 1
+fi
+sudo systemctl reload nginx
+'@
 
-        Set-Content -Path $localScript -Value $scriptContent -Encoding UTF8
+            Set-Content -Path $localScript -Value $scriptContent -Encoding UTF8
+        }
 
         # upload dist and script
         $scpDist = 'scp ' + $ScpExtraArgs + ' -r "' + $distLocal + '" ' + $SshTarget + ':' + $remoteTmp
@@ -76,9 +81,9 @@ function Invoke-FrontendDeploy {
         $scpScript = 'scp ' + $ScpExtraArgs + ' "' + $localScript + '" ' + $SshTarget + ':' + $RemoteTemp + '/_remote_deploy_frontend.sh'
         Run $scpScript 'upload remote deploy script'
 
-        # execute remote script (no inline remote variable expansion needed)
-        $sshRun = 'ssh ' + $SshExtraArgs + ' ' + $SshTarget + ' bash ' + $RemoteTemp + '/_remote_deploy_frontend.sh'
-        Run $sshRun 'publish to nginx root and reload'
+        # execute remote script by passing required env vars to avoid quoting issues
+        $sshCmd = "ssh $SshExtraArgs $SshTarget 'REMOTE_TMP=$RemoteTemp REMOTE_WEBROOT=$RemoteWebRoot bash $RemoteTemp/_remote_deploy_frontend.sh'"
+        Run $sshCmd 'publish to nginx root and reload'
     }
     finally { Pop-Location }
 }
@@ -98,11 +103,15 @@ function Invoke-BackendDeploy {
     $scpCmd = 'scp ' + $ScpExtraArgs + ' "' + $archive + '" ' + $SshTarget + ':"' + $remoteTgz + '"'
     Run $scpCmd 'upload backend archive'
 
-        # 远端解压、docker build、替换容器并启动
-        $remoteWork = $RemoteTemp + '/chess-backend-src'
+    # 远端解压、docker build、替换容器并启动
+    $remoteWork = $RemoteTemp + '/chess-backend-src'
 
-        $localScript = Join-Path $PSScriptRoot '_remote_deploy_backend.sh'
-        $scriptContent = @"
+    $localScript = Join-Path $PSScriptRoot '_remote_deploy_backend.sh'
+    if (Test-Path $localScript) {
+        Write-Host "Using existing script: $localScript"
+    }
+    else {
+        $scriptContent = @'
 #!/usr/bin/env bash
 set -euo pipefail
 
@@ -130,25 +139,32 @@ if [ -z "$(docker ps --filter name=$BACKEND_CONTAINER --filter status=running -q
     fi
     exit 1
 fi
-"@
+'@
 
         Set-Content -Path $localScript -Value $scriptContent -Encoding UTF8
-
-        # upload archive and script
-        $scpCmd = 'scp ' + $ScpExtraArgs + ' "' + $archive + '" ' + $SshTarget + ':' + $remoteTgz
-        Run $scpCmd 'upload backend archive'
-
-        $scpScript = 'scp ' + $ScpExtraArgs + ' "' + $localScript + '" ' + $SshTarget + ':' + $RemoteTemp + '/_remote_deploy_backend.sh'
-        Run $scpScript 'upload remote backend deploy script'
-
-        $sshCmd = 'ssh ' + $SshExtraArgs + ' ' + $SshTarget + ' bash ' + $RemoteTemp + '/_remote_deploy_backend.sh'
-        Run $sshCmd 'remote build image and restart container'
     }
 
-    switch ($Target) {
-        'frontend' { Invoke-FrontendDeploy }
-        'backend' { Invoke-BackendDeploy }
-        'all' { Invoke-FrontendDeploy; Invoke-BackendDeploy }
-    }
+    # upload archive and script
+    $scpCmd = 'scp ' + $ScpExtraArgs + ' "' + $archive + '" ' + $SshTarget + ':' + $remoteTgz
+    Run $scpCmd 'upload backend archive'
 
-    Write-Host "`nDone." -ForegroundColor Green
+    $scpScript = 'scp ' + $ScpExtraArgs + ' "' + $localScript + '" ' + $SshTarget + ':' + $RemoteTemp + '/_remote_deploy_backend.sh'
+    Run $scpScript 'upload remote backend deploy script'
+
+    # escape possible double-quotes in sensitive vars before embedding (preserve quotes for remote env)
+    $escapedDb = $DatabaseUrl -replace '"', '\"'
+    $escapedJwt = $JwtSecret -replace '"', '\"'
+    $envPart = 'DATABASE_URL="' + $escapedDb + '" JWT_SECRET="' + $escapedJwt + '" REMOTE_TMP=' + $RemoteTemp + ' REMOTE_WORK=' + $remoteWork
+    $remoteScriptPath = $RemoteTemp + '/_remote_deploy_backend.sh'
+    # run the remote backend deploy script as root so it can write to /tmp and manage containers
+    $sshCmd = "ssh $SshExtraArgs $SshTarget 'sudo env $envPart bash $remoteScriptPath'"
+    Run $sshCmd 'remote build image and restart container (sudo)'
+}
+
+switch ($Target) {
+    'frontend' { Invoke-FrontendDeploy }
+    'backend' { Invoke-BackendDeploy }
+    'all' { Invoke-FrontendDeploy; Invoke-BackendDeploy }
+}
+
+Write-Host "`nDone." -ForegroundColor Green
