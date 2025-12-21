@@ -1,6 +1,5 @@
 import React from 'react'
 import UserAvatar from '../../components/UserAvatar'
-import DropdownMenu from '../../components/DropdownMenu'
 import RecordEmbed from '../../components/RecordEmbed'
 import BoardEmbed from '../../components/BoardEmbed'
 

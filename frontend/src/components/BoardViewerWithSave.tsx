@@ -5,7 +5,6 @@
 import { useState } from 'react'
 import BoardViewer from '../features/chess/BoardViewer'
 import { boardApi } from '../services/api'
-import type { MoveRecord } from '../features/records/types'
 import type { Side } from '../features/chess/types'
 
 interface BoardViewerWithSaveProps {
@@ -15,7 +14,7 @@ interface BoardViewerWithSaveProps {
     enableSave?: boolean // 可选隐藏保存按钮，用于列表/预览
 }
 
-export default function BoardViewerWithSave({ boardId, initialLayout, title, enableSave = true }: BoardViewerWithSaveProps) {
+export default function BoardViewerWithSave({ boardId: _boardId, initialLayout, title, enableSave = true }: BoardViewerWithSaveProps) {
     const [saving, setSaving] = useState(false)
     const [saved, setSaved] = useState(false)
 
@@ -37,8 +36,9 @@ export default function BoardViewerWithSave({ boardId, initialLayout, title, ena
             await boardApi.create({
                 name: newBoardName,
                 description: `从社区帖子保存: ${title || '残局'}`,
-                layout: initialLayout,
+                layout: initialLayout as any,
                 rules: {
+                    ruleVersion: 1,
                     layoutSource: 'empty',
                     coordinateSystem: 'relativeToSide',
                     mode: 'analysis',

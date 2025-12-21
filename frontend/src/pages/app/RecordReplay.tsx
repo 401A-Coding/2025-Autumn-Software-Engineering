@@ -5,7 +5,6 @@ import { movePiece } from '../../features/chess/rules'
 import BoardViewer from '../../features/chess/BoardViewer'
 import { recordStore } from '../../features/records/recordStore'
 import { recordsApi, userApi } from '../../services/api'
-import UserAvatar from '../../components/UserAvatar'
 import type { ChessRecord, Bookmark } from '../../features/records/types'
 // 书签即评论，统一用 bookmarks 展示
 import './app-pages.css'
@@ -175,10 +174,10 @@ export default function RecordReplay() {
                     onClick={async () => {
                         try {
                             if (record.favorite) {
-                                await recordsApi.unfavorite(record.id)
+                                await recordsApi.unfavorite(Number(record.id))
                                 setRecord({ ...record, favorite: false })
                             } else {
-                                await recordsApi.favorite(record.id)
+                                await recordsApi.favorite(Number(record.id))
                                 setRecord({ ...record, favorite: true })
                             }
                         } catch (e) {
