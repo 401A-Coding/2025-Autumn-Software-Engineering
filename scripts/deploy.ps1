@@ -85,8 +85,7 @@ sudo systemctl reload nginx
         # Upload a small wrapper that normalizes CRLF and runs the target script under /bin/bash, then invoke it
         $localWrapper = Join-Path $PSScriptRoot 'remote-run-bash.sh'
         if (-not (Test-Path $localWrapper)) {
-            Write-Host "Creating local wrapper $localWrapper"
-            Set-Content -Path $localWrapper -Value "#!/usr/bin/env bash`nset -euo pipefail`nif [ \"$#\" -lt 1 ]; then echo \"usage: \$0 <remote-script-path>\" >&2; exit 2; fi`nTARGET=\"\$1\"`nsed -i 's/\\r$//' \"\$TARGET\" || true`n/bin/bash \"\$TARGET\"" -Encoding UTF8
+            throw "Local wrapper $localWrapper not found; ensure scripts/remote-run-bash.sh exists in the repo"
         }
         $scpWrapper = 'scp ' + $ScpExtraArgs + ' "' + $localWrapper + '" ' + $SshTarget + ':' + $RemoteTemp + '/remote-run-bash.sh'
         Run $scpWrapper 'upload remote-run-bash wrapper'
@@ -200,8 +199,7 @@ fi
     # Upload wrapper and invoke it to normalize and run the remote backend deploy script
     $localWrapper = Join-Path $PSScriptRoot 'remote-run-bash.sh'
     if (-not (Test-Path $localWrapper)) {
-        Write-Host "Creating local wrapper $localWrapper"
-        Set-Content -Path $localWrapper -Value "#!/usr/bin/env bash`nset -euo pipefail`nif [ \"$#\" -lt 1 ]; then echo \"usage: \$0 <remote-script-path>\" >&2; exit 2; fi`nTARGET=\"\$1\"`nsed -i 's/\\r$//' \"\$TARGET\" || true`n/bin/bash \"\$TARGET\"" -Encoding UTF8
+        throw "Local wrapper $localWrapper not found; ensure scripts/remote-run-bash.sh exists in the repo"
     }
     $scpWrapper = 'scp ' + $ScpExtraArgs + ' "' + $localWrapper + '" ' + $SshTarget + ':' + $RemoteTemp + '/remote-run-bash.sh'
     Run $scpWrapper 'upload remote-run-bash wrapper'
