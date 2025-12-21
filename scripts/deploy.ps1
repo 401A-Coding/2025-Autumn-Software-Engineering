@@ -82,8 +82,9 @@ sudo systemctl reload nginx
         Run $scpScript 'upload remote deploy script'
 
         # execute remote script by passing required env vars to avoid quoting issues
-        $sshCmd = "ssh $SshExtraArgs $SshTarget 'REMOTE_TMP=$RemoteTemp REMOTE_WEBROOT=$RemoteWebRoot bash $RemoteTemp/_remote_deploy_frontend.sh'"
-        Run $sshCmd 'publish to nginx root and reload'
+        # Normalize remote script line endings and run with bash to avoid /bin/sh incompatibilities
+        $sshCmd = "ssh $SshExtraArgs $SshTarget 'REMOTE_TMP=$RemoteTemp REMOTE_WEBROOT=$RemoteWebRoot sudo sed -i \"s/\\r`$//\" $RemoteTemp/_remote_deploy_frontend.sh 2>/dev/null || true; sudo /bin/bash $RemoteTemp/_remote_deploy_frontend.sh'"
+        Run $sshCmd 'publish to nginx root and reload (normalize CRLF and run with bash)'
     }
     finally { Pop-Location }
 }
@@ -189,8 +190,9 @@ fi
     $envPart = 'DATABASE_URL="' + $escapedDb + '" JWT_SECRET="' + $escapedJwt + '" REMOTE_TMP=' + $RemoteTemp + ' REMOTE_WORK=' + $remoteWork
     $remoteScriptPath = $RemoteTemp + '/_remote_deploy_backend.sh'
     # run the remote backend deploy script as root so it can write to /tmp and manage containers
-    $sshCmd = "ssh $SshExtraArgs $SshTarget 'sudo env $envPart bash $remoteScriptPath'"
-    Run $sshCmd 'remote build image and restart container (sudo)'
+    # Ensure remote script uses LF and run under /bin/bash to support bash-specific options like 'set -o pipefail'
+    $sshCmd = "ssh $SshExtraArgs $SshTarget 'sudo sed -i \"s/\\r`$//\" $remoteScriptPath 2>/dev/null || true; sudo /bin/bash $remoteScriptPath'"
+    Run $sshCmd 'remote build image and restart container (sudo, normalize CRLF and run with bash)'
 }
 
 switch ($Target) {
