@@ -22,6 +22,16 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
     if (event.request.method !== 'GET') return
+
+    // Navigation requests (user typing URL or using SPA navigation) should
+    // return the cached index.html when offline to avoid 404 in installed PWA.
+    if (event.request.mode === 'navigate') {
+        event.respondWith(
+            fetch(event.request).catch(() => caches.match('/index.html'))
+        )
+        return
+    }
+
     event.respondWith(
         caches.match(event.request).then((cached) => {
             if (cached) return cached
