@@ -771,6 +771,48 @@
     background: #eff6ff;
 }
 
+/* Small-screen adjustments to avoid overflow in piece selection */
+@media (max-width: 420px) {
+    .grid-7 {
+        grid-template-columns: repeat(4, 1fr);
+    }
+
+    .opt-btn {
+        padding: 8px 6px;
+        font-size: 16px;
+    }
+
+    .opt-btn--icon {
+        font-size: 18px;
+    }
+
+    .minw-80 {
+        min-width: 60px;
+    }
+}
+
+@media (max-width: 360px) {
+    .grid-7 {
+        grid-template-columns: repeat(3, 1fr);
+    }
+
+    .opt-btn {
+        padding: 8px 4px;
+        font-size: 15px;
+    }
+}
+
+@media (max-width: 330px) {
+    .grid-7 {
+        grid-template-columns: repeat(3, 1fr);
+    }
+
+    .opt-btn {
+        padding: 6px 4px;
+        font-size: 14px;
+    }
+}
+
 /* Rule editor helpers */
 .rule-board-frame {
     display: inline-block;
@@ -1054,6 +1096,12 @@
     display: flex;
     justify-content: center;
     width: 100%;
+}
+
+@media (max-width: 420px) {
+    .board-area {
+        flex: 1 1 100%;
+    }
 }
 
 /* Badge helpers */

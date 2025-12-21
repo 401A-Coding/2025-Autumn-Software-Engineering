@@ -582,3 +582,29 @@
 .board-center {
     margin: 0 auto;
 }
+
+/* Mobile default: within MobileFrame, reduce cell size to fit 375px */
+.mobile-viewport .board {
+    --cell-size: 33px !important;
+}
+
+/* Responsive downscale on very small screens (ensure precedence within board.css) */
+@media (max-width: 400px) {
+    .board {
+        --cell-size: 30px !important;
+    }
+}
+
+@media (max-width: 360px) {
+    .board {
+        --cell-size: 26px !important;
+    }
+}
+
+@media (max-width: 330px) {
+    .board {
+        --cell-size: 20px !important;
+    }
+}
+
+/* 320px 断点已移除，避免与 330px 设置冲突 */
