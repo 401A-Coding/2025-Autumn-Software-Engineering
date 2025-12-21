@@ -102,7 +102,7 @@ function Invoke-BackendDeploy {
         ) -join ' '),
         # 健康性粗检：是否处于 running 状态，否则回滚旧镜像（若存在）
         'sleep 2',
-        'if [ -z "$(docker ps --filter name=' + $BackendContainer + ' --filter status=running -q)" ]; then echo ''New backend container not running, rolling back...'' >&2; if [ -n "'$old_image'" ]; then docker rm -f ' + $BackendContainer + ' 2>/dev/null || true; docker run -d --name ' + $BackendContainer + ' --restart unless-stopped --network host -e DATABASE_URL=''' + $DatabaseUrl + ''' -e JWT_SECRET=''' + $JwtSecret + ''' "$old_image"; fi; exit 1; fi'
+        'if [ -z "$(docker ps --filter name=' + $BackendContainer + ' --filter status=running -q)" ]; then echo ''New backend container not running, rolling back...'' >&2; if [ -n "' + '$old_image' + '" ]; then docker rm -f ' + $BackendContainer + ' 2>/dev/null || true; docker run -d --name ' + $BackendContainer + ' --restart unless-stopped --network host -e DATABASE_URL=''' + $DatabaseUrl + ''' -e JWT_SECRET=''' + $JwtSecret + ''' "' + '$old_image' + '"; fi; exit 1; fi'
     ) -join '; '
     $sshCmd = 'ssh ' + $SshExtraArgs + ' ' + $SshTarget + ' "' + $remoteCmds + '"'
     Run $sshCmd 'remote build image and restart container'
