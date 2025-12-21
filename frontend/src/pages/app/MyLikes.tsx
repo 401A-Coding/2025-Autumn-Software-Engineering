@@ -26,7 +26,7 @@ export default function MyLikes() {
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
     const [page, setPage] = useState(1)
-    const [total, setTotal] = useState(0)
+    const [_total, setTotal] = useState(0)
     const pageSize = 20
 
     function formatDate(iso?: string | Date | null) {
