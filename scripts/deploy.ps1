@@ -93,30 +93,10 @@ function Invoke-BackendDeploy {
     Write-Section 'Backend: package, remote build & run'
     $beDir = Join-Path $RepoRoot 'backend'
 
-    # 准备构建上下文：拷贝 backend 内容并把 docs/openapi.yaml 放入 so Docker build 可以 COPY docs/openapi.yaml
-    $packDir = Join-Path $LocalTemp ("backend-build-context-" + [Guid]::NewGuid().ToString())
-    if (Test-Path $packDir) { Remove-Item -Recurse -Force $packDir }
-    New-Item -ItemType Directory -Path $packDir | Out-Null
-    # Copy backend files into packDir (exclude node_modules, .git, dist)
-    $robocopyExe = (Get-Command robocopy -ErrorAction SilentlyContinue).Source
-    if ($robocopyExe) {
-        & robocopy "$beDir" "$packDir" * /MIR /XD node_modules .git dist | Out-Null
-    }
-    else {
-        Copy-Item -Path (Join-Path $beDir '*') -Destination $packDir -Recurse -Force -Exclude 'node_modules', '*.git', 'dist'
-    }
-    # Ensure docs/openapi.yaml exists in repo and copy into build context under docs/
-    $srcOpenApi = Join-Path $RepoRoot 'docs\openapi.yaml'
-    if (Test-Path $srcOpenApi) {
-        $destDocsDir = Join-Path $packDir 'docs'
-        if (-not (Test-Path $destDocsDir)) { New-Item -ItemType Directory -Path $destDocsDir | Out-Null }
-        Copy-Item -Path $srcOpenApi -Destination (Join-Path $destDocsDir 'openapi.yaml') -Force
-    }
-
-    # 打包构建上下文为 tgz
+    # 打包源码（排除 node_modules/.git/dist）到本地临时 tgz
     $archive = Join-Path $LocalTemp ("backend-src-" + [Guid]::NewGuid().ToString() + ".tar.gz")
-    $tarCmd = "tar -czf `"$archive`" -C `"$packDir`" ."
-    Run $tarCmd "archive backend build context to $archive"
+    $tarCmd = "tar -czf `"$archive`" --exclude=node_modules --exclude=.git --exclude=dist -C `"$beDir`" ."
+    Run $tarCmd "archive backend to $archive"
 
     # 上传到远程
     $remoteTgz = $RemoteTemp + '/' + (Split-Path -Leaf $archive)
