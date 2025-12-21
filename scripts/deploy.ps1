@@ -162,6 +162,13 @@ fi
     $scpScript = 'scp ' + $ScpExtraArgs + ' "' + $localScript + '" ' + $SshTarget + ':' + $RemoteTemp + '/_remote_deploy_backend.sh'
     Run $scpScript 'upload remote backend deploy script'
 
+    # If local docs/openapi.yaml exists, upload it separately so remote script can inject it into build context
+    $openapiLocal = Join-Path $RepoRoot 'docs\openapi.yaml'
+    if (Test-Path $openapiLocal) {
+        $scpOpenapi = 'scp ' + $ScpExtraArgs + ' "' + $openapiLocal + '" ' + $SshTarget + ':/tmp/backend-openapi.yaml'
+        Run $scpOpenapi 'upload openapi.yaml to remote /tmp'
+    }
+
     # cleanup temporary openapi copy if created
     if ($copiedOpenapi) {
         try {

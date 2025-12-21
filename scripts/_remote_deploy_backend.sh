@@ -17,6 +17,12 @@ rm -rf "$REMOTE_WORK" && mkdir -p "$REMOTE_WORK"
 tar -xzf "$ZIP_PATH" -C "$REMOTE_WORK"
 cd "$REMOTE_WORK"
 
+# If maintainer uploaded an openapi spec separately, move it into build context
+if [ -f "/tmp/backend-openapi.yaml" ]; then
+  mkdir -p ./docs
+  mv /tmp/backend-openapi.yaml ./docs/openapi.yaml || true
+fi
+
 # Normalize line endings of entrypoint in extracted source to avoid CRLF issues
 if [ -f "./docker-entrypoint.sh" ]; then
   sed -i 's/\r$//' ./docker-entrypoint.sh || true
