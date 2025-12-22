@@ -33,8 +33,15 @@ export default function Login() {
                 try { localStorage.removeItem('rememberLogin') } catch { }
             }
             navigate('/app/home', { replace: true })
-        } catch (e: unknown) {
-            const msg = e instanceof Error ? e.message : '登录失败'
+        } catch (e: any) {
+            // 更明确的失败原因映射
+            const status: number | undefined = e?.status ?? e?.response?.status
+            let msg = e?.serverMessage || e?.message || '登录失败'
+            if (status === 401) msg = '账号或密码错误，请确认后重试'
+            else if (status === 400 || status === 422) msg = '请求参数有误：请检查手机号格式与密码长度'
+            else if (status === 429) msg = '请求过于频繁，请稍后再试'
+            else if (typeof status === 'number' && status >= 500) msg = '服务器开小差了，请稍后再试'
+            else if (!status) msg = '网络或跨域配置异常：请检查后端地址和网络连接'
             setError(msg)
         } finally {
             setLoading(false)
