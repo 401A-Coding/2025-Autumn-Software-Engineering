@@ -46,7 +46,7 @@ export default function Register() {
             else if (status === 400) {
                 // 部分后端会用 400 表示唯一约束冲突或“已注册”
                 const lower = (serverMsg || '').toLowerCase()
-                if (/已注册|已存在|存在|重复|duplicate|unique|used/.test(serverMsg || '')) {
+                if (/已注册|已存在|存在|重复|duplicate|unique|used/.test(lower)) {
                     msg = '该手机号已注册，请直接登录或更换手机号'
                 } else {
                     msg = '请求参数有误：请检查手机号格式与密码长度'
