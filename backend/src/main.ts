@@ -21,26 +21,31 @@ async function bootstrap() {
   // 全局统一响应包装与错误封装
   app.useGlobalInterceptors(new ResponseEnvelopeInterceptor());
   app.useGlobalFilters(new GlobalExceptionFilter());
-  // 启用 CORS，便于前端在 Vite (默认 5173) 开发环境跨域访问
-  app.enableCors({
-    origin: [
-      /http:\/\/localhost:5173$/,
-      /http:\/\/127\.0\.0\.1:5173$/,
-      /http:\/\/192\.168\.[0-9]+\.[0-9]+:5173$/,
-      /http:\/\/10\.[0-9]+\.[0-9]+\.[0-9]+:5173$/,
-      /http:\/\/localhost:5174$/,
-      /http:\/\/127\.0\.0\.1:5174$/,
-      /http:\/\/192\.168\.[0-9]+\.[0-9]+:5174$/,
-      /http:\/\/10\.[0-9]+\.[0-9]+\.[0-9]+:5174$/,
-      // Allow plain localhost and Capacitor scheme for Android dev builds
-      'http://localhost',
-      'http://127.0.0.1',
-      'capacitor://localhost',
-    ],
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
-  });
+  // 启用 CORS：只在开发环境由 Nest 控制 CORS，生产环境由 nginx 统一处理以避免重复头
+  if (process.env.NODE_ENV !== 'production') {
+    app.enableCors({
+      origin: [
+        /http:\/\/localhost:5173$/,
+        /http:\/\/127\.0\.0\.1:5173$/,
+        /http:\/\/192\.168\.[0-9]+\.[0-9]+:5173$/,
+        /http:\/\/10\.[0-9]+\.[0-9]+\.[0-9]+:5173$/,
+        /http:\/\/localhost:5174$/,
+        /http:\/\/127\.0\.0\.1:5174$/,
+        /http:\/\/192\.168\.[0-9]+\.[0-9]+:5174$/,
+        /http:\/\/10\.[0-9]+\.[0-9]+\.[0-9]+:5174$/,
+        // Allow plain localhost and Capacitor scheme for Android dev builds
+        'http://localhost',
+        'http://127.0.0.1',
+        'capacitor://localhost',
+      ],
+      credentials: true,
+      methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+      allowedHeaders: ['Content-Type', 'Authorization'],
+    });
+  } else {
+    // In production, do not set CORS headers here to avoid duplicate Access-Control-Allow-Origin.
+    // Nginx should be configured to return the appropriate CORS headers.
+  }
   // Serve Swagger UI from contract-first spec (docs/openapi.yaml)
   try {
     const specPath = path.resolve(process.cwd(), '..', 'docs', 'openapi.yaml');
