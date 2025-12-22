@@ -17,7 +17,7 @@ export class UserService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
-  ) { }
+  ) {}
 
   // 请求找回密码（开发环境：生成临时 requestId 并返回；真实环境应通过短信/邮件验证）
   async requestPasswordReset(phone: string) {
@@ -39,7 +39,10 @@ export class UserService {
       throw new BadRequestException('重置令牌无效或已过期');
     }
     const hashed = await bcrypt.hash(newPassword, 10);
-    await this.prisma.user.update({ where: { phone }, data: { password: hashed } });
+    await this.prisma.user.update({
+      where: { phone },
+      data: { password: hashed },
+    });
     this.resetMap.delete(requestId);
     return {};
   }

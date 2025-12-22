@@ -32,6 +32,10 @@ async function bootstrap() {
       /http:\/\/127\.0\.0\.1:5174$/,
       /http:\/\/192\.168\.[0-9]+\.[0-9]+:5174$/,
       /http:\/\/10\.[0-9]+\.[0-9]+\.[0-9]+:5174$/,
+      // Allow plain localhost and Capacitor scheme for Android dev builds
+      'http://localhost',
+      'http://127.0.0.1',
+      'capacitor://localhost',
     ],
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
