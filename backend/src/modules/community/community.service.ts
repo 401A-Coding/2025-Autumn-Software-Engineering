@@ -4,7 +4,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 
 @Injectable()
 export class CommunityService {
-  constructor(private readonly prisma: PrismaService) { }
+  constructor(private readonly prisma: PrismaService) {}
 
   // Build a lightweight record snapshot so posts can render embeds without hitting record permissions
   private async buildRecordSnapshot(recordId: number, ownerId?: number) {
@@ -72,10 +72,10 @@ export class CommunityService {
       ];
     const tagFilter = tag
       ? {
-        tags: {
-          some: { tag: { name: { equals: tag, mode: 'insensitive' } } },
-        },
-      }
+          tags: {
+            some: { tag: { name: { equals: tag, mode: 'insensitive' } } },
+          },
+        }
       : {};
 
     const orderBy: any =
@@ -127,10 +127,10 @@ export class CommunityService {
           p.shareType === 'NONE'
             ? null
             : {
-              refType: String(p.shareType).toLowerCase(),
-              refId: p.shareRefId ?? 0,
-              snapshot,
-            },
+                refType: String(p.shareType).toLowerCase(),
+                refId: p.shareRefId ?? 0,
+                snapshot,
+              },
         createdAt: p.createdAt,
         likeCount: p._count.likes,
         commentCount: p._count.comments,
@@ -146,7 +146,8 @@ export class CommunityService {
     const shareRefId = data.shareRefId ?? null;
     const shareSnap =
       shareType === 'RECORD' && shareRefId
-        ? (await this.buildRecordSnapshot(shareRefId, userId)) ?? Prisma.JsonNull
+        ? ((await this.buildRecordSnapshot(shareRefId, userId)) ??
+          Prisma.JsonNull)
         : Prisma.JsonNull;
 
     const created = await this.prisma.post.create({
@@ -221,10 +222,10 @@ export class CommunityService {
         p.shareType === 'NONE'
           ? null
           : {
-            refType: String(p.shareType).toLowerCase(),
-            refId: p.shareRefId ?? 0,
-            snapshot: shareSnapshot ?? null,
-          },
+              refType: String(p.shareType).toLowerCase(),
+              refId: p.shareRefId ?? 0,
+              snapshot: shareSnapshot ?? null,
+            },
       attachments:
         p.attachments?.map((a: any) => ({
           url: a.url,
@@ -260,7 +261,7 @@ export class CommunityService {
       ? patch.shareRefId
       : undefined;
 
-    let nextShareType: ShareType = post.shareType as ShareType;
+    let nextShareType: ShareType = post.shareType;
     let nextShareRefId = post.shareRefId;
     let nextShareSnap: any = post.shareSnap;
 
@@ -268,7 +269,7 @@ export class CommunityService {
       shareTypePatch !== undefined || shareRefPatch !== undefined;
 
     if (shouldUpdateShare) {
-      nextShareType = (shareTypePatch as ShareType) ?? (post.shareType as ShareType);
+      nextShareType = (shareTypePatch as ShareType) ?? post.shareType;
       nextShareRefId =
         shareRefPatch !== undefined ? shareRefPatch : post.shareRefId;
 
@@ -292,16 +293,16 @@ export class CommunityService {
         content: patch.content ?? post.content,
         ...(shouldUpdateShare
           ? {
-            shareType: nextShareType,
-            shareRefId:
-              nextShareType === 'NONE' ? null : (nextShareRefId ?? null),
-            shareSnap:
-              nextShareType === 'NONE'
-                ? Prisma.JsonNull
-                : nextShareType === 'RECORD' && nextShareRefId
-                  ? (nextShareSnap ?? Prisma.JsonNull)
-                  : Prisma.JsonNull,
-          }
+              shareType: nextShareType,
+              shareRefId:
+                nextShareType === 'NONE' ? null : (nextShareRefId ?? null),
+              shareSnap:
+                nextShareType === 'NONE'
+                  ? Prisma.JsonNull
+                  : nextShareType === 'RECORD' && nextShareRefId
+                    ? (nextShareSnap ?? Prisma.JsonNull)
+                    : Prisma.JsonNull,
+            }
           : {}),
       },
       include: { tags: { include: { tag: true } } },
@@ -351,25 +352,25 @@ export class CommunityService {
     // 取出每个顶级评论下的所有楼中楼：直接子回复 + 子回复的子回复
     const allReplies = topIds.length
       ? await this.prisma.communityComment.findMany({
-        where: {
-          OR: [
-            { parentId: { in: topIds } },
-            { parent: { parentId: { in: topIds } } },
-          ],
-        },
-        orderBy: { createdAt: 'asc' },
-        include: {
-          author: { select: { id: true, username: true, avatarUrl: true } },
-          parent: {
-            select: {
-              id: true,
-              parentId: true,
-              author: { select: { id: true, username: true } },
-            },
+          where: {
+            OR: [
+              { parentId: { in: topIds } },
+              { parent: { parentId: { in: topIds } } },
+            ],
           },
-          _count: { select: { likes: true } },
-        },
-      })
+          orderBy: { createdAt: 'asc' },
+          include: {
+            author: { select: { id: true, username: true, avatarUrl: true } },
+            parent: {
+              select: {
+                id: true,
+                parentId: true,
+                author: { select: { id: true, username: true } },
+              },
+            },
+            _count: { select: { likes: true } },
+          },
+        })
       : [];
 
     const repliesByRoot: Record<number, any[]> = {};
@@ -528,10 +529,10 @@ export class CommunityService {
       ];
     const tagFilter = tag
       ? {
-        tags: {
-          some: { tag: { name: { equals: tag, mode: 'insensitive' } } },
-        },
-      }
+          tags: {
+            some: { tag: { name: { equals: tag, mode: 'insensitive' } } },
+          },
+        }
       : {};
     const [items, total] = await this.prisma.$transaction([
       this.prisma.post.findMany({
