@@ -1,0 +1,6 @@
+{
+    "appId": "com.thu.chess",
+    "appName": "ChessApp",
+    "webDir": "dist",
+    "bundledWebRuntime": false
+}
