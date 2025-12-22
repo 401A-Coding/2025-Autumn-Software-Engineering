@@ -203,7 +203,15 @@ fi
     }
     $scpWrapper = 'scp ' + $ScpExtraArgs + ' "' + $localWrapper + '" ' + $SshTarget + ':' + $RemoteTemp + '/remote-run-bash.sh'
     Run $scpWrapper 'upload remote-run-bash wrapper'
-    $sshCmd = "ssh $SshExtraArgs $SshTarget 'sudo chmod +x $RemoteTemp/remote-run-bash.sh; sudo $RemoteTemp/remote-run-bash.sh $remoteScriptPath'"
+    # Pass the actual uploaded archive and envs to the remote wrapper so it uses the correct ZIP_PATH
+    $execEnv = 'ZIP_PATH="' + $remoteTgz + '" '
+    $execEnv += 'REMOTE_WORK="' + $remoteWork + '" '
+    $execEnv += 'BACKEND_IMAGE="' + $BackendImageName + '" '
+    $execEnv += 'BACKEND_CONTAINER="' + $BackendContainer + '" '
+    $execEnv += 'DATABASE_URL="' + $escapedDb + '" '
+    $execEnv += 'JWT_SECRET="' + $escapedJwt + '" '
+
+    $sshCmd = "ssh $SshExtraArgs $SshTarget 'sudo chmod +x $RemoteTemp/remote-run-bash.sh; sudo $execEnv $RemoteTemp/remote-run-bash.sh $remoteScriptPath'"
     Run $sshCmd 'remote build image and restart container (via remote-run-bash)'
 }
 
