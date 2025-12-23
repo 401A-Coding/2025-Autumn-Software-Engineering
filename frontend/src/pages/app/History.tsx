@@ -159,7 +159,16 @@ function RecordsList({ filter, list, loading, onRefresh, meProfile }: { filter: 
                 </div>
             )}
 
-            <div className="col gap-8" style={{ height: 420, overflowY: 'auto', paddingRight: 4 }}>
+            <div
+                className="col gap-8"
+                style={{
+                    /* 自适应屏幕高度：在较高屏幕上更舒适 */
+                    maxHeight: 'calc(100vh - 280px)',
+                    minHeight: 300,
+                    overflowY: 'auto',
+                    paddingRight: 4,
+                }}
+            >
                 {filtered.map(r => (
                     <HistoryCard
                         key={r.id}

@@ -21,7 +21,7 @@ export default function CustomBattle() {
     const location: any = useLocation()
     useEffect(() => {
         const state = location?.state || {}
-        
+
         // 优先使用路由 state 传入的布局与规则（来自模板管理或编辑器）
         if (state.rules) {
             try {
@@ -87,7 +87,7 @@ export default function CustomBattle() {
     // 用于保存对局的临时记录
     const [moves, setMoves] = useState<MoveRecord[]>([])
     const [startedAt] = useState<string>(new Date().toISOString())
-    
+
     // 初始化当前棋盘引用
     useEffect(() => {
         if (customBoard) {
@@ -98,7 +98,7 @@ export default function CustomBattle() {
     const persistRecord = async (result?: 'red' | 'black' | 'draw') => {
         console.log('[CustomBattle] persistRecord called, moves:', moves.length)
         const boardToSave = currentBoardRef.current || customBoard
-        
+
         try {
             const rec: Omit<ChessRecord, 'id'> = {
                 startedAt,
@@ -162,28 +162,6 @@ export default function CustomBattle() {
                     </div>
                 </div>
 
-            {/* 主体：棋盘 + 侧栏（在窄屏隐藏） */}
-            <div className="row gap-16 align-start wrap">
-                <div className="board-area">
-                    <div className="board-area__inner">
-                        <Board
-                            customRules={ruleSet}
-                            initialBoard={customBoard}
-                            onMove={(m) => {
-                                setMoves(prev => [...prev, m])
-                                // 更新当前棋盘状态
-                                if (currentBoardRef.current) {
-                                    currentBoardRef.current = movePiece(currentBoardRef.current, m.from, m.to)
-                                }
-                            }}
-                            onGameOver={(winner) => persistRecord(winner || undefined)}
-                        />
-                    </div>
-                    {ruleSet.description && (
-                        <div className="note-info">{ruleSet.description}</div>
-                    )}
-                </div>
-
                 {/* 主体：棋盘 + 侧栏（在窄屏隐藏） */}
                 <div className="row gap-16 align-start wrap">
                     <div className="board-area">
@@ -191,10 +169,19 @@ export default function CustomBattle() {
                             <Board
                                 customRules={ruleSet}
                                 initialBoard={customBoard}
-                                onMove={(m) => setMoves(prev => [...prev, m])}
+                                onMove={(m) => {
+                                    setMoves(prev => [...prev, m])
+                                    // 更新当前棋盘状态
+                                    if (currentBoardRef.current) {
+                                        currentBoardRef.current = movePiece(currentBoardRef.current, m.from, m.to)
+                                    }
+                                }}
                                 onGameOver={(winner) => persistRecord(winner || undefined)}
                             />
                         </div>
+                        {ruleSet.description && (
+                            <div className="note-info">{ruleSet.description}</div>
+                        )}
                     </div>
 
                     <aside className="col gap-12 flex-1 minw-260 hide-on-mobile">

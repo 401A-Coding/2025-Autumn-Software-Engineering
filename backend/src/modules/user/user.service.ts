@@ -270,11 +270,12 @@ export class UserService {
         avatarUrl: true,
         role: true,
         createdAt: true,
+        bio: true,
       },
     });
     if (!user) throw new UnauthorizedException('用户不存在');
     const { username, ...rest } = user;
-    return { ...rest, nickname: username };
+    return { ...rest, nickname: username, bio: user.bio ?? null };
   }
 
   // 获取任意用户的公开信息（不返回手机号、邮箱等敏感字段）

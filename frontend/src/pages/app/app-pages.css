@@ -3,6 +3,14 @@
     padding: 16px;
 }
 
+/* Online lobby main card: widen to ~1.5x of original small card */
+.online-lobby-card {
+    width: 540px;
+    max-width: 100%;
+    margin-left: auto;
+    margin-right: auto;
+}
+
 .pad-4 {
     padding: 4px;
 }
@@ -193,6 +201,10 @@
 /* Width helpers */
 .w-60 {
     width: 60px;
+}
+
+.w-100 {
+    width: 100%;
 }
 
 .w-64 {
