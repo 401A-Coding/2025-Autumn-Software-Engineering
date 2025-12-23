@@ -114,17 +114,15 @@ export const recordStore = {
 
         let created: any = null
         let savedToServer = false
-        // 如果没有 token 则跳过服务器保存，直接本地保存
-        const token = localStorage.getItem('token')
-        if (token) {
-            try {
-                created = await recordsApi.create(body)
-                savedToServer = !!created
-            } catch (e) {
-                // 后端保存失败（未登录或网络问题），将降级为仅本地保存
-                created = null
-                savedToServer = false
-            }
+        // 尝试向服务器保存（若未登录或网络/授权失败则回退到本地保存）
+        try {
+            created = await recordsApi.create(body)
+            savedToServer = !!created
+        } catch (e) {
+            // 后端保存失败（可能未登录或网络问题），将降级为仅本地保存
+            console.warn('[recordStore] server save failed, falling back to local', e)
+            created = null
+            savedToServer = false
         }
 
         const rec: ChessRecord = {

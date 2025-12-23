@@ -184,19 +184,7 @@ export default function CustomBattle() {
                     )}
                 </div>
 
-                {/* 主体：棋盘 + 侧栏（在窄屏隐藏） */}
-                <div className="row gap-16 align-start wrap">
-                    <div className="board-area">
-                        <div className="board-area__inner">
-                            <Board
-                                customRules={ruleSet}
-                                initialBoard={customBoard}
-                                onMove={(m) => setMoves(prev => [...prev, m])}
-                                onGameOver={(winner) => persistRecord(winner || undefined)}
-                            />
-                        </div>
-                    </div>
-
+                {/* 侧栏与棋盘并列（在窄屏隐藏侧栏） */}
                     <aside className="col gap-12 flex-1 minw-260 hide-on-mobile">
                         <div className="pad-12 bg-muted rounded-8">
                             <div className="fw-700 mb-8">规则摘要</div>

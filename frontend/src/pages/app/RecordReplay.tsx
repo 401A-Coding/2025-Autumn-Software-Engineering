@@ -273,9 +273,11 @@ export default function RecordReplay() {
                                         const y = Math.max(0, Math.min(9, p.y))
                                         base[y][x] = { id: `init-${id++}`, type: p.type, side: p.side }
                                     }
-                                    return createInitialBoard()
-                                })()
-                                for (let i = 0; i < Math.min(step, record.moves.length); i++) {
+                                    return base
+                                }
+                                return createInitialBoard()
+                            })()
+                            for (let i = 0; i < Math.min(step, record.moves.length); i++) {
                                     const m = record.moves[i]
                                     const nb = movePiece(b, m.from, m.to)
                                     for (let y = 0; y < 10; y++) for (let x = 0; x < 9; x++) b[y][x] = nb[y][x]
