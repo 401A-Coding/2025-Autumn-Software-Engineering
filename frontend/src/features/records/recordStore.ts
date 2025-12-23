@@ -118,18 +118,21 @@ export const recordStore = {
 
     async saveNew(partial: Omit<ChessRecord, 'id'>): Promise<{ record: ChessRecord; savedToServer: boolean }> {
         // prepare server payload
+        // 清洗 moves，确保 from/to 存在且为数字
+        const sanitizedMoves = (partial.moves || []).map((m: MoveRecord, idx) => ({
+            moveIndex: idx,
+            from: { x: Number(m.from?.x ?? 0), y: Number(m.from?.y ?? 0) },
+            to: { x: Number(m.to?.x ?? 0), y: Number(m.to?.y ?? 0) },
+            piece: { side: (m.turn === 'red' || m.turn === 'black') ? m.turn : 'red' },
+        })).filter(m => typeof m.from.x === 'number' && typeof m.from.y === 'number' && typeof m.to.x === 'number' && typeof m.to.y === 'number')
+
         const body: components['schemas']['RecordCreateRequest'] & { initialLayout?: any; customLayout?: any; customRules?: any; mode?: any } = {
             opponent: partial.opponent,
             startedAt: partial.startedAt,
             endedAt: partial.endedAt,
             result: partial.result as any,
             keyTags: partial.keyTags,
-            moves: (partial.moves || []).map((m: MoveRecord, idx) => ({
-                moveIndex: idx,
-                from: { x: m.from.x, y: m.from.y },
-                to: { x: m.to.x, y: m.to.y },
-                piece: { side: m.turn },
-            })),
+            moves: sanitizedMoves,
             bookmarks: (partial.bookmarks || []).map(b => ({ step: b.step, label: b.label, note: (b as any).note })),
             ...(partial as any).initialLayout ? { initialLayout: (partial as any).initialLayout } : {},
             ...(partial as any).customLayout ? { customLayout: (partial as any).customLayout } : {},
