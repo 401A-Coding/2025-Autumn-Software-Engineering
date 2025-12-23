@@ -51,6 +51,9 @@ export const recordStore = {
             bookmarks: (it.bookmarks || []).map((b: any) => ({ id: String(b.id), step: b.step || 0, label: b.label || undefined, note: b.note || undefined })),
             notes: [],
             initialLayout: (it as any).initialLayout ?? undefined,
+            customLayout: (it as any).customLayout ?? undefined,
+            customRules: (it as any).customRules ?? undefined,
+            mode: (it as any).mode ?? undefined,
         }))
         return mapped.sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime())
     },
@@ -78,6 +81,9 @@ export const recordStore = {
                 bookmarks: (it.bookmarks || []).map((b: any) => ({ id: String(b.id), step: b.step || 0, label: b.label || undefined, note: b.note || undefined })),
                 notes: [],
                 initialLayout: (it as any).initialLayout ?? undefined,
+                customLayout: (it as any).customLayout ?? undefined,
+                customRules: (it as any).customRules ?? undefined,
+                mode: (it as any).mode ?? undefined,
             }
             return rec
         } catch (e) {
@@ -87,7 +93,7 @@ export const recordStore = {
 
     async saveNew(partial: Omit<ChessRecord, 'id'>): Promise<{ record: ChessRecord; savedToServer: boolean }> {
         // prepare server payload
-        const body: components['schemas']['RecordCreateRequest'] & { initialLayout?: any } = {
+        const body: components['schemas']['RecordCreateRequest'] & { initialLayout?: any; customLayout?: any; customRules?: any; mode?: any } = {
             opponent: partial.opponent,
             startedAt: partial.startedAt,
             endedAt: partial.endedAt,
@@ -101,6 +107,9 @@ export const recordStore = {
             })),
             bookmarks: (partial.bookmarks || []).map(b => ({ step: b.step, label: b.label, note: (b as any).note })),
             ...(partial as any).initialLayout ? { initialLayout: (partial as any).initialLayout } : {},
+            ...(partial as any).customLayout ? { customLayout: (partial as any).customLayout } : {},
+            ...(partial as any).customRules ? { customRules: (partial as any).customRules } : {},
+            ...(partial as any).mode ? { mode: (partial as any).mode } : {},
         }
 
         // 强制仅保存到服务器：无 token 或请求失败则抛错
@@ -111,27 +120,30 @@ export const recordStore = {
         const created = await recordsApi.create(body)
 
         const rec: ChessRecord = {
-            id: String((created as any)?.id),
-            startedAt: (created as any)?.startedAt ?? partial.startedAt,
-            endedAt: (created as any)?.endedAt ?? partial.endedAt,
-            opponent: (created as any)?.opponent ?? partial.opponent,
-            result: (created as any)?.result ?? partial.result,
-            keyTags: (created as any)?.keyTags ?? partial.keyTags ?? [],
-            favorite: !!(created as any)?.favorite,
-            moves: ((created as any)?.moves || []).map((mv: any, idx: number) => ({
-                from: { x: mv.from?.x ?? 0, y: mv.from?.y ?? 0 },
-                to: { x: mv.to?.x ?? 0, y: mv.to?.y ?? 0 },
-                turn: (mv.piece?.side as any) ?? (mv.pieceSide as any) ?? 'red',
-                ts: (partial.moves && partial.moves[idx] && partial.moves[idx].ts) || Date.now(),
+            id: String(created?.id ?? uid()),
+            startedAt: created?.startedAt ?? partial.startedAt,
+            endedAt: created?.endedAt ?? partial.endedAt,
+            opponent: created?.opponent ?? partial.opponent,
+            result: created?.result ?? partial.result,
+            keyTags: created?.keyTags ?? partial.keyTags ?? [],
+            favorite: !!created?.favorite,
+            moves: (created?.moves || partial.moves || []).map((mv: any, idx: number) => ({
+                from: { x: mv.from?.x ?? partial.moves?.[idx]?.from.x ?? 0, y: mv.from?.y ?? partial.moves?.[idx]?.from.y ?? 0 },
+                to: { x: mv.to?.x ?? partial.moves?.[idx]?.to.x ?? 0, y: mv.to?.y ?? partial.moves?.[idx]?.to.y ?? 0 },
+                turn: (mv.piece?.side as any) ?? (mv.pieceSide as any) ?? partial.moves?.[idx]?.turn ?? 'red',
+                ts: partial.moves?.[idx]?.ts ?? Date.now(),
             })),
-            bookmarks: ((created as any)?.bookmarks || []).map((b: any) => ({
+            bookmarks: (created?.bookmarks || partial.bookmarks || []).map((b: any) => ({
                 id: String(b.id ?? uid()),
                 step: b.step ?? 0,
                 label: b.label ?? undefined,
                 note: b.note || undefined,
             })),
             notes: partial.notes || [],
-            initialLayout: (created as any)?.initialLayout ?? (partial as any).initialLayout ?? undefined,
+            initialLayout: created?.initialLayout ?? (partial as any).initialLayout ?? undefined,
+            customLayout: created?.customLayout ?? (partial as any).customLayout ?? undefined,
+            customRules: created?.customRules ?? (partial as any).customRules ?? undefined,
+            mode: created?.mode ?? (partial as any).mode ?? undefined,
         }
 
         return { record: rec, savedToServer: true }

@@ -34,11 +34,12 @@ export default function LocalPlay() {
             endedAt: new Date().toISOString(),
             opponent: '本地',
             result,
-            keyTags: [],
+            keyTags: ['标准对战', '本地对战'],
             favorite: false,
             moves,
             bookmarks: [],
             notes: [],
+            mode: 'standard', // 标记为标准对战
         }
         // 如果是从残局/自定义进入的本地对战，附带初始布局，供后续复盘正确还原开局
         if (injectedInitialBoard) {

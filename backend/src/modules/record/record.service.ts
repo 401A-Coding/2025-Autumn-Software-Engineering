@@ -91,6 +91,9 @@ export class RecordService {
         data: {
           ...baseData,
           initialLayout: (dto as any).initialLayout ?? null,
+          mode: (dto as any).mode ?? null,
+          customLayout: (dto as any).customLayout ?? null,
+          customRules: (dto as any).customRules ?? null,
         },
         include: { moves: true, bookmarks: true },
       });

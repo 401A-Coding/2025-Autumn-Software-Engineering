@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from 'react'
+import { useMemo, useState, useEffect, useCallback } from 'react'
 import type { Pos, Side, GameState, CustomRules } from './types'
 import { createInitialBoard, cloneBoard } from './types'
 import { generateLegalMoves, movePiece, checkGameOver, isInCheckWithCustomRules } from './rules'
@@ -56,6 +56,18 @@ export default function Board({ customRules: customRulesProp, initialBoard, init
     useEffect(() => {
         setState(prev => ({ ...prev, customRules }))
     }, [customRules])
+
+    useEffect(() => {
+        setState(prev => ({
+            ...prev,
+            board: initialBoard || createInitialBoard(),
+            turn: initialTurn || 'red',
+            selected: undefined,
+            history: [],
+            winner: undefined,
+        }))
+        setShowGameOver(false)
+    }, [initialBoard, initialTurn])
 
     const inCheck = useMemo(() => {
         return isInCheckWithCustomRules(state.board, state.turn, state.customRules)
@@ -147,7 +159,7 @@ export default function Board({ customRules: customRulesProp, initialBoard, init
         })
     }
 
-    function restart() {
+    const restart = useCallback(() => {
         setState(s => ({
             board: initialBoard || createInitialBoard(),
             turn: initialTurn || 'red',
@@ -157,7 +169,7 @@ export default function Board({ customRules: customRulesProp, initialBoard, init
             customRules: s.customRules,
         }))
         setShowGameOver(false)
-    }
+    }, [initialBoard, initialTurn])
 
     function getWinnerText() {
         if (!state.winner) return ''
