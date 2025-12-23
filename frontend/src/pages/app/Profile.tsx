@@ -65,7 +65,7 @@ export default function Profile() {
         setSaving(true)
         setError(null)
         try {
-            const updated = await userApi.updateMe({ nickname: newNickname, bio: newBio || null })
+            const updated = await userApi.updateMe({ nickname: newNickname, bio: newBio || null } as any) as Me
             setMe(updated)
             setShowEdit(false)
         } catch (e) {

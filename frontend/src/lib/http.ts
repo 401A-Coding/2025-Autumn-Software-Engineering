@@ -42,7 +42,12 @@ http.interceptors.response.use(
                 (response as AxiosResponse).data = env.data as unknown
                 return response
             }
-            return Promise.reject(new Error(env.message || '请求失败'))
+            const err: any = new Error(env.message || '请求失败')
+            err.status = response.status
+            err.code = env.code
+            err.serverMessage = env.message
+            err.envelope = env
+            return Promise.reject(err)
         }
         return response
     },
@@ -64,7 +69,22 @@ http.interceptors.response.use(
                 return Promise.reject(e)
             }
         }
-        return Promise.reject(error)
+        const norm: any = error
+        norm.status = response?.status
+        // Try to extract server-provided message
+        try {
+            const data: any = response?.data
+            if (data && typeof data === 'object') {
+                if ('message' in data) {
+                    const m = (data as any).message
+                    norm.serverMessage = Array.isArray(m) ? m.join('；') : m
+                }
+                if ('error' in data) norm.serverMessage = ((data as any).error?.message) || norm.serverMessage
+            } else if (typeof data === 'string') {
+                norm.serverMessage = data
+            }
+        } catch { }
+        return Promise.reject(norm)
     },
 )
 

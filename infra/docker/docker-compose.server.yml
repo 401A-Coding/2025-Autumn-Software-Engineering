@@ -1,0 +1,57 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: quwan-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: mydb
+    # 不暴露到宿主机端口，只在内部网络提供服务
+    networks:
+      - appnet
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  backend:
+    build:
+      context: ../../backend
+      dockerfile: Dockerfile
+    container_name: chess-backend
+    restart: unless-stopped
+    # 使用内部网络连接数据库
+    networks:
+      - appnet
+    environment:
+      # 指向容器网络内的 postgres 服务
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/mydb?schema=public
+      # 请替换为强随机秘钥；也可改为 secrets 方式
+      JWT_SECRET: ${JWT_SECRET:-change-this-to-a-strong-secret}
+    # 对外仅暴露后端 HTTP 端口。如希望仅内网访问，可移除 ports 并用反向代理暴露。
+    ports:
+      - "3000:3000"
+    depends_on:
+      - postgres
+  # 可选：用 Caddy 反向代理为后端提供 HTTPS（需要域名解析到该服务器）
+  # caddy:
+  #   image: caddy:2
+  #   container_name: chess-caddy
+  #   restart: unless-stopped
+  #   networks:
+  #     - appnet
+  #   ports:
+  #     - "80:80"
+  #     - "443:443"
+  #   volumes:
+  #     - caddy_data:/data
+  #     - caddy_config:/config
+  #     - ./Caddyfile:/etc/caddy/Caddyfile:ro
+
+networks:
+  appnet:
+    driver: bridge
+
+volumes:
+  pgdata:
+  caddy_data:
+  caddy_config:

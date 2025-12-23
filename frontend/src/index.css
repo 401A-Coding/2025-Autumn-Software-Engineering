@@ -171,3 +171,160 @@ a:hover {
     transform: translateY(-2px);
   }
 }
+
+/* Mobile viewport helpers (375x667 target) */
+.mobile-root {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.mobile-viewport {
+  width: 100%;
+  max-width: 375px;
+  min-height: 100dvh;
+  background: transparent;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.mobile-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: linear-gradient(#f9e9c7, #f0deb6);
+  border-bottom: 1px solid var(--border);
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mobile-header__title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.mobile-content {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 0;
+  padding-bottom: 16px;
+}
+
+/* Generic utilities for small screens */
+.hide-on-mobile {
+  display: block;
+}
+
+@media (max-width: 420px) {
+  .hide-on-mobile {
+    display: none !important;
+  }
+}
+
+/* Controls line wrap on narrow width */
+.inline-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Board sizing tweak for mobile width (360px board within 375px frame) */
+.mobile-viewport .board {
+  --cell-size: 36px;
+}
+
+/* Responsive board scaling for very small screens */
+@media (max-width: 400px) {
+  .board {
+    --cell-size: 34px;
+  }
+}
+
+@media (max-width: 360px) {
+  .board {
+    --cell-size: 32px;
+  }
+}
+
+@media (max-width: 330px) {
+  .board {
+    --cell-size: 30px;
+  }
+}
+
+/* Remove page-level side paddings inside mobile viewport */
+.mobile-viewport .page-container,
+.mobile-viewport .card-pad,
+.mobile-viewport .pad-16,
+.mobile-viewport .pad-12,
+.mobile-viewport .pad-8 {
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+}
+
+/* Disable max-width and auto margins that cause side gaps */
+.mobile-viewport .mw-960,
+.mobile-viewport .mw-650,
+.mobile-viewport .mw-600,
+.mobile-viewport .mw-520,
+.mobile-viewport .mw-500,
+.mobile-viewport .mw-420,
+.mobile-viewport .mw-360,
+.mobile-viewport .mx-auto {
+  max-width: 100% !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+}
+
+/* Make surface cards flush to edges on mobile for board sections */
+.mobile-viewport section.paper-card {
+  border-left-width: 0;
+  border-right-width: 0;
+  border-radius: 0;
+}
+
+/* Global small-screen edge removal (works without MobileFrame) */
+@media (max-width: 420px) {
+  .page-container {
+    max-width: 100% !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+
+  .pad-16,
+  .pad-12,
+  .pad-8,
+  .card-pad {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+
+  .mx-auto {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+  }
+
+  .mw-960,
+  .mw-720,
+  .mw-650,
+  .mw-600,
+  .mw-520,
+  .mw-500,
+  .mw-420,
+  .mw-360 {
+    max-width: 100% !important;
+  }
+
+  section.paper-card {
+    border-left-width: 0;
+    border-right-width: 0;
+    border-radius: 0;
+  }
+}

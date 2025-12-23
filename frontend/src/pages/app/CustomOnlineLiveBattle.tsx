@@ -4,7 +4,6 @@ import { connectBattle } from '../../services/battlesSocket'
 import type { BattleMove, BattleSnapshot } from '../../services/battlesSocket'
 import { battleApi, userApi } from '../../services/api'
 import OnlineBoard from '../../features/chess/OnlineBoard'
-import UserAvatar from '../../components/UserAvatar'
 import type { CustomRuleSet } from '../../features/chess/ruleEngine'
 import type { CustomRules } from '../../features/chess/types'
 import { ruleSetToCustomRules } from '../../features/chess/ruleAdapter'
@@ -25,7 +24,7 @@ export default function CustomOnlineLiveBattle() {
     const action = searchParams.get('action') // create | join
     const joinRoomParam = searchParams.get('room')
     const loc = useLocation() as any
-    
+
     // 基础状态
     const [battleId, setBattleId] = useState<number | ''>('')
     const [joinIdInput, setJoinIdInput] = useState<string>(joinRoomParam || '')
@@ -40,19 +39,19 @@ export default function CustomOnlineLiveBattle() {
     const [customRuleSet, setCustomRuleSet] = useState<CustomRuleSet | null>(null)
     const [customRules, setCustomRules] = useState<CustomRules | null>(null)
     const [boardId, setBoardId] = useState<number | null>(null)
-    
+
     // 用户信息
     const [myUserId, setMyUserId] = useState<number | null>(null)
     const [myProfile, setMyProfile] = useState<{ id: number; nickname?: string; avatarUrl?: string } | null>(null)
     const [opponentProfile, setOpponentProfile] = useState<{ id: number; nickname?: string; avatarUrl?: string } | null>(null)
-    
+
     // 内部引用
     const movesRef = useRef<BattleMove[]>([])
     const connRef = useRef<ReturnType<typeof connectBattle> | null>(null)
     const battleIdRef = useRef<number | null>(null)
     const latestSnapshotRef = useRef<BattleSnapshot | null>(null)
     const createLockRef = useRef(false)
-    
+
     // 初始化：获取当前用户、规则和棋盘
     useEffect(() => {
         const init = async () => {
@@ -111,7 +110,7 @@ export default function CustomOnlineLiveBattle() {
             if (myUserId && Array.isArray(s.players)) {
                 const oppId = s.players.find((uid) => uid !== myUserId)
                 if (typeof oppId === 'number') {
-                    ;(async () => {
+                    ; (async () => {
                         try {
                             const info = await userApi.getById(oppId)
                             setOpponentProfile({ id: info.id, nickname: info.nickname, avatarUrl: info.avatarUrl || undefined })
@@ -239,10 +238,10 @@ export default function CustomOnlineLiveBattle() {
         if (ongoing && battleIdRef.current) {
             const ok = window.confirm('对局尚未结束，退出将视为认输，是否继续？')
             if (!ok) return
-            ;(async () => {
-                try { await battleApi.resign(battleIdRef.current!) } catch { /* 忽略 */ }
-                navigate('/app/custom-online-lobby')
-            })()
+                ; (async () => {
+                    try { await battleApi.resign(battleIdRef.current!) } catch { /* 忽略 */ }
+                    navigate('/app/custom-online-lobby')
+                })()
             return
         }
         navigate('/app/custom-online-lobby')

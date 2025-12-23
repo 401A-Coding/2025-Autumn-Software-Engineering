@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { boardApi } from '../../services/api'
 import '../../features/chess/board.css'
 import './app-pages.css'
+import MobileFrame from '../../components/MobileFrame'
 
 // EndgameSetup receives initial layout via route state { layout, name }
 export default function EndgameSetup() {
@@ -22,6 +23,7 @@ export default function EndgameSetup() {
     const [mode, setMode] = useState<'place' | 'erase'>('place')
     const [saving, setSaving] = useState(false)
     const [saveMsg, setSaveMsg] = useState<string>('')
+    const [ruleMsg, setRuleMsg] = useState<string>('')
 
     useEffect(() => {
         if (Array.isArray(initialLayout?.pieces)) {
@@ -30,6 +32,73 @@ export default function EndgameSetup() {
     }, [initialLayout])
 
     const layout = useMemo(() => ({ pieces }), [pieces])
+
+    // 规则：各棋子最大数量（每方）
+    const MAX_COUNTS: Record<PieceType, number> = {
+        general: 1,
+        advisor: 2,
+        elephant: 2,
+        horse: 2,
+        rook: 2,
+        cannon: 2,
+        soldier: 5,
+    }
+
+    function inPalace(side: Side, x: number, y: number): boolean {
+        if (side === 'black') return x >= 3 && x <= 5 && y >= 0 && y <= 2
+        return x >= 3 && x <= 5 && y >= 7 && y <= 9
+    }
+
+    function inAdvisorPoints(side: Side, x: number, y: number): boolean {
+        if (side === 'black') {
+            const pts = [
+                [3, 0], [5, 0], [4, 1], [3, 2], [5, 2],
+            ]
+            return pts.some(([px, py]) => px === x && py === y)
+        } else {
+            const pts = [
+                [3, 7], [5, 7], [4, 8], [3, 9], [5, 9],
+            ]
+            return pts.some(([px, py]) => px === x && py === y)
+        }
+    }
+
+    function elephantInOwnHalf(side: Side, y: number): boolean {
+        // 象不过河：红方 y >= 5；黑方 y <= 4
+        return side === 'red' ? y >= 5 : y <= 4
+    }
+
+    function countOf(side: Side, type: PieceType, pool: Piece[]): number {
+        return pool.filter(p => p.side === side && p.type === type).length
+    }
+
+    function validatePlacement(candidate: Piece, pool: Piece[]): string | null {
+        // 数量限制
+        const current = countOf(candidate.side, candidate.type, pool)
+        if (current >= MAX_COUNTS[candidate.type]) {
+            const label = candidate.type === 'general' ? (candidate.side === 'red' ? '帅' : '将')
+                : candidate.type === 'advisor' ? (candidate.side === 'red' ? '仕' : '士')
+                    : candidate.type === 'elephant' ? (candidate.side === 'red' ? '相' : '象')
+                        : candidate.type === 'horse' ? '马'
+                            : candidate.type === 'rook' ? '车'
+                                : candidate.type === 'cannon' ? '炮' : (candidate.side === 'red' ? '兵' : '卒')
+            return `超出数量限制：${candidate.side === 'red' ? '红' : '黑'}方 ${label}`
+        }
+        // 将/帅必须在九宫内
+        if (candidate.type === 'general' && !inPalace(candidate.side, candidate.x, candidate.y)) {
+            return '规则限制：将/帅不可出九宫'
+        }
+        // 士只能在九宫斜点（5个点）
+        if (candidate.type === 'advisor') {
+            if (!inPalace(candidate.side, candidate.x, candidate.y)) return '规则限制：士不可出九宫'
+            if (!inAdvisorPoints(candidate.side, candidate.x, candidate.y)) return '规则限制：士仅能在九宫斜点'
+        }
+        // 象不可过河
+        if (candidate.type === 'elephant' && !elephantInOwnHalf(candidate.side, candidate.y)) {
+            return '规则限制：象不可过河'
+        }
+        return null
+    }
 
     // build a 10x9 board for Board component
     function buildInitialBoard() {
@@ -91,182 +160,195 @@ export default function EndgameSetup() {
     }
 
     return (
-        <div>
-            <div className="row align-center mb-12">
-                <button className="btn-ghost" onClick={() => nav('/app/endgame')}>← 返回</button>
-                <h2 style={{ margin: 0, flex: 1, textAlign: 'center' }}>布置残局</h2>
-                <div style={{ width: 64 }} />
-            </div>
-            <section className="paper-card card-pad">
-                {!initialLayout ? (
-                    <div className="note-muted">提示：可从复盘页“残局导出”带入局面，或在下方直接摆子。</div>
-                ) : (
-                    <div className="note-info">已载入局面，可直接保存或微调摆子。</div>
-                )}
-                <div className="mt-12 row-between">
-                    <div>
-                        <div className="text-14 muted">名称</div>
-                        <div className="text-18 fw-600 mt-6">{name || '未命名残局'}</div>
-                    </div>
-                    <button
-                        className={'btn-ghost'}
-                        onClick={() => {
-                            const next = window.prompt('输入模板名称：', name || '未命名残局')
-                            if (next !== null) {
-                                const trimmed = next.trim()
-                                setName(trimmed)
-                            }
-                        }}
-                        title={'改名字'}
-                    >改名字</button>
+        <MobileFrame>
+            <div>
+                <div className="row align-center mb-12">
+                    <button className="btn-ghost" onClick={() => nav('/app/endgame')}>← 返回</button>
+                    <h2 style={{ margin: 0, flex: 1, textAlign: 'center' }}>布置残局</h2>
+                    <div style={{ width: 64 }} />
                 </div>
+                <section className="paper-card card-pad">
+                    {!initialLayout ? (
+                        <div className="note-muted">提示：可从复盘页“残局导出”带入局面，或在下方直接摆子。</div>
+                    ) : (
+                        <div className="note-info">已载入局面，可直接保存或微调摆子。</div>
+                    )}
+                    <div className="mt-12 row-between">
+                        <div>
+                            <div className="text-14 muted">名称</div>
+                            <div className="text-18 fw-600 mt-6">{name || '未命名残局'}</div>
+                        </div>
+                        <button
+                            className={'btn-ghost'}
+                            onClick={() => {
+                                const next = window.prompt('输入模板名称：', name || '未命名残局')
+                                if (next !== null) {
+                                    const trimmed = next.trim()
+                                    setName(trimmed)
+                                }
+                            }}
+                            title={'改名字'}
+                        >改名字</button>
+                    </div>
 
-                <div className="mt-12 row-start gap-12">
-                    <div className="pad-8" style={{ minWidth: 260 }}>
-                        <div className="col gap-8">
-                            {/* 先手选择 */}
-                            <div className="row-start gap-8 align-center">
-                                <span className="text-14">先手：</span>
-                                <button
-                                    className={`btn ${turn === 'red' ? 'btn-primary' : 'btn-ghost'}`}
-                                    onClick={() => setTurn('red')}
-                                    title="红方先手"
-                                >红</button>
-                                <button
-                                    className={`btn ${turn === 'black' ? 'btn-primary' : 'btn-ghost'}`}
-                                    onClick={() => setTurn('black')}
-                                    title="黑方先手"
-                                >黑</button>
-                            </div>
-                            <div>
-                                <div className="grid-7 gap-8 mb-16 card-surface">
-                                    {/* 橡皮擦 */}
+                    <div className="mt-12 row-start gap-12 wrap">
+                        <div className="pad-8 w-full">
+                            <div className="col gap-8">
+                                {/* 先手选择 */}
+                                <div className="row-start gap-8 align-center">
+                                    <span className="text-14">先手：</span>
                                     <button
-                                        className={`opt-btn opt-btn--icon ${mode === 'erase' ? 'opt-btn--active' : ''}`}
-                                        onClick={() => setMode('erase')}
-                                        title="橡皮擦：点击棋盘删除棋子"
-                                    >
-                                        ❌
-                                    </button>
-
-                                    {/* 红黑各子顺序与自定义棋局一致 */}
-                                    {([
-                                        { type: 'general' as PieceType, side: 'red' as Side },
-                                        { type: 'general' as PieceType, side: 'black' as Side },
-                                        { type: 'advisor' as PieceType, side: 'red' as Side },
-                                        { type: 'advisor' as PieceType, side: 'black' as Side },
-                                        { type: 'elephant' as PieceType, side: 'red' as Side },
-                                        { type: 'elephant' as PieceType, side: 'black' as Side },
-                                        { type: 'horse' as PieceType, side: 'red' as Side },
-                                        { type: 'horse' as PieceType, side: 'black' as Side },
-                                        { type: 'rook' as PieceType, side: 'red' as Side },
-                                        { type: 'rook' as PieceType, side: 'black' as Side },
-                                        { type: 'cannon' as PieceType, side: 'red' as Side },
-                                        { type: 'cannon' as PieceType, side: 'black' as Side },
-                                        { type: 'soldier' as PieceType, side: 'red' as Side },
-                                        { type: 'soldier' as PieceType, side: 'black' as Side },
-                                    ]).map(({ type, side }) => {
-                                        const label = type === 'general' ? (side === 'red' ? '帅' : '将')
-                                            : type === 'advisor' ? (side === 'red' ? '仕' : '士')
-                                                : type === 'elephant' ? (side === 'red' ? '相' : '象')
-                                                    : type === 'horse' ? '马'
-                                                        : type === 'rook' ? '车'
-                                                            : type === 'cannon' ? '炮'
-                                                                : (side === 'red' ? '兵' : '卒')
-                                        const active = mode === 'place' && brushSide === side && brushType === type
-                                        return (
-                                            <button
-                                                key={`${side}-${type}`}
-                                                className={`opt-btn ${active ? 'opt-btn--active' : ''} text-18 ${side === 'red' ? 'text-red' : 'text-gray-800'}`}
-                                                onClick={() => { setBrushSide(side); setBrushType(type); setMode('place') }}
-                                                title={`${side === 'red' ? '红' : '黑'}方 ${label}`}
-                                            >
-                                                {label}
-                                            </button>
-                                        )
-                                    })}
+                                        className={`btn ${turn === 'red' ? 'btn-primary' : 'btn-ghost'}`}
+                                        onClick={() => setTurn('red')}
+                                        title="红方先手"
+                                    >红</button>
+                                    <button
+                                        className={`btn ${turn === 'black' ? 'btn-primary' : 'btn-ghost'}`}
+                                        onClick={() => setTurn('black')}
+                                        title="黑方先手"
+                                    >黑</button>
                                 </div>
+                                <div>
+                                    <div className="grid-7 gap-8 mb-16 card-surface">
+                                        {/* 橡皮擦 */}
+                                        <button
+                                            className={`opt-btn opt-btn--icon ${mode === 'erase' ? 'opt-btn--active' : ''}`}
+                                            onClick={() => setMode('erase')}
+                                            title="橡皮擦：点击棋盘删除棋子"
+                                        >
+                                            ❌
+                                        </button>
+
+                                        {/* 红黑各子顺序与自定义棋局一致 */}
+                                        {([
+                                            { type: 'general' as PieceType, side: 'red' as Side },
+                                            { type: 'general' as PieceType, side: 'black' as Side },
+                                            { type: 'advisor' as PieceType, side: 'red' as Side },
+                                            { type: 'advisor' as PieceType, side: 'black' as Side },
+                                            { type: 'elephant' as PieceType, side: 'red' as Side },
+                                            { type: 'elephant' as PieceType, side: 'black' as Side },
+                                            { type: 'horse' as PieceType, side: 'red' as Side },
+                                            { type: 'horse' as PieceType, side: 'black' as Side },
+                                            { type: 'rook' as PieceType, side: 'red' as Side },
+                                            { type: 'rook' as PieceType, side: 'black' as Side },
+                                            { type: 'cannon' as PieceType, side: 'red' as Side },
+                                            { type: 'cannon' as PieceType, side: 'black' as Side },
+                                            { type: 'soldier' as PieceType, side: 'red' as Side },
+                                            { type: 'soldier' as PieceType, side: 'black' as Side },
+                                        ]).map(({ type, side }) => {
+                                            const label = type === 'general' ? (side === 'red' ? '帅' : '将')
+                                                : type === 'advisor' ? (side === 'red' ? '仕' : '士')
+                                                    : type === 'elephant' ? (side === 'red' ? '相' : '象')
+                                                        : type === 'horse' ? '马'
+                                                            : type === 'rook' ? '车'
+                                                                : type === 'cannon' ? '炮'
+                                                                    : (side === 'red' ? '兵' : '卒')
+                                            const active = mode === 'place' && brushSide === side && brushType === type
+                                            return (
+                                                <button
+                                                    key={`${side}-${type}`}
+                                                    className={`opt-btn ${active ? 'opt-btn--active' : ''} text-18 ${side === 'red' ? 'text-red' : 'text-gray-800'}`}
+                                                    onClick={() => { setBrushSide(side); setBrushType(type); setMode('place') }}
+                                                    title={`${side === 'red' ? '红' : '黑'}方 ${label}`}
+                                                >
+                                                    {label}
+                                                </button>
+                                            )
+                                        })}
+                                    </div>
+                                </div>
+                                <div className="row-start gap-8">
+                                    <button className="btn-ghost" onClick={() => setPieces([])}>清空棋盘</button>
+                                </div>
+                                <div className="note-muted text-12">提示：点击棋盘格即可{mode === 'erase' ? '删除棋子' : '放置所选棋子'}；上方直接选择任一红/黑棋子即可切换放置对象。</div>
                             </div>
-                            <div className="row-start gap-8">
-                                <button className="btn-ghost" onClick={() => setPieces([])}>清空棋盘</button>
-                            </div>
-                            <div className="note-muted text-12">提示：点击棋盘格即可{mode === 'erase' ? '删除棋子' : '放置所选棋子'}；上方直接选择任一红/黑棋子即可切换放置对象。</div>
+                        </div>
+                        <BoardEditor
+                            pieces={pieces}
+                            onCellClick={(x, y) => {
+                                if (mode === 'erase') {
+                                    setPieces(prev => prev.filter(p => !(p.x === x && p.y === y)))
+                                } else {
+                                    setPieces(prev => {
+                                        const pool = prev.filter(p => !(p.x === x && p.y === y))
+                                        const candidate: Piece = { type: brushType, side: brushSide, x, y }
+                                        const err = validatePlacement(candidate, pool)
+                                        if (err) {
+                                            try { alert(err) } catch { }
+                                            setRuleMsg(err)
+                                            return prev
+                                        }
+                                        return [...pool, candidate]
+                                    })
+                                }
+                            }}
+                        />
+                    </div>
+
+                    {/* 保存模板与对战入口 */}
+                    <div className="mt-16 col gap-12">
+                        {ruleMsg && <div className="note-danger text-13">{ruleMsg}</div>}
+                        <div className="row-start gap-12">
+                            <button
+                                className="btn-primary"
+                                disabled={saving}
+                                onClick={async () => {
+                                    setSaveMsg('')
+                                    setSaving(true)
+                                    try {
+                                        const req: any = { name: name || '未命名残局', layout: { ...layout, turn }, preview: '', isEndgame: true }
+                                        await boardApi.createTemplate(req)
+                                        setSaveMsg('已保存到我的残局（模板）')
+                                    } catch (e: any) {
+                                        console.error('保存残局模板失败: ', e)
+                                        const msg = e?.message || '保存失败（需登录后端才能保存）。'
+                                        setSaveMsg(msg)
+                                    } finally {
+                                        setSaving(false)
+                                    }
+                                }}
+                            >保存模板</button>
+                        </div>
+
+                        {saveMsg && (
+                            <div className="note-info text-13">{saveMsg} <button className="btn-ghost btn-xs" onClick={() => nav('/app/endgame')}>查看我的残局</button></div>
+                        )}
+
+                        <div className="row-start gap-12">
+                            <button className="btn-primary" onClick={async () => {
+                                const initialBoard = buildInitialBoard()
+                                nav('/app/play', { state: { initialBoard, turn } })
+                            }}>本地对战</button>
+                            <button
+                                className="btn-ghost"
+                                title="保存为模板并创建好友房，邀请在线对战"
+                                onClick={async () => {
+                                    setSaveMsg('')
+                                    setSaving(true)
+                                    try {
+                                        const payload: any = {
+                                            name: name || '未命名残局',
+                                            layout: { ...layout, turn },
+                                            preview: '',
+                                            isEndgame: true,
+                                        }
+                                        const res = await boardApi.createTemplate(payload)
+                                        const boardId = (res as any)?.boardId ?? (res as any)?.id
+                                        if (!boardId) throw new Error('未返回模板ID')
+                                        // 跳转到在线对战页，使用 initialBoardId 直达创建好友房
+                                        nav(`/app/live-battle?action=create&initialBoardId=${boardId}`)
+                                    } catch (e: any) {
+                                        const msg = e?.message || '创建好友房失败（需登录后端才能创建）。'
+                                        setSaveMsg(msg)
+                                    } finally {
+                                        setSaving(false)
+                                    }
+                                }}
+                            >在线邀请对战</button>
                         </div>
                     </div>
-                    <BoardEditor
-                        pieces={pieces}
-                        onCellClick={(x, y) => {
-                            if (mode === 'erase') {
-                                setPieces(prev => prev.filter(p => !(p.x === x && p.y === y)))
-                            } else {
-                                setPieces(prev => [...prev.filter(p => !(p.x === x && p.y === y)), { type: brushType, side: brushSide, x, y }])
-                            }
-                        }}
-                    />
-                </div>
-
-                {/* 保存模板与对战入口 */}
-                <div className="mt-16 col gap-12">
-                    <div className="row-start gap-12">
-                        <button
-                            className="btn-primary"
-                            disabled={saving}
-                            onClick={async () => {
-                                setSaveMsg('')
-                                setSaving(true)
-                                try {
-                                    const req: any = { name: name || '未命名残局', layout: { ...layout, turn }, preview: '', isEndgame: true }
-                                    await boardApi.createTemplate(req)
-                                    setSaveMsg('已保存到我的残局（模板）')
-                                } catch (e: any) {
-                                    console.error('保存残局模板失败: ', e)
-                                    const msg = e?.message || '保存失败（需登录后端才能保存）。'
-                                    setSaveMsg(msg)
-                                } finally {
-                                    setSaving(false)
-                                }
-                            }}
-                        >保存模板</button>
-                    </div>
-
-                    {saveMsg && (
-                        <div className="note-info text-13">{saveMsg} <button className="btn-ghost btn-xs" onClick={() => nav('/app/endgame')}>查看我的残局</button></div>
-                    )}
-
-                    <div className="row-start gap-12">
-                        <button className="btn-primary" onClick={async () => {
-                            const initialBoard = buildInitialBoard()
-                            nav('/app/play', { state: { initialBoard, turn } })
-                        }}>本地对战</button>
-                        <button
-                            className="btn-ghost"
-                            title="保存为模板并创建好友房，邀请在线对战"
-                            onClick={async () => {
-                                setSaveMsg('')
-                                setSaving(true)
-                                try {
-                                    const payload: any = {
-                                        name: name || '未命名残局',
-                                        layout: { ...layout, turn },
-                                        preview: '',
-                                        isEndgame: true,
-                                    }
-                                    const res = await boardApi.createTemplate(payload)
-                                    const boardId = (res as any)?.boardId ?? (res as any)?.id
-                                    if (!boardId) throw new Error('未返回模板ID')
-                                    // 跳转到在线对战页，使用 initialBoardId 直达创建好友房
-                                    nav(`/app/live-battle?action=create&initialBoardId=${boardId}`)
-                                } catch (e: any) {
-                                    const msg = e?.message || '创建好友房失败（需登录后端才能创建）。'
-                                    setSaveMsg(msg)
-                                } finally {
-                                    setSaving(false)
-                                }
-                            }}
-                        >在线邀请对战</button>
-                    </div>
-                </div>
-            </section>
-        </div>
+                </section>
+            </div>
+        </MobileFrame>
     )
 }

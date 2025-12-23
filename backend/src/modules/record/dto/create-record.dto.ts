@@ -12,6 +12,7 @@ import {
   IsIn,
   IsObject,
 } from 'class-validator';
+import { PieceDto } from '../../board/dto/piece.dto';
 
 class PosDto {
   @IsInt()
@@ -23,24 +24,7 @@ class PosDto {
   y!: number;
 }
 
-class PieceDto {
-  @IsOptional()
-  @IsString()
-  @IsIn([
-    'general',
-    'advisor',
-    'elephant',
-    'horse',
-    'chariot',
-    'cannon',
-    'soldier',
-  ])
-  type?: string;
-
-  @IsString()
-  @IsIn(['red', 'black'])
-  side!: 'red' | 'black';
-}
+// 复用棋子 DTO，享受后端统一归一化与校验
 
 class MoveDto {
   @IsInt()

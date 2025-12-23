@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import './app-pages.css'
 import { recordStore } from '../../features/records/recordStore'
-import { recordsApi, userApi } from '../../services/api'
+import { userApi } from '../../services/api'
 import { HistoryCard } from './History'
 
 export default function Favorites() {
