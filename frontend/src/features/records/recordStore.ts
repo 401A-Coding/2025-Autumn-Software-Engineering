@@ -2,6 +2,30 @@ import type { ChessRecord, Bookmark, Note, MoveRecord } from './types'
 import { recordsApi } from '../../services/api'
 import type { components } from '../../types/api'
 
+const LOCAL_KEY = 'saved.records.v1'
+
+function readLocal(): ChessRecord[] {
+    try {
+        const raw = localStorage.getItem(LOCAL_KEY)
+        if (!raw) return []
+        const arr = JSON.parse(raw)
+        if (!Array.isArray(arr)) return []
+        return arr as ChessRecord[]
+    } catch (e) {
+        console.warn('[recordStore] failed to read local records', e)
+        return []
+    }
+}
+
+function writeLocal(list: ChessRecord[]) {
+    try {
+        localStorage.setItem(LOCAL_KEY, JSON.stringify(list))
+        try { window.dispatchEvent(new CustomEvent('saved-records-changed')) } catch { }
+    } catch (e) {
+        console.warn('[recordStore] failed to write local records', e)
+    }
+}
+
 function uid() {
     return `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
 }
@@ -150,6 +174,18 @@ export const recordStore = {
             customLayout: created?.customLayout ?? (partial as any).customLayout ?? undefined,
             customRules: created?.customRules ?? (partial as any).customRules ?? undefined,
             mode: created?.mode ?? (partial as any).mode ?? undefined,
+        }
+
+        // 如果未能保存到服务器，落盘到 localStorage
+        if (!savedToServer) {
+            try {
+                const list = readLocal()
+                // 确保不重复 id
+                const next = [rec, ...list.filter(r => r.id !== rec.id)]
+                writeLocal(next)
+            } catch (e) {
+                console.warn('[recordStore] failed to persist record locally', e)
+            }
         }
 
         return { record: rec, savedToServer }
