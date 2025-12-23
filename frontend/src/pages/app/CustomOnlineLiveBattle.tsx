@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom'
 import { connectBattle } from '../../services/battlesSocket'
 import type { BattleMove, BattleSnapshot } from '../../services/battlesSocket'
-import { battleApi, userApi } from '../../services/api'
+import { battleApi, userApi, boardApi } from '../../services/api'
 import OnlineBoard from '../../features/chess/OnlineBoard'
 import type { CustomRuleSet } from '../../features/chess/ruleEngine'
 import type { CustomRules } from '../../features/chess/types'
@@ -10,6 +10,7 @@ import { ruleSetToCustomRules } from '../../features/chess/ruleAdapter'
 import { recordStore } from '../../features/records/recordStore'
 import type { ChessRecord, MoveRecord } from '../../features/records/types'
 import { cloneBoard } from '../../features/chess/types'
+import { boardToApiFormat, apiBoardToLocalFormat } from '../../features/chess/boardAdapter'
 import { movePiece } from '../../features/chess/rules'
 // board adapter not needed; snapshot.board already local Board format
 import './LiveBattle.css'
@@ -50,6 +51,8 @@ export default function CustomOnlineLiveBattle() {
     const connRef = useRef<ReturnType<typeof connectBattle> | null>(null)
     const battleIdRef = useRef<number | null>(null)
     const latestSnapshotRef = useRef<BattleSnapshot | null>(null)
+    // 记录进入对局时的模板布局（优先使用此布局作为保存时的初始布局）
+    const initialTemplateRef = useRef<{ initialLayout?: any; customLayout?: any } | null>(null)
     const createLockRef = useRef(false)
 
     // 初始化：获取当前用户、规则和棋盘
@@ -106,6 +109,38 @@ export default function CustomOnlineLiveBattle() {
         c.onSnapshot((s) => {
             latestSnapshotRef.current = s
             setSnapshot(s)
+
+            // 首次收到快照时捕获模板布局（若服务器未包含 board，则尝试根据 boardId 拉取）
+            if (!initialTemplateRef.current) {
+                if (s.board) {
+                    try {
+                        initialTemplateRef.current = {
+                            customLayout: cloneBoard(s.board as any),
+                            initialLayout: boardToApiFormat(s.board as any),
+                        }
+                    } catch (e) {
+                        console.error('Failed to capture initial template from snapshot.board', e)
+                    }
+                } else {
+                    const bid = (s as any).boardId ?? boardId
+                    if (bid) {
+                        ;(async () => {
+                            try {
+                                const apiBoard = await boardApi.get(Number(bid))
+                                const local = apiBoardToLocalFormat(apiBoard as any)
+                                initialTemplateRef.current = {
+                                    customLayout: cloneBoard(local),
+                                    initialLayout: apiBoard,
+                                }
+                            } catch (e) {
+                                console.error('Failed to fetch board template on snapshot', e)
+                            }
+                        })()
+                    }
+                }
+            }
+
+            // 保持原有行为：直接使用从服务器/WS 接收到的快照
 
             if (myUserId && Array.isArray(s.players)) {
                 const oppId = s.players.find((uid) => uid !== myUserId)
@@ -255,6 +290,7 @@ export default function CustomOnlineLiveBattle() {
             const s = latestSnapshotRef.current || snapshot
             if (!s) { alert('暂无对局数据可保存'); return }
             
+            // players 数组约定：index 0 为红方（先手），index 1 为黑方（后手）
             const redUser = s.players?.[0]
             const blackUser = s.players?.[1]
             const winnerId = s.winnerId
@@ -284,6 +320,9 @@ export default function CustomOnlineLiveBattle() {
 
             const recordStartedAt = startedAt || new Date().toISOString()
             
+            const rawApi = initialTemplateRef.current?.initialLayout ?? (s.board ? boardToApiFormat(s.board as any) : undefined)
+            const apiLayout = rawApi ? (rawApi.layout?.pieces ? { pieces: rawApi.layout.pieces } : (rawApi.pieces ? { pieces: rawApi.pieces } : undefined)) : undefined
+
             const rec: Omit<ChessRecord, 'id'> = {
                 startedAt: recordStartedAt,
                 endedAt: new Date().toISOString(),
@@ -297,7 +336,8 @@ export default function CustomOnlineLiveBattle() {
                 mode: 'custom',
                 // 保存初始布局（快照的棋盘），回放时叠加 moves 重放
                 // 保存初始棋盘的拷贝，避免后续在线对局继续推进时污染复盘起点
-                customLayout: s.board ? cloneBoard(s.board as any) : undefined,
+                customLayout: initialTemplateRef.current?.customLayout ?? (s.board ? cloneBoard(s.board as any) : undefined),
+                initialLayout: apiLayout,
                 customRules: customRuleSet, // 直接保存规则
             }
 

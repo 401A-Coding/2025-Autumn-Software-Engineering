@@ -6,7 +6,7 @@ import MobileFrame from '../../components/MobileFrame'
 import type { CustomRuleSet } from '../../features/chess/ruleEngine'
 import { standardChessRules } from '../../features/chess/rulePresets'
 import { boardApi } from '../../services/api'
-import { apiBoardToLocalFormat } from '../../features/chess/boardAdapter'
+import { apiBoardToLocalFormat, boardToApiFormat } from '../../features/chess/boardAdapter'
 import { recordStore } from '../../features/records/recordStore'
 import type { MoveRecord, ChessRecord } from '../../features/records/types'
 import { cloneBoard } from '../../features/chess/types'
@@ -97,9 +97,36 @@ export default function CustomBattle() {
 
     const persistRecord = async (result?: 'red' | 'black' | 'draw') => {
         console.log('[CustomBattle] persistRecord called, moves:', moves.length)
-        const boardToSave = currentBoardRef.current || customBoard
+        let boardToSave = currentBoardRef.current || customBoard
+
+        // 如果路由或 location.state 指定了 boardId，则优先从后端拉取模板并作为保存时的初始布局
+        try {
+            const params = new URLSearchParams(location.search || '')
+            const boardIdStr = params.get('boardId') || (location.state && (location.state as any).boardId)
+            if (boardIdStr) {
+                const bid = Number(boardIdStr)
+                if (!Number.isNaN(bid) && bid > 0) {
+                    try {
+                        const apiBoard = await boardApi.get(bid)
+                        const local = apiBoardToLocalFormat(apiBoard as any)
+                        if (local) {
+                            boardToSave = local
+                            console.log('[CustomBattle] applied template layout from boardId', bid)
+                        }
+                    } catch (e) {
+                        console.error('[CustomBattle] failed to fetch board template', e)
+                    }
+                }
+            }
+        } catch (e) {
+            /* ignore */
+        }
         
         try {
+            // 将保存时的二维布局同时转换为 API 格式（pieces）以便服务器接收并持久化
+            const rawApi = (boardToSave && (boardToSave as any[]).length) ? boardToApiFormat(boardToSave as any, undefined, undefined) : undefined
+            const apiLayout = rawApi ? (rawApi.layout?.pieces ? { pieces: rawApi.layout.pieces } : (rawApi.pieces ? { pieces: rawApi.pieces } : undefined)) : undefined
+
             const rec: Omit<ChessRecord, 'id'> = {
                 startedAt,
                 endedAt: new Date().toISOString(),
@@ -111,8 +138,11 @@ export default function CustomBattle() {
                 bookmarks: [],
                 notes: [],
                 mode: 'custom',
-                // 保存初始布局，回放时叠加 moves 还原最终局面
-                customLayout: customBoard ?? boardToSave,
+                // 保存初始布局：
+                // - `initialLayout` 为 API 格式（pieces），用于服务器持久化与列表展示
+                // - `customLayout` 为前端二维数组，便于本地回放使用
+                customLayout: boardToSave ?? customBoard,
+                initialLayout: apiLayout,
                 customRules: ruleSet, // 直接保存规则
             }
 
