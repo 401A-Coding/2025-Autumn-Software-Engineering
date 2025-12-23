@@ -61,7 +61,7 @@ export default function BoardViewerWithSave({ boardId: _boardId, initialLayout, 
     }
 
     return (
-        <div className="border rounded-lg p-3 bg-white" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }}>
+        <div className="border rounded-lg p-3 bg-white community-board" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }}>
             {title && (
                 <div className="fw-600 mb-8">
                     {title}

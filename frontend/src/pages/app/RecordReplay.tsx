@@ -147,10 +147,8 @@ export default function RecordReplay() {
                         color: '#333',
                         textAlign: 'center',
                         maxWidth: 120,
-                        whiteSpace: 'nowrap',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
                     }}
+                    className="replay-nickname"
                 >
                     {profile.nickname || '匿名用户'}
                 </div>
@@ -240,7 +238,7 @@ export default function RecordReplay() {
                         <button className="btn-ghost" onClick={() => setStep(total)}>终局</button>
                         <button className="btn-ghost" onClick={() => setIsPlaying(p => !p)}>{isPlaying ? '⏸ 暂停' : '▶ 自动'}</button>
                         <div className="ml-auto">
-                            <button className="btn-ghost" onClick={() => setShowSpeedSheet(true)}>修改播放速度</button>
+                            <button className="btn-ghost" title="修改播放速度" onClick={() => setShowSpeedSheet(true)}>⚙ 速度</button>
                         </div>
                     </div>
 

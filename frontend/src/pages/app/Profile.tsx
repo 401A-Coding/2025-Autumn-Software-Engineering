@@ -117,17 +117,22 @@ export default function Profile() {
                             <div className="profile-meta">
                                 <div className="mt-6"><strong>昵称：</strong>{me.nickname || '-'}</div>
                                 <div className="mt-6"><strong>手机号：</strong>{me.phone || '-'}</div>
+                                <div className="mt-6"><strong>签名：</strong>{(me as any).bio || '-'}</div>
                                 <div className="mt-6"><strong>创建时间：</strong>{formatDate((me as any).createdAt)}</div>
                             </div>
 
-                            <div className="mt-8">
-                                <button className="btn-ghost" onClick={() => setShowEdit(true)}>编辑我的个人资料</button>
-                            </div>
+                            {/* 操作按钮移至节底部的统一区域，避免在错误态无退出入口 */}
                         </div>
                     </div>
                 )}
 
-                <button className="btn-ghost mt-8" onClick={onLogout}>退出登录</button>
+                {/* 操作区：在任意状态下都提供退出登录；有资料时一起提供编辑入口 */}
+                <div className="mt-8 row-start gap-12 wrap">
+                    {!loading && !error && me && (
+                        <button className="btn-ghost" onClick={() => setShowEdit(true)}>编辑我的个人资料</button>
+                    )}
+                    <button className="btn-ghost" onClick={onLogout}>退出登录</button>
+                </div>
             </section>
 
             <section className="paper-card card-pad mt-12">
@@ -213,7 +218,7 @@ export default function Profile() {
                                         {(me?.nickname || me?.phone || '?').charAt(0).toUpperCase()}
                                     </div>
                                 )}
-                                <div>
+                                <div className="avatar-actions">
                                     <input
                                         id={fileInputId}
                                         className="sr-only"

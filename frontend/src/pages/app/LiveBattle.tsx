@@ -5,6 +5,7 @@ import type { BattleMove, BattleSnapshot } from '../../services/battlesSocket';
 import { battleApi, userApi } from '../../services/api';
 import OnlineBoard from '../../features/chess/OnlineBoard';
 import './LiveBattle.css';
+import UserAvatar from '../../components/UserAvatar';
 
 export default function LiveBattle() {
     const [searchParams] = useSearchParams();
@@ -608,26 +609,63 @@ export default function LiveBattle() {
             {!inRoom && (
                 <div className="livebattle-actions-row">
                     {(!action || action === 'join') && (
-                        <>
-                            <input className="livebattle-room-input"
-                                type="text"
-                                inputMode="numeric"
-                                pattern="\\d*"
-                                placeholder="房间号"
-                                value={joinIdInput}
-                                onChange={(e) => {
-                                    const v = e.target.value.replace(/[^0-9]/g, '');
-                                    setJoinIdInput(v);
-                                }}
-                            />
-                            <button
-                                className="btn-ghost"
-                                onClick={handleJoin}
-                                disabled={!connected || !/^\d+$/.test(joinIdInput)}
-                            >
-                                加入房间
-                            </button>
-                        </>
+                        <div className="livebattle-join-card">
+                            <div className="livebattle-join-title">好友房对战</div>
+                            <div className="livebattle-join-sub">输入房间号加入，直达好友的房间</div>
+                            <div className="livebattle-join-row">
+                                <input
+                                    className="livebattle-room-input"
+                                    type="text"
+                                    inputMode="numeric"
+                                    pattern="\\d*"
+                                    placeholder="房间号（例如 123456）"
+                                    value={joinIdInput}
+                                    onChange={(e) => {
+                                        const v = e.target.value.replace(/[^0-9]/g, '');
+                                        setJoinIdInput(v);
+                                    }}
+                                />
+                                <button
+                                    className="btn-ghost"
+                                    type="button"
+                                    onClick={async () => {
+                                        try {
+                                            const text = await navigator.clipboard.readText();
+                                            const v = (text || '').replace(/[^0-9]/g, '');
+                                            if (v) setJoinIdInput(v);
+                                        } catch (e) {
+                                            // 忽略剪贴板错误
+                                        }
+                                    }}
+                                >
+                                    粘贴
+                                </button>
+                                <button
+                                    className="btn-primary"
+                                    onClick={handleJoin}
+                                    disabled={!connected || !/^\d+$/.test(joinIdInput)}
+                                >
+                                    加入房间
+                                </button>
+                            </div>
+                            {false && (
+                                <div className={(!connected || !/^\d+$/.test(joinIdInput)) ? 'livebattle-join-hint invalid' : 'livebattle-join-hint'}>
+                                    {!connected ? '未连接服务器，暂不可加入' : (!/^\d+$/.test(joinIdInput) ? '请输入有效的数字房间号' : '示例：123456')}
+                                </div>
+                            )}
+                            {myProfile && (
+                                <div className="livebattle-join-self">
+                                    <UserAvatar
+                                        userId={myProfile.id}
+                                        nickname={myProfile.nickname}
+                                        avatarUrl={myProfile.avatarUrl}
+                                        size="small"
+                                        showTime={false}
+                                        nicknameWrap={true}
+                                    />
+                                </div>
+                            )}
+                        </div>
                     )}
                     {!action && (
                         <>

@@ -92,7 +92,7 @@ export const recordStore = {
             startedAt: partial.startedAt,
             endedAt: partial.endedAt,
             result: partial.result as any,
-            keyTags: partial.keyTags,
+            keyTags: partial.keyTags ?? [],
             moves: (partial.moves || []).map((m: MoveRecord, idx) => ({
                 moveIndex: idx,
                 from: { x: m.from.x, y: m.from.y },
@@ -103,46 +103,38 @@ export const recordStore = {
             ...(partial as any).initialLayout ? { initialLayout: (partial as any).initialLayout } : {},
         }
 
-        let created: any = null
-        let savedToServer = false
-        // 如果没有 token 则跳过服务器保存，直接本地保存
+        // 强制仅保存到服务器：无 token 或请求失败则抛错
         const token = localStorage.getItem('token')
-        if (token) {
-            try {
-                created = await recordsApi.create(body)
-                savedToServer = !!created
-            } catch (e) {
-                // 后端保存失败（未登录或网络问题），将降级为仅本地保存
-                created = null
-                savedToServer = false
-            }
+        if (!token) {
+            throw new Error('UNAUTHENTICATED')
         }
+        const created = await recordsApi.create(body)
 
         const rec: ChessRecord = {
-            id: String((created as any)?.id ?? uid()),
-            startedAt: (created as any).startedAt ?? partial.startedAt,
-            endedAt: (created as any).endedAt ?? partial.endedAt,
-            opponent: (created as any).opponent ?? partial.opponent,
-            result: (created as any).result ?? partial.result,
-            keyTags: (created as any).keyTags ?? partial.keyTags ?? [],
-            favorite: !!(created as any).favorite,
-            moves: ((created as any).moves || (partial.moves || [])).map((mv: any, idx: number) => ({
-                from: { x: mv.from?.x ?? partial.moves?.[idx]?.from.x ?? 0, y: mv.from?.y ?? partial.moves?.[idx]?.from.y ?? 0 },
-                to: { x: mv.to?.x ?? partial.moves?.[idx]?.to.x ?? 0, y: mv.to?.y ?? partial.moves?.[idx]?.to.y ?? 0 },
-                turn: (mv.piece?.side as any) ?? (mv.pieceSide as any) ?? partial.moves?.[idx]?.turn ?? 'red',
+            id: String((created as any)?.id),
+            startedAt: (created as any)?.startedAt ?? partial.startedAt,
+            endedAt: (created as any)?.endedAt ?? partial.endedAt,
+            opponent: (created as any)?.opponent ?? partial.opponent,
+            result: (created as any)?.result ?? partial.result,
+            keyTags: (created as any)?.keyTags ?? partial.keyTags ?? [],
+            favorite: !!(created as any)?.favorite,
+            moves: ((created as any)?.moves || []).map((mv: any, idx: number) => ({
+                from: { x: mv.from?.x ?? 0, y: mv.from?.y ?? 0 },
+                to: { x: mv.to?.x ?? 0, y: mv.to?.y ?? 0 },
+                turn: (mv.piece?.side as any) ?? (mv.pieceSide as any) ?? 'red',
                 ts: (partial.moves && partial.moves[idx] && partial.moves[idx].ts) || Date.now(),
             })),
-            bookmarks: ((created as any).bookmarks || (partial.bookmarks || [])).map((b: any) => ({
+            bookmarks: ((created as any)?.bookmarks || []).map((b: any) => ({
                 id: String(b.id ?? uid()),
                 step: b.step ?? 0,
                 label: b.label ?? undefined,
                 note: b.note || undefined,
             })),
             notes: partial.notes || [],
-            initialLayout: (created as any).initialLayout ?? (partial as any).initialLayout ?? undefined,
+            initialLayout: (created as any)?.initialLayout ?? (partial as any).initialLayout ?? undefined,
         }
 
-        return { record: rec, savedToServer }
+        return { record: rec, savedToServer: true }
     },
 
     async toggleFavorite(id: string, fav: boolean) {

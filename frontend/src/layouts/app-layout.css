@@ -7,6 +7,11 @@
     padding-bottom: env(safe-area-inset-bottom);
 }
 
+/* Header safe area for notched devices */
+.header-bar.with-safe-area {
+    padding-top: env(safe-area-inset-top);
+}
+
 /* Remove horizontal edges on small screens for the root page container */
 @media (max-width: 420px) {
     .page-container {
