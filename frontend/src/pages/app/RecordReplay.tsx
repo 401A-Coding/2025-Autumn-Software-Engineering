@@ -220,10 +220,18 @@ export default function RecordReplay() {
                             {renderFramedAvatar(rightProfile, '#333')}
                         </div>
 
-                        {/* 中间：棋盘 */}
-                        <div>
-                            <BoardViewer moves={record.moves} step={step} initialLayout={record.initialLayout as any} />
-                        </div>
+                    {/* 中间：棋盘 */}
+                    <div>
+                        <BoardViewer 
+                            moves={record.moves} 
+                            step={step} 
+                            initialLayout={
+                                record.mode === 'custom'
+                                    ? (record as any).customLayout // 自定义：保存的是初始布局，叠加 moves 重放
+                                    : record.initialLayout as any // 标准：pieces 格式
+                            } 
+                        />
+                    </div>
 
                         {/* 下方：红方玩家（棋盘下半部分）- 红色边框 */}
                         <div style={{ display: 'flex', justifyContent: 'center' }}>
@@ -244,23 +252,26 @@ export default function RecordReplay() {
                         </div>
                     </div>
 
-                    {/* 残局导出：将当前步的局面导出到布置残局 */}
-                    <div className="mt-12">
-                        <button className="btn-primary" onClick={() => {
-                            if (!record) return
-                            // 复用 BoardViewer 的逻辑在此计算局面
-                            const { board } = (() => {
-                                const b = (() => {
-                                    const il: any = (record as any).initialLayout
-                                    if (il && Array.isArray(il.pieces)) {
-                                        const base: any[][] = Array.from({ length: 10 }, () => Array.from({ length: 9 }, () => null))
-                                        let id = 0
-                                        for (const p of il.pieces) {
-                                            const x = Math.max(0, Math.min(8, p.x))
-                                            const y = Math.max(0, Math.min(9, p.y))
-                                            base[y][x] = { id: `init-${id++}`, type: p.type, side: p.side }
-                                        }
-                                        return base as any
+                {/* 残局导出：将当前步的局面导出到布置残局 */}
+                <div className="mt-12">
+                    <button className="btn-primary" onClick={() => {
+                        if (!record) return
+                        // 复用 BoardViewer 的逻辑在此计算局面
+                        const { board } = (() => {
+                            const b = (() => {
+                                // 自定义对战使用 customLayout
+                                if (record.mode === 'custom' && (record as any).customLayout) {
+                                    return (record as any).customLayout
+                                }
+                                // 标准对战使用 initialLayout 字段（pieces 格式）
+                                const il: any = (record as any).initialLayout
+                                if (il && Array.isArray(il.pieces)) {
+                                    const base: any[][] = Array.from({ length: 10 }, () => Array.from({ length: 9 }, () => null))
+                                    let id = 0
+                                    for (const p of il.pieces) {
+                                        const x = Math.max(0, Math.min(8, p.x))
+                                        const y = Math.max(0, Math.min(9, p.y))
+                                        base[y][x] = { id: `init-${id++}`, type: p.type, side: p.side }
                                     }
                                     return createInitialBoard()
                                 })()

@@ -7,6 +7,10 @@ import OnlineBoard from '../../features/chess/OnlineBoard'
 import type { CustomRuleSet } from '../../features/chess/ruleEngine'
 import type { CustomRules } from '../../features/chess/types'
 import { ruleSetToCustomRules } from '../../features/chess/ruleAdapter'
+import { recordStore } from '../../features/records/recordStore'
+import type { ChessRecord, MoveRecord } from '../../features/records/types'
+import { cloneBoard } from '../../features/chess/types'
+import { movePiece } from '../../features/chess/rules'
 // board adapter not needed; snapshot.board already local Board format
 import './LiveBattle.css'
 
@@ -29,7 +33,8 @@ export default function CustomOnlineLiveBattle() {
     const [endMessage, setEndMessage] = useState<string | null>(null)
     const [endKind, setEndKind] = useState<'win' | 'lose' | 'draw' | 'info' | null>(null)
     const [moves, setMoves] = useState<BattleMove[]>([])
-
+    const [startedAt] = useState<string>(new Date().toISOString())
+    
     // 自定义规则和棋盘
     const [customRuleSet, setCustomRuleSet] = useState<CustomRuleSet | null>(null)
     const [customRules, setCustomRules] = useState<CustomRules | null>(null)
@@ -240,6 +245,74 @@ export default function CustomOnlineLiveBattle() {
             return
         }
         navigate('/app/custom-online-lobby')
+    }
+
+    // 保存棋局到记录（服务器优先，失败则本地）
+    const handleSaveRecord = async () => {
+        try {
+            console.log('[CustomBattle] handleSaveRecord called, startedAt:', startedAt)
+            
+            const s = latestSnapshotRef.current || snapshot
+            if (!s) { alert('暂无对局数据可保存'); return }
+            
+            const redUser = s.players?.[0]
+            const blackUser = s.players?.[1]
+            const winnerId = s.winnerId
+            
+            console.log('[CustomBattle] Saving record', { redUser, blackUser, winnerId, status: s.status })
+            
+            const result: 'red' | 'black' | 'draw' | undefined = ((): any => {
+                if (s.status === 'finished') {
+                    if (winnerId == null) return 'draw'
+                    if (winnerId === redUser) return 'red'
+                    if (winnerId === blackUser) return 'black'
+                }
+                return undefined
+            })()
+
+            const mappedMoves: MoveRecord[] = (moves || []).map((m, idx) => {
+                const turn = m.by === redUser ? 'red' : m.by === blackUser ? 'black' : (idx % 2 === 0 ? 'red' : 'black')
+                return {
+                    from: { x: m.from?.x ?? 0, y: m.from?.y ?? 0 },
+                    to: { x: m.to?.x ?? 0, y: m.to?.y ?? 0 },
+                    turn,
+                    ts: m.ts || Date.now(),
+                }
+            })
+            
+            console.log('[CustomBattle] Mapped moves:', mappedMoves.length)
+
+            const recordStartedAt = startedAt || new Date().toISOString()
+            
+            const rec: Omit<ChessRecord, 'id'> = {
+                startedAt: recordStartedAt,
+                endedAt: new Date().toISOString(),
+                opponent: opponentProfile?.nickname || '在线对手',
+                result,
+                keyTags: ['自定义对战', '在线对战'],
+                favorite: false,
+                moves: mappedMoves,
+                bookmarks: [],
+                notes: [],
+                mode: 'custom',
+                // 保存初始布局（快照的棋盘），回放时叠加 moves 重放
+                // 保存初始棋盘的拷贝，避免后续在线对局继续推进时污染复盘起点
+                customLayout: s.board ? cloneBoard(s.board as any) : undefined,
+                customRules: customRuleSet, // 直接保存规则
+            }
+
+            // 避免 JSON.stringify 因循环引用导致报错，直接输出对象
+            console.log('[CustomBattle] Record object before save:', rec)
+            const { savedToServer } = await recordStore.saveNew(rec)
+            console.log('[CustomBattle] Save result:', { savedToServer })
+            alert(savedToServer ? '棋局已保存到服务器' : '已在本地保存（未登录或服务器不可用）')
+        } catch (e: any) {
+            console.error('save record failed', e)
+            const msg = e?.message || e?.toString() || '未知错误'
+            console.error('Error details:', msg)
+            console.error('Stack:', e?.stack)
+            alert(`保存失败: ${msg}`)
+        }
     }
 
     const handleCopyRoomId = async () => {
@@ -497,6 +570,9 @@ export default function CustomOnlineLiveBattle() {
                                 {endKind === 'win' ? '恭喜！您获胜' : endKind === 'lose' ? '您已落败' : endKind === 'draw' ? '平局' : endMessage}
                             </div>
                             <div className="gameover-actions">
+                                <button className="btn-secondary btn-wide" onClick={handleSaveRecord}>
+                                    💾 保存棋局
+                                </button>
                                 <button className="btn-primary btn-wide" onClick={handleBackToLobby}>
                                     返回大厅
                                 </button>
