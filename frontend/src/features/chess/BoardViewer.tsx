@@ -18,33 +18,38 @@ function PieceGlyph({ type, side }: { type: string; side: Side }) {
     return <div className={`piece ${side === 'red' ? 'piece--red' : 'piece--black'}`}>{textMap[type] || '?'}</div>
 }
 
-type InitialLayout = { pieces?: { type: string; side: Side; x: number; y: number }[] }
+type InitialLayout = { pieces?: { type: string; side: Side; x: number; y: number }[] } | any[][]
 
 export default function BoardViewer({ moves, step, initialLayout }: { moves: MoveRecord[]; step: number; initialLayout?: InitialLayout }) {
     const { board, last } = useMemo(() => {
-        // 从初始布局构建棋盘（若无则使用标准开局）
-        const b = (() => {
-            if (initialLayout && Array.isArray(initialLayout.pieces)) {
-                const base = Array.from({ length: 10 }, () => Array.from({ length: 9 }, () => null as any))
+        // 从初始布局构建棋盘（若无则使用标准开局），务必深拷贝避免在回放中污染原始布局
+        const base = (() => {
+            // 支持二维数组格式（自定义对战使用）
+            if (Array.isArray(initialLayout)) {
+                return initialLayout.map(row => row.map(cell => (cell ? { ...cell } : null))) as any
+            }
+            // 支持 pieces 格式（标准对战/残局使用）
+            if (initialLayout && Array.isArray((initialLayout as any).pieces)) {
+                const b = Array.from({ length: 10 }, () => Array.from({ length: 9 }, () => null as any))
                 let id = 0
-                for (const p of initialLayout.pieces) {
+                for (const p of (initialLayout as any).pieces) {
                     const x = Math.max(0, Math.min(8, p.x))
                     const y = Math.max(0, Math.min(9, p.y))
-                    base[y][x] = { id: `init-${id++}`, type: p.type, side: p.side }
+                    b[y][x] = { id: `init-${id++}`, type: p.type, side: p.side }
                 }
-                return base as any
+                return b as any
             }
             return createInitialBoard()
         })()
+
+        let board = base
         let last: { x: number; y: number } | null = null
         for (let i = 0; i < Math.min(step, moves.length); i++) {
             const m = moves[i]
-            const nb = movePiece(b, m.from, m.to)
-            // mutate b in place (movePiece returns new board or mutated? In our impl it returns new board)
-            for (let y = 0; y < 10; y++) for (let x = 0; x < 9; x++) b[y][x] = nb[y][x]
+            board = movePiece(board, m.from, m.to)
             last = m.to
         }
-        return { board: b, last }
+        return { board, last }
     }, [moves, step, initialLayout])
 
     return (

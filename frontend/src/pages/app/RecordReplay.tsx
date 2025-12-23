@@ -219,7 +219,15 @@ export default function RecordReplay() {
 
                     {/* 中间：棋盘 */}
                     <div>
-                        <BoardViewer moves={record.moves} step={step} initialLayout={record.initialLayout as any} />
+                        <BoardViewer 
+                            moves={record.moves} 
+                            step={step} 
+                            initialLayout={
+                                record.mode === 'custom'
+                                    ? (record as any).customLayout // 自定义：保存的是初始布局，叠加 moves 重放
+                                    : record.initialLayout as any // 标准：pieces 格式
+                            } 
+                        />
                     </div>
 
                     {/* 下方：红方玩家（棋盘下半部分）- 红色边框 */}
@@ -248,6 +256,11 @@ export default function RecordReplay() {
                         // 复用 BoardViewer 的逻辑在此计算局面
                         const { board } = (() => {
                             const b = (() => {
+                                // 自定义对战使用 customLayout
+                                if (record.mode === 'custom' && (record as any).customLayout) {
+                                    return (record as any).customLayout
+                                }
+                                // 标准对战使用 initialLayout 字段（pieces 格式）
                                 const il: any = (record as any).initialLayout
                                 if (il && Array.isArray(il.pieces)) {
                                     const base: any[][] = Array.from({ length: 10 }, () => Array.from({ length: 9 }, () => null))

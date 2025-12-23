@@ -129,4 +129,18 @@ export class CreateRecordDto {
   @IsOptional()
   @IsObject()
   initialLayout?: any;
+
+  // 对战模式：standard=标准对战，custom=自定义规则对战
+  @IsOptional()
+  @IsString()
+  @IsIn(['standard', 'custom'])
+  mode?: 'standard' | 'custom';
+
+  // 自定义对战的完整棋盘布局（二维数组格式）
+  @IsOptional()
+  customLayout?: any;
+
+  // 自定义规则（CustomRuleSet 格式）
+  @IsOptional()
+  customRules?: any;
 }

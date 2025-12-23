@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from 'react'
+﻿import { useEffect, useState, useRef } from 'react'
 import { useLocation } from 'react-router-dom'
 import { useNavigate } from 'react-router-dom'
 import Board from '../../features/chess/Board'
@@ -8,15 +8,19 @@ import { boardApi } from '../../services/api'
 import { apiBoardToLocalFormat } from '../../features/chess/boardAdapter'
 import { recordStore } from '../../features/records/recordStore'
 import type { MoveRecord, ChessRecord } from '../../features/records/types'
+import { cloneBoard } from '../../features/chess/types'
+import { movePiece } from '../../features/chess/rules'
 
 export default function CustomBattle() {
     const navigate = useNavigate()
     const [ruleSet, setRuleSet] = useState<CustomRuleSet | null>(null)
     const [customBoard, setCustomBoard] = useState<any>(null)
+    const currentBoardRef = useRef<any>(null)
 
     const location: any = useLocation()
     useEffect(() => {
         const state = location?.state || {}
+        
         // 优先使用路由 state 传入的布局与规则（来自模板管理或编辑器）
         if (state.rules) {
             try {
@@ -29,12 +33,14 @@ export default function CustomBattle() {
                     )
                     if (hasValidMovePatterns) {
                         setRuleSet(rules as CustomRuleSet)
-                        return
+                    } else {
+                        console.warn('Incomplete or unrecognized rules format, using standard chess rules', rules)
+                        setRuleSet(standardChessRules)
                     }
+                } else {
+                    console.warn('Incomplete or unrecognized rules format, using standard chess rules', rules)
+                    setRuleSet(standardChessRules)
                 }
-                // 如果规则不完整或无法识别，使用标准规则
-                console.warn('Incomplete or unrecognized rules format, using standard chess rules', rules)
-                setRuleSet(standardChessRules)
             } catch (e) {
                 console.error('Invalid rules in navigation state', e)
                 setRuleSet(standardChessRules)
@@ -43,9 +49,9 @@ export default function CustomBattle() {
             setRuleSet(standardChessRules)
         }
 
+        // 设置布局（不管规则是否设置）
         if (state.layout) {
             setCustomBoard(state.layout)
-            return
         }
 
         // 如果没有通过路由 state 提供布局，尝试从查询参数读取 boardId 并从后端拉取
@@ -80,25 +86,35 @@ export default function CustomBattle() {
     // 用于保存对局的临时记录
     const [moves, setMoves] = useState<MoveRecord[]>([])
     const [startedAt] = useState<string>(new Date().toISOString())
+    
+    // 初始化当前棋盘引用
+    useEffect(() => {
+        if (customBoard) {
+            currentBoardRef.current = cloneBoard(customBoard)
+        }
+    }, [customBoard])
 
     const persistRecord = async (result?: 'red' | 'black' | 'draw') => {
-        console.log('persistRecord called, moves:', moves.length)
-        const rec: Omit<ChessRecord, 'id'> = {
-            startedAt,
-            endedAt: new Date().toISOString(),
-            opponent: '本地',
-            result,
-            keyTags: [],
-            favorite: false,
-            moves,
-            bookmarks: [],
-            notes: [],
-        }
-
+        console.log('[CustomBattle] persistRecord called, moves:', moves.length)
+        const boardToSave = currentBoardRef.current || customBoard
+        
         try {
-            // Use recordStore.saveNew which will attempt server save if token exists,
-            // otherwise fall back to local-only saving. This centralizes save logic and
-            // avoids direct 401 errors from calling recordsApi.create here.
+            const rec: Omit<ChessRecord, 'id'> = {
+                startedAt,
+                endedAt: new Date().toISOString(),
+                opponent: '本地',
+                result,
+                keyTags: ['自定义对战', '本地对战'],
+                favorite: false,
+                moves,
+                bookmarks: [],
+                notes: [],
+                mode: 'custom',
+                // 保存初始布局，回放时叠加 moves 还原最终局面
+                customLayout: customBoard ?? boardToSave,
+                customRules: ruleSet, // 直接保存规则
+            }
+
             const { savedToServer } = await recordStore.saveNew(rec)
             if (savedToServer) {
                 alert('对局已保存到服务器')
@@ -106,7 +122,7 @@ export default function CustomBattle() {
                 alert('对局已保存在本地（未登录或服务器不可用）')
             }
         } catch (e) {
-            console.error('failed to save record', e)
+            console.error('[CustomBattle] failed to save record', e)
             alert('保存对局失败，请查看控制台')
         }
     }
@@ -161,7 +177,13 @@ export default function CustomBattle() {
                         <Board
                             customRules={ruleSet}
                             initialBoard={customBoard}
-                            onMove={(m) => setMoves(prev => [...prev, m])}
+                            onMove={(m) => {
+                                setMoves(prev => [...prev, m])
+                                // 更新当前棋盘状态
+                                if (currentBoardRef.current) {
+                                    currentBoardRef.current = movePiece(currentBoardRef.current, m.from, m.to)
+                                }
+                            }}
                             onGameOver={(winner) => persistRecord(winner || undefined)}
                         />
                     </div>
