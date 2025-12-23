@@ -119,18 +119,24 @@ export const recordStore = {
     async saveNew(partial: Omit<ChessRecord, 'id'>): Promise<{ record: ChessRecord; savedToServer: boolean }> {
         // prepare server payload
         // 清洗 moves，确保 from/to 存在且为数字
-        const sanitizedMoves = (partial.moves || []).map((m: MoveRecord, idx) => ({
-            moveIndex: idx,
-            from: { x: Number(m.from?.x ?? 0), y: Number(m.from?.y ?? 0) },
-            to: { x: Number(m.to?.x ?? 0), y: Number(m.to?.y ?? 0) },
-            // 后端要求 MoveDto.piece 为 PieceDto，包含 type/side/x/y
-            piece: {
-                type: 'soldier', // 无法从 MoveRecord 推断 type，使用默认 soldier（后端会 normalize）
-                side: (m.turn === 'red' || m.turn === 'black') ? m.turn : 'red',
-                x: Number(m.from?.x ?? 0),
-                y: Number(m.from?.y ?? 0),
-            },
-        })).filter(m => typeof m.from.x === 'number' && typeof m.from.y === 'number' && typeof m.to.x === 'number' && typeof m.to.y === 'number')
+        const sanitizedMoves = (partial.moves || []).map((m: MoveRecord, idx) => {
+            const fx = Number(m.from?.x ?? 0)
+            const fy = Number(m.from?.y ?? 0)
+            const tx = Number(m.to?.x ?? 0)
+            const ty = Number(m.to?.y ?? 0)
+            return {
+                moveIndex: idx,
+                from: { x: Number.isFinite(fx) ? Math.floor(fx) : 0, y: Number.isFinite(fy) ? Math.floor(fy) : 0 },
+                to: { x: Number.isFinite(tx) ? Math.floor(tx) : 0, y: Number.isFinite(ty) ? Math.floor(ty) : 0 },
+                // 后端要求 MoveDto.piece 为 PieceDto，包含 type/side/x/y
+                piece: {
+                    type: String('soldier'), // 默认类型为字符串
+                    side: (m.turn === 'red' || m.turn === 'black') ? m.turn : 'red',
+                    x: Number.isFinite(fx) ? Math.floor(fx) : 0,
+                    y: Number.isFinite(fy) ? Math.floor(fy) : 0,
+                },
+            }
+        }).filter(m => Number.isFinite(m.from.x) && Number.isFinite(m.from.y) && Number.isFinite(m.to.x) && Number.isFinite(m.to.y))
 
         const body: components['schemas']['RecordCreateRequest'] & { initialLayout?: any; customLayout?: any; customRules?: any; mode?: any } = {
             opponent: partial.opponent,
@@ -153,6 +159,7 @@ export const recordStore = {
             // 调试信息：记录是否有 token 以及请求体摘要
             try { console.debug('[recordStore] attempting server save, hasToken=', !!localStorage.getItem('token'), 'body=', { opponent: body.opponent, moves: body.moves?.length }) } catch {}
             // 使用 axios 实例以触发 refresh token 流程（若需要）并正确处理拦截器
+            try { console.debug('[recordStore] first move sample', JSON.stringify(body.moves && body.moves[0])) } catch {}
             const res = await http.post('/api/v1/records', body)
             created = res.data
             savedToServer = !!created
