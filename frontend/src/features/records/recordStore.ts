@@ -123,7 +123,13 @@ export const recordStore = {
             moveIndex: idx,
             from: { x: Number(m.from?.x ?? 0), y: Number(m.from?.y ?? 0) },
             to: { x: Number(m.to?.x ?? 0), y: Number(m.to?.y ?? 0) },
-            piece: { side: (m.turn === 'red' || m.turn === 'black') ? m.turn : 'red' },
+            // 后端要求 MoveDto.piece 为 PieceDto，包含 type/side/x/y
+            piece: {
+                type: 'soldier', // 无法从 MoveRecord 推断 type，使用默认 soldier（后端会 normalize）
+                side: (m.turn === 'red' || m.turn === 'black') ? m.turn : 'red',
+                x: Number(m.from?.x ?? 0),
+                y: Number(m.from?.y ?? 0),
+            },
         })).filter(m => typeof m.from.x === 'number' && typeof m.from.y === 'number' && typeof m.to.x === 'number' && typeof m.to.y === 'number')
 
         const body: components['schemas']['RecordCreateRequest'] & { initialLayout?: any; customLayout?: any; customRules?: any; mode?: any } = {
