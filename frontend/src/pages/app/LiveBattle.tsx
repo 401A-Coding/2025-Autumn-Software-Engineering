@@ -17,6 +17,7 @@ export default function LiveBattle() {
         ? Number(initialBoardIdParam)
         : undefined;
     const [battleId, setBattleId] = useState<number | ''>('');
+    const [joinError, setJoinError] = useState<string | null>(null);
     const [joinIdInput, setJoinIdInput] = useState<string>('');
     const [connected, setConnected] = useState(false);
     const [snapshot, setSnapshot] = useState<BattleSnapshot | null>(null);
@@ -311,9 +312,11 @@ export default function LiveBattle() {
         try {
             // 先走 REST 入座，确保服务端把当前用户加入 players
             await battleApi.join(id);
+            setJoinError(null);
         } catch (e) {
             const msg = e instanceof Error ? e.message : String(e);
-            alert(`加入房间失败：${msg}`);
+            setJoinError(msg || '加入房间失败');
+            return;
         }
         setBattleId(id);
         conn.join(id, 0);
@@ -612,58 +615,62 @@ export default function LiveBattle() {
                         <div className="livebattle-join-card">
                             <div className="livebattle-join-title">好友房对战</div>
                             <div className="livebattle-join-sub">输入房间号加入，直达好友的房间</div>
-                            <div className="livebattle-join-row">
-                                <input
-                                    className="livebattle-room-input"
-                                    type="text"
-                                    inputMode="numeric"
-                                    pattern="\\d*"
-                                    placeholder="房间号（例如 123456）"
-                                    value={joinIdInput}
-                                    onChange={(e) => {
-                                        const v = e.target.value.replace(/[^0-9]/g, '');
-                                        setJoinIdInput(v);
-                                    }}
-                                />
-                                <button
-                                    className="btn-ghost"
-                                    type="button"
-                                    onClick={async () => {
-                                        try {
-                                            const text = await navigator.clipboard.readText();
-                                            const v = (text || '').replace(/[^0-9]/g, '');
-                                            if (v) setJoinIdInput(v);
-                                        } catch (e) {
-                                            // 忽略剪贴板错误
-                                        }
-                                    }}
-                                >
-                                    粘贴
-                                </button>
-                                <button
-                                    className="btn-primary"
-                                    onClick={handleJoin}
-                                    disabled={!connected || !/^\d+$/.test(joinIdInput)}
-                                >
-                                    加入房间
-                                </button>
-                            </div>
-                            {false && (
-                                <div className={(!connected || !/^\d+$/.test(joinIdInput)) ? 'livebattle-join-hint invalid' : 'livebattle-join-hint'}>
-                                    {!connected ? '未连接服务器，暂不可加入' : (!/^\d+$/.test(joinIdInput) ? '请输入有效的数字房间号' : '示例：123456')}
-                                </div>
-                            )}
-                            {myProfile && (
-                                <div className="livebattle-join-self">
-                                    <UserAvatar
-                                        userId={myProfile.id}
-                                        nickname={myProfile.nickname}
-                                        avatarUrl={myProfile.avatarUrl}
-                                        size="small"
-                                        showTime={false}
-                                        nicknameWrap={true}
-                                    />
-                                </div>
+                            {joinError ? (
+                                <>
+                                    <div className="livebattle-join-hint invalid" style={{ marginTop: 12 }}>{joinError}</div>
+                                    <button className="btn-ghost mt-8" onClick={() => setJoinError(null)}>返回</button>
+                                </>
+                            ) : (
+                                <>
+                                    <div className="livebattle-join-row">
+                                        <input
+                                            className="livebattle-room-input"
+                                            type="text"
+                                            inputMode="numeric"
+                                            pattern="\\d*"
+                                            placeholder="房间号（例如 123456）"
+                                            value={joinIdInput}
+                                            onChange={(e) => {
+                                                const v = e.target.value.replace(/[^0-9]/g, '');
+                                                setJoinIdInput(v);
+                                            }}
+                                        />
+                                        <button
+                                            className="btn-ghost"
+                                            type="button"
+                                            onClick={async () => {
+                                                try {
+                                                    const text = await navigator.clipboard.readText();
+                                                    const v = (text || '').replace(/[^0-9]/g, '');
+                                                    if (v) setJoinIdInput(v);
+                                                } catch (e) {
+                                                    // 忽略剪贴板错误
+                                                }
+                                            }}
+                                        >
+                                            粘贴
+                                        </button>
+                                        <button
+                                            className="btn-primary"
+                                            onClick={handleJoin}
+                                            disabled={!connected || !/^\d+$/.test(joinIdInput)}
+                                        >
+                                            加入房间
+                                        </button>
+                                    </div>
+                                    {myProfile && (
+                                        <div className="livebattle-join-self">
+                                            <UserAvatar
+                                                userId={myProfile.id}
+                                                nickname={myProfile.nickname}
+                                                avatarUrl={myProfile.avatarUrl}
+                                                size="small"
+                                                showTime={false}
+                                                nicknameWrap={true}
+                                            />
+                                        </div>
+                                    )}
+                                </>
                             )}
                         </div>
                     )}
@@ -699,37 +706,53 @@ export default function LiveBattle() {
                                 <button className="btn-ghost" onClick={copyRoomId}>复制</button>
                             </>
                         )}
-                        <button className="btn-ghost livebattle-exit" onClick={handleExit}>退出对局</button>
-                        {snapshot?.status === 'waiting' && snapshot.players.length === 1 && snapshot.players[0] === myUserId && (
-                            <button className="btn-ghost livebattle-cancel" onClick={async () => {
-                                try {
-                                    await battleApi.cancel(Number(battleId));
-                                    setBattleId('');
-                                    setSnapshot(null);
-                                    navigate('/app/online-lobby');
-                                } catch (e) {
-                                    alert('取消失败: ' + (e instanceof Error ? e.message : String(e)));
-                                }
-                            }}>取消匹配</button>
-                        )}
-                        {snapshot?.source === 'room' &&
-                            snapshot.status === 'waiting' &&
-                            snapshot.ownerId === myUserId && (
-                                <button className="btn-ghost livebattle-cancel" onClick={async () => {
-                                    const ok = window.confirm('确认取消房间？');
-                                    if (!ok) return;
-                                    try {
-                                        await battleApi.cancel(Number(battleId));
-                                        setBattleId('');
-                                        setSnapshot(null);
-                                        navigate('/app/online-lobby');
-                                    } catch (e) {
-                                        alert('取消失败: ' + (e instanceof Error ? e.message : String(e)));
-                                    }
-                                }}>
-                                    取消房间
-                                </button>
-                            )}
+                        {/* 按业务场景精简按钮 */}
+                        {(() => {
+                            // 创建房间等待：仅房主显示“取消房间”
+                            if (snapshot?.source === 'room' && snapshot.status === 'waiting' && snapshot.ownerId === myUserId) {
+                                return (
+                                    <button className="btn-ghost livebattle-cancel" onClick={async () => {
+                                        try {
+                                            await battleApi.cancel(Number(battleId));
+                                            setBattleId('');
+                                            setSnapshot(null);
+                                            navigate('/app/online-lobby');
+                                        } catch (e) {
+                                            alert('取消失败: ' + (e instanceof Error ? e.message : String(e)));
+                                        }
+                                    }}>取消房间</button>
+                                );
+                            }
+                            // 匹配等待：仅本人显示“取消匹配”
+                            if (snapshot?.source === 'match' && snapshot.status === 'waiting' && (myUserId !== null && snapshot.players?.includes(myUserId))) {
+                                return (
+                                    <button className="btn-ghost livebattle-cancel" onClick={async () => {
+                                        try {
+                                            await battleApi.cancel(Number(battleId));
+                                            setBattleId('');
+                                            setSnapshot(null);
+                                            navigate('/app/online-lobby');
+                                        } catch (e) {
+                                            alert('取消失败: ' + (e instanceof Error ? e.message : String(e)));
+                                        }
+                                    }}>取消匹配</button>
+                                );
+                            }
+                            // 加入房间等待：仅显示“返回”按钮，返回到在线对战大厅
+                            if (snapshot?.source === 'room' && snapshot.status === 'waiting' && snapshot.ownerId !== myUserId) {
+                                return (
+                                    <button className="btn-ghost" onClick={() => navigate(-1)}>返回</button>
+                                );
+                            }
+                            // 其他情况（如对局中/结束/观战等）可按需补充
+                            // 对局中/观战时显示“退出对局”按钮
+                            if (snapshot && snapshot.status !== 'waiting') {
+                                return (
+                                    <button className="btn-ghost livebattle-cancel" onClick={handleExit}>退出对局</button>
+                                );
+                            }
+                            return null;
+                        })()}
                     </div>
                     {snapshot && (
                         <>
@@ -751,38 +774,33 @@ export default function LiveBattle() {
                             )}
                             {/* 玩家在线状态与对局状态信息在同一行，宽度与棋盘一致 */}
                             <div className="livebattle-board-wrapper" style={{ marginTop: 8, marginBottom: 8 }}>
-                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                                    <div className="livebattle-players-wrap">
-                                        {snapshot.players.map(pid => {
-                                            const online = snapshot.onlineUserIds?.includes(pid);
-                                            return (
-                                                <div
-                                                    key={pid}
-                                                    data-testid={`player-pill-${pid}`}
-                                                    className={"livebattle-player-pill" + (online ? " online" : "")}
-                                                >
-                                                    <span className="livebattle-player-dot" />
-                                                    <span>{pid}{pid === myUserId ? ' (我)' : ''}</span>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                    {(() => {
-                                        const turn = snapshot.turn ?? (snapshot.turnIndex === 0 ? 'red' : 'black');
-                                        const redUser = snapshot.players?.[0];
-                                        const blackUser = snapshot.players?.[1];
-                                        const mySide = myUserId === redUser ? 'red' : myUserId === blackUser ? 'black' : 'spectator';
-                                        return (
-                                            <div style={{ fontSize: 14 }}>
-                                                我方：<b className={mySide === 'red' ? 'turn-red' : mySide === 'black' ? 'turn-black' : 'turn-draw'}>
-                                                    {mySide === 'spectator' ? '观战' : mySide === 'red' ? '红' : '黑'}
-                                                </b>
-                                                <span style={{ marginLeft: 12 }}>
-                                                    当前手：<b className={turn === 'red' ? 'turn-red' : 'turn-black'}>{turn === 'red' ? '红' : '黑'}</b>
-                                                </span>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16, flexDirection: 'column' }}>
+                                    {/* 丰富等待区内容：展示当前用户头像和昵称 */}
+                                    {snapshot.status === 'waiting' && myProfile && (
+                                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 8 }}>
+                                            <UserAvatar
+                                                userId={myProfile.id}
+                                                nickname={myProfile.nickname}
+                                                avatarUrl={myProfile.avatarUrl}
+                                                size={96}
+                                                showTime={false}
+                                                nicknameWrap={true}
+                                            />
+                                            <div style={{ fontWeight: 600, fontSize: 18, color: '#222', marginTop: 12 }}>{myProfile.nickname || '匿名用户'}</div>
+                                            <div className="muted" style={{ marginTop: 8, fontSize: 15, textAlign: 'center', maxWidth: 320 }}>
+                                                {snapshot.source === 'room'
+                                                    ? '房间已创建，等待好友输入房间号加入对局。你将执红方先手，对方加入后自动开始。'
+                                                    : <>
+                                                        正在为你智能匹配实力相近的对手，匹配成功后自动进入对局。<br />
+                                                        <span style={{ fontSize: 13, color: '#888' }}>
+                                                            匹配规则：优先匹配活跃玩家，综合考虑历史胜率、活跃度等因素，确保公平对局。
+                                                        </span>
+                                                    </>
+                                                }
                                             </div>
-                                        );
-                                    })()}
+                                        </div>
+                                    )}
+                                    {/* 其他玩家信息可后续补充 */}
                                 </div>
                             </div>
                             {(snapshot.status !== 'waiting' || (snapshot.players?.length ?? 0) >= 2) ? (
@@ -902,14 +920,7 @@ export default function LiveBattle() {
                                         );
                                     })()}
                                 </>
-                            ) : (
-                                <div className="empty-center livebattle-board-wrapper">
-                                    <div className="livebattle-offline-hint">
-                                        房间已创建，正在等待好友加入
-                                        <span className="loading-dots"><span></span><span></span><span></span></span>
-                                    </div>
-                                </div>
-                            )}
+                            ) : null}
                         </>
                     )}
                     {!snapshot && (
@@ -924,10 +935,10 @@ export default function LiveBattle() {
                 </div>
             )}
 
-            {/* 返回入口：仅在未入房时提供“返回主页” */}
+            {/* 返回入口：仅在未入房时提供“返回” */}
             {!inRoom && (
                 <div className="livebattle-return-bar">
-                    <button className="btn-ghost" onClick={() => navigate('/app')}>返回主页</button>
+                    <button className="btn-ghost" onClick={() => navigate(-1)}>返回</button>
                 </div>
             )}
 

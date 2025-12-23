@@ -46,7 +46,15 @@ export default function Favorites() {
                 ) : list.length === 0 ? (
                     <div className="empty-box">暂无收藏</div>
                 ) : (
-                    <div className="col gap-8" style={{ height: 420, overflowY: 'auto', paddingRight: 4 }}>
+                    <div
+                        className="col gap-8"
+                        style={{
+                            maxHeight: 'calc(100vh - 280px)',
+                            minHeight: 300,
+                            overflowY: 'auto',
+                            paddingRight: 4,
+                        }}
+                    >
                         {list.map(r => (
                             <HistoryCard
                                 key={r.id}

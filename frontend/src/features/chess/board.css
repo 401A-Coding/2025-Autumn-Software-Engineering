@@ -621,7 +621,14 @@
 @media (max-width: 500px) {
     .local-play .board {
         /* stronger padding deduction + lower cap to fit small phones */
-        --cell-size: clamp(20px, calc(((100vw - 80px) / 9) * 0.9), 40px) !important;
+        --cell-size: clamp(24px, calc((100vw - 80px) / 9), 40px) !important;
+    }
+}
+
+@media (max-width: 500px) {
+    .livebattle-board .board {
+        /* stronger padding deduction + lower cap to fit small phones */
+        --cell-size: clamp(28px, calc((100vw - 80px) / 9), 40px) !important;
     }
 }
 
@@ -629,7 +636,7 @@
 @media (max-width: 500px) {
     .custom-editor .board {
         /* slightly aggressive than default mobile: larger deduction and scale */
-        --cell-size: clamp(22px, calc(((100vw - 80px) / 9) * 0.85), 40px) !important;
+        --cell-size: clamp(24px, calc(((100vw - 80px) / 9) * 0.85), 40px) !important;
     }
 }
 
