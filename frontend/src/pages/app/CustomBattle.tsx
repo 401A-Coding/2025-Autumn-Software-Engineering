@@ -21,7 +21,7 @@ export default function CustomBattle() {
     const location: any = useLocation()
     useEffect(() => {
         const state = location?.state || {}
-        
+
         // 优先使用路由 state 传入的布局与规则（来自模板管理或编辑器）
         if (state.rules) {
             try {
@@ -87,7 +87,7 @@ export default function CustomBattle() {
     // 用于保存对局的临时记录
     const [moves, setMoves] = useState<MoveRecord[]>([])
     const [startedAt] = useState<string>(new Date().toISOString())
-    
+
     // 初始化当前棋盘引用
     useEffect(() => {
         if (customBoard) {
@@ -98,7 +98,7 @@ export default function CustomBattle() {
     const persistRecord = async (result?: 'red' | 'black' | 'draw') => {
         console.log('[CustomBattle] persistRecord called, moves:', moves.length)
         const boardToSave = currentBoardRef.current || customBoard
-        
+
         try {
             const rec: Omit<ChessRecord, 'id'> = {
                 startedAt,
@@ -162,28 +162,6 @@ export default function CustomBattle() {
                     </div>
                 </div>
 
-            {/* 主体：棋盘 + 侧栏（在窄屏隐藏） */}
-            <div className="row gap-16 align-start wrap">
-                <div className="board-area">
-                    <div className="board-area__inner">
-                        <Board
-                            customRules={ruleSet}
-                            initialBoard={customBoard}
-                            onMove={(m) => {
-                                setMoves(prev => [...prev, m])
-                                // 更新当前棋盘状态
-                                if (currentBoardRef.current) {
-                                    currentBoardRef.current = movePiece(currentBoardRef.current, m.from, m.to)
-                                }
-                            }}
-                            onGameOver={(winner) => persistRecord(winner || undefined)}
-                        />
-                    </div>
-                    {ruleSet.description && (
-                        <div className="note-info">{ruleSet.description}</div>
-                    )}
-                </div>
-
                 {/* 主体：棋盘 + 侧栏（在窄屏隐藏） */}
                 <div className="row gap-16 align-start wrap">
                     <div className="board-area">
@@ -191,52 +169,75 @@ export default function CustomBattle() {
                             <Board
                                 customRules={ruleSet}
                                 initialBoard={customBoard}
-                                onMove={(m) => setMoves(prev => [...prev, m])}
+                                onMove={(m) => {
+                                    setMoves(prev => [...prev, m])
+                                    // 更新当前棋盘状态
+                                    if (currentBoardRef.current) {
+                                        currentBoardRef.current = movePiece(currentBoardRef.current, m.from, m.to)
+                                    }
+                                }}
                                 onGameOver={(winner) => persistRecord(winner || undefined)}
                             />
                         </div>
+                        {ruleSet.description && (
+                            <div className="note-info">{ruleSet.description}</div>
+                        )}
                     </div>
 
-                    <aside className="col gap-12 flex-1 minw-260 hide-on-mobile">
-                        <div className="pad-12 bg-muted rounded-8">
-                            <div className="fw-700 mb-8">规则摘要</div>
-                            <div className="text-13 text-gray">{ruleSet.name || '自定义规则'}</div>
+                    {/* 主体：棋盘 + 侧栏（在窄屏隐藏） */}
+                    <div className="row gap-16 align-start wrap">
+                        <div className="board-area">
+                            <div className="board-area__inner">
+                                <Board
+                                    customRules={ruleSet}
+                                    initialBoard={customBoard}
+                                    onMove={(m) => setMoves(prev => [...prev, m])}
+                                    onGameOver={(winner) => persistRecord(winner || undefined)}
+                                />
+                            </div>
                         </div>
 
-                        <details className="pad-12 bg-muted rounded-8">
-                            <summary className="cursor-pointer fw-600">📋 详细规则配置</summary>
-                            <div className="grid-auto-120 gap-8 mt-8">
-                                {Object.entries(ruleSet.pieceRules).map(([pieceType, rule]) => {
-                                    if (!rule) return null
-                                    const pieceNames: Record<string, string> = {
-                                        general: '将/帅',
-                                        advisor: '士/仕',
-                                        elephant: '象/相',
-                                        horse: '马/马',
-                                        rook: '车/车',
-                                        cannon: '炮/炮',
-                                        soldier: '兵/卒',
-                                    }
-                                    const movePatterns = rule?.movePatterns
-                                    return (
-                                        <div key={pieceType} className="pad-8 bg-white rounded-6 text-12">
-                                            <div className="fw-600">{pieceNames[pieceType] || rule.name}</div>
-                                            <div className="text-12 muted">{movePatterns ? `${movePatterns.length} 种走法` : ''}</div>
-                                        </div>
-                                    )
-                                })}
+                        <aside className="col gap-12 flex-1 minw-260 hide-on-mobile">
+                            <div className="pad-12 bg-muted rounded-8">
+                                <div className="fw-700 mb-8">规则摘要</div>
+                                <div className="text-13 text-gray">{ruleSet.name || '自定义规则'}</div>
                             </div>
-                        </details>
-                    </aside>
-                </div>
 
-                {/* 操作栏 */}
-                <div className="row justify-center gap-12 mt-16">
-                    <button className="btn-ghost btn-compact" onClick={() => window.location.reload()}>重新开始</button>
-                    <button className="btn-secondary btn-compact" onClick={() => persistRecord()}>💾 保存对局</button>
-                    <button className="btn-primary btn-compact" onClick={handleBackToHome}>返回首页</button>
+                            <details className="pad-12 bg-muted rounded-8">
+                                <summary className="cursor-pointer fw-600">📋 详细规则配置</summary>
+                                <div className="grid-auto-120 gap-8 mt-8">
+                                    {Object.entries(ruleSet.pieceRules).map(([pieceType, rule]) => {
+                                        if (!rule) return null
+                                        const pieceNames: Record<string, string> = {
+                                            general: '将/帅',
+                                            advisor: '士/仕',
+                                            elephant: '象/相',
+                                            horse: '马/马',
+                                            rook: '车/车',
+                                            cannon: '炮/炮',
+                                            soldier: '兵/卒',
+                                        }
+                                        const movePatterns = rule?.movePatterns
+                                        return (
+                                            <div key={pieceType} className="pad-8 bg-white rounded-6 text-12">
+                                                <div className="fw-600">{pieceNames[pieceType] || rule.name}</div>
+                                                <div className="text-12 muted">{movePatterns ? `${movePatterns.length} 种走法` : ''}</div>
+                                            </div>
+                                        )
+                                    })}
+                                </div>
+                            </details>
+                        </aside>
+                    </div>
+
+                    {/* 操作栏 */}
+                    <div className="row justify-center gap-12 mt-16">
+                        <button className="btn-ghost btn-compact" onClick={() => window.location.reload()}>重新开始</button>
+                        <button className="btn-secondary btn-compact" onClick={() => persistRecord()}>💾 保存对局</button>
+                        <button className="btn-primary btn-compact" onClick={handleBackToHome}>返回首页</button>
+                    </div>
+                    <div className="text-center text-12 muted mt-8">动作数: {moves.length}</div>
                 </div>
-                <div className="text-center text-12 muted mt-8">动作数: {moves.length}</div>
             </div>
         </MobileFrame>
     )
