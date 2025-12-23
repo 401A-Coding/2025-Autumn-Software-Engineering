@@ -12,7 +12,7 @@ import {
   IsIn,
   IsObject,
 } from 'class-validator';
-import { PieceDto } from '../../board/dto/piece.dto';
+// 注意：棋步中的棋子仅需要标识阵营与类型，不需要坐标
 
 class PosDto {
   @IsInt()
@@ -25,6 +25,16 @@ class PosDto {
 }
 
 // 复用棋子 DTO，享受后端统一归一化与校验
+
+class MovePieceDto {
+  @IsOptional()
+  @IsString()
+  type?: string;
+
+  @IsOptional()
+  @IsString()
+  side?: string; // 'red' | 'black'
+}
 
 class MoveDto {
   @IsInt()
@@ -39,9 +49,11 @@ class MoveDto {
   @Type(() => PosDto)
   to!: PosDto;
 
+  // 对于移动记录，仅需要棋子阵营/类型，坐标由 from/to 表达
+  @IsOptional()
   @ValidateNested()
-  @Type(() => PieceDto)
-  piece!: PieceDto;
+  @Type(() => MovePieceDto)
+  piece?: MovePieceDto;
 
   @IsOptional()
   @IsString()
@@ -92,16 +104,18 @@ export class CreateRecordDto {
   @IsString()
   endReason?: string;
 
+  @IsOptional()
   @IsArray()
   @ArrayMinSize(0)
   @IsString({ each: true })
-  keyTags!: string[];
+  keyTags?: string[];
 
+  @IsOptional()
   @IsArray()
   @ArrayMinSize(0)
   @ValidateNested({ each: true })
   @Type(() => MoveDto)
-  moves!: MoveDto[];
+  moves?: MoveDto[];
 
   @IsOptional()
   @IsArray()

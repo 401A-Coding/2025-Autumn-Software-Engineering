@@ -81,7 +81,7 @@ export default function LocalPlay() {
         navigate('/app/history')
     }
     return (
-        <div className="pad-16">
+        <div className="pad-16 local-play">
             <div className="row-center">
                 <div>
                     <div className="row-between mb-8">

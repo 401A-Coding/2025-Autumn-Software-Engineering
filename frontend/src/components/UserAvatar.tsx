@@ -8,6 +8,9 @@ interface UserAvatarProps {
     size?: 'small' | 'medium' | 'large'
     showTime?: boolean
     onClick?: () => void
+    nicknameWrap?: boolean
+    nicknameClassName?: string
+    stackVertical?: boolean
 }
 
 export default function UserAvatar({
@@ -18,6 +21,9 @@ export default function UserAvatar({
     size = 'medium',
     showTime = true,
     onClick,
+    nicknameWrap = false,
+    nicknameClassName,
+    stackVertical = false,
 }: UserAvatarProps) {
     const navigate = useNavigate()
 
@@ -63,9 +69,9 @@ export default function UserAvatar({
         <div
             style={{
                 display: 'flex',
-                flexDirection: 'row',
+                flexDirection: stackVertical ? 'column' : 'row',
                 alignItems: 'center',
-                gap: 8,
+                gap: stackVertical ? 6 : 8,
             }}
         >
             {/* 头像 */}
@@ -103,18 +109,25 @@ export default function UserAvatar({
                 )}
             </div>
 
-            {/* 用户信息：昵称在上、日期在下，整体紧贴头像右侧 */}
+            {/* 用户信息：昵称在上、日期在下；当 stackVertical=true 时显示在头像下方 */}
             <div
                 style={{
                     display: 'flex',
                     flexDirection: 'column',
                     gap: 4,
                     minWidth: 0,
+                    alignItems: stackVertical ? 'center' : undefined,
                 }}
             >
                 <div
                     onClick={handleClick}
-                    style={{
+                    className={nicknameClassName}
+                    style={nicknameWrap ? {
+                        cursor: 'pointer',
+                        fontWeight: 600,
+                        color: '#333',
+                        lineHeight: 1.2,
+                    } : {
                         cursor: 'pointer',
                         fontWeight: 600,
                         fontSize: size === 'small' ? 12 : 14,

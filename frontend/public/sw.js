@@ -23,6 +23,15 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
     if (event.request.method !== 'GET') return
 
+    // Only handle http/https requests; ignore chrome-extension:, file:, data:, etc.
+    try {
+        const url = new URL(event.request.url)
+        if (url.protocol !== 'http:' && url.protocol !== 'https:') return
+    } catch {
+        // If URL parsing fails, do not intercept
+        return
+    }
+
     // Navigation requests (user typing URL or using SPA navigation) should
     // return the cached index.html when offline to avoid 404 in installed PWA.
     if (event.request.mode === 'navigate') {
@@ -38,7 +47,10 @@ self.addEventListener('fetch', (event) => {
             return fetch(event.request).then((resp) => {
                 if (!resp || resp.status !== 200 || resp.type !== 'basic') return resp
                 const respClone = resp.clone()
-                caches.open(CACHE_NAME).then((cache) => cache.put(event.request, respClone))
+                // Best-effort cache put; guard against unsupported schemes
+                caches.open(CACHE_NAME)
+                    .then((cache) => cache.put(event.request, respClone))
+                    .catch(() => { /* ignore cache put failures */ })
                 return resp
             })
         }).catch(() => fetch(event.request))

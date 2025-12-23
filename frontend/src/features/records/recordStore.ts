@@ -98,7 +98,7 @@ export const recordStore = {
             startedAt: partial.startedAt,
             endedAt: partial.endedAt,
             result: partial.result as any,
-            keyTags: partial.keyTags,
+            keyTags: partial.keyTags ?? [],
             moves: (partial.moves || []).map((m: MoveRecord, idx) => ({
                 moveIndex: idx,
                 from: { x: m.from.x, y: m.from.y },
@@ -112,20 +112,12 @@ export const recordStore = {
             ...(partial as any).mode ? { mode: (partial as any).mode } : {},
         }
 
-        let created: any = null
-        let savedToServer = false
-        // 如果没有 token 则跳过服务器保存，直接本地保存
+        // 强制仅保存到服务器：无 token 或请求失败则抛错
         const token = localStorage.getItem('token')
-        if (token) {
-            try {
-                created = await recordsApi.create(body)
-                savedToServer = !!created
-            } catch (e) {
-                // 后端保存失败（未登录或网络问题），将降级为仅本地保存
-                created = null
-                savedToServer = false
-            }
+        if (!token) {
+            throw new Error('UNAUTHENTICATED')
         }
+        const created = await recordsApi.create(body)
 
         const rec: ChessRecord = {
             id: String(created?.id ?? uid()),
@@ -154,7 +146,7 @@ export const recordStore = {
             mode: created?.mode ?? (partial as any).mode ?? undefined,
         }
 
-        return { record: rec, savedToServer }
+        return { record: rec, savedToServer: true }
     },
 
     async toggleFavorite(id: string, fav: boolean) {

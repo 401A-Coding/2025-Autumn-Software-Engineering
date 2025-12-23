@@ -64,7 +64,7 @@ describe('UserService', () => {
     expect(prisma.user.update).toHaveBeenCalled();
     expect(res).toHaveProperty('accessToken');
     expect(res).toHaveProperty('refreshToken');
-    expect(res).toHaveProperty('expiresIn', 1800);
+    expect(res).toHaveProperty('expiresIn', 14400);
   });
 
   it('register should reject when phone already exists', async () => {
@@ -90,7 +90,7 @@ describe('UserService', () => {
     const res = await service.login(loginDto);
     expect(res).toHaveProperty('accessToken');
     expect(res).toHaveProperty('refreshToken');
-    expect(res).toHaveProperty('expiresIn', 1800);
+    expect(res).toHaveProperty('expiresIn', 14400);
     expect(prisma.user.update).toHaveBeenCalled();
   });
 

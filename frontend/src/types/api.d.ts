@@ -1392,7 +1392,7 @@ export interface components {
             refreshToken: string;
             /**
              * @description Access token TTL in seconds
-             * @example 1800
+             * @example 14400
              */
             expiresIn?: number;
         };
