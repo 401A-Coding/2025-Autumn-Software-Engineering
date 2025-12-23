@@ -1,5 +1,6 @@
 import type { ChessRecord, Bookmark, Note, MoveRecord } from './types'
 import { recordsApi } from '../../services/api'
+import http from '../../lib/http'
 import type { components } from '../../types/api'
 
 const LOCAL_KEY = 'saved.records.v1'
@@ -140,7 +141,9 @@ export const recordStore = {
         let savedToServer = false
         // 尝试向服务器保存（若未登录或网络/授权失败则回退到本地保存）
         try {
-            created = await recordsApi.create(body)
+            // 使用 axios 实例以触发 refresh token 流程（若需要）并正确处理拦截器
+            const res = await http.post('/api/v1/records', body)
+            created = res.data
             savedToServer = !!created
         } catch (e) {
             // 后端保存失败（可能未登录或网络问题），将降级为仅本地保存
