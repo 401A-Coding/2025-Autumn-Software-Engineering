@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams, useLocation } from 'react-router-dom'
 import '../../pages/app/app-pages.css'
+import '../../pages/app/community.css'
 import { communityApi, userApi } from '../../services/api'
 import UserAvatar from '../../components/UserAvatar'
 import DropdownMenu, { type MenuAction } from '../../components/DropdownMenu'
@@ -473,7 +474,7 @@ export default function PostDetail() {
     }
 
     return (
-        <div>
+        <div className="community-page">
             <div className="row align-center mb-12 topbar-sticky">
                 <button className="btn-ghost" onClick={handleBack}>
                     ← 返回
@@ -493,7 +494,7 @@ export default function PostDetail() {
                 {/* 帖子内容 */}
                 <section className="paper-card mb-12" style={{ padding: 0, overflow: 'hidden' }}>
                     {/* 用户信息区域 */}
-                    <div style={{ padding: '16px 20px', backgroundColor: '#fafafa', borderBottom: '1px solid #e0e0e0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ padding: '16px 20px', backgroundColor: '#fff', borderBottom: '1px solid #e0e0e0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                         <UserAvatar
                             userId={post.authorId}
                             nickname={post.authorNickname}
@@ -514,7 +515,7 @@ export default function PostDetail() {
 
                         {/* 引用资源预览 */}
                         {post.shareType === 'record' && post.shareRefId && (
-                            <div className="mb-16">
+                            <div className="mb-16 community-board-embed">
                                 {/* 传入 shareReference 作为无权限时的回退快照；若无快照则不再请求记录接口，避免 404 */}
                                 <RecordEmbed
                                     recordId={post.shareRefId}
@@ -524,7 +525,7 @@ export default function PostDetail() {
                             </div>
                         )}
                         {post.shareType === 'board' && post.shareRefId && (
-                            <div className="mb-16">
+                            <div className="mb-16 community-board-embed">
                                 <BoardEmbed boardId={post.shareRefId} enableSave titleOverride={post.shareReference?.name} />
                             </div>
                         )}
@@ -545,8 +546,8 @@ export default function PostDetail() {
                                                 display: 'inline-flex',
                                                 alignItems: 'center',
                                                 padding: '4px 10px',
-                                                backgroundColor: '#f0f0f0',
-                                                border: '1px solid #d0d0d0',
+                                                backgroundColor: '#fff',
+                                                border: '1px solid #dcdcdc',
                                                 borderRadius: '12px',
                                                 fontSize: '13px',
                                                 color: '#555',
@@ -554,12 +555,12 @@ export default function PostDetail() {
                                                 transition: 'all 0.2s',
                                             }}
                                             onMouseEnter={(e) => {
-                                                e.currentTarget.style.backgroundColor = '#e0e0e0'
-                                                e.currentTarget.style.borderColor = '#b0b0b0'
+                                                e.currentTarget.style.backgroundColor = '#f5f5f5'
+                                                e.currentTarget.style.borderColor = '#cfcfcf'
                                             }}
                                             onMouseLeave={(e) => {
-                                                e.currentTarget.style.backgroundColor = '#f0f0f0'
-                                                e.currentTarget.style.borderColor = '#d0d0d0'
+                                                e.currentTarget.style.backgroundColor = '#fff'
+                                                e.currentTarget.style.borderColor = '#dcdcdc'
                                             }}
                                         >
                                             <span style={{ marginRight: '2px', fontWeight: 600 }}>#</span>
@@ -638,7 +639,7 @@ export default function PostDetail() {
                             {comments.map((comment) => (
                                 <div key={comment.id} id={`comment-${comment.id}`} className="paper-card" style={{ padding: 0, overflow: 'hidden' }}>
                                     {/* 评论者信息 */}
-                                    <div style={{ padding: '10px 12px', backgroundColor: '#fafafa', borderBottom: '1px solid #e0e0e0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                    <div style={{ padding: '10px 12px', backgroundColor: '#fff', borderBottom: '1px solid #e0e0e0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                                         <UserAvatar
                                             userId={comment.authorId || 0}
                                             nickname={comment.authorNickname}
@@ -679,9 +680,9 @@ export default function PostDetail() {
                                     {/* 楼中楼回复区域 */}
                                     {comment.replyCount > 0 && (
                                         <div
+                                            className="community-nested-reply"
                                             style={{
                                                 padding: '12px',
-                                                backgroundColor: '#f9f9f9',
                                                 borderTop: '1px solid #e0e0e0',
                                                 cursor: !expandedReplies[comment.id] ? 'pointer' : 'default',
                                             }}
@@ -977,7 +978,7 @@ export default function PostDetail() {
                                 flex: 1,
                                 padding: '10px 14px',
                                 borderRadius: '20px',
-                                backgroundColor: '#f5f5f5',
+                                backgroundColor: '#fff',
                                 cursor: 'pointer',
                                 color: '#999',
                                 fontSize: '14px',

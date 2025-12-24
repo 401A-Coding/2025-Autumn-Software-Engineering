@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import './app-pages.css'
+import './community.css'
 import { communityApi, userApi } from '../../services/api'
 import DropdownMenu, { type MenuAction } from '../../components/DropdownMenu'
 import PostPreview from '../../features/community/PostPreview'
@@ -146,7 +147,7 @@ export default function Community() {
     const maxPage = Math.ceil(total / pageSize) || 1
 
     return (
-        <div>
+        <div className="community-page">
             {/* 顶部导航栏 */}
             <section className="paper-card card-pad mb-12 topbar-sticky">
                 <div className="row-between align-center mb-12">

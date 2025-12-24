@@ -1,4 +1,5 @@
 import React from 'react'
+import '../../pages/app/community.css'
 import UserAvatar from '../../components/UserAvatar'
 import RecordEmbed from '../../components/RecordEmbed'
 import BoardEmbed from '../../components/BoardEmbed'
@@ -13,10 +14,10 @@ export default function PostPreview({ post, onClick, actionsNode }: Props) {
     return (
         <div
             className="paper-card cursor-pointer hover:shadow-md transition-shadow"
-            style={{ padding: 0, overflow: 'hidden' }}
+            style={{ padding: 0, overflow: 'hidden', backgroundColor: '#fff' }}
             onClick={onClick}
         >
-            <div style={{ padding: '12px 16px', backgroundColor: '#fafafa', borderBottom: '1px solid #e0e0e0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ padding: '12px 16px', backgroundColor: '#fff', borderBottom: '1px solid #e0e0e0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <UserAvatar
                     userId={post.authorId}
                     nickname={post.authorNickname}
@@ -35,7 +36,7 @@ export default function PostPreview({ post, onClick, actionsNode }: Props) {
                 <p className="muted mb-8 text-14 line-clamp-2" style={{ textAlign: 'left' }}>{post.excerpt || '(无内容)'}</p>
 
                 {post.shareType === 'record' && post.shareRefId && (
-                    <div className="mb-8">
+                    <div className="mb-8 community-board-embed">
                         <RecordEmbed
                             recordId={post.shareRefId}
                             recordSnapshot={post.shareReference}
@@ -44,7 +45,7 @@ export default function PostPreview({ post, onClick, actionsNode }: Props) {
                     </div>
                 )}
                 {post.shareType === 'board' && post.shareRefId && (
-                    <div className="mb-8">
+                    <div className="mb-8 community-board-embed">
                         <BoardEmbed boardId={post.shareRefId} enableSave={false} />
                     </div>
                 )}
