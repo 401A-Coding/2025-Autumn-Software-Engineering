@@ -186,6 +186,8 @@ export default function PostDetail() {
             ])
             setPost({ ...post, commentCount: post.commentCount + 1 })
             setCommentText('')
+            // 发表后自动收起主楼回复框
+            setExpandedComment(false)
         } catch (e) {
             console.error('Comment submit failed:', e)
         } finally {

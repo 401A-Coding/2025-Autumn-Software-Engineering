@@ -79,7 +79,7 @@ export default function MyLikes() {
     }
 
     return (
-        <div className="app-page">
+        <div className="app-page no-root-scroll">
             <div className="app-page-header">
                 <button onClick={() => navigate('/app/profile')} className="back-button">
                     ← 返回

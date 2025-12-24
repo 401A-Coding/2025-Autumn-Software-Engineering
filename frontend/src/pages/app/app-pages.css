@@ -1236,8 +1236,9 @@
 .view-item {
     padding: 12px;
     border-radius: 8px;
-    border: 1px solid #cdac76;
-    background-color: #e7bf8f;
+    /* 改为与 MyLikes / MyBookmarks 一致的白色卡片样式 */
+    border: 1px solid #e5e7eb;
+    background-color: #ffffff;
     transition: all 0.2s;
 }
 
@@ -1247,7 +1248,7 @@
 
 .view-item.clickable:hover {
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-    border-color: #d3b87c;
+    border-color: #d1d5db;
 }
 
 /* 删除/不可导航的灰显样式 */
@@ -1592,6 +1593,16 @@
     flex: 1;
     overflow-y: auto;
     background: #fff7ed;
+}
+
+/* 在特定页面上禁用 document root 滚动，仅允许内部内容区滚动 */
+.app-page.no-root-scroll {
+    height: 100vh;
+    overflow: hidden;
+}
+
+.app-page.no-root-scroll .app-page-content {
+    overflow-y: auto;
 }
 
 .loading-message,
