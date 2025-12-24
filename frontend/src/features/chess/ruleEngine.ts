@@ -154,6 +154,17 @@ export function generateMovesFromRules(
         allPatterns.push(...((ruleConfig as any).captureRules.capturePattern as MovePattern[]))
     }
 
+    // 不可变更的炮吃子：无论外部规则如何配置，都注入炮的隔子吃（直线、要求 obstacleCount=1）
+    if (piece.type === 'cannon') {
+        const cannonCaptureCond = [{ type: 'path', obstacleCount: 1 } as any]
+        allPatterns.push(
+            { dx: 1, dy: 0, repeat: true, captureOnly: true, conditions: cannonCaptureCond },
+            { dx: -1, dy: 0, repeat: true, captureOnly: true, conditions: cannonCaptureCond },
+            { dx: 0, dy: 1, repeat: true, captureOnly: true, conditions: cannonCaptureCond },
+            { dx: 0, dy: -1, repeat: true, captureOnly: true, conditions: cannonCaptureCond },
+        )
+    }
+
     for (const pattern of allPatterns) {
         const patternMoves = generateMovesFromPattern(
             board,
@@ -166,12 +177,20 @@ export function generateMovesFromRules(
     }
 
     // 应用全局距离限制
-    return moves.filter(to => {
+    const filtered = moves.filter(to => {
         const distance = Math.max(Math.abs(to.x - from.x), Math.abs(to.y - from.y))
         const minDist = ruleConfig.restrictions.minMoveDistance || 0
         const maxDist = ruleConfig.restrictions.maxMoveDistance || Infinity
         return distance >= minDist && distance <= maxDist
     })
+    // 去重：避免重复模式造成相同落点重复
+    const seen = new Set<string>()
+    const uniq: Pos[] = []
+    for (const m of filtered) {
+        const key = `${m.x},${m.y}`
+        if (!seen.has(key)) { seen.add(key); uniq.push(m) }
+    }
+    return uniq
 }
 
 /**
@@ -192,8 +211,9 @@ function generateMovesFromPattern(
     const isCannonLikeCapture = !!(pattern.repeat && pattern.captureOnly && obstacleCond)
 
     if (isCannonLikeCapture) {
+        // 炮等特殊棋子：允许按照 obstacleCount 要求进行隔子吃
         for (let step = 1; step <= maxSteps; step++) {
-            const dx = pattern.dx * step
+            const dx = adjustDxForSide(pattern.dx * step, side)
             const dy = adjustDyForSide(pattern.dy * step, side)
             const to: Pos = { x: from.x + dx, y: from.y + dy }
             if (!inBounds(to.x, to.y)) break
@@ -219,28 +239,8 @@ function generateMovesFromPattern(
                 break
             }
 
-            // 找到路径上的障碍位置（按 from->to 顺序），需要确保至少有一个障碍可以作为有效的"炮架子"：
-            // 该炮架子位置在逻辑上应该是当前棋子在没有障碍物阻挡时能够到达的位置（即满足 pattern 的其它条件，且从起点到该炮架子之间无其他障碍）。
-            let hasValidScreen = false
-            const filteredConditionsForScreen = pattern.conditions ? pattern.conditions.filter(c => (c as any).obstacleCount === undefined && (c.type !== 'target')) : undefined
-            for (const screen of obstacles) {
-                // 在一个假想的棋盘上把 screen 设为空，来验证该屏障格是否在逻辑上可达。
-                const boardWithoutScreen = board.map(r => r.slice())
-                if (boardWithoutScreen[screen.y] && boardWithoutScreen[screen.y][screen.x]) boardWithoutScreen[screen.y][screen.x] = null
-
-                // 确保从起点到 screen 之间没有其他障碍（screen 为唯一的阻挡）——在假想棋盘上检查
-                const beforeCount = countObstaclesInPath(boardWithoutScreen, from, screen)
-                if (beforeCount !== 0) continue
-
-                // 检查若尝试移动到 screen（在假想棋盘上）是否满足 pattern 的其它条件
-                if (checkMoveConditions(boardWithoutScreen, from, screen, filteredConditionsForScreen, side)) {
-                    hasValidScreen = true
-                    break
-                }
-            }
-
-            // 恰好等于所需隔子数且存在合法炮架子：仅可吃到第一个敌子
-            if (hasValidScreen && target.side !== side) {
+            // 炮隔子吃简化逻辑：恰好等于所需隔子数且目标为敌，允许吃
+            if (obstacles.length === need && target.side !== side) {
                 const filteredConditions = pattern.conditions ? pattern.conditions.filter(c => (c as any).obstacleCount === undefined) : undefined
                 if (checkMoveConditions(board, from, to, filteredConditions, side)) {
                     moves.push(to)
@@ -252,7 +252,7 @@ function generateMovesFromPattern(
     }
 
     for (let step = 1; step <= maxSteps; step++) {
-        const dx = pattern.dx * step
+        const dx = adjustDxForSide(pattern.dx * step, side)
         const dy = adjustDyForSide(pattern.dy * step, side)
         const to: Pos = { x: from.x + dx, y: from.y + dy }
 
@@ -277,14 +277,18 @@ function generateMovesFromPattern(
             // moveOnly：不可吃子，且阻挡继续扫描
             break
         }
-        // 碰到任意棋子：无论是否声明 jumpObstacle，都视为到此为止（绝对禁止越子）
+        // 碰到任意棋子：无论是否声明 jumpObstacle，都视为到此为止
         if (target) {
+            // 非 moveOnly 的普通捕吃：允许吃敌方棋子（炮的隔子吃由上面的 isCannonLikeCapture 处理）
             if (target.side !== side && !pattern.moveOnly) moves.push(to)
             break
         }
 
         // 处理特殊规则
-    if (pattern.captureOnly && !target) continue
+    if (pattern.captureOnly && !target) {
+        // 捕吃模式：没有目标则不加入
+        continue
+    }
     if (pattern.moveOnly && target) continue // 上面已 break 过，这里保持语义
 
         moves.push(to)
@@ -300,7 +304,16 @@ function generateMovesFromPattern(
  * 调整dy方向（红方向上走为负，黑方向上走为正）
  */
 function adjustDyForSide(dy: number, side: Side): number {
+    // 红方向上为负，黑方向上为正（视角翻转）
     return side === 'red' ? -dy : dy
+}
+
+/**
+ * 调整dx方向（红方右为正，黑方右为负，按棋方视角左右镜像）
+ */
+function adjustDxForSide(dx: number, side: Side): number {
+    // 红方右为正，黑方右为负（左右镜像）
+    return side === 'red' ? dx : -dx
 }
 
 /**

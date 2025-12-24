@@ -304,6 +304,36 @@ export const battleApi = {
     const res = await apiRequest<GetData>(`/api/v1/battles/${battleId}`)
     return res.data
   },
+
+  /** 设置临时规则（仅房主可调用） */
+  async setRules(battleId: number, rules: any): Promise<{ battleId: number; ok: boolean } | null> {
+    const res = await apiRequest<{ battleId: number; ok: boolean }>(`/api/v1/battles/${battleId}/rules`, {
+      method: 'POST',
+      body: JSON.stringify({ rules }),
+    })
+    return res.data ?? null
+  },
+
+  /** 获取临时规则（加入方调用） */
+  async getRules(battleId: number): Promise<any | null> {
+    const res = await apiRequest<any>(`/api/v1/battles/${battleId}/rules`)
+    return res.data ?? null
+  },
+
+  /** 设置临时回放（仅房主可调用） */
+  async setReplay(battleId: number, replay: any): Promise<{ battleId: number; ok: boolean } | null> {
+    const res = await apiRequest<{ battleId: number; ok: boolean }>(`/api/v1/battles/${battleId}/replay`, {
+      method: 'POST',
+      body: JSON.stringify({ replay }),
+    })
+    return res.data ?? null
+  },
+
+  /** 获取临时回放（参与者调用） */
+  async getReplay(battleId: number): Promise<any | null> {
+    const res = await apiRequest<any>(`/api/v1/battles/${battleId}/replay`)
+    return res.data ?? null
+  },
 }
 
 /**

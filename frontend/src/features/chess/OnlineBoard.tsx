@@ -2,9 +2,12 @@ import { useMemo, useState } from 'react'
 import type { BattleMove, BattleSnapshot } from '../../services/battlesSocket'
 import type { Board, Pos, Side } from './types'
 import { createInitialBoard } from './types'
-import { generateLegalMoves, movePiece, checkGameOver, isInCheck } from './rules'
-import type { CustomRules } from './types'
+import { generateLegalMoves, movePiece, isInCheck } from './rules'
+import type { CustomRules, PieceType } from './types'
 import { generateCustomMoves } from './customRules'
+import type { CustomRuleSet } from './ruleEngine'
+import { isCustomRuleSet, ruleSetToCustomRules } from './ruleAdapter'
+import { generateMovesFromRules } from './ruleEngine'
 import { isInCheckWithCustomRules } from './rules'
 import './board.css'
 
@@ -37,11 +40,13 @@ export type OnlineBoardProps = {
     authoritativeTurn?: Side
     // 用于与本地 moves 对齐的快照 moves（可为空）
     snapshotMoves?: BattleSnapshot['moves']
-    // 可选：自定义规则（仅自定义在线对战使用；存在则按自定义规则计算走子、将军与胜负）
-    customRules?: CustomRules
+    // 可选：自定义规则（支持 CustomRules 或 CustomRuleSet；存在则按自定义规则计算走子、将军与胜负）
+    customRules?: CustomRules | CustomRuleSet
+    // 可选：强制我方阵营（优先于通过 players/myUserId 推断），用于自定义在线局将黑方固定给加入方
+    forcedMySide?: Side | 'spectator'
 }
 
-export default function OnlineBoard({ moves, turnIndex, players, myUserId, onAttemptMove, winnerId, authoritativeBoard, authoritativeTurn, snapshotMoves, customRules }: OnlineBoardProps) {
+export default function OnlineBoard({ moves, turnIndex, players, myUserId, onAttemptMove, winnerId, authoritativeBoard, authoritativeTurn, snapshotMoves, customRules, forcedMySide }: OnlineBoardProps) {
     // 优先使用权威快照棋盘；若快照落后，则在其基础上补推增量 moves；再不行退回全量 moves 推演
     const board = useMemo(() => {
         // 无权威棋盘：从初始局面 + 全量 moves 推演
@@ -78,7 +83,7 @@ export default function OnlineBoard({ moves, turnIndex, players, myUserId, onAtt
     // 判定我方阵营与观战
     const redUser = players?.[0]
     const blackUser = players?.[1]
-    const mySide: Side | 'spectator' = myUserId === redUser ? 'red' : myUserId === blackUser ? 'black' : 'spectator'
+    const mySide: Side | 'spectator' = forcedMySide ?? (myUserId === redUser ? 'red' : myUserId === blackUser ? 'black' : 'spectator')
 
     // 本地 UI 选择与合法落点提示
     const [selected, setSelected] = useState<Pos | undefined>(undefined)
@@ -87,14 +92,46 @@ export default function OnlineBoard({ moves, turnIndex, players, myUserId, onAtt
         const { x, y } = selected
         const p = board[y][x]
         if (!p) return []
-        // 若提供自定义规则，使用自定义规则生成走子
-        if (customRules) return generateCustomMoves(board, { x, y }, customRules)
-        return generateLegalMoves(board, { x, y }, p.side)
+        // 若提供自定义规则：
+        // - 如果为 CustomRuleSet，则使用 ruleEngine 的 generateMovesFromRules 保持与编辑器一致
+        // - 否则使用 legacy customRules 生成
+        if (customRules) {
+            if (isCustomRuleSet(customRules as any)) {
+                const rs = customRules as CustomRuleSet
+                const pieceRule = rs.pieceRules[p.type as PieceType]
+                if (pieceRule && Array.isArray(pieceRule.movePatterns) && pieceRule.movePatterns.length > 0) {
+                    const lm = generateMovesFromRules(board, { x, y }, pieceRule, p.side)
+                    console.debug('[OnlineBoard] legal (RuleSet)', { type: p.type, side: p.side, from: { x, y }, moves: lm })
+                    return lm
+                }
+                // 若未定义该棋子规则，降级到简化版
+                const lm = generateCustomMoves(board, { x, y }, undefined)
+                console.debug('[OnlineBoard] legal (fallback default)', { type: p.type, side: p.side, from: { x, y }, moves: lm })
+                return lm
+            }
+            const lm = generateCustomMoves(board, { x, y }, customRules as CustomRules)
+            console.debug('[OnlineBoard] legal (CustomRules)', { type: p.type, side: p.side, from: { x, y }, moves: lm })
+            return lm
+        }
+        const lm = generateLegalMoves(board, { x, y }, p.side)
+        console.debug('[OnlineBoard] legal (standard)', { type: p.type, side: p.side, from: { x, y }, moves: lm })
+        return lm
     }, [board, selected, customRules])
 
     // 将军提示
     const inCheck = useMemo(() => {
-        return customRules ? isInCheckWithCustomRules(board, turn, customRules) : isInCheck(board, turn)
+        if (customRules) {
+            if (isCustomRuleSet(customRules as any)) {
+                try {
+                    const cr = ruleSetToCustomRules(customRules as CustomRuleSet)
+                    return isInCheckWithCustomRules(board, turn, cr)
+                } catch {
+                    return isInCheck(board, turn)
+                }
+            }
+            return isInCheckWithCustomRules(board, turn, customRules as CustomRules)
+        }
+        return isInCheck(board, turn)
     }, [board, turn, customRules])
     const kingInCheckPos = useMemo(() => {
         if (!inCheck) return null
@@ -108,17 +145,23 @@ export default function OnlineBoard({ moves, turnIndex, players, myUserId, onAtt
     }, [inCheck, board, turn])
 
     const gameOver = useMemo(() => {
-        // UI 层简单判断：若后端给 winnerId 则优先生效；否则按本地规则检测（仅参考）
-        if (winnerId) return true
-        const nextTurn: Side = turn === 'red' ? 'black' : 'red'
-        const r = checkGameOver(board, nextTurn, customRules)
-        return r !== null
-    }, [board, turn, winnerId, customRules])
+        // 仅依赖后端的 winnerId，避免本地误判（尤其在自定义规则下）导致点击被拦截
+        return !!winnerId
+    }, [winnerId])
 
     function onCellClick(x: number, y: number) {
-        if (gameOver) return
-        if (mySide === 'spectator') return
-        if (turn !== mySide) return // 只允许当前手玩家操作
+        if (gameOver) {
+            console.debug('[OnlineBoard] click ignored: game over')
+            return
+        }
+        if (mySide === 'spectator') {
+            console.debug('[OnlineBoard] click ignored: spectator')
+            return
+        }
+        if (turn !== mySide) {
+            console.debug('[OnlineBoard] click ignored: not my turn', { turn, mySide })
+            return // 只允许当前手玩家操作
+        }
 
         const piece = board[y][x]
         // 只能选中自己阵营的棋子
@@ -130,6 +173,7 @@ export default function OnlineBoard({ moves, turnIndex, players, myUserId, onAtt
         // 若点击到合法落点，则发起走子请求；交由服务器广播来驱动状态
         const isLegal = legal.some(m => m.x === x && m.y === y)
         if (isLegal) {
+            console.debug('[OnlineBoard] send move', { from: selected, to: { x, y } })
             onAttemptMove(selected, { x, y })
             setSelected(undefined)
             return

@@ -41,6 +41,23 @@ export function connectBattle() {
         transports: ['websocket'],
     });
 
+    // 基础错误与事件日志（便于定位 ack 超时原因）
+    socket.on('connect_error', (err: any) => {
+        console.error('[WS] connect_error', err);
+    });
+    socket.on('error', (err: any) => {
+        console.error('[WS] error', err);
+    });
+    socket.on('exception', (err: any) => {
+        console.error('[WS] exception', err);
+    });
+    // 轻量 onAny 调试（忽略高频心跳）
+    (socket as any).onAny?.((event: string, ...args: any[]) => {
+        if (event !== 'battle.heartbeat') {
+            console.debug('[WS] event', event, args?.[0] ?? args);
+        }
+    });
+
     const join = (battleId: number, lastSeq?: number) => socket.emit('battle.join', { battleId, lastSeq });
     const move = (
         battleId: number,
@@ -55,12 +72,17 @@ export function connectBattle() {
                     settled = true;
                     reject(new Error('move ack timeout'));
                 }
-            }, 3000);
-            socket.emit('battle.move', { battleId, from, to, clientRequestId }, (ack: BattleMove) => {
+            }, 5000);
+            // 附带客户端随机请求ID，便于后端回执关联
+            socket.emit('battle.move', { battleId, from, to, clientRequestId }, (ack: any) => {
                 if (settled) return;
                 settled = true;
                 clearTimeout(timer);
-                resolve(ack);
+                if (ack && (ack.error || ack.code === 'ERROR')) {
+                    reject(new Error(ack.error || 'server rejected move'));
+                    return;
+                }
+                resolve(ack as BattleMove);
             });
         });
     };

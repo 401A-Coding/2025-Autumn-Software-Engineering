@@ -7,6 +7,7 @@ import {
   Query,
   UseGuards,
   Req,
+  ForbiddenException,
 } from '@nestjs/common';
 import { BattlesService } from './battles.service';
 import { BoardService } from '../board/board.service';
@@ -134,6 +135,61 @@ export class BattlesController {
   get(@Param('battleId') battleId: string) {
     const id = Number(battleId);
     return this.battles.snapshot(id);
+  }
+
+  // 临时规则：仅在自定义在线对战期间使用，结束后清理
+  @Post(':battleId/rules')
+  @UseGuards(JwtAuthGuard)
+  setRules(
+    @Param('battleId') battleId: string,
+    @Body() body: { rules: any },
+    @Req() req: Request & { user?: { sub: number } },
+  ) {
+    const id = Number(battleId);
+    const b = this.battles.getBattle(id);
+    if (!b.ownerId || b.ownerId !== req.user!.sub) {
+      // 只有房主（创建者/红方）能设置该对局规则
+      throw new ForbiddenException('仅房主可设置规则');
+    }
+    return this.battles.setCustomRules(id, body?.rules);
+  }
+
+  @Get(':battleId/rules')
+  @UseGuards(JwtAuthGuard)
+  getRules(@Param('battleId') battleId: string) {
+    const id = Number(battleId);
+    return this.battles.getCustomRules(id);
+  }
+
+  // 临时回放：房主可设，房间参与者可取，用于加入方复制保存
+  @Post(':battleId/replay')
+  @UseGuards(JwtAuthGuard)
+  setReplay(
+    @Param('battleId') battleId: string,
+    @Body() body: { replay: any },
+    @Req() req: Request & { user?: { sub: number } },
+  ) {
+    const id = Number(battleId);
+    const b = this.battles.getBattle(id);
+    if (!b.ownerId || b.ownerId !== req.user!.sub) {
+      throw new ForbiddenException('仅房主可设置回放');
+    }
+    return this.battles.setTempReplay(id, body?.replay);
+  }
+
+  @Get(':battleId/replay')
+  @UseGuards(JwtAuthGuard)
+  getReplay(
+    @Param('battleId') battleId: string,
+    @Req() req: Request & { user?: { sub: number } },
+  ) {
+    const id = Number(battleId);
+    const b = this.battles.getBattle(id);
+    // 仅房间参与者可取（房主或加入者）
+    if (!b.players.includes(req.user!.sub)) {
+      throw new ForbiddenException('仅房间参与者可获取回放');
+    }
+    return this.battles.getTempReplay(id);
   }
 
   @Post('match')

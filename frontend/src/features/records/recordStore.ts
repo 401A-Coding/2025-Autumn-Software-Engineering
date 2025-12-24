@@ -128,18 +128,16 @@ export const recordStore = {
                 moveIndex: idx,
                 from: { x: Number.isFinite(fx) ? Math.floor(fx) : 0, y: Number.isFinite(fy) ? Math.floor(fy) : 0 },
                 to: { x: Number.isFinite(tx) ? Math.floor(tx) : 0, y: Number.isFinite(ty) ? Math.floor(ty) : 0 },
-                // 后端要求 MoveDto.piece 为 PieceDto，包含 type/side/x/y
+                // 与 OpenAPI 对齐：piece 仅包含 type/side
                 piece: {
-                    type: String('soldier'), // 默认类型为字符串
+                    type: 'soldier',
                     side: (m.turn === 'red' || m.turn === 'black') ? m.turn : 'red',
-                    x: Number.isFinite(fx) ? Math.floor(fx) : 0,
-                    y: Number.isFinite(fy) ? Math.floor(fy) : 0,
                 },
             }
         }).filter(m => Number.isFinite(m.from.x) && Number.isFinite(m.from.y) && Number.isFinite(m.to.x) && Number.isFinite(m.to.y))
 
         let rec: ChessRecord;
-        const body: components['schemas']['RecordCreateRequest'] & { initialLayout?: any; customLayout?: any; customRules?: any; mode?: any } = {
+        const body: components['schemas']['RecordCreateRequest'] & { initialLayout?: any } = {
             opponent: partial.opponent,
             startedAt: partial.startedAt,
             endedAt: partial.endedAt,
@@ -147,10 +145,8 @@ export const recordStore = {
             keyTags: partial.keyTags,
             moves: sanitizedMoves,
             bookmarks: (partial.bookmarks || []).map(b => ({ step: b.step, label: b.label, note: (b as any).note })),
+            // 仅发送 initialLayout（符合契约：{ pieces: [...] }）
             ...(partial as any).initialLayout ? { initialLayout: (partial as any).initialLayout } : {},
-            ...(partial as any).customLayout ? { customLayout: (partial as any).customLayout } : {},
-            ...(partial as any).customRules ? { customRules: (partial as any).customRules } : {},
-            ...(partial as any).mode ? { mode: (partial as any).mode } : {},
         }
 
         let created: any = null
@@ -162,8 +158,9 @@ export const recordStore = {
             // 使用 axios 实例以触发 refresh token 流程（若需要）并正确处理拦截器
             try { console.debug('[recordStore] first move sample', JSON.stringify(body.moves && body.moves[0])) } catch { }
             const res = await http.post('/api/v1/records', body)
-            created = res.data
-            savedToServer = !!created
+            const envelope = res?.data
+            created = envelope?.data // 统一响应包：{ code, message, data }
+            savedToServer = !!created && (envelope?.code === 0 || envelope?.code == null)
             try { console.debug('[recordStore] server save result', savedToServer, created?.id) } catch { }
         } catch (e: any) {
             // 后端保存失败（可能未登录或网络问题），将降级为仅本地保存
@@ -215,7 +212,7 @@ export const recordStore = {
             }
         }
 
-        return { record: rec, savedToServer: true }
+        return { record: rec, savedToServer }
     },
 
     async toggleFavorite(id: string, fav: boolean) {
