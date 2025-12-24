@@ -64,6 +64,14 @@ export default function PostDetail() {
     const targetCommentId = (location.state as { commentId?: number })?.commentId
     const returnTab = (location.state as { tab?: 'posts' | 'comments' })?.tab
 
+    // Debug: log incoming navigation state for jump-to-comment diagnosis
+    try {
+        // eslint-disable-next-line no-console
+        console.log('jump-debug:init', { locationState: location.state, targetCommentId, fromPage })
+    } catch (e) {
+        // noop
+    }
+
     const handleBack = () => {
         // If user came from a known in-app location, go back in history to preserve navigation stack
         if (returnTab && fromPage === '/app/my-posts') {
@@ -137,7 +145,12 @@ export default function PostDetail() {
         if (Number.isNaN(id)) return
         try {
             const res = await communityApi.getComments(id, 1, 20)
-            setComments((res as any).items || [])
+            const items = (res as any).items || []
+            setComments(items)
+            try {
+                // eslint-disable-next-line no-console
+                console.log('jump-debug:commentsLoaded', { postId: id, count: items.length, hasTarget: !!items.find((c: any) => c.id === targetCommentId || (c.replies || []).some((r: any) => r.id === targetCommentId)) })
+            } catch (e) {}
         } catch (e) {
             console.error('Failed to load comments:', e)
             setComments([])
@@ -236,6 +249,7 @@ export default function PostDetail() {
 
     // 当评论加载完成且有目标评论ID时，滚动到该评论
     useEffect(() => {
+        try { console.log('jump-debug:useEffect', { targetCommentId, commentsLength: comments.length }) } catch (e) {}
         if (targetCommentId && comments.length > 0) {
             // 首先检查是否是楼中楼评论，如果是，先展开父评论
             let needExpand = false
@@ -250,24 +264,57 @@ export default function PostDetail() {
                 }
             }
 
+            // helper: robust scroll with retries to handle render timing and platform quirks
+            function scrollToElementWithRetry(el: Element | null, attempts = 0) {
+                console.log('jump-debug:scrollAttempt', { targetCommentId, attempts, elExists: !!el })
+                if (!el) return
+                try {
+                    el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                } catch (e) {
+                    // ignore
+                }
+
+                // verify position after scrolling; if not at expected offset, retry a few times
+                const rootStyles = getComputedStyle(document.documentElement)
+                const headerVar = rootStyles.getPropertyValue('--header-height')
+                let headerOffset = 0
+                if (headerVar) {
+                    const parsed = parseFloat(headerVar)
+                    if (!Number.isNaN(parsed)) headerOffset = parsed
+                }
+                if (headerOffset === 0) {
+                    const topbar = document.querySelector('.topbar-sticky') as HTMLElement | null
+                    headerOffset = topbar ? topbar.getBoundingClientRect().height : 0
+                }
+                const safeInset = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('env(safe-area-inset-top)') || '0') || 0
+                headerOffset += safeInset
+
+                const rect = el.getBoundingClientRect()
+                const distance = Math.abs(rect.top - headerOffset)
+                console.log('jump-debug:afterScroll', { targetCommentId, attempts, rectTop: rect.top, headerOffset, distance })
+                if (distance > 8 && attempts < 6) {
+                    // small delay then retry — accounts for images/fonts/layout
+                    console.log('jump-debug:retrying', { targetCommentId, attempts })
+                    setTimeout(() => scrollToElementWithRetry(el, attempts + 1), 140)
+                }
+            }
+
             if (needExpand && parentCommentId) {
                 // 展开父评论
                 setExpandedReplies(prev => ({ ...prev, [parentCommentId]: true }))
 
-                // 等待DOM更新后再滚动
+                // 等待DOM更新后再滚动（展开后 DOM 结构会改变）
                 setTimeout(() => {
                     const targetComment = document.getElementById(`comment-${targetCommentId}`)
-                    if (targetComment) {
-                        targetComment.scrollIntoView({ behavior: 'smooth', block: 'start' })
-                    }
+                    scrollToElementWithRetry(targetComment)
                 }, 300)
             } else {
-                // 主评论直接滚动
+                // 主评论直接滚动，使用重试函数以确保目标对齐
                 const targetComment = document.getElementById(`comment-${targetCommentId}`)
                 if (targetComment) {
                     setTimeout(() => {
-                        targetComment.scrollIntoView({ behavior: 'smooth', block: 'start' })
-                    }, 100)
+                        scrollToElementWithRetry(targetComment)
+                    }, 120)
                 }
             }
         }
