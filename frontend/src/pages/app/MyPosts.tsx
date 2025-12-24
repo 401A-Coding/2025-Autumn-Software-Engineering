@@ -206,7 +206,7 @@ export default function MyPosts() {
                                 return (
                                     <div
                                         key={comment.id}
-                                        className="paper-card"
+                                        className="paper-card post-item"
                                         style={{
                                             padding: '16px',
                                             overflow: 'hidden',
