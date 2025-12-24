@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import './app-pages.css'
 import { communityApi, userApi } from '../../services/api'
@@ -99,9 +99,22 @@ export default function MyPosts() {
         }
     }
 
+    const topRowRef = useRef<HTMLDivElement | null>(null)
+    const [topHeight, setTopHeight] = useState(0)
+
+    useEffect(() => {
+        function update() {
+            const h = topRowRef.current ? topRowRef.current.getBoundingClientRect().height : 0
+            setTopHeight(h)
+        }
+        update()
+        window.addEventListener('resize', update)
+        return () => window.removeEventListener('resize', update)
+    }, [])
+
     return (
         <div>
-            <div className="row align-center mb-12">
+            <div ref={topRowRef} className="row align-center mb-12" style={{ position: 'sticky', top: 0, zIndex: 40, background: '#ffffff' }}>
                 <button className="btn-ghost" onClick={() => navigate('/app/profile')}>
                     ← 返回
                 </button>
@@ -109,8 +122,8 @@ export default function MyPosts() {
                 <div style={{ width: 64 }} />
             </div>
 
-            <section className="paper-card card-pad">
-                <div className="mb-12">
+            <section className="paper-card card-pad" style={{ position: 'relative' }}>
+                <div className="mb-12" style={{ position: 'sticky', top: topHeight, zIndex: 39, background: '#ffffff', paddingTop: 12 }}>
                     <Segmented
                         options={[
                             { label: '主贴', value: 'posts' },

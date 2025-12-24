@@ -1295,9 +1295,16 @@
 .like-filter-bar {
     display: flex;
     align-items: center;
+    justify-content: space-between;
     gap: 12px;
     margin-bottom: 16px;
-    padding: 0 16px;
+    padding: 8px 16px;
+    /* 置顶不随列表滚动 */
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    background: #fff7ed;
+    border-bottom: 1px solid #e5e7eb;
 }
 
 .like-filter-label {
