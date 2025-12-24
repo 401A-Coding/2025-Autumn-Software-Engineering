@@ -138,6 +138,7 @@ export const recordStore = {
             }
         }).filter(m => Number.isFinite(m.from.x) && Number.isFinite(m.from.y) && Number.isFinite(m.to.x) && Number.isFinite(m.to.y))
 
+        let rec: ChessRecord;
         const body: components['schemas']['RecordCreateRequest'] & { initialLayout?: any; customLayout?: any; customRules?: any; mode?: any } = {
             opponent: partial.opponent,
             startedAt: partial.startedAt,
@@ -157,24 +158,25 @@ export const recordStore = {
         // 尝试向服务器保存（若未登录或网络/授权失败则回退到本地保存）
         try {
             // 调试信息：记录是否有 token 以及请求体摘要
-            try { console.debug('[recordStore] attempting server save, hasToken=', !!localStorage.getItem('token'), 'body=', { opponent: body.opponent, moves: body.moves?.length }) } catch {}
+            try { console.debug('[recordStore] attempting server save, hasToken=', !!localStorage.getItem('token'), 'body=', { opponent: body.opponent, moves: body.moves?.length }) } catch { }
             // 使用 axios 实例以触发 refresh token 流程（若需要）并正确处理拦截器
-            try { console.debug('[recordStore] first move sample', JSON.stringify(body.moves && body.moves[0])) } catch {}
+            try { console.debug('[recordStore] first move sample', JSON.stringify(body.moves && body.moves[0])) } catch { }
             const res = await http.post('/api/v1/records', body)
             created = res.data
             savedToServer = !!created
-            try { console.debug('[recordStore] server save result', savedToServer, created?.id) } catch {}
+            try { console.debug('[recordStore] server save result', savedToServer, created?.id) } catch { }
         } catch (e: any) {
             // 后端保存失败（可能未登录或网络问题），将降级为仅本地保存
             try {
                 console.error('[recordStore] server save failed, falling back to local, status=', e?.status ?? e?.response?.status, 'msg=', e?.serverMessage ?? e?.message ?? e)
-            } catch {}
+            } catch { }
             created = null
             savedToServer = false
         }
-        const created = await recordsApi.create(body)
+        // const created = await recordsApi.create(body)
 
-        const rec: ChessRecord = {
+        // 构造 rec
+        rec = {
             id: String(created?.id ?? uid()),
             startedAt: created?.startedAt ?? partial.startedAt,
             endedAt: created?.endedAt ?? partial.endedAt,
