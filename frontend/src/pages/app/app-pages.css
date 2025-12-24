@@ -1236,8 +1236,9 @@
 .view-item {
     padding: 12px;
     border-radius: 8px;
-    border: 1px solid #cdac76;
-    background-color: #e7bf8f;
+    /* 改为与 MyLikes / MyBookmarks 一致的白色卡片样式 */
+    border: 1px solid #e5e7eb;
+    background-color: #ffffff;
     transition: all 0.2s;
 }
 
@@ -1247,7 +1248,7 @@
 
 .view-item.clickable:hover {
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-    border-color: #d3b87c;
+    border-color: #d1d5db;
 }
 
 /* 删除/不可导航的灰显样式 */
@@ -1294,9 +1295,16 @@
 .like-filter-bar {
     display: flex;
     align-items: center;
+    justify-content: space-between;
     gap: 12px;
     margin-bottom: 16px;
-    padding: 0 16px;
+    padding: 8px 16px;
+    /* 置顶不随列表滚动 */
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    background: #fff7ed;
+    border-bottom: 1px solid #e5e7eb;
 }
 
 .like-filter-label {
@@ -1594,6 +1602,39 @@
     background: #fff7ed;
 }
 
+/* 在特定页面上禁用 document root 滚动，仅允许内部内容区滚动 */
+.app-page.no-root-scroll {
+    height: 100vh;
+    overflow: hidden;
+}
+
+.app-page.no-root-scroll .app-page-content {
+    overflow-y: auto;
+}
+
+/* MyPosts 专用筛选栏，紧贴 header 下方 */
+.posts-filter-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin: 0;
+    /* 取消默认外边距，紧贴 header */
+    padding: 8px 16px;
+    position: sticky;
+    top: 0;
+    z-index: 38;
+    background: #ffffff;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+/* 当使用 no-root-scroll 布局时，让 header 固定在视口顶部 */
+.app-page.no-root-scroll .app-page-header {
+    position: sticky;
+    top: 0;
+    z-index: 40;
+}
+
 .loading-message,
 .error-message,
 .empty-message {
@@ -1730,4 +1771,19 @@
     .record-nickname {
         font-size: 12px;
     }
+}
+
+/* MyPosts 列表项 (白色卡片风格，和 MyLikes/MyBookmarks 保持一致) */
+.post-item {
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid #e5e7eb;
+    background-color: #ffffff;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.post-item:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    border-color: #d1d5db;
 }

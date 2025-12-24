@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import './app-pages.css'
 import { communityApi, userApi } from '../../services/api'
@@ -99,26 +99,45 @@ export default function MyPosts() {
         }
     }
 
+    const headerRef = useRef<HTMLDivElement | null>(null)
+
+    // 页面挂载时禁止 document 根滚动，卸载时恢复（仅影响 MyPosts）
+    useEffect(() => {
+        const prevHtml = document.documentElement.style.overflow
+        const prevBody = document.body.style.overflow
+        document.documentElement.style.overflow = 'hidden'
+        document.body.style.overflow = 'hidden'
+        return () => {
+            document.documentElement.style.overflow = prevHtml
+            document.body.style.overflow = prevBody
+        }
+    }, [])
+
     return (
-        <div>
-            <div className="row align-center mb-12">
-                <button className="btn-ghost" onClick={() => navigate('/app/profile')}>
+        <div className="app-page no-root-scroll">
+            <div ref={headerRef} className="app-page-header">
+                <button className="back-button btn-ghost" onClick={() => navigate('/app/profile')}>
                     ← 返回
                 </button>
-                <h3 style={{ margin: 0, flex: 1, textAlign: 'center' }}>我的帖子</h3>
+                <h2>我的帖子</h2>
                 <div style={{ width: 64 }} />
             </div>
 
-            <section className="paper-card card-pad">
-                <div className="mb-12">
-                    <Segmented
-                        options={[
-                            { label: '主贴', value: 'posts' },
-                            { label: '回复', value: 'comments' },
-                        ]}
-                        value={tab}
-                        onChange={(v: string) => setTab(v as 'posts' | 'comments')}
-                    />
+            <div className="app-page-content">
+                <div className="posts-filter-bar">
+                    <div style={{ display: 'flex', alignItems: 'center' }}>
+                        <span className="like-filter-label">帖子类型</span>
+                    </div>
+                    <div>
+                        <Segmented
+                            options={[
+                                { label: '主贴', value: 'posts' },
+                                { label: '回复', value: 'comments' },
+                            ]}
+                            value={tab}
+                            onChange={(v: string) => setTab(v as 'posts' | 'comments')}
+                        />
+                    </div>
                 </div>
 
                 {loading ? (
@@ -131,11 +150,11 @@ export default function MyPosts() {
                             {posts.map((post) => (
                                 <div
                                     key={post.id}
-                                    className="paper-card cursor-pointer hover:shadow-md transition-shadow"
+                                    className="paper-card post-item"
                                     style={{ padding: 0, overflow: 'hidden' }}
                                     onClick={() => navigate(`/app/community/${post.id}`, { state: { from: '/app/my-posts', tab } })}
                                 >
-                                    <div style={{ padding: '12px 16px', backgroundColor: '#fafafa', borderBottom: '1px solid #e0e0e0' }}>
+                                    <div style={{ padding: '12px 16px', backgroundColor: '#ffffff', borderBottom: '1px solid #e0e0e0' }}>
                                         <UserAvatar
                                             userId={post.authorId}
                                             nickname={post.authorNickname}
@@ -187,7 +206,7 @@ export default function MyPosts() {
                                 return (
                                     <div
                                         key={comment.id}
-                                        className="paper-card"
+                                        className="paper-card post-item"
                                         style={{
                                             padding: '16px',
                                             overflow: 'hidden',
@@ -275,7 +294,7 @@ export default function MyPosts() {
                         </div>
                     )
                 )}
-            </section>
+            </div>
         </div>
     )
 }
