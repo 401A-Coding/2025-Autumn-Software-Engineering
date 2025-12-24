@@ -100,17 +100,6 @@ export default function MyPosts() {
     }
 
     const headerRef = useRef<HTMLDivElement | null>(null)
-    const [headerHeight, setHeaderHeight] = useState(0)
-
-    useEffect(() => {
-        function update() {
-            const h = headerRef.current ? headerRef.current.getBoundingClientRect().height : 0
-            setHeaderHeight(h)
-        }
-        update()
-        window.addEventListener('resize', update)
-        return () => window.removeEventListener('resize', update)
-    }, [])
 
     // 页面挂载时禁止 document 根滚动，卸载时恢复（仅影响 MyPosts）
     useEffect(() => {
@@ -135,7 +124,7 @@ export default function MyPosts() {
             </div>
 
             <div className="app-page-content">
-                <div className="like-filter-bar" style={{ position: 'sticky', top: headerHeight, background: '#ffffff', zIndex: 38 }}>
+                <div className="posts-filter-bar">
                     <div style={{ display: 'flex', alignItems: 'center' }}>
                         <span className="like-filter-label">帖子类型</span>
                     </div>

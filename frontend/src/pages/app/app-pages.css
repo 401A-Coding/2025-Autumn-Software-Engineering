@@ -1612,6 +1612,29 @@
     overflow-y: auto;
 }
 
+/* MyPosts 专用筛选栏，紧贴 header 下方 */
+.posts-filter-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin: 0;
+    /* 取消默认外边距，紧贴 header */
+    padding: 8px 16px;
+    position: sticky;
+    top: 0;
+    z-index: 38;
+    background: #ffffff;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+/* 当使用 no-root-scroll 布局时，让 header 固定在视口顶部 */
+.app-page.no-root-scroll .app-page-header {
+    position: sticky;
+    top: 0;
+    z-index: 40;
+}
+
 .loading-message,
 .error-message,
 .empty-message {
