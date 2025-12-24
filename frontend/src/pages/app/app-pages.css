@@ -1662,6 +1662,15 @@
     top: calc(var(--header-height) + env(safe-area-inset-top, 0px));
 }
 
+/* When topbar lives inside a mobile viewport (MobileFrame), it should
+   stick to the top of the mobile scrolling container (which is already
+   positioned below the global header). Use safe-area inset only to avoid
+   extra offset; keep z-index below header. */
+.mobile-viewport .topbar-sticky {
+    top: env(safe-area-inset-top, 0px);
+    z-index: 19;
+}
+
 .loading-message,
 .error-message,
 .empty-message {
