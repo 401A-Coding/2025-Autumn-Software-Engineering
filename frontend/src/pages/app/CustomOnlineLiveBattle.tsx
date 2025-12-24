@@ -10,7 +10,6 @@ import { ruleSetToCustomRules } from '../../features/chess/ruleAdapter'
 import { recordStore } from '../../features/records/recordStore'
 import type { ChessRecord, MoveRecord } from '../../features/records/types'
 import { cloneBoard } from '../../features/chess/types'
-import { movePiece } from '../../features/chess/rules'
 // board adapter not needed; snapshot.board already local Board format
 import './LiveBattle.css'
 
@@ -34,7 +33,7 @@ export default function CustomOnlineLiveBattle() {
     const [endKind, setEndKind] = useState<'win' | 'lose' | 'draw' | 'info' | null>(null)
     const [moves, setMoves] = useState<BattleMove[]>([])
     const [startedAt] = useState<string>(new Date().toISOString())
-    
+
     // 自定义规则和棋盘
     const [customRuleSet, setCustomRuleSet] = useState<CustomRuleSet | null>(null)
     const [customRules, setCustomRules] = useState<CustomRules | null>(null)
@@ -251,16 +250,16 @@ export default function CustomOnlineLiveBattle() {
     const handleSaveRecord = async () => {
         try {
             console.log('[CustomBattle] handleSaveRecord called, startedAt:', startedAt)
-            
+
             const s = latestSnapshotRef.current || snapshot
             if (!s) { alert('暂无对局数据可保存'); return }
-            
+
             const redUser = s.players?.[0]
             const blackUser = s.players?.[1]
             const winnerId = s.winnerId
-            
+
             console.log('[CustomBattle] Saving record', { redUser, blackUser, winnerId, status: s.status })
-            
+
             const result: 'red' | 'black' | 'draw' | undefined = ((): any => {
                 if (s.status === 'finished') {
                     if (winnerId == null) return 'draw'
@@ -279,11 +278,11 @@ export default function CustomOnlineLiveBattle() {
                     ts: m.ts || Date.now(),
                 }
             })
-            
+
             console.log('[CustomBattle] Mapped moves:', mappedMoves.length)
 
             const recordStartedAt = startedAt || new Date().toISOString()
-            
+
             const rec: Omit<ChessRecord, 'id'> = {
                 startedAt: recordStartedAt,
                 endedAt: new Date().toISOString(),

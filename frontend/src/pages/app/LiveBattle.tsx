@@ -782,7 +782,7 @@ export default function LiveBattle() {
                                                 userId={myProfile.id}
                                                 nickname={myProfile.nickname}
                                                 avatarUrl={myProfile.avatarUrl}
-                                                size={96}
+                                                size="large"
                                                 showTime={false}
                                                 nicknameWrap={true}
                                             />

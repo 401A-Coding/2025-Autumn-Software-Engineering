@@ -124,7 +124,7 @@ export const recordStore = {
             startedAt: created?.startedAt ?? partial.startedAt,
             endedAt: created?.endedAt ?? partial.endedAt,
             opponent: created?.opponent ?? partial.opponent,
-            result: created?.result ?? partial.result,
+            result: (created?.result ?? partial.result) as import('./types').GameResult,
             keyTags: created?.keyTags ?? partial.keyTags ?? [],
             favorite: !!created?.favorite,
             moves: (created?.moves || partial.moves || []).map((mv: any, idx: number) => ({
@@ -141,9 +141,9 @@ export const recordStore = {
             })),
             notes: partial.notes || [],
             initialLayout: created?.initialLayout ?? (partial as any).initialLayout ?? undefined,
-            customLayout: created?.customLayout ?? (partial as any).customLayout ?? undefined,
-            customRules: created?.customRules ?? (partial as any).customRules ?? undefined,
-            mode: created?.mode ?? (partial as any).mode ?? undefined,
+            customLayout: (created as any)?.customLayout ?? (partial as any).customLayout ?? undefined,
+            customRules: (created as any)?.customRules ?? (partial as any).customRules ?? undefined,
+            mode: (created as any)?.mode ?? (partial as any).mode ?? undefined,
         }
 
         return { record: rec, savedToServer: true }
