@@ -430,6 +430,35 @@
     cursor: pointer;
 }
 
+/* Allow search input to shrink inside flex containers and be responsive */
+.topbar-sticky .search-input-full {
+    min-width: 0;
+    /* allow flex child to shrink, preventing overflow */
+}
+
+@media (max-width: 640px) {
+    .topbar-sticky .search-input-full {
+        padding: 6px 8px;
+        font-size: 14px;
+    }
+
+    .topbar-sticky .btn-ghost {
+        min-width: 40px;
+        /* reduce button min width on narrow screens */
+    }
+}
+
+@media (max-width: 420px) {
+    .topbar-sticky .search-input-full {
+        padding: 6px 6px;
+        font-size: 13px;
+    }
+
+    .topbar-sticky .btn-ghost {
+        min-width: 36px;
+    }
+}
+
 .text-orange-700 {
     color: #92400e;
 }
