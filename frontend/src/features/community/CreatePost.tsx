@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import '../../pages/app/app-pages.css'
+import '../../pages/app/community.css'
 import { communityApi, recordsApi, boardApi } from '../../services/api'
 import TagInput from '../../components/TagInput'
 import ResourceSelector from '../../components/ResourceSelector'
@@ -35,16 +36,26 @@ export default function CreatePost() {
     // 当资源引用变化时，自动添加或移除对应的 tag（对局记录、自定义棋局、残局）
     useEffect(() => {
         let mounted = true
-
         async function applyAutoTag() {
             const autoTags = ['对局记录', '自定义棋局', '残局']
+            const MAX_TAGS = 5
 
-            // helper to add tag if space and not exists
+            // helper to add tag; if full, replace first non-auto tag if possible
             const addTagIfPossible = (t: string) => {
                 setTags(prev => {
                     if (prev.includes(t)) return prev
-                    if (prev.length >= 5) return prev
-                    return [...prev, t]
+                    if (prev.length < MAX_TAGS) return [...prev, t]
+
+                    // 已满：尝试替换第一个非自动标签
+                    const idx = prev.findIndex(p => !autoTags.includes(p))
+                    if (idx >= 0) {
+                        const next = [...prev]
+                        next[idx] = t
+                        return next
+                    }
+
+                    // 无可替换项，保留原样
+                    return prev
                 })
             }
 
@@ -167,7 +178,7 @@ export default function CreatePost() {
     }
 
     return (
-        <div>
+        <div className="community-page">
             <div className="row align-center mb-12 topbar-sticky">
                 <button className="btn-ghost" onClick={() => navigate(isEditMode ? `/app/community/${postId}` : '/app/community')}>
                     ← 返回
