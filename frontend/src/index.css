@@ -27,6 +27,8 @@ html,
 body,
 #root {
   height: 100%;
+  /* prevent the document root from scrolling; only internal scrollable areas should scroll */
+  overflow: hidden;
 }
 
 body {
