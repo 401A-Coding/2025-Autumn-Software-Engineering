@@ -1236,8 +1236,8 @@
 .view-item {
     padding: 12px;
     border-radius: 8px;
-    border: 1px solid #e5e7eb;
-    background-color: #ffffff;
+    border: 1px solid #cdac76;
+    background-color: #e7bf8f;
     transition: all 0.2s;
 }
 
@@ -1247,7 +1247,7 @@
 
 .view-item.clickable:hover {
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-    border-color: #d1d5db;
+    border-color: #d3b87c;
 }
 
 /* 删除/不可导航的灰显样式 */
@@ -1591,6 +1591,7 @@
 .app-page-content {
     flex: 1;
     overflow-y: auto;
+    background: #fff7ed;
 }
 
 .loading-message,

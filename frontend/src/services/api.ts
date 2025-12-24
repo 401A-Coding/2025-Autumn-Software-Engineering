@@ -4,6 +4,7 @@
 
 import type { components, operations } from '../types/api'
 import http from '../lib/http'
+import { getAccessToken } from '../lib/auth'
 
 const base = import.meta.env.VITE_API_BASE || ''
 
@@ -508,7 +509,7 @@ export const recordsApi = {
     operations['recordsExport']['responses'][200]['content']['application/octet-stream']
   > {
     // 使用独立的二进制请求，保留 Authorization 头
-    const token = getAuthToken()
+    const token = getAccessToken()
     const res = await fetch(`${base}/api/v1/records/${id}/export`, {
       method: 'GET',
       headers: {
@@ -548,7 +549,7 @@ export const userApi = {
     type AvatarData = NonNullable<
       operations['usersMeAvatar']['responses'][200]['content']['application/json']['data']
     >
-    const token = getAuthToken()
+    const token = getAccessToken()
     const form = new FormData()
     form.append('file', file)
     const res = await fetch(`${base}/api/v1/users/me/avatar`, {
