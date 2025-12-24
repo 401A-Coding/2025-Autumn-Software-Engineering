@@ -32,7 +32,8 @@ body,
 body {
   margin: 0;
   min-width: 320px;
-  background: radial-gradient(1200px 600px at 50% -200px, #fff 0%, var(--bg) 65%, #efe6d8 100%);
+  /* Use a solid background to avoid color shifts on scroll */
+  background: var(--bg);
   color: var(--text);
   font-family: system-ui, "PingFang SC", "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -83,9 +84,11 @@ a:hover {
   justify-content: center;
   background: linear-gradient(#f9e9c7, #f0deb6);
   border-bottom: 1px solid var(--border);
-  position: sticky;
+  position: fixed;
   top: 0;
-  z-index: 10;
+  left: 0;
+  right: 0;
+  z-index: 20;
 }
 
 .header-title {
@@ -121,6 +124,7 @@ a:hover {
 
 .page-container {
   padding: 16px;
+  padding-top: 56px;
   padding-bottom: 80px;
   max-width: 520px;
   margin: 0 auto;
@@ -233,6 +237,19 @@ a:hover {
   flex-wrap: wrap;
 }
 
+/* Keep record replay controls on one line on mobile */
+@media (max-width: 500px) {
+  .inline-controls {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .inline-controls>* {
+    flex: 0 0 auto;
+  }
+}
+
 /* Board sizing tweak for mobile width (360px board within 375px frame) */
 .mobile-viewport .board {
   --cell-size: 36px;
@@ -285,7 +302,7 @@ a:hover {
 .mobile-viewport section.paper-card {
   border-left-width: 0;
   border-right-width: 0;
-  border-radius: 0;
+  border-radius: 10px;
 }
 
 /* Global small-screen edge removal (works without MobileFrame) */
@@ -325,6 +342,6 @@ a:hover {
   section.paper-card {
     border-left-width: 0;
     border-right-width: 0;
-    border-radius: 0;
+    border-radius: 10px;
   }
 }

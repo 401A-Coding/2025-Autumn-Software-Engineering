@@ -172,13 +172,14 @@ export const recordStore = {
             created = null
             savedToServer = false
         }
+        const created = await recordsApi.create(body)
 
         const rec: ChessRecord = {
             id: String(created?.id ?? uid()),
             startedAt: created?.startedAt ?? partial.startedAt,
             endedAt: created?.endedAt ?? partial.endedAt,
             opponent: created?.opponent ?? partial.opponent,
-            result: created?.result ?? partial.result,
+            result: (created?.result ?? partial.result) as import('./types').GameResult,
             keyTags: created?.keyTags ?? partial.keyTags ?? [],
             favorite: !!created?.favorite,
             moves: (created?.moves || partial.moves || []).map((mv: any, idx: number) => ({
@@ -195,9 +196,9 @@ export const recordStore = {
             })),
             notes: partial.notes || [],
             initialLayout: created?.initialLayout ?? (partial as any).initialLayout ?? undefined,
-            customLayout: created?.customLayout ?? (partial as any).customLayout ?? undefined,
-            customRules: created?.customRules ?? (partial as any).customRules ?? undefined,
-            mode: created?.mode ?? (partial as any).mode ?? undefined,
+            customLayout: (created as any)?.customLayout ?? (partial as any).customLayout ?? undefined,
+            customRules: (created as any)?.customRules ?? (partial as any).customRules ?? undefined,
+            mode: (created as any)?.mode ?? (partial as any).mode ?? undefined,
         }
 
         // 如果未能保存到服务器，落盘到 localStorage
@@ -212,7 +213,7 @@ export const recordStore = {
             }
         }
 
-        return { record: rec, savedToServer }
+        return { record: rec, savedToServer: true }
     },
 
     async toggleFavorite(id: string, fav: boolean) {

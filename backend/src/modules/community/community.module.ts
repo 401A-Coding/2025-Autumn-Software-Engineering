@@ -10,10 +10,10 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
     PrismaModule,
     JwtModule.register({
       secret: process.env.JWT_SECRET || 'dev-secret',
-      signOptions: { expiresIn: '30m' },
+      signOptions: { expiresIn: '4h' },
     }),
   ],
   controllers: [CommunityController],
   providers: [CommunityService, JwtAuthGuard],
 })
-export class CommunityModule {}
+export class CommunityModule { }

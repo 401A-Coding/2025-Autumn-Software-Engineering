@@ -45,7 +45,7 @@ paths:
                     data:
                       accessToken: eyJhbGciOi...
                       refreshToken: eyJhbGciOi...
-                      expiresIn: 1800
+                      expiresIn: 14400
         "400":
           description: Bad Request
           content:
@@ -94,7 +94,7 @@ paths:
                     data:
                       accessToken: eyJhbGciOi...
                       refreshToken: eyJhbGciOi...
-                      expiresIn: 1800
+                      expiresIn: 14400
         "401":
           description: Unauthorized
           content:
@@ -138,7 +138,7 @@ paths:
                     data:
                       accessToken: eyJhbGciOi...
                       refreshToken: eyJhbGciOi...
-                      expiresIn: 1800
+                      expiresIn: 14400
         "401":
           description: Unauthorized
           content:
@@ -2250,7 +2250,7 @@ components:
         expiresIn:
           type: integer
           description: Access token TTL in seconds
-          example: 1800
+          example: 14400
       required: [accessToken, refreshToken]
     ApiResponseAuthTokens:
       type: object

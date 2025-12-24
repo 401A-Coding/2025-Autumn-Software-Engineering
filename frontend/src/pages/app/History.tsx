@@ -159,7 +159,16 @@ function RecordsList({ filter, list, loading, onRefresh, meProfile }: { filter: 
                 </div>
             )}
 
-            <div className="col gap-8" style={{ height: 420, overflowY: 'auto', paddingRight: 4 }}>
+            <div
+                className="col gap-8"
+                style={{
+                    /* 自适应屏幕高度：在较高屏幕上更舒适 */
+                    maxHeight: 'calc(100vh - 280px)',
+                    minHeight: 300,
+                    overflowY: 'auto',
+                    paddingRight: 4,
+                }}
+            >
                 {filtered.map(r => (
                     <HistoryCard
                         key={r.id}
@@ -313,7 +322,7 @@ function HistoryCard({ r, meProfile, batchMode, isBatchModeAllowed, selected, on
     const resultDisplay = r.result === 'red' ? '先胜' : r.result === 'black' ? '先负' : r.result === 'draw' ? '平局' : '未结束'
 
     return (
-        <div className="paper-card pad-12">
+        <div className="paper-card pad-12 record-card">
             <div className="row-between align-center">
                 <div className="muted">{sourceLabel}</div>
                 <div className="fw-600">{new Date(r.startedAt).toLocaleString()}</div>
@@ -322,7 +331,7 @@ function HistoryCard({ r, meProfile, batchMode, isBatchModeAllowed, selected, on
             <div style={{ display: 'flex', alignItems: 'center', marginTop: 12, gap: 8 }}>
                 <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8 }}>
                     {leftProfile && (
-                        <UserAvatar userId={leftProfile.id} nickname={leftProfile.nickname} avatarUrl={leftProfile.avatarUrl} size="medium" showTime={false} />
+                        <UserAvatar userId={leftProfile.id} nickname={leftProfile.nickname} avatarUrl={leftProfile.avatarUrl} size="medium" showTime={false} nicknameWrap={true} nicknameClassName="record-nickname" stackVertical={true} />
                     )}
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
@@ -331,7 +340,7 @@ function HistoryCard({ r, meProfile, batchMode, isBatchModeAllowed, selected, on
                 </div>
                 <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8 }}>
                     {rightProfile && (
-                        <UserAvatar userId={rightProfile.id} nickname={rightProfile.nickname} avatarUrl={rightProfile.avatarUrl} size="medium" showTime={false} />
+                        <UserAvatar userId={rightProfile.id} nickname={rightProfile.nickname} avatarUrl={rightProfile.avatarUrl} size="medium" showTime={false} nicknameWrap={true} nicknameClassName="record-nickname" stackVertical={true} />
                     )}
                 </div>
             </div>

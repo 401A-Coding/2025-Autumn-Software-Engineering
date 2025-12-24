@@ -157,10 +157,8 @@ export default function RecordReplay() {
                         color: '#333',
                         textAlign: 'center',
                         maxWidth: 120,
-                        whiteSpace: 'nowrap',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
                     }}
+                    className="replay-nickname"
                 >
                     {profile.nickname || '匿名用户'}
                 </div>
@@ -260,30 +258,27 @@ export default function RecordReplay() {
                         <button className="btn-ghost" onClick={() => setIsPlaying(p => !p)}>{isPlaying ? '⏸ 暂停' : '▶ 自动'}</button>
                         <button className="btn-ghost" onClick={() => setFlipOverride(f => !f)} title="切换视角">切换视角</button>
                         <div className="ml-auto">
-                            <button className="btn-ghost" onClick={() => setShowSpeedSheet(true)}>修改播放速度</button>
+                            <button className="btn-ghost" title="修改播放速度" onClick={() => setShowSpeedSheet(true)}>⚙ 速度</button>
                         </div>
                     </div>
 
-                {/* 残局导出：将当前步的局面导出到布置残局 */}
-                <div className="mt-12">
-                    <button className="btn-primary" onClick={() => {
-                        if (!record) return
-                        // 复用 BoardViewer 的逻辑在此计算局面
-                        const { board } = (() => {
-                            const b = (() => {
-                                // 自定义对战使用 customLayout
-                                if (record.mode === 'custom' && (record as any).customLayout) {
-                                    return (record as any).customLayout
-                                }
-                                // 标准对战使用 initialLayout 字段（pieces 格式）
+                    {/* 残局导出：将当前步的局面导出到布置残局 */}
+                    <div className="mt-12">
+                        <button className="btn-primary" onClick={() => {
+                            if (!record) return
+                            // 计算当前步的棋盘局面
+                            let b: any[][]
+                            if (record.mode === 'custom' && (record as any).customLayout) {
+                                b = (record as any).customLayout as any[][]
+                            } else {
                                 const il: any = (record as any).initialLayout
                                 if (il && Array.isArray(il.pieces)) {
-                                    const base: any[][] = Array.from({ length: 10 }, () => Array.from({ length: 9 }, () => null))
+                                    b = Array.from({ length: 10 }, () => Array.from({ length: 9 }, () => null)) as any[][]
                                     let id = 0
                                     for (const p of il.pieces) {
                                         const x = Math.max(0, Math.min(8, p.x))
                                         const y = Math.max(0, Math.min(9, p.y))
-                                        base[y][x] = { id: `init-${id++}`, type: p.type, side: p.side }
+                                        b[y][x] = { id: `init-${id++}`, type: p.type, side: p.side }
                                     }
                                     return base
                                 }
@@ -294,27 +289,38 @@ export default function RecordReplay() {
                                     const nb = movePiece(b, m.from, m.to)
                                     for (let y = 0; y < 10; y++) for (let x = 0; x < 9; x++) b[y][x] = nb[y][x]
                                 }
-                                return { board: b }
-                            })()
+                            }
+
+                            // 叠加前 step 步以得到当前局面
+                            for (let i = 0; i < Math.min(step, record.moves.length); i++) {
+                                const m = record.moves[i]
+                                const nb = movePiece(b, m.from, m.to)
+                                for (let y = 0; y < 10; y++) {
+                                    for (let x = 0; x < 9; x++) {
+                                        b[y][x] = nb[y][x]
+                                    }
+                                }
+                            }
+
                             // 序列化为布局 JSON：{ pieces: [{ type, side, x, y }] }
                             const pieces: any[] = []
                             for (let y = 0; y < 10; y++) {
                                 for (let x = 0; x < 9; x++) {
-                                    const p: any = (board as any)[y][x]
+                                    const p: any = b[y][x]
                                     if (p) pieces.push({ type: p.type, side: p.side, x, y })
                                 }
                             }
                             const layout = { pieces }
-                            // 当前手按上一步的走子方取反：如果 step>0，则 nextTurn = opposite(record.moves[step-1].turn)
-                            // 若 step=0（开局局面），默认红先手；如未来记录含首手字段，可改为读取该字段
+
+                            // 当前手按上一步的走子方取反；若无步数则读取 initialLayout.turn（默认红先）
                             const lastTurn = step > 0 ? (record.moves[step - 1]?.turn) : undefined
-                            // 当没有步数（step=0）时，使用记录的 initialLayout.turn；若不存在则回退红先手
                             const initialTurn = (() => {
                                 const il: any = (record as any).initialLayout
                                 const t = il?.turn
                                 return t === 'red' || t === 'black' ? t : 'red'
                             })()
                             const turn = lastTurn ? (lastTurn === 'red' ? 'black' : 'red') : initialTurn
+
                             navigate('/app/endgame/setup', { state: { layout, name: `${record.opponent || '残局'}@步${step}`, turn } })
                         }}>残局导出</button>
                     </div>

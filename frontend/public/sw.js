@@ -33,6 +33,15 @@ self.addEventListener('fetch', (event) => {
         return // 让浏览器默认处理，不拦截
     }
 
+    // Only handle http/https requests; ignore chrome-extension:, file:, data:, etc.
+    try {
+        const url = new URL(event.request.url)
+        if (url.protocol !== 'http:' && url.protocol !== 'https:') return
+    } catch {
+        // If URL parsing fails, do not intercept
+        return
+    }
+
     // Navigation requests (user typing URL or using SPA navigation) should
     // return the cached index.html when offline to avoid 404 in installed PWA.
     if (event.request.mode === 'navigate') {

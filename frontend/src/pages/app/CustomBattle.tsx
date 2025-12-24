@@ -25,7 +25,7 @@ export default function CustomBattle() {
     const location: any = useLocation()
     useEffect(() => {
         const state = location?.state || {}
-        
+
         // 优先使用路由 state 传入的布局与规则（来自模板管理或编辑器）
         if (state.rules) {
             try {
@@ -91,7 +91,7 @@ export default function CustomBattle() {
     // 用于保存对局的临时记录
     const [moves, setMoves] = useState<MoveRecord[]>([])
     const [startedAt] = useState<string>(new Date().toISOString())
-    
+
     // 初始化当前棋盘引用
     useEffect(() => {
         if (customBoard) {

@@ -17,7 +17,7 @@ export class UserService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
-  ) {}
+  ) { }
 
   // 请求找回密码（开发环境：生成临时 requestId 并返回；真实环境应通过短信/邮件验证）
   async requestPasswordReset(phone: string) {
@@ -176,10 +176,10 @@ export class UserService {
     role: 'USER' | 'ADMIN',
   ) {
     const payload = { sub, username, role };
-    const accessToken = this.jwt.sign(payload, { expiresIn: '30m' });
-    const refreshToken = this.jwt.sign(payload, { expiresIn: '7d' });
+    const accessToken = this.jwt.sign(payload, { expiresIn: '4h' });
+    const refreshToken = this.jwt.sign(payload, { expiresIn: '30d' });
     // keep contract in docs/openapi.yaml: expiresIn is seconds for access token TTL
-    const expiresIn = 30 * 60; // 30 minutes
+    const expiresIn = 4 * 60 * 60; // 4 hours
     return { accessToken, refreshToken, expiresIn };
   }
 
@@ -270,11 +270,12 @@ export class UserService {
         avatarUrl: true,
         role: true,
         createdAt: true,
+        bio: true,
       },
     });
     if (!user) throw new UnauthorizedException('用户不存在');
     const { username, ...rest } = user;
-    return { ...rest, nickname: username };
+    return { ...rest, nickname: username, bio: user.bio ?? null };
   }
 
   // 获取任意用户的公开信息（不返回手机号、邮箱等敏感字段）

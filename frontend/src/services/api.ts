@@ -4,6 +4,7 @@
 
 import type { components, operations } from '../types/api'
 import http from '../lib/http'
+import { getAccessToken } from '../lib/auth'
 
 const base = import.meta.env.VITE_API_BASE || ''
 
@@ -21,36 +22,24 @@ type ReportRequest = components['schemas']['ReportRequest']
 type SearchResultItem = components['schemas']['SearchResultItem']
 
 /**
- * 获取认证 token
- */
-function getAuthToken(): string | null {
-  return localStorage.getItem('token')
-}
-
-/**
  * 通用请求函数
  */
 async function apiRequest<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<ApiResponse<T>> {
-  const token = getAuthToken()
-  const headers: HeadersInit = {
-    'Content-Type': 'application/json',
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    ...options.headers,
+  // 统一通过 axios 实例 http 发起请求，以复用 401 自动刷新与包裹解封装
+  const method = (options.method || 'GET').toString().toUpperCase()
+  const headers = { ...(options.headers || {}) } as Record<string, string>
+  let data: any = undefined
+  if (options.body !== undefined) {
+    data = options.body
+    // 确保 JSON 请求头
+    if (typeof data === 'string' && !headers['Content-Type']) headers['Content-Type'] = 'application/json'
   }
-
-  const response = await fetch(`${base}${endpoint}`, {
-    ...options,
-    headers,
-  })
-
-  if (!response.ok) {
-    throw new Error(`HTTP ${response.status}: ${await response.text().catch(() => 'Unknown error')}`)
-  }
-
-  return response.json()
+  const res = await http.request<T>({ url: `${endpoint}`, method, headers, data })
+  // http 拦截器已将 { code, message, data } 解封装为 res.data
+  return { code: 0, message: 'OK', data: res.data as T }
 }
 
 /**
@@ -520,7 +509,7 @@ export const recordsApi = {
     operations['recordsExport']['responses'][200]['content']['application/octet-stream']
   > {
     // 使用独立的二进制请求，保留 Authorization 头
-    const token = getAuthToken()
+    const token = getAccessToken()
     const res = await fetch(`${base}/api/v1/records/${id}/export`, {
       method: 'GET',
       headers: {
@@ -560,7 +549,7 @@ export const userApi = {
     type AvatarData = NonNullable<
       operations['usersMeAvatar']['responses'][200]['content']['application/json']['data']
     >
-    const token = getAuthToken()
+    const token = getAccessToken()
     const form = new FormData()
     form.append('file', file)
     const res = await fetch(`${base}/api/v1/users/me/avatar`, {

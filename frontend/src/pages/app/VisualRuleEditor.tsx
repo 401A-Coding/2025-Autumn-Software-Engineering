@@ -1068,7 +1068,7 @@ export default function VisualRuleEditor() {
     // 模板管理已移至独立页面：/app/templates
 
     return (
-        <div className="minh-100vh bg-editor-gradient pt-16 pb-32">
+        <div className="minh-100vh bg-editor-gradient pt-16 pb-32 custom-editor">
             <div className="pad-12 card-surface mb-12 mw-960 mx-auto">
                 <div className="row-between">
                     <div className="fw-700">模板</div>

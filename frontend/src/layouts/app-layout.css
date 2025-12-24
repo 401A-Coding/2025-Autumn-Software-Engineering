@@ -7,6 +7,32 @@
     padding-bottom: env(safe-area-inset-bottom);
 }
 
+/* Header safe area for notched devices */
+.header-bar.with-safe-area {
+    padding-top: env(safe-area-inset-top);
+}
+
+/* When tabbar is hidden, reduce bottom padding */
+.page-container.no-tabbar {
+    padding-bottom: 8px;
+}
+
+/* Decorative footer hint when tabbar is hidden */
+.page-container {
+    position: relative;
+}
+
+.page-container.no-tabbar::after {
+    content: "";
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 36px;
+    pointer-events: none;
+    background: linear-gradient(180deg, rgba(212, 179, 129, 0) 0%, rgba(212, 179, 129, 0.18) 80%, rgba(212, 179, 129, 0.28) 100%);
+}
+
 /* Remove horizontal edges on small screens for the root page container */
 @media (max-width: 420px) {
     .page-container {

@@ -3,6 +3,14 @@
     padding: 16px;
 }
 
+/* Online lobby main card: widen to ~1.5x of original small card */
+.online-lobby-card {
+    width: 540px;
+    max-width: 100%;
+    margin-left: auto;
+    margin-right: auto;
+}
+
 .pad-4 {
     padding: 4px;
 }
@@ -193,6 +201,10 @@
 /* Width helpers */
 .w-60 {
     width: 60px;
+}
+
+.w-100 {
+    width: 100%;
 }
 
 .w-64 {
@@ -541,6 +553,35 @@
     white-space: nowrap;
 }
 
+/* Mobile adjustments for replay controls to avoid wrap/misalignment */
+@media (max-width: 500px) {
+    .inline-controls {
+        flex-wrap: nowrap;
+        gap: 4px;
+        overflow: hidden;
+        /* keep single line without scroll */
+    }
+
+    .inline-controls .btn-ghost,
+    .inline-controls .btn-compact,
+    .inline-controls .btn-primary {
+        padding: 4px 6px;
+        font-size: 12px;
+        line-height: 1.1;
+        flex: 0 0 auto;
+    }
+
+    .inline-controls .minw-80 {
+        min-width: 48px;
+        font-size: 11px;
+    }
+
+    .inline-controls .ml-auto {
+        margin-left: 4px;
+        flex: 0 0 auto;
+    }
+}
+
 /* Buttons */
 .btn-compact {
     padding: 6px 10px;
@@ -720,6 +761,28 @@
     color: #6b7280;
 }
 
+/* Record list readable scaling under narrow screens */
+@media (max-width: 500px) {
+
+    /* Card title and key texts slightly smaller */
+    .paper-card.pad-12 .fw-600 {
+        font-size: 14px;
+    }
+
+    .paper-card.pad-12 .muted {
+        font-size: 12px;
+    }
+
+    /* Action buttons compact */
+    .paper-card.pad-12 .btn-ghost,
+    .paper-card.pad-12 .btn-compact,
+    .paper-card.pad-12 .btn-primary {
+        padding: 4px 6px;
+        font-size: 12px;
+        line-height: 1.1;
+    }
+}
+
 .tip-box {
     margin-top: 12px;
     padding: 12px;
@@ -771,8 +834,8 @@
     background: #eff6ff;
 }
 
-/* Small-screen adjustments to avoid overflow in piece selection */
-@media (max-width: 420px) {
+/* Small-screen adjustments to avoid overflow in piece selection (start < 500px) */
+@media (max-width: 500px) {
     .grid-7 {
         grid-template-columns: repeat(4, 1fr);
     }
@@ -1173,8 +1236,8 @@
 .view-item {
     padding: 12px;
     border-radius: 8px;
-    border: 1px solid #e5e7eb;
-    background-color: #ffffff;
+    border: 1px solid #cdac76;
+    background-color: #e7bf8f;
     transition: all 0.2s;
 }
 
@@ -1184,7 +1247,7 @@
 
 .view-item.clickable:hover {
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-    border-color: #d1d5db;
+    border-color: #d3b87c;
 }
 
 /* 删除/不可导航的灰显样式 */
@@ -1528,6 +1591,7 @@
 .app-page-content {
     flex: 1;
     overflow-y: auto;
+    background: #fff7ed;
 }
 
 .loading-message,
@@ -1573,4 +1637,97 @@
 .pagination button:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+}
+
+/* Avatar action alignment for mobile: keep button under avatar centered */
+.avatar-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+}
+
+@media (max-width: 500px) {
+    .avatar-actions .btn-compact {
+        display: inline-block;
+        min-width: 96px;
+        text-align: center;
+    }
+}
+
+/* Allow nickname wrap or smaller font under narrow screens */
+@media (max-width: 480px) {
+    .replay-nickname {
+        white-space: normal !important;
+        overflow: visible !important;
+        text-overflow: clip !important;
+        font-size: 12px;
+        line-height: 1.2;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        /* up to 2 lines */
+        -webkit-box-orient: vertical;
+    }
+}
+
+/* Record list: allow wrap and reduce font on small screens */
+.record-card .row-between {
+    min-width: 0;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.record-card .row-between>* {
+    min-width: 0;
+}
+
+.record-card .fw-600,
+.record-card .muted {
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
+/* Extra small screens: tighten typography further */
+@media (max-width: 400px) {
+    .record-card .fw-600 {
+        font-size: 13px;
+    }
+
+    .record-card .muted {
+        font-size: 11px;
+    }
+}
+
+@media (max-width: 500px) {
+    .record-card .fw-600 {
+        font-size: 14px;
+    }
+
+    .record-card .muted {
+        font-size: 12px;
+    }
+}
+
+/* Record list: nickname clamp to 2 lines on small screens */
+.record-nickname {
+    white-space: normal !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+}
+
+@media (max-width: 500px) {
+    .record-nickname {
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        font-size: 14px;
+        line-height: 1.2;
+    }
+}
+
+@media (max-width: 400px) {
+    .record-nickname {
+        font-size: 12px;
+    }
 }

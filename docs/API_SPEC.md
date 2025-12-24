@@ -53,7 +53,7 @@ POST /api/v1/auth/register
 {
   "code": 0,
   "message": "注册成功",
-  "data": { "userId": 1024, "accessToken": "<JWT_TOKEN>", "refreshToken": "<REFRESH_TOKEN>", "expiresIn": 1800 }
+  "data": { "userId": 1024, "accessToken": "<JWT_TOKEN>", "refreshToken": "<REFRESH_TOKEN>", "expiresIn": 14400 }
 }
 ```
 
@@ -78,7 +78,7 @@ POST /api/v1/auth/login
     "userId": 1024,
     "accessToken": "<JWT_TOKEN>",
     "refreshToken": "<REFRESH_TOKEN>",
-    "expiresIn": 1800
+    "expiresIn": 14400
   }
 }
 ```
