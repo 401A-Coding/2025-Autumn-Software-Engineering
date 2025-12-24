@@ -1667,7 +1667,9 @@
    positioned below the global header). Use safe-area inset only to avoid
    extra offset; keep z-index below header. */
 .mobile-viewport .topbar-sticky {
-    top: calc(var(--header-height) + env(safe-area-inset-top, 0px));
+    /* Stick to the top of the mobile scrolling container (no extra offset),
+       so it cannot be scrolled into the global header area. */
+    top: 0;
     z-index: 19;
 }
 
