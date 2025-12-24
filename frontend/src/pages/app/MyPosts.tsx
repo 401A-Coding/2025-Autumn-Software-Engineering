@@ -99,32 +99,48 @@ export default function MyPosts() {
         }
     }
 
-    const topRowRef = useRef<HTMLDivElement | null>(null)
-    const [topHeight, setTopHeight] = useState(0)
+    const headerRef = useRef<HTMLDivElement | null>(null)
+    const [headerHeight, setHeaderHeight] = useState(0)
 
     useEffect(() => {
         function update() {
-            const h = topRowRef.current ? topRowRef.current.getBoundingClientRect().height : 0
-            setTopHeight(h)
+            const h = headerRef.current ? headerRef.current.getBoundingClientRect().height : 0
+            setHeaderHeight(h)
         }
         update()
         window.addEventListener('resize', update)
         return () => window.removeEventListener('resize', update)
     }, [])
 
+    // 页面挂载时禁止 document 根滚动，卸载时恢复（仅影响 MyPosts）
+    useEffect(() => {
+        const prevHtml = document.documentElement.style.overflow
+        const prevBody = document.body.style.overflow
+        document.documentElement.style.overflow = 'hidden'
+        document.body.style.overflow = 'hidden'
+        return () => {
+            document.documentElement.style.overflow = prevHtml
+            document.body.style.overflow = prevBody
+        }
+    }, [])
+
     return (
-        <div>
-            <div ref={topRowRef} className="row align-center mb-12" style={{ position: 'sticky', top: 0, zIndex: 40, background: '#ffffff' }}>
-                <button className="btn-ghost" onClick={() => navigate('/app/profile')}>
+        <div className="app-page no-root-scroll">
+            <div ref={headerRef} className="app-page-header">
+                <button className="back-button btn-ghost" onClick={() => navigate('/app/profile')}>
                     ← 返回
                 </button>
-                <h3 style={{ margin: 0, flex: 1, textAlign: 'center' }}>我的帖子</h3>
+                <h2>我的帖子</h2>
                 <div style={{ width: 64 }} />
             </div>
 
-            <section className="paper-card card-pad" style={{ position: 'relative' }}>
-                <div className="mb-12" style={{ position: 'sticky', top: topHeight, zIndex: 39, background: '#ffffff', paddingTop: 12 }}>
-                    <Segmented
+            <div className="app-page-content">
+                <div className="like-filter-bar" style={{ position: 'sticky', top: headerHeight, background: '#ffffff', zIndex: 38 }}>
+                    <div style={{ display: 'flex', alignItems: 'center' }}>
+                        <span className="like-filter-label">帖子类型</span>
+                    </div>
+                    <div>
+                        <Segmented
                         options={[
                             { label: '主贴', value: 'posts' },
                             { label: '回复', value: 'comments' },
