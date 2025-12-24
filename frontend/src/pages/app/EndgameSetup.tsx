@@ -25,6 +25,7 @@ export default function EndgameSetup() {
     const [saving, setSaving] = useState(false)
     const [saveMsg, setSaveMsg] = useState<string>('')
     const [ruleMsg, setRuleMsg] = useState<string>('')
+    const [highlights, setHighlights] = useState<{ x: number; y: number }[]>([])
 
     useEffect(() => {
         if (Array.isArray(initialLayout?.pieces)) {
@@ -38,11 +39,25 @@ export default function EndgameSetup() {
             const vr = validateBoard(normalized)
             if (!vr.valid) {
                 setRuleMsg(vr.errors.join('; '))
+                setHighlights(vr.highlights || [])
             } else {
                 setRuleMsg('')
+                setHighlights([])
             }
         }
     }, [initialLayout])
+
+    // re-validate when pieces change and update highlights
+    useEffect(() => {
+        const vr = validateBoard(pieces)
+        if (!vr.valid) {
+            setRuleMsg(vr.errors.join('; '))
+            setHighlights(vr.highlights || [])
+        } else {
+            setRuleMsg('')
+            setHighlights([])
+        }
+    }, [pieces])
 
     const layout = useMemo(() => ({ pieces }), [pieces])
 
@@ -61,7 +76,7 @@ export default function EndgameSetup() {
     }
 
     // Render the board from layout.pieces
-    const BoardEditor = ({ pieces, onCellClick }: { pieces: Piece[]; onCellClick: (x: number, y: number) => void }) => {
+    const BoardEditor = ({ pieces, onCellClick, highlights }: { pieces: Piece[]; onCellClick: (x: number, y: number) => void; highlights?: { x: number; y: number }[] }) => {
         const glyph = (type: any, side: Side) => {
             if (type === 'general') return side === 'red' ? '帥' : '將'
             if (type === 'advisor') return side === 'red' ? '仕' : '士'
@@ -91,6 +106,10 @@ export default function EndgameSetup() {
                     </div>
                 ))}
 
+                {/* highlights */}
+                {(highlights || []).map((h, i) => (
+                    <div key={`h-${i}`} className={`cell-highlight cell-x-${h.x} cell-y-${h.y}`} />
+                ))}
                 {/* Click areas */}
                 {Array.from({ length: 10 }).map((_, y) =>
                     Array.from({ length: 9 }).map((_, x) => (
@@ -214,6 +233,7 @@ export default function EndgameSetup() {
                         </div>
                         <BoardEditor
                             pieces={pieces}
+                            highlights={highlights}
                             onCellClick={(x, y) => {
                                 if (mode === 'erase') {
                                     setPieces(prev => prev.filter(p => !(p.x === x && p.y === y)))
@@ -236,7 +256,24 @@ export default function EndgameSetup() {
 
                     {/* 保存模板与对战入口 */}
                     <div className="mt-16 col gap-12">
-                        {ruleMsg && <div className="note-danger text-13">{ruleMsg}</div>}
+                        {ruleMsg && (
+                            <div className="note-danger text-13">
+                                {ruleMsg} <button className="btn-ghost btn-xs" onClick={() => {
+                                    // locate first highlighted cell
+                                    const h = highlights && highlights.length ? highlights[0] : null
+                                    if (!h) return
+                                    const sel = `.cell-x-${h.x}.cell-y-${h.y}`
+                                    const el = document.querySelector(sel) as HTMLElement | null
+                                    if (el) {
+                                        try {
+                                            el.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' })
+                                            el.classList.add('pulse')
+                                            setTimeout(() => el.classList.remove('pulse'), 1600)
+                                        } catch { }
+                                    }
+                                }}>定位错误</button>
+                            </div>
+                        )}
                         <div className="row-start gap-12">
                             <button
                                 className="btn-primary"

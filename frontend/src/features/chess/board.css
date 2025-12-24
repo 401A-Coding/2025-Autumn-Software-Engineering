@@ -658,3 +658,15 @@
         font-size: calc(var(--cell-size) * 0.45);
     }
 }
+
+/* Highlight invalid cells in editors (overlay, non-interactive) */
+.cell-highlight {
+    position: absolute;
+    width: var(--cell-size);
+    height: var(--cell-size);
+    border-radius: 8px;
+    background: rgba(166, 35, 55, 0.08);
+    border: 2px solid rgba(166, 35, 55, 0.18);
+    pointer-events: none;
+    box-sizing: border-box;
+}
