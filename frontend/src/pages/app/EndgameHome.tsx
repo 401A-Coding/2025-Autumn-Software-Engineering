@@ -1,9 +1,21 @@
 import { Link, useNavigate } from 'react-router-dom'
+import { useEffect } from 'react'
 import EndgameSaved from './EndgameSaved'
 import './app-pages.css'
 
 export default function EndgameHome() {
     const nav = useNavigate()
+    useEffect(() => {
+        const prevHtml = document.documentElement.style.overflow
+        const prevBody = document.body.style.overflow
+        // lock root/document scrolling while this page is mounted
+        document.documentElement.style.overflow = 'hidden'
+        document.body.style.overflow = 'hidden'
+        return () => {
+            document.documentElement.style.overflow = prevHtml
+            document.body.style.overflow = prevBody
+        }
+    }, [])
     return (
         <div className="app-page no-root-scroll">
             <div className="app-page-header">
