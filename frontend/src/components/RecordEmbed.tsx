@@ -247,7 +247,16 @@ export default function RecordEmbed({ recordId, enableSave = true, recordSnapsho
                 <div className="fw-600">{title}</div>
             </div>
 
-            <BoardViewer moves={record.moves} step={step} initialLayout={record.initialLayout as any} />
+            <BoardViewer
+                moves={record.moves}
+                step={step}
+                initialLayout={
+                    // 若为自定义对战，优先用 customLayout；否则使用 initialLayout
+                    (record as any)?.mode === 'custom'
+                        ? ((record as any).customLayout ?? (record.initialLayout as any))
+                        : (record.initialLayout as any)
+                }
+            />
 
             <div className="row-start gap-8 mt-8 text-13 flex-wrap">
                 <button type="button" className="btn-ghost" disabled={step <= 0} onClick={() => { setStep((s) => Math.max(0, s - 1)); setIsAutoPlaying(false) }}>

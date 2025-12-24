@@ -67,6 +67,10 @@ export class BattlesService {
     waitingTtlCleaned: 0,
     disconnectTtlTriggered: 0,
   };
+  // 临时自定义规则：按对局存储，仅在在线自定义对战期间有效
+  private readonly customRulesByBattle = new Map<number, any>();
+  // 临时回放记录：按对局存储，仅在在线自定义对战期间有效
+  private readonly tempReplayByBattle = new Map<number, any>();
 
   // TTL 配置（开发默认）
   private static readonly WAITING_TTL_MS = 10 * 60 * 1000; // 10min
@@ -137,6 +141,92 @@ export class BattlesService {
     this.battles.set(id, state);
     this.scheduleWaitingTtl(id);
     return { battleId: id, status: state.status };
+  }
+
+  // 设置/获取/清理：对局临时自定义规则
+  setCustomRules(battleId: number, rulesDto: any) {
+    const b = this.getBattle(battleId);
+    // 仅房主（创建者，红方）可设置规则
+    if (!b.ownerId) throw new BadRequestException('房间没有所有者');
+    this.customRulesByBattle.set(battleId, rulesDto);
+    return { battleId, ok: true };
+  }
+  getCustomRules(battleId: number) {
+    const rules = this.customRulesByBattle.get(battleId);
+    return rules ?? null;
+  }
+  clearCustomRules(battleId: number) {
+    this.customRulesByBattle.delete(battleId);
+  }
+
+  // 设置/获取/清理：对局临时回放记录
+  setTempReplay(battleId: number, replayDto: any) {
+    const b = this.getBattle(battleId);
+    if (!b.ownerId) throw new BadRequestException('房间没有所有者');
+    this.tempReplayByBattle.set(battleId, replayDto);
+    return { battleId, ok: true };
+  }
+  getTempReplay(battleId: number) {
+    // 若有显式缓存，则直接返回
+    const cached = this.tempReplayByBattle.get(battleId);
+    if (cached) return cached;
+    // 否则基于当前对局状态构造一个回放快照
+    const b = this.getBattle(battleId);
+    const moves = (b.moves || []).map((mv) => ({
+      from: { x: mv.from.x, y: mv.from.y },
+      to: { x: mv.to.x, y: mv.to.y },
+      turn: mv.by === b.players[0] ? 'red' : 'black',
+      ts: mv.ts,
+    }));
+    // initialLayout/customLayout 构造与 handleBattleFinished 中保持一致
+    let initialLayout: any = null;
+    let customLayout: any = null;
+    try {
+      if (b.initialBoardId && this.boards) {
+        // 尝试读取持久化模板作为初始布局
+        const tmpl = this.boards.findOne(b.initialBoardId);
+        // 注意：findOne 可能是异步，这里尽量保持简单并容错
+        if (typeof (tmpl as any)?.then === 'function') {
+          // 异步 Promise：返回占位，前端可忽略 initialLayout 或稍后再取
+          initialLayout = null;
+          customLayout = b.board;
+        } else {
+          const layout: any = (tmpl as any)?.layout ?? null;
+          if (Array.isArray(layout?.pieces)) initialLayout = { pieces: layout.pieces };
+          customLayout = b.board;
+        }
+      } else {
+        // 从内存棋盘构造简单的 initialLayout
+        const pieces: any[] = [];
+        for (let y = 0; y < (b.board?.length || 10); y++) {
+          for (let x = 0; x < ((b.board?.[y] || []).length || 9); x++) {
+            const p = (b.board as any)[y][x];
+            if (p) {
+              const type = p.type === 'rook' ? 'chariot' : p.type;
+              pieces.push({ type, side: p.side, x, y });
+            }
+          }
+        }
+        if (pieces.length) initialLayout = { pieces };
+        customLayout = b.board;
+      }
+    } catch {
+      initialLayout = null;
+      customLayout = b.board;
+    }
+    const result = {
+      startedAt: new Date(b.createdAt).toISOString(),
+      status: b.status,
+      players: b.players,
+      winnerId: b.winnerId ?? null,
+      moves,
+      initialLayout,
+      customLayout,
+    };
+    return result;
+  }
+  clearTempReplay(battleId: number) {
+    this.tempReplayByBattle.delete(battleId);
   }
 
   joinBattle(userId: number, battleId: number, _password?: string | null) {
@@ -246,18 +336,45 @@ export class BattlesService {
       const idx = b.players.indexOf(userId);
       if (idx === -1) throw new UnauthorizedException('不在房间内');
       if (idx !== b.turnIndex) throw new BadRequestException('未到你的回合');
-      // 权威校验与应用
-      const res = this.engine.validateAndApply(
-        b.board,
-        b.turn,
-        move.from,
-        move.to,
-      );
-      if (!('ok' in res) || !res.ok) {
-        throw new BadRequestException(res.reason || '非法走子');
+      // 自定义模式：后端不按标准规则校验，直接应用客户端计算的落子（仅做轮次推进）
+      if (b.mode === 'custom') {
+        const applied = this.engine.applyUncheckedCustom(
+          b.board,
+          b.turn,
+          move.from,
+          move.to,
+        );
+        b.board = applied.board;
+        b.turn = applied.nextTurn;
+      } else {
+        // 标准模式：权威校验与应用
+        const res = this.engine.validateAndApply(
+          b.board,
+          b.turn,
+          move.from,
+          move.to,
+        );
+        if (!('ok' in res) || !res.ok) {
+          throw new BadRequestException(res.reason || '非法走子');
+        }
+        b.board = res.board;
+        b.turn = res.nextTurn;
+        // 胜负判定（如有）
+        if (res.winner) {
+          console.log(
+            '[battle.move] winner detected',
+            res.winner,
+            'battleId',
+            b.id,
+          );
+          if (res.winner === 'draw') {
+            this.finish(b.id, { winnerId: null, reason: 'draw' });
+          } else {
+            const winnerId = res.winner === 'red' ? b.players[0] : b.players[1];
+            this.finish(b.id, { winnerId, reason: 'checkmate' });
+          }
+        }
       }
-      b.board = res.board;
-      b.turn = res.nextTurn;
       const m: Move = {
         ...move,
         by: userId,
@@ -271,21 +388,6 @@ export class BattlesService {
       b.turnIndex = b.turn === 'red' ? 0 : 1;
       // 附加最新 stateHash（给 ACK 与广播使用）
       m.stateHash = this.computeStateHash(b);
-      // 胜负判定（如有）
-      if (res.winner) {
-        console.log(
-          '[battle.move] winner detected',
-          res.winner,
-          'battleId',
-          b.id,
-        );
-        if (res.winner === 'draw') {
-          this.finish(b.id, { winnerId: null, reason: 'draw' });
-        } else {
-          const winnerId = res.winner === 'red' ? b.players[0] : b.players[1];
-          this.finish(b.id, { winnerId, reason: 'checkmate' });
-        }
-      }
       if (dedupeKey) {
         this.processedRequests.set(dedupeKey, {
           result: m,
@@ -322,6 +424,10 @@ export class BattlesService {
     // 广播对局结束事件，方便 Gateway 推送最新 snapshot 与记录创建
     console.log('[battle.finish] before emit', !!this.events);
     this.events?.emit('battle.finished', { battleId: b.id });
+    // 清理与对局关联的临时自定义规则
+    this.clearCustomRules(b.id);
+    // 清理与对局关联的临时回放记录
+    this.clearTempReplay(b.id);
     console.log('[battle.finish] after emit');
     return { battleId: b.id, ...result };
   }

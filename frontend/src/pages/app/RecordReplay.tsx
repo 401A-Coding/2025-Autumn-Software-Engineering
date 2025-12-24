@@ -280,9 +280,10 @@ export default function RecordReplay() {
                                 step={step}
                                 flip={shouldFlip}
                                 initialLayout={
+                                    // 自定义模式优先使用 customLayout；若服务端未返回则回退到 initialLayout.pieces
                                     record.mode === 'custom'
-                                        ? (record as any).customLayout // 自定义：保存的是初始布局，叠加 moves 重放
-                                        : record.initialLayout as any // 标准：pieces 格式
+                                        ? ((record as any).customLayout ?? (record.initialLayout as any))
+                                        : (record.initialLayout as any)
                                 }
                             />
                         </div>

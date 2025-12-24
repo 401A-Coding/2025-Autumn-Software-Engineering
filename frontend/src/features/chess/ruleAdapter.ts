@@ -3,7 +3,7 @@
  * 在旧的 CustomRules 和新的 CustomRuleSet 之间转换
  */
 
-import type { CustomRules } from './types'
+import type { CustomRules, PieceType } from './types'
 import type { CustomRuleSet, MovePattern } from './ruleEngine'
 
 /**
@@ -117,6 +117,29 @@ export function serverRulesToRuleSet(rulesDto: any, name = '服务器规则'): C
         return { name, pieceRules }
     }
 
+    const normalizePieceKey = (k: string): PieceType => {
+        const key = String(k).trim()
+        const map: Record<string, PieceType> = {
+            // 中文同义映射（红/黑）
+            '兵': 'soldier', '卒': 'soldier',
+            '炮': 'cannon', '砲': 'cannon',
+            '车': 'rook', '俥': 'rook', '車': 'rook',
+            '马': 'horse', '傌': 'horse',
+            '相': 'elephant', '象': 'elephant',
+            '仕': 'advisor', '士': 'advisor',
+            '帅': 'general', '將': 'general', '将': 'general', '帥': 'general',
+            // 英文容错
+            'soldier': 'soldier',
+            'cannon': 'cannon',
+            'rook': 'rook',
+            'horse': 'horse',
+            'elephant': 'elephant',
+            'advisor': 'advisor',
+            'general': 'general',
+        }
+        return (map[key] || key) as PieceType
+    }
+
     const mapConstraints = (c: any) => {
         const restrictions: any = {}
         if (!c) return restrictions
@@ -126,7 +149,12 @@ export function serverRulesToRuleSet(rulesDto: any, name = '服务器规则'): C
     }
 
     const pr: any = pieceRules as any
-    for (const [pieceType, cfg] of Object.entries<any>(rulesDto.pieceRules)) {
+    for (const [pieceTypeRaw, cfg] of Object.entries<any>(rulesDto.pieceRules)) {
+        const pieceType = normalizePieceKey(pieceTypeRaw)
+        // 若同义键（如 兵/卒、帅/将）已映射过，则忽略后续重复，确保红黑共用同一规则
+        if (pr[pieceType]) {
+            continue
+        }
         const patterns: MovePattern[] = []
 
         const mv = cfg?.movement || {}

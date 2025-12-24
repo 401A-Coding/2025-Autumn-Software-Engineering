@@ -6,6 +6,7 @@ import { battleApi, userApi, boardApi } from '../../services/api'
 import OnlineBoard from '../../features/chess/OnlineBoard'
 import type { CustomRuleSet } from '../../features/chess/ruleEngine'
 import type { CustomRules, PieceType } from '../../features/chess/types'
+import type { Board, Side } from '../../features/chess/types'
 import { ruleSetToCustomRules, ruleSetToServerRules, serverRulesToRuleSet } from '../../features/chess/ruleAdapter'
 import { recordStore } from '../../features/records/recordStore'
 import type { ChessRecord, MoveRecord } from '../../features/records/types'
@@ -16,6 +17,7 @@ import './LiveBattle.css'
 import { standardChessRules } from '../../features/chess/rulePresets'
 import { getModifiedPieceKeys, pieceDisplayNames } from '../../features/chess/ruleDiff'
 import RuleViewerModal from '../../components/RuleViewerModal'
+// 移除了基于“将军”提示的逻辑，不再需要规则引擎的走法计算
 
 /**
  * 自定义在线对战页面
@@ -47,6 +49,25 @@ export default function CustomOnlineLiveBattle() {
     const [opponentProfile, setOpponentProfile] = useState<{ id: number; nickname?: string; avatarUrl?: string } | null>(null)
     const [snapshot, setSnapshot] = useState<BattleSnapshot | null>(null)
     const [viewerPieceKey, setViewerPieceKey] = useState<PieceType | null>(null)
+    // 向棋盘传递的有效规则：优先使用 CustomRuleSet（与编辑器完全一致），否则回退到简化版 CustomRules
+    const effectiveRulesForBoard: (CustomRuleSet | CustomRules) | null = useMemo(() => {
+        if (customRuleSet) return customRuleSet
+        if (customRules) return customRules
+        // 不再回退到标准规则，必须加载模板规则后再渲染棋盘
+        return null
+    }, [customRuleSet, customRules])
+
+    // 检查某方是否仍有“将”存在；用于判定被吃掉（失败）
+    function hasGeneral(board: Board | null | undefined, side: Side): boolean {
+        if (!board) return false
+        for (let y = 0; y < board.length; y++) {
+            for (let x = 0; x < board[y].length; x++) {
+                const p = board[y][x]
+                if (p && p.type === 'general' && p.side === side) return true
+            }
+        }
+        return false
+    }
 
     // 用户信息
     // 内部引用
@@ -175,20 +196,23 @@ export default function CustomOnlineLiveBattle() {
             // 注意：仅缓存，不覆盖当前快照（避免回放时显示为空或覆盖运行时 board）
             try {
                 const bid = (s as any).boardId ?? boardId
-                if (bid && (!initialTemplateRef.current || !initialTemplateRef.current.initialLayout)) {
+                if (bid) {
                     ;(async () => {
                         try {
                             const apiBoard = await boardApi.get(Number(bid))
-                            const local = apiBoardToLocalFormat(apiBoard as any)
-                            initialTemplateRef.current = {
-                                customLayout: cloneBoard(local),
-                                initialLayout: apiBoard,
+                            // 仅在未缓存初始模板时写入布局缓存，避免覆盖已有自定义布局
+                            if (!initialTemplateRef.current || !initialTemplateRef.current.initialLayout) {
+                                const local = apiBoardToLocalFormat(apiBoard as any)
+                                initialTemplateRef.current = {
+                                    customLayout: cloneBoard(local),
+                                    initialLayout: apiBoard,
+                                }
                             }
-                            // 若还未设置自定义规则，且模板包含 rules，则作为本局规则注入
+                            // 无论是否已有初始模板缓存，只要尚未设置规则则尝试同步规则
                             if ((apiBoard as any)?.rules && !customRuleSet) {
                                 const rs = serverRulesToRuleSet((apiBoard as any).rules)
                                 setCustomRuleSet(rs)
-                                try { setCustomRules(ruleSetToCustomRules(rs)) } catch {}
+                                try { setCustomRules(ruleSetToCustomRules(rs)) } catch { /* ignore */ }
                             }
                         } catch (e) {
                             // 如果拉取失败且 snapshot 自带 board，则使用 snapshot.board 的拷贝作为缓存
@@ -199,7 +223,22 @@ export default function CustomOnlineLiveBattle() {
                                         initialLayout: s.board ? boardToApiFormat(s.board as any) : undefined,
                                     }
                                 }
-                            } catch { }
+                            } catch { /* ignore */ }
+                            // 兜底：若仍未同步规则，尝试通过 HTTP 获取 initialBoardId 并拉取模板规则
+                            try {
+                                if (!customRuleSet && battleIdRef.current) {
+                                    const info = await battleApi.snapshot(battleIdRef.current)
+                                    const httpBid = (info as any)?.initialBoardId ?? (info as any)?.boardId
+                                    if (httpBid) {
+                                        const apiBoard2 = await boardApi.get(Number(httpBid))
+                                        if ((apiBoard2 as any)?.rules) {
+                                            const rs2 = serverRulesToRuleSet((apiBoard2 as any).rules)
+                                            setCustomRuleSet(rs2)
+                                            try { setCustomRules(ruleSetToCustomRules(rs2)) } catch { /* ignore */ }
+                                        }
+                                    }
+                                }
+                            } catch { /* ignore */ }
                         }
                     })()
                 }
@@ -230,20 +269,49 @@ export default function CustomOnlineLiveBattle() {
             }
 
             if (s.status === 'finished') {
-                let msg = '对局已结束。'
+                // 显示谁输谁赢
+                const redUser = s.players?.[0]
+                const blackUser = s.players?.[1]
+                let msg = '对局已结束'
                 let kind: 'win' | 'lose' | 'draw' | 'info' = 'info'
                 if (s.winnerId == null) {
                     kind = 'draw'
-                    msg = '对局已结束，双方打成平局。'
-                } else if (myUserId && s.winnerId === myUserId) {
-                    kind = 'win'
-                    msg = '对局已结束，您已获胜。'
-                } else if (myUserId && s.winnerId !== myUserId) {
-                    kind = 'lose'
-                    msg = '对局已落败。'
+                    msg = '平局'
+                } else if (s.winnerId === redUser) {
+                    msg = '红方胜'
+                    kind = myUserId && myUserId === redUser ? 'win' : (myUserId && myUserId === blackUser ? 'lose' : 'info')
+                } else if (s.winnerId === blackUser) {
+                    msg = '黑方胜'
+                    kind = myUserId && myUserId === blackUser ? 'win' : (myUserId && myUserId === redUser ? 'lose' : 'info')
                 }
                 setEndMessage(msg)
                 setEndKind(kind)
+            } else {
+                // 认输触发改为：一方“将”被吃掉即判负，显示谁输谁赢
+                try {
+                    const redUser = s.players?.[0]
+                    const blackUser = s.players?.[1]
+                    const redHas = hasGeneral(s.board, 'red')
+                    const blackHas = hasGeneral(s.board, 'black')
+                    if (!redHas || !blackHas) {
+                        const loserSide: Side = !redHas ? 'red' : 'black'
+                        const winnerSide: Side = loserSide === 'red' ? 'black' : 'red'
+                        const loserId = loserSide === 'red' ? redUser : blackUser
+                        const winnerId = winnerSide === 'red' ? redUser : blackUser
+
+                        // 仅由失败方客户端触发认输
+                        if (myUserId && battleIdRef.current && loserId && myUserId === loserId) {
+                            ;(async () => { try { await battleApi.resign(battleIdRef.current!) } catch {} })()
+                        }
+
+                        const msg = winnerSide === 'red' ? '红方胜' : '黑方胜'
+                        const kind: 'win' | 'lose' | 'info' = myUserId
+                            ? (myUserId === winnerId ? 'win' : (myUserId === loserId ? 'lose' : 'info'))
+                            : 'info'
+                        setEndMessage(msg)
+                        setEndKind(kind)
+                    }
+                } catch { /* ignore */ }
             }
         })
 
@@ -325,6 +393,21 @@ export default function CustomOnlineLiveBattle() {
             const nid = Number(newId)
             battleIdRef.current = nid
             setBattleId(nid)
+            // 先通过 REST 加入房间，确保服务器登记玩家身份（避免 WS 侧拒绝 move）
+            try {
+                await battleApi.join(nid)
+            } catch (e) {
+                console.warn('REST join failed (will still try WS join)', e)
+            }
+            // 房主设置临时规则（只存规则，不存布局），供加入方拉取
+            try {
+                const rulesDto = toServerRulesFromRuleSet(customRuleSet)
+                if (rulesDto) {
+                    await battleApi.setRules(nid, rulesDto)
+                }
+            } catch (e) {
+                console.warn('Failed to set temporary custom rules for battle', e)
+            }
             conn.join(nid, 0)
             conn.snapshot(nid)
         } catch (e: any) {
@@ -344,10 +427,65 @@ export default function CustomOnlineLiveBattle() {
         }
 
         try {
+            // 先通过 REST 加入房间，避免 WS move 被服务器拒绝
+            try {
+                await battleApi.join(roomId)
+            } catch (e) {
+                console.warn('REST join failed (will still try WS join)', e)
+            }
             conn.join(roomId, 0)
             conn.snapshot(roomId)
             battleIdRef.current = roomId
             setBattleId(roomId)
+            // 加入后主动查询一次对局信息，获取初始模板与规则，确保加入方规则同步
+            try {
+                const info = await battleApi.snapshot(roomId)
+                const bid = (info as any)?.initialBoardId ?? (info as any)?.boardId
+                if (bid) {
+                    try {
+                        const apiBoard = await boardApi.get(Number(bid))
+                        // 仅在未缓存初始模板时写入布局缓存
+                        if (!initialTemplateRef.current || !initialTemplateRef.current.initialLayout) {
+                            const local = apiBoardToLocalFormat(apiBoard as any)
+                            initialTemplateRef.current = {
+                                customLayout: cloneBoard(local),
+                                initialLayout: apiBoard,
+                            }
+                        }
+                        // 无论缓存与否，若尚未设置规则则同步规则
+                        if ((apiBoard as any)?.rules && !customRuleSet) {
+                            const rs = serverRulesToRuleSet((apiBoard as any).rules)
+                            setCustomRuleSet(rs)
+                            try { setCustomRules(ruleSetToCustomRules(rs)) } catch { /* ignore */ }
+                        }
+                    } catch (e) {
+                        console.warn('加载房间初始模板失败', e)
+                        // 回退：若 HTTP 失败，尝试使用当前快照棋盘作为初始布局缓存
+                        try {
+                            const s = latestSnapshotRef.current
+                            if (s?.board && !initialTemplateRef.current) {
+                                initialTemplateRef.current = {
+                                    customLayout: cloneBoard(s.board as any),
+                                    initialLayout: s.board ? boardToApiFormat(s.board as any) : undefined,
+                                }
+                            }
+                        } catch { /* ignore */ }
+                    }
+                }
+                // 额外：拉取房主设置的临时规则（只存规则），优先应用到本局
+                try {
+                    const tempRules = await battleApi.getRules(roomId)
+                    if (tempRules && (tempRules as any).pieceRules) {
+                        const rs = serverRulesToRuleSet(tempRules)
+                        setCustomRuleSet(rs)
+                        try { setCustomRules(ruleSetToCustomRules(rs)) } catch { /* ignore */ }
+                    }
+                } catch (e) {
+                    console.warn('拉取临时规则失败', e)
+                }
+            } catch (e) {
+                console.warn('获取房间信息失败，规则可能无法同步', e)
+            }
         } catch (e: any) {
             alert(`加入房间失败: ${e?.message || e}`)
             console.error('Join room failed', e)
@@ -356,15 +494,24 @@ export default function CustomOnlineLiveBattle() {
 
     // 走子
     const handleMove = async (from: any, to: any) => {
-        if (!connected || !snapshot || battleIdRef.current == null) {
+        // 放宽校验：只要已连接且有房间号即可发起走子请求
+        if (!connected || battleIdRef.current == null) {
             alert('未连接到对局服务器或房间未创建')
             return
         }
 
         try {
-            conn.move(battleIdRef.current, from, to)
+            console.debug('[CustomOnline] attempt move', { from, to, battleId: battleIdRef.current })
+            const ack = await conn.move(battleIdRef.current, from, to)
+            console.debug('[CustomOnline] move ack', ack)
         } catch (e: any) {
             console.error('Move failed', e)
+            const msg = e?.message || 'move ack timeout/服务器未接受走子'
+            alert(`走子失败：${msg}`)
+            // 回退：请求一次最新快照，避免前端状态与服务器脱节
+            try {
+                if (battleIdRef.current) conn.snapshot(battleIdRef.current)
+            } catch { /* ignore */ }
         }
     }
 
@@ -419,7 +566,8 @@ export default function CustomOnlineLiveBattle() {
                 return undefined
             })()
 
-            const mappedMoves: MoveRecord[] = (moves || []).map((m, idx) => {
+            // 默认从本地 moves 构造；若为加入方，则优先使用后端临时回放（复制红方）
+            let mappedMoves: MoveRecord[] = (moves || []).map((m, idx) => {
                 const turn = m.by === redUser ? 'red' : m.by === blackUser ? 'black' : (idx % 2 === 0 ? 'red' : 'black')
                 return {
                     from: { x: m.from?.x ?? 0, y: m.from?.y ?? 0 },
@@ -433,15 +581,19 @@ export default function CustomOnlineLiveBattle() {
 
             const recordStartedAt = startedAt || new Date().toISOString()
             
-            const rawApi = initialTemplateRef.current?.initialLayout ?? (s.board ? boardToApiFormat(s.board as any) : undefined)
-            const apiLayout = rawApi ? (rawApi.layout?.pieces ? { pieces: rawApi.layout.pieces } : (rawApi.pieces ? { pieces: rawApi.pieces } : undefined)) : undefined
+            let rawApi = initialTemplateRef.current?.initialLayout ?? (s.board ? boardToApiFormat(s.board as any) : undefined)
+            let apiLayout = rawApi ? (rawApi.layout?.pieces ? { pieces: rawApi.layout.pieces } : (rawApi.pieces ? { pieces: rawApi.pieces } : undefined)) : undefined
+
+            // 解析我方阵营（红=创建者，黑=加入者）用于记录视角标记
+            const mySide: 'red' | 'black' | 'spectator' = myUserId === redUser ? 'red' : myUserId === blackUser ? 'black' : 'spectator'
 
             const rec: Omit<ChessRecord, 'id'> = {
                 startedAt: recordStartedAt,
                 endedAt: new Date().toISOString(),
                 opponent: opponentProfile?.nickname || '在线对手',
                 result,
-                keyTags: ['自定义对战', '在线对战'],
+                // 加入“我方:红/黑”标签，复盘时自动按我方视角翻转
+                keyTags: ['自定义对战', '在线对战'].concat(mySide === 'red' ? ['我方:红'] : mySide === 'black' ? ['我方:黑'] : []),
                 favorite: false,
                 moves: mappedMoves,
                 bookmarks: [],
@@ -452,6 +604,44 @@ export default function CustomOnlineLiveBattle() {
                 customLayout: initialTemplateRef.current?.customLayout ?? (s.board ? cloneBoard(s.board as any) : undefined),
                 initialLayout: apiLayout,
                 customRules: customRuleSet, // 直接保存规则
+            }
+
+            // 若为加入方（黑），尝试使用后端的临时回放以确保镜像一致
+            if (mySide === 'black' && battleIdRef.current) {
+                try {
+                    const temp = await battleApi.getReplay(battleIdRef.current)
+                    if (temp?.moves && Array.isArray(temp.moves)) {
+                        mappedMoves = temp.moves.map((m: any) => ({
+                            from: { x: m?.from?.x ?? 0, y: m?.from?.y ?? 0 },
+                            to: { x: m?.to?.x ?? 0, y: m?.to?.y ?? 0 },
+                            turn: m?.turn === 'black' ? 'black' : 'red',
+                            ts: m?.ts || Date.now(),
+                        }))
+                        rec.moves = mappedMoves
+                    }
+                    if (temp?.initialLayout?.pieces && Array.isArray(temp.initialLayout.pieces)) {
+                        rec.initialLayout = { pieces: temp.initialLayout.pieces }
+                    }
+                    if (temp?.customLayout) {
+                        rec.customLayout = temp.customLayout
+                    }
+                } catch (e) {
+                    console.warn('[CustomBattle] getReplay failed, fallback to local moves', e)
+                }
+            }
+
+            // 若为房主（红），尝试将本次回放存入后端供加入方复制
+            if (mySide === 'red' && battleIdRef.current) {
+                try {
+                    await battleApi.setReplay(battleIdRef.current, {
+                        startedAt: rec.startedAt,
+                        moves: rec.moves,
+                        initialLayout: rec.initialLayout,
+                        customLayout: rec.customLayout,
+                    })
+                } catch (e) {
+                    console.warn('[CustomBattle] setReplay failed (non-blocking)', e)
+                }
             }
 
             // 避免 JSON.stringify 因循环引用导致报错，直接输出对象
@@ -565,7 +755,8 @@ export default function CustomOnlineLiveBattle() {
                     const turn = snapshot.turn ?? (snapshot.turnIndex === 0 ? 'red' : 'black')
                     const redUser = snapshot.players?.[0]
                     const blackUser = snapshot.players?.[1]
-                    const mySide = myUserId === redUser ? 'red' : myUserId === blackUser ? 'black' : 'spectator'
+                    // 强制阵营：创建方为红方，加入方为黑方；其他情况按服务器推断
+                    const mySide = action === 'create' ? 'red' : action === 'join' ? 'black' : (myUserId === redUser ? 'red' : myUserId === blackUser ? 'black' : 'spectator')
                     return (
                         <div style={{ fontSize: 14, marginTop: 10 }}>
                             我方：<b className={mySide === 'red' ? 'turn-red' : mySide === 'black' ? 'turn-black' : 'turn-draw'}>
@@ -595,7 +786,8 @@ export default function CustomOnlineLiveBattle() {
                                 const turn = snapshot.turn ?? (snapshot.turnIndex === 0 ? 'red' : 'black')
                                 const redUser = snapshot.players?.[0]
                                 const blackUser = snapshot.players?.[1]
-                                const mySide = myUserId === redUser ? 'red' : myUserId === blackUser ? 'black' : 'spectator'
+                                // 强制阵营：创建方为红方，加入方为黑方
+                                const mySide = action === 'create' ? 'red' : action === 'join' ? 'black' : (myUserId === redUser ? 'red' : myUserId === blackUser ? 'black' : 'spectator')
                                 const opponentSide = mySide === 'red' ? 'black' : mySide === 'black' ? 'red' : null
                                 const isMyTurn = mySide !== 'spectator' && turn === mySide
                                 const isOpponentTurn = opponentSide !== null && turn === opponentSide
@@ -645,7 +837,9 @@ export default function CustomOnlineLiveBattle() {
                                                 authoritativeBoard={snapshot.board}
                                                 authoritativeTurn={snapshot.turn}
                                                 snapshotMoves={snapshot.moves}
-                                                customRules={customRules ?? undefined}
+                                                // 若规则尚未同步，提供一个空规则占位，避免回退到标准规则
+                                                customRules={(effectiveRulesForBoard ?? ({ name: '加载中', pieceRules: {} } as CustomRuleSet))}
+                                                forcedMySide={action === 'create' ? 'red' : action === 'join' ? 'black' : undefined}
                                             />
                                         </div>
 

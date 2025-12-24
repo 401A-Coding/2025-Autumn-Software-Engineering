@@ -21,6 +21,9 @@ export default function CustomBattle() {
     const [customBoard, setCustomBoard] = useState<any>(null)
     const currentBoardRef = useRef<any>(null)
     const [viewerPieceKey, setViewerPieceKey] = useState<PieceType | null>(null)
+    // 记录移动与起局的稳定引用，避免异步状态导致少一步或起局不一致
+    const movesRef = useRef<MoveRecord[]>([])
+    const initialBoardRef = useRef<any>(null)
 
     const location: any = useLocation()
     useEffect(() => {
@@ -95,13 +98,18 @@ export default function CustomBattle() {
     // 初始化当前棋盘引用
     useEffect(() => {
         if (customBoard) {
-            currentBoardRef.current = cloneBoard(customBoard)
+            const snap = cloneBoard(customBoard)
+            initialBoardRef.current = snap // 起局快照
+            currentBoardRef.current = cloneBoard(customBoard) // 运行时盘面
+            movesRef.current = []
         }
     }, [customBoard])
 
     const persistRecord = async (result?: 'red' | 'black' | 'draw') => {
-        console.log('[CustomBattle] persistRecord called, moves:', moves.length)
-        let boardToSave = currentBoardRef.current || customBoard
+        const movesToSave = movesRef.current.slice()
+        console.log('[CustomBattle] persistRecord called, moves:', movesToSave.length)
+        // 起局用于复盘的布局（二维数组）
+        let initialLocalBoard = initialBoardRef.current || customBoard
 
         // 如果路由或 location.state 指定了 boardId，则优先从后端拉取模板并作为保存时的初始布局
         try {
@@ -114,7 +122,7 @@ export default function CustomBattle() {
                         const apiBoard = await boardApi.get(bid)
                         const local = apiBoardToLocalFormat(apiBoard as any)
                         if (local) {
-                            boardToSave = local
+                            initialLocalBoard = local
                             console.log('[CustomBattle] applied template layout from boardId', bid)
                         }
                     } catch (e) {
@@ -128,7 +136,7 @@ export default function CustomBattle() {
         
         try {
             // 将保存时的二维布局同时转换为 API 格式（pieces）以便服务器接收并持久化
-            const rawApi = (boardToSave && (boardToSave as any[]).length) ? boardToApiFormat(boardToSave as any, undefined, undefined) : undefined
+            const rawApi = (initialLocalBoard && (initialLocalBoard as any[]).length) ? boardToApiFormat(initialLocalBoard as any, undefined, undefined) : undefined
             const apiLayout = rawApi ? ((rawApi as any).layout?.pieces ? { pieces: (rawApi as any).layout.pieces } : ((rawApi as any).pieces ? { pieces: (rawApi as any).pieces } : undefined)) : undefined
 
             const rec: Omit<ChessRecord, 'id'> = {
@@ -138,14 +146,14 @@ export default function CustomBattle() {
                 result,
                 keyTags: ['自定义对战', '本地对战'],
                 favorite: false,
-                moves,
+                moves: movesToSave,
                 bookmarks: [],
                 notes: [],
                 mode: 'custom',
                 // 保存初始布局：
                 // - `initialLayout` 为 API 格式（pieces），用于服务器持久化与列表展示
-                // - `customLayout` 为前端二维数组，便于本地回放使用
-                customLayout: boardToSave ?? customBoard,
+                // - `customLayout` 为起局的前端二维数组，便于本地回放使用
+                customLayout: initialLocalBoard ?? customBoard,
                 initialLayout: apiLayout,
                 customRules: ruleSet, // 直接保存规则
             }
@@ -204,7 +212,9 @@ export default function CustomBattle() {
                             customRules={ruleSet}
                             initialBoard={customBoard}
                             onMove={(m) => {
-                                setMoves(prev => [...prev, m])
+                                // 先写入 ref，确保 onGameOver 紧随其后调用时不会少最后一步
+                                movesRef.current = [...movesRef.current, m]
+                                setMoves([...movesRef.current])
                                 // 更新当前棋盘状态
                                 if (currentBoardRef.current) {
                                     currentBoardRef.current = movePiece(currentBoardRef.current, m.from, m.to)

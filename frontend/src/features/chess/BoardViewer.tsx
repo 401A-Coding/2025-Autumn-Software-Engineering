@@ -30,17 +30,29 @@ export default function BoardViewer({ moves, step, initialLayout, flip }: { move
                     row.map((cell, rx) => {
                         if (!cell) return null
                         const c = { ...cell } as any
-                        // 确保每个棋子都有稳定的 id，避免 React key 冲突导致渲染异常
                         if (!c.id) c.id = `init-${ry}-${rx}-${c.type || 'unknown'}-${c.side || 'unknown'}`
                         return c
                     })
                 ) as any
             }
-            // 支持 pieces 格式（标准对战/残局使用）
+            // 支持 pieces 顶层格式（标准对战/残局使用）
             if (initialLayout && Array.isArray((initialLayout as any).pieces)) {
                 const b = Array.from({ length: 10 }, () => Array.from({ length: 9 }, () => null as any))
                 let id = 0
                 for (const p of (initialLayout as any).pieces) {
+                    const x = Math.max(0, Math.min(8, p.x))
+                    const y = Math.max(0, Math.min(9, p.y))
+                    const type = (p.type === 'chariot' ? 'rook' : p.type)
+                    b[y][x] = { id: `init-${id++}`, type, side: p.side }
+                }
+                return b as any
+            }
+            // 支持嵌套 layout.pieces（服务端可能返回此结构）
+            if (initialLayout && Array.isArray((initialLayout as any)?.layout?.pieces)) {
+                const pieces = (initialLayout as any).layout.pieces
+                const b = Array.from({ length: 10 }, () => Array.from({ length: 9 }, () => null as any))
+                let id = 0
+                for (const p of pieces) {
                     const x = Math.max(0, Math.min(8, p.x))
                     const y = Math.max(0, Math.min(9, p.y))
                     const type = (p.type === 'chariot' ? 'rook' : p.type)
