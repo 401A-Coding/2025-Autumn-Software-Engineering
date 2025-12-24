@@ -35,6 +35,22 @@ function kingFacing(pieces: Piece[]) {
     return between ? null : { x }
 }
 
+function isElephantSquare(side: Side, x: number, y: number) {
+    // Elephant moves two points diagonally; parity constraint + own-half
+    // For red initial elephants y parity is odd (9), x even; red half y>=5
+    // For black initial elephants y parity is even (0), x even; black half y<=4
+    if (x % 2 !== 0) return false
+    if (side === 'red') return (y % 2 === 1) && y >= 5
+    return (y % 2 === 0) && y <= 4
+}
+
+function isSoldierPositionLegal(side: Side, y: number) {
+    // Prevent placing soldier behind its initial row (soldiers cannot move backward)
+    // Red soldiers initial row y=6, so legal y <= 6
+    // Black soldiers initial row y=3, so legal y >= 3
+    return side === 'red' ? y <= 6 : y >= 3
+}
+
 export default function validateBoard(pieces: Piece[] | undefined): ValidationResult {
     const errors: string[] = []
     const highlights: { x: number; y: number }[] = []
@@ -65,6 +81,22 @@ export default function validateBoard(pieces: Piece[] | undefined): ValidationRe
         const max = MAX_COUNTS[p.type]
         if (bySideType[k] > max) {
             errors.push(`超出数量限制：${p.side === 'red' ? '红' : '黑'} 方 ${p.type} 超过 ${max} 个`)
+        }
+    }
+
+    // piece-specific static rules: elephant reachable squares and soldier position legality
+    for (const p of pieces) {
+        if (p.type === 'elephant') {
+            if (!isElephantSquare(p.side, p.x, p.y)) {
+                errors.push(`象放置位置不合法：(${p.x},${p.y})`)
+                highlights.push({ x: p.x, y: p.y })
+            }
+        }
+        if (p.type === 'soldier') {
+            if (!isSoldierPositionLegal(p.side, p.y)) {
+                errors.push(`兵放置位置不合法：${p.side === 'red' ? '红' : '黑'} 方 兵 不应置于后方行 (${p.x},${p.y})`)
+                highlights.push({ x: p.x, y: p.y })
+            }
         }
     }
 
@@ -123,8 +155,12 @@ export function validatePlacement(candidate: Piece, pool: Piece[]): string | nul
         if (!inPalace(candidate.side, candidate.x, candidate.y)) return '规则限制：士不可出九宫'
         if (!inAdvisorPoints(candidate.side, candidate.x, candidate.y)) return '规则限制：士仅能在九宫斜点'
     }
-    if (candidate.type === 'elephant' && !elephantInOwnHalf(candidate.side, candidate.y)) {
-        return '规则限制：象不可过河'
+    if (candidate.type === 'elephant') {
+        if (!elephantInOwnHalf(candidate.side, candidate.y)) return '规则限制：象不可过河'
+        if (!isElephantSquare(candidate.side, candidate.x, candidate.y)) return '规则限制：象不可放在此格（象走田字，位置不合法）'
+    }
+    if (candidate.type === 'soldier') {
+        if (!isSoldierPositionLegal(candidate.side, candidate.y)) return '规则限制：兵不可位于本方后方行（静态摆子限制）'
     }
 
     return null
