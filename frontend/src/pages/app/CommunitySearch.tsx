@@ -149,6 +149,8 @@ export default function CommunitySearch() {
                         </div>
                     </div>
 
+                )}
+
                 {/* Results area: after search show posts in community preview style */}
                 {hasSearched && (loading ? (
                     <div className="muted">加载中...</div>
