@@ -1602,6 +1602,29 @@
     background: #fff7ed;
 }
 
+/* Utility to make a card fill available vertical space */
+.full-height {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+}
+
+/* Endgame saved list: allow the list area to grow and scroll inside the card */
+.endgame-saved-root {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+}
+
+.endgame-saved-list {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    padding-right: 8px;
+}
+
 /* 在特定页面上禁用 document root 滚动，仅允许内部内容区滚动 */
 .app-page.no-root-scroll {
     height: 100vh;
