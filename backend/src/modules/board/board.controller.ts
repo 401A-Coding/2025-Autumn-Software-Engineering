@@ -11,12 +11,14 @@ import {
   ForbiddenException,
   UseGuards,
   Req,
+  BadRequestException,
 } from '@nestjs/common';
 import { BoardService } from './board.service';
 import { CreateBoardDto } from './dto/create-board.dto';
 import { UpdateBoardDto } from './dto/update-board.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { Request } from 'express';
+import { assertValidEndgameOrThrow } from './endgame.validator';
 
 @Controller('api/v1/boards')
 export class BoardController {
@@ -41,15 +43,11 @@ export class BoardController {
         createBoardDto.layout &&
         Array.isArray((createBoardDto.layout as any).pieces)
       ) {
-        const { assertValidEndgameOrThrow } = require('./endgame.validator');
         assertValidEndgameOrThrow((createBoardDto.layout as any).pieces);
       }
     } catch (e: any) {
-      // rethrow as BadRequest
-      const msg = e?.validation
-        ? e.validation.join('; ')
-        : e?.message || 'Invalid layout';
-      const { BadRequestException } = require('@nestjs/common');
+      if (e instanceof BadRequestException) throw e;
+      const msg = e?.message || 'Invalid layout';
       throw new BadRequestException(msg);
     }
     return this.boardService.create(createBoardDto, ownerId);

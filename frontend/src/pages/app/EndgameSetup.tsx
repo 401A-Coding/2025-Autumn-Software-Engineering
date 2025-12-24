@@ -61,6 +61,23 @@ export default function EndgameSetup() {
 
     const layout = useMemo(() => ({ pieces }), [pieces])
 
+    function parseApiValidationError(e: any) {
+        try {
+            const payload = e?.response?.data ?? e?.response ?? e?.data ?? null
+            const body = payload?.data && payload.data.errors ? payload.data : payload
+            const errs = body?.errors || body?.errors === 0 ? body.errors : null
+            if (Array.isArray(errs)) {
+                const messages: string[] = errs.map((it: any) => it.message || String(it))
+                const highlights = errs.filter((it: any) => typeof it.x === 'number' && typeof it.y === 'number').map((it: any) => ({ x: it.x, y: it.y }))
+                return { messages, highlights }
+            }
+            if (body && typeof body === 'string') return { messages: [body], highlights: [] }
+            return { messages: [e?.message || '保存失败'], highlights: [] }
+        } catch (err) {
+            return { messages: [e?.message || '保存失败'], highlights: [] }
+        }
+    }
+
     // 校验逻辑已统一到 `validateBoard` / `validatePlacement` 模块
 
     // build a 10x9 board for Board component
@@ -294,8 +311,14 @@ export default function EndgameSetup() {
                                         setSaveMsg('已保存到我的残局（模板）')
                                     } catch (e: any) {
                                         console.error('保存残局模板失败: ', e)
-                                        const msg = e?.message || '保存失败（需登录后端才能保存）。'
-                                        setSaveMsg(msg)
+                                        const parsed = parseApiValidationError(e)
+                                        if (parsed && parsed.messages && parsed.messages.length) {
+                                            setRuleMsg(parsed.messages.join('; '))
+                                            setHighlights(parsed.highlights || [])
+                                        } else {
+                                            const msg = e?.message || '保存失败（需登录后端才能保存）。'
+                                            setSaveMsg(msg)
+                                        }
                                     } finally {
                                         setSaving(false)
                                     }
@@ -337,8 +360,14 @@ export default function EndgameSetup() {
                                         // 跳转到在线对战页，使用 initialBoardId 直达创建好友房
                                         nav(`/app/live-battle?action=create&initialBoardId=${boardId}`)
                                     } catch (e: any) {
-                                        const msg = e?.message || '创建好友房失败（需登录后端才能创建）。'
-                                        setSaveMsg(msg)
+                                        const parsed = parseApiValidationError(e)
+                                        if (parsed && parsed.messages && parsed.messages.length) {
+                                            setRuleMsg(parsed.messages.join('; '))
+                                            setHighlights(parsed.highlights || [])
+                                        } else {
+                                            const msg = e?.message || '创建好友房失败（需登录后端才能创建）。'
+                                            setSaveMsg(msg)
+                                        }
                                     } finally {
                                         setSaving(false)
                                     }

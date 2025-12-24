@@ -1,4 +1,4 @@
-import { ValidationError } from '@nestjs/common';
+import { BadRequestException } from '@nestjs/common';
 
 type Side = 'red' | 'black';
 type PieceType =
@@ -52,19 +52,39 @@ function isSoldierPositionLegal(side: Side | string, y: number) {
   return String(side) === 'red' ? y <= 6 : y >= 3;
 }
 
-export function validateEndgamePieces(pieces: Piece[] | undefined) {
-  const errors: string[] = [];
+export type ValidationItem = {
+  code: string;
+  message: string;
+  x?: number;
+  y?: number;
+};
+export type ValidationResult = { valid: boolean; errors: ValidationItem[] };
+
+export function validateEndgamePieces(
+  pieces: Piece[] | undefined,
+): ValidationResult {
+  const errors: ValidationItem[] = [];
   if (!Array.isArray(pieces)) return { valid: true, errors };
 
   const seen = new Set<string>();
   for (const p of pieces) {
     if (!inRange(p.x, p.y)) {
-      errors.push(`越界：格 (${p.x},${p.y}) 不在 9x10 棋盘范围内`);
+      errors.push({
+        code: 'out_of_bounds',
+        message: `越界：格 (${p.x},${p.y}) 不在 9x10 棋盘范围内`,
+        x: p.x,
+        y: p.y,
+      });
       continue;
     }
     const key = `${p.x},${p.y}`;
     if (seen.has(key)) {
-      errors.push(`重叠：多个棋子占据格 (${p.x},${p.y})`);
+      errors.push({
+        code: 'overlap',
+        message: `重叠：多个棋子占据格 (${p.x},${p.y})`,
+        x: p.x,
+        y: p.y,
+      });
     } else {
       seen.add(key);
     }
@@ -76,21 +96,32 @@ export function validateEndgamePieces(pieces: Piece[] | undefined) {
     bySideType[k] = (bySideType[k] || 0) + 1;
     const max = MAX_COUNTS[String(p.type)] ?? 99;
     if (bySideType[k] > max) {
-      errors.push(`超出数量限制：${p.side} 方 ${p.type} 超过 ${max} 个`);
+      errors.push({
+        code: 'exceed_count',
+        message: `超出数量限制：${p.side} 方 ${p.type} 超过 ${max} 个`,
+      });
     }
   }
 
   for (const p of pieces) {
     if (p.type === 'elephant') {
       if (!isElephantSquare(p.side, p.x, p.y)) {
-        errors.push(`象放置位置不合法：(${p.x},${p.y})`);
+        errors.push({
+          code: 'elephant_square',
+          message: `象放置位置不合法：(${p.x},${p.y})`,
+          x: p.x,
+          y: p.y,
+        });
       }
     }
     if (p.type === 'soldier') {
       if (!isSoldierPositionLegal(p.side, p.y)) {
-        errors.push(
-          `兵放置位置不合法：${p.side} 方 兵 不应置于后方行 (${p.x},${p.y})`,
-        );
+        errors.push({
+          code: 'soldier_position',
+          message: `兵放置位置不合法：${p.side} 方 兵 不应置于后方行 (${p.x},${p.y})`,
+          x: p.x,
+          y: p.y,
+        });
       }
     }
   }
@@ -102,13 +133,22 @@ export function validateEndgamePieces(pieces: Piece[] | undefined) {
     (p) => p.side === 'black' && p.type === 'general',
   ).length;
   if (redGenerals !== 1)
-    errors.push(`红方应有且仅有 1 个帅，当前：${redGenerals}`);
+    errors.push({
+      code: 'general_count_red',
+      message: `红方应有且仅有 1 个帅，当前：${redGenerals}`,
+    });
   if (blackGenerals !== 1)
-    errors.push(`黑方应有且仅有 1 个将，当前：${blackGenerals}`);
+    errors.push({
+      code: 'general_count_black',
+      message: `黑方应有且仅有 1 个将，当前：${blackGenerals}`,
+    });
 
   const facing = kingFacing(pieces);
   if (facing) {
-    errors.push('将帅相对直视（同一列且中间无子），这是不合法的局面');
+    errors.push({
+      code: 'king_facing',
+      message: '将帅相对直视（同一列且中间无子），这是不合法的局面',
+    });
   }
 
   return { valid: errors.length === 0, errors };
@@ -117,8 +157,9 @@ export function validateEndgamePieces(pieces: Piece[] | undefined) {
 export function assertValidEndgameOrThrow(pieces: Piece[] | undefined) {
   const r = validateEndgamePieces(pieces);
   if (!r.valid) {
-    const err = new Error('Invalid endgame layout') as any;
-    err.validation = r.errors;
-    throw err;
+    throw new BadRequestException({
+      message: 'Invalid endgame layout',
+      errors: r.errors,
+    });
   }
 }
