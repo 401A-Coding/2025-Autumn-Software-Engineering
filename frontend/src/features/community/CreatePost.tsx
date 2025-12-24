@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import '../../pages/app/app-pages.css'
-import { communityApi, recordsApi } from '../../services/api'
+import { communityApi, recordsApi, boardApi } from '../../services/api'
 import TagInput from '../../components/TagInput'
 import ResourceSelector from '../../components/ResourceSelector'
 import BoardEmbed from '../../components/BoardEmbed'
@@ -31,6 +31,58 @@ export default function CreatePost() {
             loadPost()
         }
     }, [postId, isEditMode])
+
+    // 当资源引用变化时，自动添加或移除对应的 tag（对局记录、自定义棋局、残局）
+    useEffect(() => {
+        let mounted = true
+
+        async function applyAutoTag() {
+            const autoTags = ['对局记录', '自定义棋局', '残局']
+
+            // helper to add tag if space and not exists
+            const addTagIfPossible = (t: string) => {
+                setTags(prev => {
+                    if (prev.includes(t)) return prev
+                    if (prev.length >= 5) return prev
+                    return [...prev, t]
+                })
+            }
+
+            // helper to remove any auto tags
+            const removeAutoTags = () => {
+                setTags(prev => prev.filter(p => !autoTags.includes(p)))
+            }
+
+            if (!resource || resource.shareType === 'NONE' || !resource.shareRefId) {
+                removeAutoTags()
+                return
+            }
+
+            if (resource.shareType === 'RECORD') {
+                addTagIfPossible('对局记录')
+                return
+            }
+
+            if (resource.shareType === 'BOARD') {
+                try {
+                    const b = await boardApi.get(resource.shareRefId as number)
+                    if (!mounted) return
+                    if (b && (b.isEndgame || (b as any).isEndgame)) {
+                        addTagIfPossible('残局')
+                    } else {
+                        addTagIfPossible('自定义棋局')
+                    }
+                } catch (err) {
+                    // 若获取失败，回退为通用自定义棋局标签
+                    addTagIfPossible('自定义棋局')
+                }
+            }
+        }
+
+        applyAutoTag()
+
+        return () => { mounted = false }
+    }, [resource.shareType, resource.shareRefId])
 
     async function loadPost() {
         if (!postId) return
