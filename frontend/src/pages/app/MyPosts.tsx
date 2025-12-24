@@ -141,13 +141,14 @@ export default function MyPosts() {
                     </div>
                     <div>
                         <Segmented
-                        options={[
-                            { label: '主贴', value: 'posts' },
-                            { label: '回复', value: 'comments' },
-                        ]}
-                        value={tab}
-                        onChange={(v: string) => setTab(v as 'posts' | 'comments')}
-                    />
+                            options={[
+                                { label: '主贴', value: 'posts' },
+                                { label: '回复', value: 'comments' },
+                            ]}
+                            value={tab}
+                            onChange={(v: string) => setTab(v as 'posts' | 'comments')}
+                        />
+                    </div>
                 </div>
 
                 {loading ? (
@@ -304,7 +305,7 @@ export default function MyPosts() {
                         </div>
                     )
                 )}
-            </section>
+            </div>
         </div>
     )
 }
