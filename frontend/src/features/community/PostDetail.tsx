@@ -473,471 +473,475 @@ export default function PostDetail() {
     }
 
     return (
-        <div style={{ paddingBottom: expandedComment ? '400px' : '90px' }}>
-            <div className="row align-center mb-12">
-                <button className="btn-ghost" onClick={handleBack}>
-                    ← 返回
-                </button>
-                <div style={{ flex: 1 }} />
-                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                    <button
-                        className="btn-ghost"
-                        title="搜索帖子内容"
-                        onClick={() => navigate('/app/community/search')}
-                    >🔍</button>
-                    <DropdownMenu actions={getPostActions()} />
+        <div className="app-page no-root-scroll">
+            <div className="app-page-header">
+                <div className="row align-center mb-0">
+                    <button className="btn-ghost" onClick={handleBack}>
+                        ← 返回
+                    </button>
+                    <div style={{ flex: 1 }} />
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                        <button
+                            className="btn-ghost"
+                            title="搜索帖子内容"
+                            onClick={() => navigate('/app/community/search')}
+                        >🔍</button>
+                        <DropdownMenu actions={getPostActions()} />
+                    </div>
                 </div>
             </div>
 
-            {/* 帖子内容 */}
-            <section className="paper-card mb-12" style={{ padding: 0, overflow: 'hidden' }}>
-                {/* 用户信息区域 */}
-                <div style={{ padding: '16px 20px', backgroundColor: '#fafafa', borderBottom: '1px solid #e0e0e0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <UserAvatar
-                        userId={post.authorId}
-                        nickname={post.authorNickname}
-                        avatarUrl={post.authorAvatar ?? undefined}
-                        timestamp={post.createdAt}
-                        size="large"
-                    />
-                </div>
-
-                {/* 帖子内容区域 */}
-                <div style={{ padding: '16px 20px' }}>
-                    <h2 className="mt-0 mb-12" style={{ textAlign: 'left' }}>{post.title || '(无标题)'}</h2>
-
-                    {/* 帖子正文 */}
-                    <div className="prose mb-16" style={{ textAlign: 'left' }}>
-                        <p className="whitespace-pre-wrap" style={{ textAlign: 'left' }}>{post.content}</p>
+            <div className="app-page-content" style={{ paddingBottom: expandedComment ? '400px' : '90px' }}>
+                {/* 帖子内容 */}
+                <section className="paper-card mb-12" style={{ padding: 0, overflow: 'hidden' }}>
+                    {/* 用户信息区域 */}
+                    <div style={{ padding: '16px 20px', backgroundColor: '#fafafa', borderBottom: '1px solid #e0e0e0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <UserAvatar
+                            userId={post.authorId}
+                            nickname={post.authorNickname}
+                            avatarUrl={post.authorAvatar ?? undefined}
+                            timestamp={post.createdAt}
+                            size="large"
+                        />
                     </div>
 
-                    {/* 引用资源预览 */}
-                    {post.shareType === 'record' && post.shareRefId && (
-                        <div className="mb-16">
-                            {/* 传入 shareReference 作为无权限时的回退快照；若无快照则不再请求记录接口，避免 404 */}
-                            <RecordEmbed
-                                recordId={post.shareRefId}
-                                recordSnapshot={post.shareReference}
-                                allowFetch={!!post.shareReference}
-                            />
-                        </div>
-                    )}
-                    {post.shareType === 'board' && post.shareRefId && (
-                        <div className="mb-16">
-                            <BoardEmbed boardId={post.shareRefId} enableSave titleOverride={post.shareReference?.name} />
-                        </div>
-                    )}
+                    {/* 帖子内容区域 */}
+                    <div style={{ padding: '16px 20px' }}>
+                        <h2 className="mt-0 mb-12" style={{ textAlign: 'left' }}>{post.title || '(无标题)'}</h2>
 
-                    {/* 标签 */}
-                    {post.tags && post.tags.length > 0 && (
-                        <div className="mb-16" style={{
-                            borderTop: '1px solid #e0e0e0',
-                            paddingTop: '12px',
-                            marginTop: '8px'
-                        }}>
-                            <div className="row-start gap-6 flex-wrap">
-                                {post.tags.map((tag, idx) => (
-                                    <button
-                                        key={idx}
-                                        onClick={() => navigate(`/app/community/search?tag=${encodeURIComponent(tag)}`)}
-                                        style={{
-                                            display: 'inline-flex',
-                                            alignItems: 'center',
-                                            padding: '4px 10px',
-                                            backgroundColor: '#f0f0f0',
-                                            border: '1px solid #d0d0d0',
-                                            borderRadius: '12px',
-                                            fontSize: '13px',
-                                            color: '#555',
-                                            cursor: 'pointer',
-                                            transition: 'all 0.2s',
-                                        }}
-                                        onMouseEnter={(e) => {
-                                            e.currentTarget.style.backgroundColor = '#e0e0e0'
-                                            e.currentTarget.style.borderColor = '#b0b0b0'
-                                        }}
-                                        onMouseLeave={(e) => {
-                                            e.currentTarget.style.backgroundColor = '#f0f0f0'
-                                            e.currentTarget.style.borderColor = '#d0d0d0'
-                                        }}
-                                    >
-                                        <span style={{ marginRight: '2px', fontWeight: 600 }}>#</span>
-                                        {tag}
-                                    </button>
-                                ))}
+                        {/* 帖子正文 */}
+                        <div className="prose mb-16" style={{ textAlign: 'left' }}>
+                            <p className="whitespace-pre-wrap" style={{ textAlign: 'left' }}>{post.content}</p>
+                        </div>
+
+                        {/* 引用资源预览 */}
+                        {post.shareType === 'record' && post.shareRefId && (
+                            <div className="mb-16">
+                                {/* 传入 shareReference 作为无权限时的回退快照；若无快照则不再请求记录接口，避免 404 */}
+                                <RecordEmbed
+                                    recordId={post.shareRefId}
+                                    recordSnapshot={post.shareReference}
+                                    allowFetch={!!post.shareReference}
+                                />
                             </div>
-                        </div>
-                    )}
+                        )}
+                        {post.shareType === 'board' && post.shareRefId && (
+                            <div className="mb-16">
+                                <BoardEmbed boardId={post.shareRefId} enableSave titleOverride={post.shareReference?.name} />
+                            </div>
+                        )}
 
-                    {/* 附件 */}
-                    {post.attachments && post.attachments.length > 0 && (
-                        <div className="mb-16">
-                            <h4>附件</h4>
-                            <ul>
-                                {post.attachments.map((att, idx) => (
-                                    <li key={idx}>
-                                        <a href={att.url} target="_blank" rel="noopener noreferrer">
-                                            {att.url}
-                                        </a>
-                                    </li>
-                                ))}
-                            </ul>
-                        </div>
-                    )}
-
-                    {/* 互动按钮与统计 */}
-                    <div className="row-start gap-12 pt-12 border-top">
-                        <button
-                            className={`btn-ghost text-14 ${liked ? 'fw-600' : ''}`}
-                            onClick={handleLike}
-                            disabled={liking}
-                        >
-                            👍 {post.likeCount}
-                        </button>
-                        <span className="text-14 muted">💬 {post.commentCount}</span>
-                        <button
-                            className={`btn-ghost text-14 ${bookmarked ? 'fw-600' : ''}`}
-                            onClick={async () => {
-                                if (!post || bookmarking) return
-                                setBookmarking(true)
-                                try {
-                                    if (bookmarked) {
-                                        await communityApi.unbookmarkPost(post.id)
-                                    } else {
-                                        await communityApi.bookmarkPost(post.id)
-                                    }
-                                    setBookmarked(!bookmarked)
-                                    setPost(prev => prev ? ({
-                                        ...prev,
-                                        bookmarkCount: Math.max(0, (prev.bookmarkCount ?? 0) + (bookmarked ? -1 : 1))
-                                    }) : prev)
-                                } catch (err) {
-                                    console.error('Failed to toggle bookmark:', err)
-                                } finally {
-                                    setBookmarking(false)
-                                }
-                            }}
-                            disabled={bookmarking}
-                        >
-                            🔖 {post.bookmarkCount ?? 0}
-                        </button>
-                    </div>
-                </div>
-            </section>
-
-            {/* 评论区 */}
-            <section className="paper-card card-pad" ref={commentsRef}>
-                <h3 className="mt-0 mb-12">评论 ({post.commentCount})</h3>
-
-                {/* 评论列表 */}
-                {comments.length === 0 ? (
-                    <div className="muted">暂无评论</div>
-                ) : (
-                    <div className="col gap-12">
-                        {comments.map((comment) => (
-                            <div key={comment.id} id={`comment-${comment.id}`} className="paper-card" style={{ padding: 0, overflow: 'hidden' }}>
-                                {/* 评论者信息 */}
-                                <div style={{ padding: '10px 12px', backgroundColor: '#fafafa', borderBottom: '1px solid #e0e0e0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                                    <UserAvatar
-                                        userId={comment.authorId || 0}
-                                        nickname={comment.authorNickname}
-                                        avatarUrl={comment.authorAvatar ?? undefined}
-                                        timestamp={comment.createdAt}
-                                        size="small"
-                                    />
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                        {/* 点赞按钮 */}
+                        {/* 标签 */}
+                        {post.tags && post.tags.length > 0 && (
+                            <div className="mb-16" style={{
+                                borderTop: '1px solid #e0e0e0',
+                                paddingTop: '12px',
+                                marginTop: '8px'
+                            }}>
+                                <div className="row-start gap-6 flex-wrap">
+                                    {post.tags.map((tag, idx) => (
                                         <button
-                                            onClick={() => handleLikeComment(comment.id)}
+                                            key={idx}
+                                            onClick={() => navigate(`/app/community/search?tag=${encodeURIComponent(tag)}`)}
                                             style={{
-                                                background: 'none',
-                                                border: 'none',
-                                                cursor: 'pointer',
-                                                fontSize: '14px',
-                                                color: commentLikes[comment.id] ? '#5c9cff' : '#666',
-                                                padding: '4px 8px',
-                                                display: 'flex',
+                                                display: 'inline-flex',
                                                 alignItems: 'center',
-                                                gap: '4px',
+                                                padding: '4px 10px',
+                                                backgroundColor: '#f0f0f0',
+                                                border: '1px solid #d0d0d0',
+                                                borderRadius: '12px',
+                                                fontSize: '13px',
+                                                color: '#555',
+                                                cursor: 'pointer',
+                                                transition: 'all 0.2s',
+                                            }}
+                                            onMouseEnter={(e) => {
+                                                e.currentTarget.style.backgroundColor = '#e0e0e0'
+                                                e.currentTarget.style.borderColor = '#b0b0b0'
+                                            }}
+                                            onMouseLeave={(e) => {
+                                                e.currentTarget.style.backgroundColor = '#f0f0f0'
+                                                e.currentTarget.style.borderColor = '#d0d0d0'
                                             }}
                                         >
-                                            👍 <span>{comment.likeCount}</span>
+                                            <span style={{ marginRight: '2px', fontWeight: 600 }}>#</span>
+                                            {tag}
                                         </button>
-                                        <DropdownMenu actions={getCommentActions(comment)} />
-                                    </div>
+                                    ))}
                                 </div>
-                                {/* 评论内容 */}
-                                <div style={{ padding: '12px', textAlign: 'left' }}>
-                                    {(comment as any).isDeleted ? (
-                                        <p className="mt-0 mb-0" style={{ color: '#999', fontStyle: 'italic' }}>该回复已被作者删除</p>
-                                    ) : (
-                                        <p className="mt-0 mb-0 whitespace-pre-wrap" style={{ textAlign: 'left' }}>{comment.content}</p>
-                                    )}
-                                </div>
+                            </div>
+                        )}
 
-                                {/* 楼中楼回复区域 */}
-                                {comment.replyCount > 0 && (
-                                    <div
-                                        style={{
-                                            padding: '12px',
-                                            backgroundColor: '#f9f9f9',
-                                            borderTop: '1px solid #e0e0e0',
-                                            cursor: !expandedReplies[comment.id] ? 'pointer' : 'default',
-                                        }}
-                                        onClick={() => !expandedReplies[comment.id] && toggleReplies(comment.id)}
-                                    >
-                                        {!expandedReplies[comment.id] ? (
-                                            // 折叠状态：简化展示
-                                            <div style={{ textAlign: 'left' }}>
-                                                {comment.replies.slice(0, 2).map((reply) => (
-                                                    <div
-                                                        key={reply.id}
-                                                        style={{
-                                                            padding: '6px 0',
-                                                            textAlign: 'left',
-                                                            fontSize: '13px',
-                                                            color: '#555',
-                                                        }}
-                                                    >
-                                                        <span style={{ fontWeight: 600 }}>{reply.authorNickname || '匿名'}</span>
-                                                        {reply.parentId && reply.parentId !== comment.id && reply.replyToNickname ? (
-                                                            <span>
-                                                                {' '}
-                                                                回复{' '}
-                                                                <a
-                                                                    href={reply.replyToId ? `/app/users/${reply.replyToId}` : '#'}
-                                                                    onClick={(e) => e.stopPropagation()}
-                                                                    style={{ color: '#1a73e8', textDecoration: 'none' }}
-                                                                >
-                                                                    {reply.replyToNickname}
-                                                                </a>
-                                                                ：
-                                                            </span>
-                                                        ) : (
-                                                            <span>：</span>
-                                                        )}
-                                                        <span>
-                                                            {(reply as any).isDeleted ? (
-                                                                <span style={{ color: '#999', fontStyle: 'italic' }}>该回复已被作者删除</span>
-                                                            ) : (
-                                                                reply.content
-                                                            )}
-                                                        </span>
-                                                    </div>
-                                                ))}
-                                                {comment.replyCount > 2 && (
-                                                    <div
-                                                        style={{
-                                                            marginTop: '8px',
-                                                            fontSize: '13px',
-                                                            color: '#5c9cff',
-                                                            fontWeight: 500,
-                                                        }}
-                                                    >
-                                                        查看全部 {comment.replyCount} 条回复 ▼
-                                                    </div>
-                                                )}
-                                            </div>
+                        {/* 附件 */}
+                        {post.attachments && post.attachments.length > 0 && (
+                            <div className="mb-16">
+                                <h4>附件</h4>
+                                <ul>
+                                    {post.attachments.map((att, idx) => (
+                                        <li key={idx}>
+                                            <a href={att.url} target="_blank" rel="noopener noreferrer">
+                                                {att.url}
+                                            </a>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
+
+                        {/* 互动按钮与统计 */}
+                        <div className="row-start gap-12 pt-12 border-top">
+                            <button
+                                className={`btn-ghost text-14 ${liked ? 'fw-600' : ''}`}
+                                onClick={handleLike}
+                                disabled={liking}
+                            >
+                                👍 {post.likeCount}
+                            </button>
+                            <span className="text-14 muted">💬 {post.commentCount}</span>
+                            <button
+                                className={`btn-ghost text-14 ${bookmarked ? 'fw-600' : ''}`}
+                                onClick={async () => {
+                                    if (!post || bookmarking) return
+                                    setBookmarking(true)
+                                    try {
+                                        if (bookmarked) {
+                                            await communityApi.unbookmarkPost(post.id)
+                                        } else {
+                                            await communityApi.bookmarkPost(post.id)
+                                        }
+                                        setBookmarked(!bookmarked)
+                                        setPost(prev => prev ? ({
+                                            ...prev,
+                                            bookmarkCount: Math.max(0, (prev.bookmarkCount ?? 0) + (bookmarked ? -1 : 1))
+                                        }) : prev)
+                                    } catch (err) {
+                                        console.error('Failed to toggle bookmark:', err)
+                                    } finally {
+                                        setBookmarking(false)
+                                    }
+                                }}
+                                disabled={bookmarking}
+                            >
+                                🔖 {post.bookmarkCount ?? 0}
+                            </button>
+                        </div>
+                    </div>
+                </section>
+
+                {/* 评论区 */}
+                <section className="paper-card card-pad" ref={commentsRef}>
+                    <h3 className="mt-0 mb-12">评论 ({post.commentCount})</h3>
+
+                    {/* 评论列表 */}
+                    {comments.length === 0 ? (
+                        <div className="muted">暂无评论</div>
+                    ) : (
+                        <div className="col gap-12">
+                            {comments.map((comment) => (
+                                <div key={comment.id} id={`comment-${comment.id}`} className="paper-card" style={{ padding: 0, overflow: 'hidden' }}>
+                                    {/* 评论者信息 */}
+                                    <div style={{ padding: '10px 12px', backgroundColor: '#fafafa', borderBottom: '1px solid #e0e0e0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                        <UserAvatar
+                                            userId={comment.authorId || 0}
+                                            nickname={comment.authorNickname}
+                                            avatarUrl={comment.authorAvatar ?? undefined}
+                                            timestamp={comment.createdAt}
+                                            size="small"
+                                        />
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                            {/* 点赞按钮 */}
+                                            <button
+                                                onClick={() => handleLikeComment(comment.id)}
+                                                style={{
+                                                    background: 'none',
+                                                    border: 'none',
+                                                    cursor: 'pointer',
+                                                    fontSize: '14px',
+                                                    color: commentLikes[comment.id] ? '#5c9cff' : '#666',
+                                                    padding: '4px 8px',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    gap: '4px',
+                                                }}
+                                            >
+                                                👍 <span>{comment.likeCount}</span>
+                                            </button>
+                                            <DropdownMenu actions={getCommentActions(comment)} />
+                                        </div>
+                                    </div>
+                                    {/* 评论内容 */}
+                                    <div style={{ padding: '12px', textAlign: 'left' }}>
+                                        {(comment as any).isDeleted ? (
+                                            <p className="mt-0 mb-0" style={{ color: '#999', fontStyle: 'italic' }}>该回复已被作者删除</p>
                                         ) : (
-                                            // 展开状态：详细展示
-                                            <div onClick={(e) => e.stopPropagation()}>
-                                                {comment.replies.map((reply) => (
-                                                    <div
-                                                        key={reply.id}
-                                                        id={`comment-${reply.id}`}
-                                                        style={{
-                                                            padding: '12px',
-                                                            borderBottom: '1px solid #e8e8e8',
-                                                            backgroundColor: '#fff',
-                                                        }}
-                                                    >
-                                                        {/* 回复头部：用户信息和操作按钮 */}
-                                                        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '8px' }}>
-                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1 }}>
-                                                                <img
-                                                                    src={reply.authorAvatar || 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 40 40%22%3E%3Crect fill=%22%23ddd%22 width=%2240%22 height=%2240%22/%3E%3C/svg%3E'}
-                                                                    alt="avatar"
-                                                                    style={{ width: '24px', height: '24px', borderRadius: '50%', flexShrink: 0 }}
-                                                                />
-                                                                <div>
-                                                                    <div style={{ fontSize: '13px', fontWeight: 600, color: '#333' }}>{reply.authorNickname || '匿名'}</div>
-                                                                    <div style={{ fontSize: '11px', color: '#999', marginTop: '2px' }}>{reply.createdAt ? new Date(reply.createdAt).toLocaleDateString() : ''}</div>
+                                            <p className="mt-0 mb-0 whitespace-pre-wrap" style={{ textAlign: 'left' }}>{comment.content}</p>
+                                        )}
+                                    </div>
+
+                                    {/* 楼中楼回复区域 */}
+                                    {comment.replyCount > 0 && (
+                                        <div
+                                            style={{
+                                                padding: '12px',
+                                                backgroundColor: '#f9f9f9',
+                                                borderTop: '1px solid #e0e0e0',
+                                                cursor: !expandedReplies[comment.id] ? 'pointer' : 'default',
+                                            }}
+                                            onClick={() => !expandedReplies[comment.id] && toggleReplies(comment.id)}
+                                        >
+                                            {!expandedReplies[comment.id] ? (
+                                                // 折叠状态：简化展示
+                                                <div style={{ textAlign: 'left' }}>
+                                                    {comment.replies.slice(0, 2).map((reply) => (
+                                                        <div
+                                                            key={reply.id}
+                                                            style={{
+                                                                padding: '6px 0',
+                                                                textAlign: 'left',
+                                                                fontSize: '13px',
+                                                                color: '#555',
+                                                            }}
+                                                        >
+                                                            <span style={{ fontWeight: 600 }}>{reply.authorNickname || '匿名'}</span>
+                                                            {reply.parentId && reply.parentId !== comment.id && reply.replyToNickname ? (
+                                                                <span>
+                                                                    {' '}
+                                                                    回复{' '}
+                                                                    <a
+                                                                        href={reply.replyToId ? `/app/users/${reply.replyToId}` : '#'}
+                                                                        onClick={(e) => e.stopPropagation()}
+                                                                        style={{ color: '#1a73e8', textDecoration: 'none' }}
+                                                                    >
+                                                                        {reply.replyToNickname}
+                                                                    </a>
+                                                                    ：
+                                                                </span>
+                                                            ) : (
+                                                                <span>：</span>
+                                                            )}
+                                                            <span>
+                                                                {(reply as any).isDeleted ? (
+                                                                    <span style={{ color: '#999', fontStyle: 'italic' }}>该回复已被作者删除</span>
+                                                                ) : (
+                                                                    reply.content
+                                                                )}
+                                                            </span>
+                                                        </div>
+                                                    ))}
+                                                    {comment.replyCount > 2 && (
+                                                        <div
+                                                            style={{
+                                                                marginTop: '8px',
+                                                                fontSize: '13px',
+                                                                color: '#5c9cff',
+                                                                fontWeight: 500,
+                                                            }}
+                                                        >
+                                                            查看全部 {comment.replyCount} 条回复 ▼
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            ) : (
+                                                // 展开状态：详细展示
+                                                <div onClick={(e) => e.stopPropagation()}>
+                                                    {comment.replies.map((reply) => (
+                                                        <div
+                                                            key={reply.id}
+                                                            id={`comment-${reply.id}`}
+                                                            style={{
+                                                                padding: '12px',
+                                                                borderBottom: '1px solid #e8e8e8',
+                                                                backgroundColor: '#fff',
+                                                            }}
+                                                        >
+                                                            {/* 回复头部：用户信息和操作按钮 */}
+                                                            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '8px' }}>
+                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1 }}>
+                                                                    <img
+                                                                        src={reply.authorAvatar || 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 40 40%22%3E%3Crect fill=%22%23ddd%22 width=%2240%22 height=%2240%22/%3E%3C/svg%3E'}
+                                                                        alt="avatar"
+                                                                        style={{ width: '24px', height: '24px', borderRadius: '50%', flexShrink: 0 }}
+                                                                    />
+                                                                    <div>
+                                                                        <div style={{ fontSize: '13px', fontWeight: 600, color: '#333' }}>{reply.authorNickname || '匿名'}</div>
+                                                                        <div style={{ fontSize: '11px', color: '#999', marginTop: '2px' }}>{reply.createdAt ? new Date(reply.createdAt).toLocaleDateString() : ''}</div>
+                                                                    </div>
+                                                                </div>
+                                                                {/* 右上角操作区：点赞 + 菜单 */}
+                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
+                                                                    <button
+                                                                        onClick={() => handleLikeReply(reply.id)}
+                                                                        style={{
+                                                                            background: 'none',
+                                                                            border: 'none',
+                                                                            cursor: 'pointer',
+                                                                            fontSize: '12px',
+                                                                            color: replyLikes[reply.id] ? '#5c9cff' : '#999',
+                                                                            padding: '4px 6px',
+                                                                            display: 'flex',
+                                                                            alignItems: 'center',
+                                                                            gap: '3px',
+                                                                        }}
+                                                                    >
+                                                                        👍 <span>{reply.likeCount}</span>
+                                                                    </button>
+                                                                    <DropdownMenu actions={getReplyActions(reply)} />
                                                                 </div>
                                                             </div>
-                                                            {/* 右上角操作区：点赞 + 菜单 */}
-                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
+
+                                                            {/* 回复内容 */}
+                                                            <p style={{ margin: '0', fontSize: '13px', color: '#555', textAlign: 'left' }}>
+                                                                {(reply as any).isDeleted ? (
+                                                                    <span style={{ color: '#999', fontStyle: 'italic' }}>该回复已被作者删除</span>
+                                                                ) : reply.parentId && reply.parentId !== comment.id && reply.replyToNickname ? (
+                                                                    <>
+                                                                        回复{' '}
+                                                                        <a
+                                                                            href={reply.replyToId ? `/app/users/${reply.replyToId}` : '#'}
+                                                                            style={{ color: '#1a73e8', textDecoration: 'none' }}
+                                                                            onClick={(e) => e.stopPropagation()}
+                                                                        >
+                                                                            {reply.replyToNickname}
+                                                                        </a>
+                                                                        ：{reply.content}
+                                                                    </>
+                                                                ) : (
+                                                                    reply.content
+                                                                )}
+                                                            </p>
+
+                                                            <div style={{ marginTop: '8px' }}>
                                                                 <button
-                                                                    onClick={() => handleLikeReply(reply.id)}
+                                                                    onClick={() => {
+                                                                        setExpandedReplies({ ...expandedReplies, [comment.id]: true })
+                                                                        setReplyingOnComment(comment.id)
+                                                                        setReplyingTo(reply.id)
+                                                                        setReplyTargetLabel(reply.authorNickname || '匿名')
+                                                                        setReplyTargetContent(reply.content || '')
+                                                                    }}
                                                                     style={{
                                                                         background: 'none',
                                                                         border: 'none',
                                                                         cursor: 'pointer',
                                                                         fontSize: '12px',
-                                                                        color: replyLikes[reply.id] ? '#5c9cff' : '#999',
-                                                                        padding: '4px 6px',
-                                                                        display: 'flex',
-                                                                        alignItems: 'center',
-                                                                        gap: '3px',
+                                                                        color: '#5c9cff',
+                                                                        padding: 0,
                                                                     }}
                                                                 >
-                                                                    👍 <span>{reply.likeCount}</span>
+                                                                    回复
                                                                 </button>
-                                                                <DropdownMenu actions={getReplyActions(reply)} />
                                                             </div>
                                                         </div>
-
-                                                        {/* 回复内容 */}
-                                                        <p style={{ margin: '0', fontSize: '13px', color: '#555', textAlign: 'left' }}>
-                                                            {(reply as any).isDeleted ? (
-                                                                <span style={{ color: '#999', fontStyle: 'italic' }}>该回复已被作者删除</span>
-                                                            ) : reply.parentId && reply.parentId !== comment.id && reply.replyToNickname ? (
-                                                                <>
-                                                                    回复{' '}
-                                                                    <a
-                                                                        href={reply.replyToId ? `/app/users/${reply.replyToId}` : '#'}
-                                                                        style={{ color: '#1a73e8', textDecoration: 'none' }}
-                                                                        onClick={(e) => e.stopPropagation()}
-                                                                    >
-                                                                        {reply.replyToNickname}
-                                                                    </a>
-                                                                    ：{reply.content}
-                                                                </>
-                                                            ) : (
-                                                                reply.content
-                                                            )}
-                                                        </p>
-
-                                                        <div style={{ marginTop: '8px' }}>
-                                                            <button
-                                                                onClick={() => {
-                                                                    setExpandedReplies({ ...expandedReplies, [comment.id]: true })
-                                                                    setReplyingOnComment(comment.id)
-                                                                    setReplyingTo(reply.id)
-                                                                    setReplyTargetLabel(reply.authorNickname || '匿名')
-                                                                    setReplyTargetContent(reply.content || '')
-                                                                }}
-                                                                style={{
-                                                                    background: 'none',
-                                                                    border: 'none',
-                                                                    cursor: 'pointer',
-                                                                    fontSize: '12px',
-                                                                    color: '#5c9cff',
-                                                                    padding: 0,
-                                                                }}
-                                                            >
-                                                                回复
-                                                            </button>
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                                <button
-                                                    onClick={() => toggleReplies(comment.id)}
-                                                    style={{
-                                                        marginTop: '8px',
-                                                        background: 'none',
-                                                        border: 'none',
-                                                        cursor: 'pointer',
-                                                        fontSize: '13px',
-                                                        color: '#5c9cff',
-                                                        padding: 0,
-                                                        fontWeight: 500,
-                                                    }}
-                                                >
-                                                    收起回复 ▲
-                                                </button>
-                                            </div>
-                                        )}
-                                    </div>
-                                )}
-
-                                {/* 回复输入框 */}
-                                <div style={{ padding: '12px', borderTop: '1px solid #e0e0e0' }}>
-                                    {replyingOnComment === comment.id ? (
-                                        <div ref={(el) => { if (el) replyInputRefs.current.set(comment.id, el) }}>
-                                            {/* 回复提示 */}
-                                            {replyTargetContent && (
-                                                <div style={{ fontSize: '12px', color: '#999', marginBottom: '8px', lineHeight: '1.5', textAlign: 'left' }}>
-                                                    回复 {replyTargetLabel}：{replyTargetContent.length > 50 ? replyTargetContent.slice(0, 50) + '...' : replyTargetContent}
+                                                    ))}
+                                                    <button
+                                                        onClick={() => toggleReplies(comment.id)}
+                                                        style={{
+                                                            marginTop: '8px',
+                                                            background: 'none',
+                                                            border: 'none',
+                                                            cursor: 'pointer',
+                                                            fontSize: '13px',
+                                                            color: '#5c9cff',
+                                                            padding: 0,
+                                                            fontWeight: 500,
+                                                        }}
+                                                    >
+                                                        收起回复 ▲
+                                                    </button>
                                                 </div>
                                             )}
-                                            <textarea
-                                                autoFocus
-                                                value={replyText}
-                                                onChange={(e) => setReplyText(e.target.value)}
-                                                placeholder="写下你的回复..."
-                                                style={{
-                                                    width: '100%',
-                                                    minHeight: '60px',
-                                                    padding: '8px',
-                                                    borderRadius: '6px',
-                                                    border: '1px solid #ddd',
-                                                    fontSize: '13px',
-                                                    resize: 'vertical',
-                                                }}
-                                            />
-                                            <div style={{ marginTop: '8px', display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-                                                <button
-                                                    onClick={() => {
-                                                        setReplyingOnComment(null)
-                                                        setReplyingTo(null)
-                                                        setReplyText('')
-                                                        setReplyTargetLabel('楼主')
-                                                        setReplyTargetContent('')
-                                                    }}
-                                                    style={{
-                                                        padding: '6px 12px',
-                                                        borderRadius: '4px',
-                                                        border: '1px solid #ddd',
-                                                        background: '#fff',
-                                                        cursor: 'pointer',
-                                                        fontSize: '13px',
-                                                    }}
-                                                >
-                                                    取消
-                                                </button>
-                                                <button
-                                                    onClick={() => handleReplySubmit(comment.id)}
-                                                    disabled={!replyText.trim()}
-                                                    style={{
-                                                        padding: '6px 16px',
-                                                        borderRadius: '4px',
-                                                        border: 'none',
-                                                        background: replyText.trim() ? '#5c9cff' : '#ccc',
-                                                        color: '#fff',
-                                                        cursor: replyText.trim() ? 'pointer' : 'not-allowed',
-                                                        fontSize: '13px',
-                                                    }}
-                                                >
-                                                    回复
-                                                </button>
-                                            </div>
                                         </div>
-                                    ) : (
-                                        <button
-                                            onClick={() => {
-                                                setReplyingOnComment(comment.id)
-                                                setReplyingTo(comment.id)
-                                                setReplyTargetLabel(comment.authorNickname || '楼主')
-                                                setReplyTargetContent(comment.content || '')
-                                            }}
-                                            style={{
-                                                background: 'none',
-                                                border: 'none',
-                                                cursor: 'pointer',
-                                                fontSize: '13px',
-                                                color: '#5c9cff',
-                                                padding: 0,
-                                            }}
-                                        >
-                                            💬 回复
-                                        </button>
                                     )}
+
+                                    {/* 回复输入框 */}
+                                    <div style={{ padding: '12px', borderTop: '1px solid #e0e0e0' }}>
+                                        {replyingOnComment === comment.id ? (
+                                            <div ref={(el) => { if (el) replyInputRefs.current.set(comment.id, el) }}>
+                                                {/* 回复提示 */}
+                                                {replyTargetContent && (
+                                                    <div style={{ fontSize: '12px', color: '#999', marginBottom: '8px', lineHeight: '1.5', textAlign: 'left' }}>
+                                                        回复 {replyTargetLabel}：{replyTargetContent.length > 50 ? replyTargetContent.slice(0, 50) + '...' : replyTargetContent}
+                                                    </div>
+                                                )}
+                                                <textarea
+                                                    autoFocus
+                                                    value={replyText}
+                                                    onChange={(e) => setReplyText(e.target.value)}
+                                                    placeholder="写下你的回复..."
+                                                    style={{
+                                                        width: '100%',
+                                                        minHeight: '60px',
+                                                        padding: '8px',
+                                                        borderRadius: '6px',
+                                                        border: '1px solid #ddd',
+                                                        fontSize: '13px',
+                                                        resize: 'vertical',
+                                                    }}
+                                                />
+                                                <div style={{ marginTop: '8px', display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                                                    <button
+                                                        onClick={() => {
+                                                            setReplyingOnComment(null)
+                                                            setReplyingTo(null)
+                                                            setReplyText('')
+                                                            setReplyTargetLabel('楼主')
+                                                            setReplyTargetContent('')
+                                                        }}
+                                                        style={{
+                                                            padding: '6px 12px',
+                                                            borderRadius: '4px',
+                                                            border: '1px solid #ddd',
+                                                            background: '#fff',
+                                                            cursor: 'pointer',
+                                                            fontSize: '13px',
+                                                        }}
+                                                    >
+                                                        取消
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleReplySubmit(comment.id)}
+                                                        disabled={!replyText.trim()}
+                                                        style={{
+                                                            padding: '6px 16px',
+                                                            borderRadius: '4px',
+                                                            border: 'none',
+                                                            background: replyText.trim() ? '#5c9cff' : '#ccc',
+                                                            color: '#fff',
+                                                            cursor: replyText.trim() ? 'pointer' : 'not-allowed',
+                                                            fontSize: '13px',
+                                                        }}
+                                                    >
+                                                        回复
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <button
+                                                onClick={() => {
+                                                    setReplyingOnComment(comment.id)
+                                                    setReplyingTo(comment.id)
+                                                    setReplyTargetLabel(comment.authorNickname || '楼主')
+                                                    setReplyTargetContent(comment.content || '')
+                                                }}
+                                                style={{
+                                                    background: 'none',
+                                                    border: 'none',
+                                                    cursor: 'pointer',
+                                                    fontSize: '13px',
+                                                    color: '#5c9cff',
+                                                    padding: 0,
+                                                }}
+                                            >
+                                                💬 回复
+                                            </button>
+                                        )}
+                                    </div>
                                 </div>
-                            </div>
-                        ))}
-                    </div>
-                )}
-            </section>
+                            ))}
+                        </div>
+                    )}
+                </section>
+            </div>
 
             {/* 底部交互栏 - 固定 */}
             <div

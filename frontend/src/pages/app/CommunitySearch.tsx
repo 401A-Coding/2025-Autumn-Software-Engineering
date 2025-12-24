@@ -109,72 +109,77 @@ export default function CommunitySearch() {
     const [history, setHistory] = useState<string[]>(() => loadHistory())
 
     return (
-        <div className="p-4">
-            {/* Top search area: back button, centered rounded search box, search button */}
-            <div className="mb-4" style={{ width: '100%' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <button className="btn-ghost" onClick={() => navigate(-1)} style={{ minWidth: 48 }}>⬅</button>
-                    <input
-                        className="flex-1 search-input-full"
-                        placeholder={authorId && !hasSearched && !q ? `搜索${authorName || ''}的帖子` : '输入关键词后回车或点击搜索'}
-                        value={q}
-                        onChange={(e) => setQ(e.target.value)}
-                        onKeyDown={(e) => { if (e.key === 'Enter') { doSearch({ page: 1, q, tag, updateURL: true }); } }}
-                        autoFocus
-                    />
-                    <button className="btn-ghost" style={{ minWidth: 48 }} onClick={() => doSearch({ page: 1, q, tag, updateURL: true })}>🔍</button>
+        <div className="app-page no-root-scroll">
+            <div className="app-page-header">
+                <div style={{ padding: '12px' }}>
+                    {/* Top search area: back button, centered rounded search box, search button */}
+                    <div className="mb-0" style={{ width: '100%' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                            <button className="btn-ghost" onClick={() => navigate(-1)} style={{ minWidth: 48 }}>⬅</button>
+                            <input
+                                className="flex-1 search-input-full"
+                                placeholder={authorId && !hasSearched && !q ? `搜索${authorName || ''}的帖子` : '输入关键词后回车或点击搜索'}
+                                value={q}
+                                onChange={(e) => setQ(e.target.value)}
+                                onKeyDown={(e) => { if (e.key === 'Enter') { doSearch({ page: 1, q, tag, updateURL: true }); } }}
+                                autoFocus
+                            />
+                            <button className="btn-ghost" style={{ minWidth: 48 }} onClick={() => doSearch({ page: 1, q, tag, updateURL: true })}>🔍</button>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            {/* Search history tags (shown before/after) */}
-            {!hasSearched && !authorId && history && history.length > 0 && (
-                <div className="mb-6 search-history">
-                    <div className="row-between mb-2">
-                        <div className="muted">搜索历史</div>
-                        <div>
-                            <button className="history-clear btn-ghost" onClick={() => { localStorage.removeItem('community_search_history'); setHistory([]); }} style={{ marginLeft: 8 }}>清除</button>
+            <div className="app-page-content" style={{ padding: '12px' }}>
+                {/* Search history tags (shown before/after) */}
+                {!hasSearched && !authorId && history && history.length > 0 && (
+                    <div className="mb-6 search-history">
+                        <div className="row-between mb-2">
+                            <div className="muted">搜索历史</div>
+                            <div>
+                                <button className="history-clear btn-ghost" onClick={() => { localStorage.removeItem('community_search_history'); setHistory([]); }} style={{ marginLeft: 8 }}>清除</button>
+                            </div>
                         </div>
-                    </div>
-                    <div className="history-list row-start gap-4 flex-wrap" style={{ alignItems: 'center' }}>
-                        {history.map((h, idx) => (
-                            <button key={idx} className="badge badge-light history-tag" onClick={() => { setQ(h); doSearch({ page: 1, q: h, updateURL: true }); }}>
-                                {h}
-                            </button>
-                        ))}
-                    </div>
-                </div>
-            )}
-
-            {/* Results area: after search show posts in community preview style */}
-            {hasSearched && (loading ? (
-                <div className="muted">加载中...</div>
-            ) : (
-                <div>
-                    <div className="mb-3">共 {total} 条结果</div>
-
-                    {posts.length === 0 ? (
-                        <div className="empty-box">暂无结果</div>
-                    ) : (
-                        <div className="col gap-12">
-                            {posts.map((post: any) => (
-                                <PostPreview
-                                    key={post.id}
-                                    post={post}
-                                    onClick={() => navigate(`/app/community/${post.id}`, { state: { from: location.pathname + location.search } })}
-                                />
+                        <div className="history-list row-start gap-4 flex-wrap" style={{ alignItems: 'center' }}>
+                            {history.map((h, idx) => (
+                                <button key={idx} className="badge badge-light history-tag" onClick={() => { setQ(h); doSearch({ page: 1, q: h, updateURL: true }); }}>
+                                    {h}
+                                </button>
                             ))}
                         </div>
-                    )}
-
-                    <div className="row-between mt-4">
-                        <div>
-                            <button className="btn-ghost" disabled={page <= 1} onClick={() => doSearch({ page: Math.max(1, page - 1), q, tag, updateURL: true })}>上一页</button>
-                            <button className="btn-ghost ml-4" disabled={page * pageSize >= total} onClick={() => doSearch({ page: page + 1, q, tag, updateURL: true })}>下一页</button>
-                        </div>
-                        <div className="muted">第 {page} 页</div>
                     </div>
-                </div>
-            ))}
+
+                {/* Results area: after search show posts in community preview style */}
+                {hasSearched && (loading ? (
+                    <div className="muted">加载中...</div>
+                ) : (
+                    <div>
+                        <div className="mb-3">共 {total} 条结果</div>
+
+                        {posts.length === 0 ? (
+                            <div className="empty-box">暂无结果</div>
+                        ) : (
+                            <div className="col gap-12">
+                                {posts.map((post: any) => (
+                                    <PostPreview
+                                        key={post.id}
+                                        post={post}
+                                        onClick={() => navigate(`/app/community/${post.id}`, { state: { from: location.pathname + location.search } })}
+                                    />
+                                ))}
+                            </div>
+                        )}
+
+                        <div className="row-between mt-4">
+                            <div>
+                                <button className="btn-ghost" disabled={page <= 1} onClick={() => doSearch({ page: Math.max(1, page - 1), q, tag, updateURL: true })}>上一页</button>
+                                <button className="btn-ghost ml-4" disabled={page * pageSize >= total} onClick={() => doSearch({ page: page + 1, q, tag, updateURL: true })}>下一页</button>
+                            </div>
+                            <div className="muted">第 {page} 页</div>
+                        </div>
+                    </div>
+                ))}
+            </div>
         </div>
     )
 }
