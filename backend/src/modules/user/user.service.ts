@@ -17,7 +17,7 @@ export class UserService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
-  ) { }
+  ) {}
 
   // 请求找回密码（开发环境：生成临时 requestId 并返回；真实环境应通过短信/邮件验证）
   async requestPasswordReset(phone: string) {

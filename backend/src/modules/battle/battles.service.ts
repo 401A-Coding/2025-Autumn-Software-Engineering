@@ -192,7 +192,8 @@ export class BattlesService {
           customLayout = b.board;
         } else {
           const layout: any = (tmpl as any)?.layout ?? null;
-          if (Array.isArray(layout?.pieces)) initialLayout = { pieces: layout.pieces };
+          if (Array.isArray(layout?.pieces))
+            initialLayout = { pieces: layout.pieces };
           customLayout = b.board;
         }
       } else {
