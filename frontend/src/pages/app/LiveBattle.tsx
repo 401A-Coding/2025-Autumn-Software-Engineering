@@ -576,9 +576,11 @@ export default function LiveBattle() {
     return (
         <div className="card-pad pos-rel">
             <div className="row align-center" style={{ marginBottom: 0 }}>
-                <button className="btn-ghost" onClick={() => navigate(-1)}>← 返回</button>
-                <h2 style={{ margin: 0, flex: 1, textAlign: 'center' }}>在线对战</h2>
-                <div style={{ width: 64 }} />
+                <div style={{ width: 360, maxWidth: '100%', margin: '0 auto', display: 'flex', alignItems: 'center' }}>
+                    <button className="btn-ghost" onClick={() => navigate(-1)}>← 返回</button>
+                    <h2 style={{ margin: 0, flex: 1, textAlign: 'center' }}>在线对战</h2>
+                    <div style={{ width: 64 }} />
+                </div>
             </div>
             {endMessage && (
                 <div
