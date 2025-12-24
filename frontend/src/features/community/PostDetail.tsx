@@ -92,6 +92,7 @@ export default function PostDetail() {
     const [bookmarked, setBookmarked] = useState(false)
     const [expandedComment, setExpandedComment] = useState(false)
     const commentsRef = useRef<HTMLDivElement>(null)
+    const postMainRef = useRef<HTMLDivElement>(null)
     const commentInputRef = useRef<HTMLDivElement>(null)
     const replyInputRefs = useRef<Map<number, HTMLDivElement>>(new Map())
     const [currentUserId, setCurrentUserId] = useState<number | null>(null)
@@ -103,6 +104,7 @@ export default function PostDetail() {
     const [replyTargetLabel, setReplyTargetLabel] = useState<string>('楼主')
     const [replyTargetContent, setReplyTargetContent] = useState<string>('')
     const [replyLikes, setReplyLikes] = useState<Record<number, boolean>>({})
+    const [atComments, setAtComments] = useState(false)
 
     async function loadPost() {
         if (!postId) return
@@ -201,6 +203,21 @@ export default function PostDetail() {
         loadComments()
         loadCurrentUser()
     }, [postId])
+
+    // Observe whether comments section is in view to toggle bottom-bar comment button behavior
+    useEffect(() => {
+        const el = commentsRef.current
+        if (!el) return
+        const obs = new IntersectionObserver(
+            (entries) => {
+                const e = entries[0]
+                setAtComments(!!e && e.isIntersecting)
+            },
+            { root: null, threshold: 0.2 }
+        )
+        obs.observe(el)
+        return () => obs.disconnect()
+    }, [commentsRef.current])
 
     // 处理主评论框失焦收起
     useEffect(() => {
@@ -492,7 +509,7 @@ export default function PostDetail() {
 
             <div style={{ paddingBottom: expandedComment ? '400px' : '90px' }}>
                 {/* 帖子内容 */}
-                <section className="paper-card mb-12" style={{ padding: 0, overflow: 'hidden' }}>
+                <section ref={postMainRef} className="paper-card mb-12" style={{ padding: 0, overflow: 'hidden' }}>
                     {/* 用户信息区域 */}
                     <div style={{ padding: '16px 20px', backgroundColor: '#fff', borderBottom: '1px solid #e0e0e0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                         <UserAvatar
@@ -994,8 +1011,17 @@ export default function PostDetail() {
                             className="interaction-btn"
                             title="评论"
                             onClick={() => {
-                                if (commentsRef.current) {
+                                if (!commentsRef.current) return
+                                if (!atComments) {
+                                    // 当前在内容区：滚动到评论
                                     commentsRef.current.scrollIntoView({ behavior: 'smooth' })
+                                } else {
+                                    // 当前在评论区：滚动回主楼
+                                    if (postMainRef.current) {
+                                        postMainRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                                    } else {
+                                        window.scrollTo({ top: 0, behavior: 'smooth' })
+                                    }
                                 }
                             }}
                             style={{
