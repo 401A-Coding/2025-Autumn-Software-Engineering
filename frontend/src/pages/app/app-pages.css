@@ -1667,10 +1667,29 @@
    positioned below the global header). Use safe-area inset only to avoid
    extra offset; keep z-index below header. */
 .mobile-viewport .topbar-sticky {
-    /* Stick to the top of the mobile scrolling container (no extra offset),
-       so it cannot be scrolled into the global header area. */
+    /* Initially keep in flow but prepare for fixed behavior on root scroll.
+       Use 0 top so it sits at top of mobile-content when not fixed. */
     top: 0;
     z-index: 19;
+}
+
+/* Make mobile topbar fixed relative to viewport to avoid being scrolled
+   into the global header when the root page scrolls. Center to match
+   the mobile viewport width and provide a placeholder margin on the
+   following element to prevent overlap. */
+.mobile-viewport .topbar-sticky.fixed-to-viewport {
+    position: fixed;
+    top: calc(var(--header-height) + env(safe-area-inset-top, 0px));
+    left: 50%;
+    transform: translateX(-50%);
+    width: 100%;
+    max-width: 375px;
+    box-sizing: border-box;
+    z-index: 19;
+}
+
+.mobile-viewport .topbar-sticky.fixed-to-viewport+* {
+    margin-top: var(--mobile-topbar-offset, 64px);
 }
 
 .loading-message,
