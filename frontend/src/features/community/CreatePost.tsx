@@ -211,6 +211,5 @@ export default function CreatePost() {
                 </form>
             </section>
         </div>
-        </div >
     )
 }
