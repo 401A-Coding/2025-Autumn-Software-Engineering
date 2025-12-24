@@ -148,7 +148,7 @@ export default function Community() {
     return (
         <div>
             {/* 顶部导航栏 */}
-            <section className="paper-card card-pad mb-12">
+            <section className="paper-card card-pad mb-12 topbar-sticky">
                 <div className="row-between align-center mb-12">
                     <h3 className="mt-0 mb-0">社区</h3>
                     <div className="row-start gap-8">
@@ -200,7 +200,6 @@ export default function Community() {
                     </div>
                 )}
             </section>
-
             {/* 帖子列表 */}
             <section className="paper-card card-pad">
                 {loading ? (

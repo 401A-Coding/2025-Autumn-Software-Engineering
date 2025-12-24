@@ -116,7 +116,7 @@ export default function CreatePost() {
 
     return (
         <div>
-            <div className="row align-center mb-12">
+            <div className="row align-center mb-12 topbar-sticky">
                 <button className="btn-ghost" onClick={() => navigate(isEditMode ? `/app/community/${postId}` : '/app/community')}>
                     ← 返回
                 </button>

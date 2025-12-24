@@ -17,6 +17,11 @@
   --control-border: #e4d8b4;
   --control-text: #5a4632;
   --control-text-muted: #8c7758;
+  /* header height used by sticky topbars (matches .header-bar height) */
+  --header-height: 56px;
+  /* page max widths for centering topbars */
+  --page-max-width: 520px;
+  --mobile-max-width: 430px;
 }
 
 * {
@@ -126,7 +131,7 @@ a:hover {
   padding: 16px;
   padding-top: 56px;
   padding-bottom: 80px;
-  max-width: 520px;
+  max-width: var(--page-max-width);
   margin: 0 auto;
 }
 
@@ -185,7 +190,7 @@ a:hover {
 
 .mobile-viewport {
   width: 100%;
-  max-width: 375px;
+  max-width: var(--mobile-max-width);
   min-height: 100dvh;
   background: transparent;
   overflow-x: hidden;

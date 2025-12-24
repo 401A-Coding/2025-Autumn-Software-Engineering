@@ -62,7 +62,7 @@ export default function EndgameSaved() {
     )
 
     return (
-        <section className="paper-card card-pad">
+        <section className="paper-card card-pad endgame-saved-root">
             <h2 className="mt-0">保存的残局（模板）</h2>
             <div className="row-start gap-8 mt-8">
                 <button className={selectMode ? 'btn-primary' : 'btn-ghost'} onClick={() => setSelectMode(m => !m)}>{selectMode ? '退出选择' : '批量选择'}</button>
@@ -79,8 +79,8 @@ export default function EndgameSaved() {
             ) : !boards.length ? (
                 <div className="empty-box">暂无保存的残局</div>
             ) : (
-                <div className="col gap-8 mt-12">
-                    <div style={{ height: 'auto', maxHeight: '500px', overflowY: 'auto', paddingRight: 8 }}>
+                <div className="col gap-8 mt-12" style={{ minHeight: 0 }}>
+                    <div className="endgame-saved-list">
                         {paginatedBoards.map((b) => (
                             <div key={b.id} className="paper-card pad-8 row-between" style={{ textAlign: 'left' }}>
                                 <div className="row-start gap-8 align-center">

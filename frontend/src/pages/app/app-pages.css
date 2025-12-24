@@ -1600,6 +1600,82 @@
     flex: 1;
     overflow-y: auto;
     background: #fff7ed;
+    padding-bottom: 100px;
+}
+
+/* Utility to make a card fill available vertical space */
+.full-height {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+}
+
+/* Endgame saved list: allow the list area to grow and scroll inside the card */
+.endgame-saved-root {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+}
+
+.endgame-saved-list {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    padding-right: 8px;
+}
+
+/* EndgameHome specific: reserve header/topbar space and fix topbar position */
+
+/* For EndgameHome, reserve space in the content area so the fixed
+   topbar does not overlap content when positioned below the global header. */
+.endgame-page .app-page-content {
+    padding-top: calc(var(--header-height) + env(safe-area-inset-top, 0px));
+}
+
+.endgame-page .topbar-sticky.fixed-to-viewport {
+    position: fixed;
+    top: calc(var(--header-height) + env(safe-area-inset-top, 0px));
+    left: 50%;
+    transform: translateX(-50%);
+    width: 100%;
+    /* match inner content width (page max minus page-container horizontal padding) */
+    max-width: calc(var(--page-max-width) - 32px);
+    box-sizing: border-box;
+    z-index: 19;
+}
+
+/* Generic fixed-to-viewport topbar: center and match page max width on wide screens */
+.topbar-sticky.fixed-to-viewport {
+    position: fixed;
+    top: calc(var(--header-height) + env(safe-area-inset-top, 0px));
+    left: 50%;
+    transform: translateX(-50%);
+    width: 100%;
+    /* match inner content width (page max minus page-container horizontal padding) */
+    max-width: calc(var(--page-max-width) - 32px);
+    box-sizing: border-box;
+    z-index: 19;
+}
+
+/* Mobile: make fixed topbars fill the viewport width (no centering transform)
+   Use a slightly larger breakpoint to match --mobile-max-width variable. */
+@media (max-width: 430px) {
+
+    .topbar-sticky.fixed-to-viewport,
+    .mobile-viewport .topbar-sticky.fixed-to-viewport {
+        left: 0;
+        transform: none;
+        max-width: 100%;
+        padding-left: 12px;
+        padding-right: 12px;
+    }
+}
+
+/* Ensure saved list shows its rounded card bottom inside viewport */
+.endgame-saved-list {
+    padding-bottom: 24px;
 }
 
 /* 在特定页面上禁用 document root 滚动，仅允许内部内容区滚动 */
@@ -1633,6 +1709,63 @@
     position: sticky;
     top: 0;
     z-index: 40;
+}
+
+/* 通用顶栏置顶样式：在不改变根滚动的前提下，使指定顶栏在页面顶部粘性停靠 */
+.topbar-sticky {
+    position: sticky;
+    /* stay directly below the header (respect safe-area inset on notched devices) */
+    top: calc(var(--header-height) + env(safe-area-inset-top, 0px));
+    /* ensure header remains above the topbar */
+    z-index: 19;
+    background: #ffffff;
+    border-bottom: 1px solid #e5e7eb;
+    /* rounded card-like topbar */
+    border-radius: 12px;
+    padding: 8px 12px;
+    box-sizing: border-box;
+    /* match layout width of page content and center (account for .page-container padding) */
+    max-width: calc(var(--page-max-width) - 32px);
+    margin-left: auto;
+    margin-right: auto;
+}
+
+/* When topbar is placed inside the normal .page-container (which already
+   includes padding to offset the fixed header), avoid adding the header
+   height again — stick to the safe-area inset only so the visible gap
+   between the header and the topbar matches other pages. */
+.page-container .topbar-sticky {
+    top: calc(var(--header-height) + env(safe-area-inset-top, 0px));
+}
+
+/* When topbar lives inside a mobile viewport (MobileFrame), it should
+   stick to the top of the mobile scrolling container (which is already
+   positioned below the global header). Use safe-area inset only to avoid
+   extra offset; keep z-index below header. */
+.mobile-viewport .topbar-sticky {
+    /* Initially keep in flow but prepare for fixed behavior on root scroll.
+       Use 0 top so it sits at top of mobile-content when not fixed. */
+    top: 0;
+    z-index: 19;
+}
+
+/* Make mobile topbar fixed relative to viewport to avoid being scrolled
+   into the global header when the root page scrolls. Center to match
+   the mobile viewport width and provide a placeholder margin on the
+   following element to prevent overlap. */
+.mobile-viewport .topbar-sticky.fixed-to-viewport {
+    position: fixed;
+    top: calc(var(--header-height) + env(safe-area-inset-top, 0px));
+    left: 50%;
+    transform: translateX(-50%);
+    width: 100%;
+    max-width: var(--mobile-max-width);
+    box-sizing: border-box;
+    z-index: 19;
+}
+
+.mobile-viewport .topbar-sticky.fixed-to-viewport+* {
+    margin-top: var(--mobile-topbar-offset, 64px);
 }
 
 .loading-message,
