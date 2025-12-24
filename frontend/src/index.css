@@ -19,6 +19,9 @@
   --control-text-muted: #8c7758;
   /* header height used by sticky topbars (matches .header-bar height) */
   --header-height: 56px;
+  /* page max widths for centering topbars */
+  --page-max-width: 520px;
+  --mobile-max-width: 375px;
 }
 
 * {

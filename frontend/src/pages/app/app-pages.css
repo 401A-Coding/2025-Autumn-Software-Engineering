@@ -1639,9 +1639,32 @@
     left: 50%;
     transform: translateX(-50%);
     width: 100%;
-    max-width: 520px;
+    max-width: var(--page-max-width);
     box-sizing: border-box;
     z-index: 19;
+}
+
+/* Generic fixed-to-viewport topbar: center and match page max width on wide screens */
+.topbar-sticky.fixed-to-viewport {
+    position: fixed;
+    top: calc(var(--header-height) + env(safe-area-inset-top, 0px));
+    left: 50%;
+    transform: translateX(-50%);
+    width: 100%;
+    max-width: var(--page-max-width);
+    box-sizing: border-box;
+    z-index: 19;
+}
+
+/* Mobile: make fixed topbars fill the viewport width (no centering transform) */
+@media (max-width: 420px) {
+    .topbar-sticky.fixed-to-viewport {
+        left: 0;
+        transform: none;
+        max-width: 100%;
+        padding-left: 12px;
+        padding-right: 12px;
+    }
 }
 
 /* Ensure saved list shows its rounded card bottom inside viewport */
