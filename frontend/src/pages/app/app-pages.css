@@ -1626,10 +1626,11 @@
 }
 
 /* EndgameHome specific: reserve header/topbar space and fix topbar position */
-.endgame-page .app-page-header {
-    /* reserve space equal to topbar height to avoid overlap when topbar is fixed */
-    min-height: 56px;
-    padding: 0;
+
+/* For EndgameHome, reserve space in the content area so the fixed
+   topbar does not overlap content when positioned below the global header. */
+.endgame-page .app-page-content {
+    padding-top: calc(var(--header-height) + env(safe-area-inset-top, 0px));
 }
 
 .endgame-page .topbar-sticky.fixed-to-viewport {

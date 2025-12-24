@@ -18,12 +18,10 @@ export default function EndgameHome() {
     }, [])
     return (
         <div className="app-page no-root-scroll endgame-page">
-            <div className="app-page-header">
-                <div className="row align-center mb-0 topbar-sticky fixed-to-viewport">
-                    <button className="btn-ghost" onClick={() => nav('/app')}>← 返回</button>
-                    <h2 style={{ margin: 0, flex: 1, textAlign: 'center' }}>残局对战</h2>
-                    <div style={{ width: 64 }} />
-                </div>
+            <div className="row align-center mb-0 topbar-sticky fixed-to-viewport">
+                <button className="btn-ghost" onClick={() => nav('/app')}>← 返回</button>
+                <h2 style={{ margin: 0, flex: 1, textAlign: 'center' }}>残局对战</h2>
+                <div style={{ width: 64 }} />
             </div>
 
             <div className="app-page-content">
