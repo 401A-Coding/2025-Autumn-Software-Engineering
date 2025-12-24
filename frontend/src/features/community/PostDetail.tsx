@@ -321,6 +321,25 @@ export default function PostDetail() {
                     setTimeout(() => {
                         scrollToElementWithRetry(targetComment)
                     }, 120)
+                } else {
+                    // If element not found immediately, start polling for it (handles render delays / navigation races)
+                    const targetId = `comment-${targetCommentId}`
+                    const maxAttempts = 8
+                    const interval = 140
+                    let attempt = 0
+                    const poll = () => {
+                        attempt++
+                        const el = document.getElementById(targetId)
+                        console.log('jump-debug:poll', { targetId, attempt, exists: !!el })
+                        if (el) {
+                            scrollToElementWithRetry(el)
+                        } else if (attempt < maxAttempts) {
+                            setTimeout(poll, interval)
+                        } else {
+                            console.log('jump-debug:poll:failed', { targetId })
+                        }
+                    }
+                    setTimeout(poll, 120)
                 }
             }
         }
