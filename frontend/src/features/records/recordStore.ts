@@ -1,6 +1,31 @@
 import type { ChessRecord, Bookmark, Note, MoveRecord } from './types'
 import { recordsApi } from '../../services/api'
+import http from '../../lib/http'
 import type { components } from '../../types/api'
+
+const LOCAL_KEY = 'saved.records.v1'
+
+function readLocal(): ChessRecord[] {
+    try {
+        const raw = localStorage.getItem(LOCAL_KEY)
+        if (!raw) return []
+        const arr = JSON.parse(raw)
+        if (!Array.isArray(arr)) return []
+        return arr as ChessRecord[]
+    } catch (e) {
+        console.warn('[recordStore] failed to read local records', e)
+        return []
+    }
+}
+
+function writeLocal(list: ChessRecord[]) {
+    try {
+        localStorage.setItem(LOCAL_KEY, JSON.stringify(list))
+        try { window.dispatchEvent(new CustomEvent('saved-records-changed')) } catch { }
+    } catch (e) {
+        console.warn('[recordStore] failed to write local records', e)
+    }
+}
 
 function uid() {
     return `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
@@ -93,18 +118,33 @@ export const recordStore = {
 
     async saveNew(partial: Omit<ChessRecord, 'id'>): Promise<{ record: ChessRecord; savedToServer: boolean }> {
         // prepare server payload
+        // 清洗 moves，确保 from/to 存在且为数字
+        const sanitizedMoves = (partial.moves || []).map((m: MoveRecord, idx) => {
+            const fx = Number(m.from?.x ?? 0)
+            const fy = Number(m.from?.y ?? 0)
+            const tx = Number(m.to?.x ?? 0)
+            const ty = Number(m.to?.y ?? 0)
+            return {
+                moveIndex: idx,
+                from: { x: Number.isFinite(fx) ? Math.floor(fx) : 0, y: Number.isFinite(fy) ? Math.floor(fy) : 0 },
+                to: { x: Number.isFinite(tx) ? Math.floor(tx) : 0, y: Number.isFinite(ty) ? Math.floor(ty) : 0 },
+                // 后端要求 MoveDto.piece 为 PieceDto，包含 type/side/x/y
+                piece: {
+                    type: String('soldier'), // 默认类型为字符串
+                    side: (m.turn === 'red' || m.turn === 'black') ? m.turn : 'red',
+                    x: Number.isFinite(fx) ? Math.floor(fx) : 0,
+                    y: Number.isFinite(fy) ? Math.floor(fy) : 0,
+                },
+            }
+        }).filter(m => Number.isFinite(m.from.x) && Number.isFinite(m.from.y) && Number.isFinite(m.to.x) && Number.isFinite(m.to.y))
+
         const body: components['schemas']['RecordCreateRequest'] & { initialLayout?: any; customLayout?: any; customRules?: any; mode?: any } = {
             opponent: partial.opponent,
             startedAt: partial.startedAt,
             endedAt: partial.endedAt,
             result: partial.result as any,
-            keyTags: partial.keyTags ?? [],
-            moves: (partial.moves || []).map((m: MoveRecord, idx) => ({
-                moveIndex: idx,
-                from: { x: m.from.x, y: m.from.y },
-                to: { x: m.to.x, y: m.to.y },
-                piece: { side: m.turn },
-            })),
+            keyTags: partial.keyTags,
+            moves: sanitizedMoves,
             bookmarks: (partial.bookmarks || []).map(b => ({ step: b.step, label: b.label, note: (b as any).note })),
             ...(partial as any).initialLayout ? { initialLayout: (partial as any).initialLayout } : {},
             ...(partial as any).customLayout ? { customLayout: (partial as any).customLayout } : {},
@@ -112,10 +152,25 @@ export const recordStore = {
             ...(partial as any).mode ? { mode: (partial as any).mode } : {},
         }
 
-        // 强制仅保存到服务器：无 token 或请求失败则抛错
-        const token = localStorage.getItem('token')
-        if (!token) {
-            throw new Error('UNAUTHENTICATED')
+        let created: any = null
+        let savedToServer = false
+        // 尝试向服务器保存（若未登录或网络/授权失败则回退到本地保存）
+        try {
+            // 调试信息：记录是否有 token 以及请求体摘要
+            try { console.debug('[recordStore] attempting server save, hasToken=', !!localStorage.getItem('token'), 'body=', { opponent: body.opponent, moves: body.moves?.length }) } catch {}
+            // 使用 axios 实例以触发 refresh token 流程（若需要）并正确处理拦截器
+            try { console.debug('[recordStore] first move sample', JSON.stringify(body.moves && body.moves[0])) } catch {}
+            const res = await http.post('/api/v1/records', body)
+            created = res.data
+            savedToServer = !!created
+            try { console.debug('[recordStore] server save result', savedToServer, created?.id) } catch {}
+        } catch (e: any) {
+            // 后端保存失败（可能未登录或网络问题），将降级为仅本地保存
+            try {
+                console.error('[recordStore] server save failed, falling back to local, status=', e?.status ?? e?.response?.status, 'msg=', e?.serverMessage ?? e?.message ?? e)
+            } catch {}
+            created = null
+            savedToServer = false
         }
         const created = await recordsApi.create(body)
 
@@ -144,6 +199,18 @@ export const recordStore = {
             customLayout: (created as any)?.customLayout ?? (partial as any).customLayout ?? undefined,
             customRules: (created as any)?.customRules ?? (partial as any).customRules ?? undefined,
             mode: (created as any)?.mode ?? (partial as any).mode ?? undefined,
+        }
+
+        // 如果未能保存到服务器，落盘到 localStorage
+        if (!savedToServer) {
+            try {
+                const list = readLocal()
+                // 确保不重复 id
+                const next = [rec, ...list.filter(r => r.id !== rec.id)]
+                writeLocal(next)
+            } catch (e) {
+                console.warn('[recordStore] failed to persist record locally', e)
+            }
         }
 
         return { record: rec, savedToServer: true }

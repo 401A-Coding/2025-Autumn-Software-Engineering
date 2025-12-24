@@ -85,17 +85,43 @@ export class BoardService {
 
   findTemplates() {
     // 自定义棋局模板：仅返回 isTemplate=true 且非残局
-    return this.prisma.board.findMany({
-      where: { isTemplate: true, isEndgame: false },
-      orderBy: { updatedAt: 'desc' },
-    });
+    return this.prisma.board
+      .findMany({ where: { isTemplate: true, isEndgame: false }, orderBy: { updatedAt: 'desc' } })
+      .then((rows) =>
+        rows.map((r: any) => {
+          try {
+            const layout: any = r.layout;
+            if (layout && Array.isArray(layout.pieces)) {
+              layout.pieces = layout.pieces.map((p: any) => ({
+                ...p,
+                type: p.type === 'rook' ? 'chariot' : p.type,
+              }));
+              r.layout = layout;
+            }
+          } catch {}
+          return r;
+        }),
+      );
   }
 
   findMyEndgames(ownerId: number) {
-    return this.prisma.board.findMany({
-      where: { ownerId, isEndgame: true },
-      orderBy: { updatedAt: 'desc' },
-    });
+    return this.prisma.board
+      .findMany({ where: { ownerId, isEndgame: true }, orderBy: { updatedAt: 'desc' } })
+      .then((rows) =>
+        rows.map((r: any) => {
+          try {
+            const layout: any = r.layout;
+            if (layout && Array.isArray(layout.pieces)) {
+              layout.pieces = layout.pieces.map((p: any) => ({
+                ...p,
+                type: p.type === 'rook' ? 'chariot' : p.type,
+              }));
+              r.layout = layout;
+            }
+          } catch {}
+          return r;
+        }),
+      );
   }
 
   findMine(ownerId: number) {
@@ -116,6 +142,18 @@ export class BoardService {
     if (!board) {
       throw new NotFoundException(`Board ${id} not found`);
     }
+    try {
+      const layout: any = (board as any).layout;
+      if (layout && Array.isArray(layout.pieces)) {
+        layout.pieces = layout.pieces.map((p: any) => ({
+          ...p,
+          type: p.type === 'rook' ? 'chariot' : p.type,
+        }));
+        (board as any).layout = layout;
+      }
+    } catch {
+      // ignore
+    }
     return board;
   }
 
@@ -131,7 +169,20 @@ export class BoardService {
       }),
       this.prisma.board.count({ where: { ownerId, isEndgame: false } }),
     ]);
-    return { items, page: Math.max(page, 1), pageSize: take, total };
+    const mapped = items.map((r: any) => {
+      try {
+        const layout: any = r.layout;
+        if (layout && Array.isArray(layout.pieces)) {
+          layout.pieces = layout.pieces.map((p: any) => ({
+            ...p,
+            type: p.type === 'rook' ? 'chariot' : p.type,
+          }));
+          r.layout = layout;
+        }
+      } catch {}
+      return r;
+    });
+    return { items: mapped, page: Math.max(page, 1), pageSize: take, total };
   }
 
   async update(id: number, updateBoardDto: UpdateBoardDto) {

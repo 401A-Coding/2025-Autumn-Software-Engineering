@@ -4,9 +4,12 @@ import { useNavigate } from 'react-router-dom'
 import Board from '../../features/chess/Board'
 import MobileFrame from '../../components/MobileFrame'
 import type { CustomRuleSet } from '../../features/chess/ruleEngine'
+import type { PieceType } from '../../features/chess/types'
 import { standardChessRules } from '../../features/chess/rulePresets'
+import { getModifiedPieceKeys, pieceDisplayNames } from '../../features/chess/ruleDiff'
+import RuleViewerModal from '../../components/RuleViewerModal'
 import { boardApi } from '../../services/api'
-import { apiBoardToLocalFormat } from '../../features/chess/boardAdapter'
+import { apiBoardToLocalFormat, boardToApiFormat } from '../../features/chess/boardAdapter'
 import { recordStore } from '../../features/records/recordStore'
 import type { MoveRecord, ChessRecord } from '../../features/records/types'
 import { cloneBoard } from '../../features/chess/types'
@@ -17,6 +20,7 @@ export default function CustomBattle() {
     const [ruleSet, setRuleSet] = useState<CustomRuleSet | null>(null)
     const [customBoard, setCustomBoard] = useState<any>(null)
     const currentBoardRef = useRef<any>(null)
+    const [viewerPieceKey, setViewerPieceKey] = useState<PieceType | null>(null)
 
     const location: any = useLocation()
     useEffect(() => {
@@ -97,9 +101,36 @@ export default function CustomBattle() {
 
     const persistRecord = async (result?: 'red' | 'black' | 'draw') => {
         console.log('[CustomBattle] persistRecord called, moves:', moves.length)
-        const boardToSave = currentBoardRef.current || customBoard
+        let boardToSave = currentBoardRef.current || customBoard
 
+        // 如果路由或 location.state 指定了 boardId，则优先从后端拉取模板并作为保存时的初始布局
         try {
+            const params = new URLSearchParams(location.search || '')
+            const boardIdStr = params.get('boardId') || (location.state && (location.state as any).boardId)
+            if (boardIdStr) {
+                const bid = Number(boardIdStr)
+                if (!Number.isNaN(bid) && bid > 0) {
+                    try {
+                        const apiBoard = await boardApi.get(bid)
+                        const local = apiBoardToLocalFormat(apiBoard as any)
+                        if (local) {
+                            boardToSave = local
+                            console.log('[CustomBattle] applied template layout from boardId', bid)
+                        }
+                    } catch (e) {
+                        console.error('[CustomBattle] failed to fetch board template', e)
+                    }
+                }
+            }
+        } catch (e) {
+            /* ignore */
+        }
+        
+        try {
+            // 将保存时的二维布局同时转换为 API 格式（pieces）以便服务器接收并持久化
+            const rawApi = (boardToSave && (boardToSave as any[]).length) ? boardToApiFormat(boardToSave as any, undefined, undefined) : undefined
+            const apiLayout = rawApi ? ((rawApi as any).layout?.pieces ? { pieces: (rawApi as any).layout.pieces } : ((rawApi as any).pieces ? { pieces: (rawApi as any).pieces } : undefined)) : undefined
+
             const rec: Omit<ChessRecord, 'id'> = {
                 startedAt,
                 endedAt: new Date().toISOString(),
@@ -111,8 +142,11 @@ export default function CustomBattle() {
                 bookmarks: [],
                 notes: [],
                 mode: 'custom',
-                // 保存初始布局，回放时叠加 moves 还原最终局面
-                customLayout: customBoard ?? boardToSave,
+                // 保存初始布局：
+                // - `initialLayout` 为 API 格式（pieces），用于服务器持久化与列表展示
+                // - `customLayout` 为前端二维数组，便于本地回放使用
+                customLayout: boardToSave ?? customBoard,
+                initialLayout: apiLayout,
                 customRules: ruleSet, // 直接保存规则
             }
 
@@ -162,28 +196,49 @@ export default function CustomBattle() {
                     </div>
                 </div>
 
-                {/* 主体：棋盘 + 侧栏（在窄屏隐藏） */}
-                <div className="row gap-16 align-start wrap">
-                    <div className="board-area">
-                        <div className="board-area__inner">
-                            <Board
-                                customRules={ruleSet}
-                                initialBoard={customBoard}
-                                onMove={(m) => {
-                                    setMoves(prev => [...prev, m])
-                                    // 更新当前棋盘状态
-                                    if (currentBoardRef.current) {
-                                        currentBoardRef.current = movePiece(currentBoardRef.current, m.from, m.to)
-                                    }
-                                }}
-                                onGameOver={(winner) => persistRecord(winner || undefined)}
-                            />
-                        </div>
-                        {ruleSet.description && (
-                            <div className="note-info">{ruleSet.description}</div>
-                        )}
+            {/* 主体：棋盘 + 侧栏（在窄屏隐藏） */}
+            <div className="row gap-16 align-start wrap">
+                <div className="board-area">
+                    <div className="board-area__inner">
+                        <Board
+                            customRules={ruleSet}
+                            initialBoard={customBoard}
+                            onMove={(m) => {
+                                setMoves(prev => [...prev, m])
+                                // 更新当前棋盘状态
+                                if (currentBoardRef.current) {
+                                    currentBoardRef.current = movePiece(currentBoardRef.current, m.from, m.to)
+                                }
+                            }}
+                            onGameOver={(winner) => persistRecord(winner || undefined)}
+                        />
                     </div>
+                    {ruleSet && (() => {
+                        const modifiedKeys = getModifiedPieceKeys(ruleSet, standardChessRules)
+                        if (modifiedKeys.length === 0) return null
+                        return (
+                            <div className="mt-8">
+                                <div className="text-13 fw-600 mb-6">已修改规则的棋子</div>
+                                <div className="row gap-8 wrap">
+                                    {modifiedKeys.map(k => (
+                                        <button
+                                            key={k}
+                                            className="chip chip-info"
+                                            onClick={() => setViewerPieceKey(k as PieceType)}
+                                        >
+                                            {pieceDisplayNames[k] || k}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        )
+                    })()}
+                    {ruleSet.description && (
+                        <div className="note-info">{ruleSet.description}</div>
+                    )}
+                </div>
 
+                {/* 侧栏与棋盘并列（在窄屏隐藏侧栏） */}
                     <aside className="col gap-12 flex-1 minw-260 hide-on-mobile">
                         <div className="pad-12 bg-muted rounded-8">
                             <div className="fw-700 mb-8">规则摘要</div>
@@ -225,6 +280,13 @@ export default function CustomBattle() {
                 </div>
                 <div className="text-center text-12 muted mt-8">动作数: {moves.length}</div>
             </div>
+            {viewerPieceKey && ruleSet?.pieceRules?.[viewerPieceKey] && (
+                <RuleViewerModal
+                    title={pieceDisplayNames[viewerPieceKey] || ruleSet.pieceRules[viewerPieceKey]?.name || viewerPieceKey}
+                    rule={ruleSet.pieceRules[viewerPieceKey]!}
+                    onClose={() => setViewerPieceKey(null)}
+                />
+            )}
         </MobileFrame>
     )
 }

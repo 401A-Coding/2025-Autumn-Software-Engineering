@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { boardApi } from '../../services/api'
+import { serverRulesToRuleSet } from '../../features/chess/ruleAdapter'
 // no-op type import removed to avoid unused warnings
 import './app-pages.css'
 
@@ -41,12 +42,22 @@ export default function CustomOnlineLobby() {
 
     const handleConfirmCreate = async () => {
         if (!selectedTemplate) return
-        // 创建房间时传递 boardId 和规则
+        // 为确保携带完整规则，先按 ID 拉取详情（列表可能无 rules）
+        let rulesDto = selectedTemplate.rules
+        let layout = selectedTemplate.layout
+        try {
+            const full = await boardApi.get(Number(selectedTemplate.id))
+            rulesDto = full?.rules ?? rulesDto
+            layout = full?.layout ?? layout
+        } catch {
+            // 忽略，沿用列表中的最小信息
+        }
+        // 统一转换为 CustomRuleSet，避免目标页误判并回落到标准规则
         navigate('/app/custom-online-live-battle?action=create', {
             state: {
                 boardId: selectedTemplate.id,
-                rules: selectedTemplate.rules,
-                layout: selectedTemplate.layout
+                rules: rulesDto ? serverRulesToRuleSet(rulesDto) : undefined,
+                layout,
             }
         })
     }
@@ -94,7 +105,10 @@ export default function CustomOnlineLobby() {
                             中创建并保存模板。
                         </div>
                     ) : (
-                        <div className="grid-auto-250 gap-8 mb-12">
+                        <div
+                            className="col gap-8 mb-12"
+                            style={{ maxHeight: '60vh', overflowY: 'auto', paddingRight: 6 }}
+                        >
                             {templates.map(t => (
                                 <div key={t.id} className="pad-8 bg-white rounded-6 border-1 border-gray">
                                     <div className="fw-600 text-14 mb-4">{t.name}</div>

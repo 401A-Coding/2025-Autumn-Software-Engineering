@@ -27,6 +27,8 @@ export default function RecordReplay() {
     // Profiles for header
     const [myProfile, setMyProfile] = useState<{ id: number; nickname?: string; avatarUrl?: string } | null>(null)
     const [opponentProfile, setOpponentProfile] = useState<{ id: number; nickname?: string; avatarUrl?: string } | null>(null)
+    // 视角切换开关（必须在任何条件返回之前声明，保持 hooks 顺序稳定）
+    const [flipOverride, setFlipOverride] = useState(false)
 
     // 计算总步数（在 hooks 之前，避免条件 hooks）
     const total = record?.moves.length ?? 0
@@ -97,13 +99,21 @@ export default function RecordReplay() {
 
     // 旧的添加方法已替换为 prompt 交互，保留位置注释避免误用
 
-    // 解析我方棋色（从 keyTags 中提取 '我方:红' 或 '我方:黑'）
-    const mySide = (record.keyTags || []).find((t: string) => t.startsWith('我方:'))?.split(':')[1] || 'red'
-    const isRedSide = mySide === '红'
+    // 解析我方棋色：支持中文与英文字段，统一为 'red' | 'black'
+    const rawTag = ((record?.keyTags) || []).find((t: string) => t.startsWith('我方:'))
+    const parsed = rawTag ? rawTag.split(':')[1] : undefined
+    const mySide: 'red' | 'black' = ((): 'red' | 'black' => {
+        if (!parsed) return 'red'
+        if (parsed === '红' || parsed.toLowerCase() === 'red') return 'red'
+        if (parsed === '黑' || parsed.toLowerCase() === 'black') return 'black'
+        return 'red'
+    })()
+    const baseFlip = mySide === 'red' ? false : true
+    const shouldFlip = flipOverride ? !baseFlip : baseFlip
 
     // 计算显示顺序：红方在左（先手），黑方在右（后手）
-    const leftProfile = isRedSide ? myProfile : opponentProfile
-    const rightProfile = isRedSide ? opponentProfile : myProfile
+    const leftProfile = mySide === 'red' ? myProfile : opponentProfile
+    const rightProfile = mySide === 'red' ? opponentProfile : myProfile
 
     const renderFramedAvatar = (
         profile: { id: number; nickname?: string; avatarUrl?: string } | null,
@@ -218,18 +228,19 @@ export default function RecordReplay() {
                             {renderFramedAvatar(rightProfile, '#333')}
                         </div>
 
-                        {/* 中间：棋盘 */}
-                        <div>
-                            <BoardViewer
-                                moves={record.moves}
-                                step={step}
-                                initialLayout={
-                                    record.mode === 'custom'
-                                        ? (record as any).customLayout // 自定义：保存的是初始布局，叠加 moves 重放
-                                        : record.initialLayout as any // 标准：pieces 格式
-                                }
-                            />
-                        </div>
+                    {/* 中间：棋盘 */}
+                    <div>
+                        <BoardViewer 
+                            moves={record.moves} 
+                            step={step} 
+                            flip={shouldFlip}
+                            initialLayout={
+                                record.mode === 'custom'
+                                    ? (record as any).customLayout // 自定义：保存的是初始布局，叠加 moves 重放
+                                    : record.initialLayout as any // 标准：pieces 格式
+                            } 
+                        />
+                    </div>
 
                         {/* 下方：红方玩家（棋盘下半部分）- 红色边框 */}
                         <div style={{ display: 'flex', justifyContent: 'center' }}>
@@ -245,6 +256,7 @@ export default function RecordReplay() {
                         <button className="btn-ghost" onClick={() => setStep(0)}>开局</button>
                         <button className="btn-ghost" onClick={() => setStep(total)}>终局</button>
                         <button className="btn-ghost" onClick={() => setIsPlaying(p => !p)}>{isPlaying ? '⏸ 暂停' : '▶ 自动'}</button>
+                        <button className="btn-ghost" onClick={() => setFlipOverride(f => !f)} title="切换视角">切换视角</button>
                         <div className="ml-auto">
                             <button className="btn-ghost" title="修改播放速度" onClick={() => setShowSpeedSheet(true)}>⚙ 速度</button>
                         </div>
@@ -268,8 +280,14 @@ export default function RecordReplay() {
                                         const y = Math.max(0, Math.min(9, p.y))
                                         b[y][x] = { id: `init-${id++}`, type: p.type, side: p.side }
                                     }
-                                } else {
-                                    b = createInitialBoard() as any[][]
+                                    return base
+                                }
+                                return createInitialBoard()
+                            })()
+                            for (let i = 0; i < Math.min(step, record.moves.length); i++) {
+                                    const m = record.moves[i]
+                                    const nb = movePiece(b, m.from, m.to)
+                                    for (let y = 0; y < 10; y++) for (let x = 0; x < 9; x++) b[y][x] = nb[y][x]
                                 }
                             }
 

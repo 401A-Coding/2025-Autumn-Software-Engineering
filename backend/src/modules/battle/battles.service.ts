@@ -9,6 +9,7 @@ import { JwtService } from '@nestjs/jwt';
 import type { Board, Side } from '../../shared/chess/types';
 import { createHash } from 'node:crypto';
 import { ChessEngineService } from './engine.service';
+import { BoardService } from '../board/board.service';
 import { MetricsService } from '../metrics/metrics.service';
 import { RecordService } from '../record/record.service';
 
@@ -40,6 +41,8 @@ export interface BattleState {
   source: 'match' | 'room';
   visibility: 'match' | 'private' | 'public';
   ownerId?: number;
+  // optional initial board id persisted at match start
+  initialBoardId?: number | null;
 }
 
 @Injectable()
@@ -76,6 +79,7 @@ export class BattlesService {
     @Optional() private readonly metrics?: MetricsService,
     @Optional() private readonly events?: EventEmitter2,
     @Optional() private readonly records?: RecordService,
+    @Optional() private readonly boards?: BoardService,
   ) {}
 
   verifyBearer(authorization?: string) {
@@ -147,6 +151,42 @@ export class BattlesService {
     if (b.players.length >= 2) throw new BadRequestException('房间已满');
     b.players.push(userId);
     if (b.players.length === 2) b.status = 'playing';
+    // 当房间进入 playing 状态（两人已就位）时，若尚未持久化初始布局则写入 boards 表，供回放使用
+    if (b.status === 'playing' && !b.initialBoardId && this.boards) {
+      const pieces: any[] = [];
+      for (let y = 0; y < (b.board?.length || 10); y++) {
+        for (let x = 0; x < ((b.board?.[y] || []).length || 9); x++) {
+          const p = (b.board as any)[y][x];
+          if (p) {
+            const type = p.type === 'rook' ? 'chariot' : p.type;
+            pieces.push({ type, side: p.side, x, y });
+          }
+        }
+      }
+      const layout = { pieces, turn: b.turn };
+      this.boards
+        .create(
+          {
+            name: `match-initial-${b.id}`,
+            description: '自动保存：匹配初始布局',
+            layout,
+            preview: '',
+            isTemplate: false,
+            isEndgame: false,
+          } as any,
+          b.ownerId ?? undefined,
+        )
+        .then((created) => {
+          try {
+            b.initialBoardId = (created as any)?.id ?? null;
+          } catch {
+            /* ignore */
+          }
+        })
+        .catch((e) => {
+          console.warn('[battle.join] failed to persist initial board', e);
+        });
+    }
     // 进入对战后，清理等待 TTL
     if (b.status === 'playing') this.clearWaitingTtl(b.id);
     return { battleId: b.id, status: b.status };
@@ -179,6 +219,7 @@ export class BattlesService {
       source: b.source,
       visibility: b.visibility,
       ownerId: b.ownerId ?? null,
+      initialBoardId: b.initialBoardId ?? null,
     };
   }
 
@@ -351,6 +392,36 @@ export class BattlesService {
           'movesCount:',
           movesPayload.length,
         );
+        // 尝试构造 initialLayout（优先使用已持久化的 board 模板）
+        let initialLayout: any = null;
+        let customLayout: any = null;
+        try {
+          if (b.initialBoardId && this.boards) {
+            const tmpl = await this.boards.findOne(b.initialBoardId);
+            initialLayout = (tmpl as any).layout ?? null;
+            // 将数据库 layout 转为前端可用的 customLayout（二维数组），尝试用 record 模块的需求保留原样
+            customLayout = null;
+          } else {
+            // 从内存 board 构建 pieces 数组
+            const pieces: any[] = [];
+            for (let y = 0; y < (b.board?.length || 10); y++) {
+              for (let x = 0; x < ((b.board?.[y] || []).length || 9); x++) {
+                const p = (b.board as any)[y][x];
+                if (p) {
+                  const type = p.type === 'rook' ? 'chariot' : p.type;
+                  pieces.push({ type, side: p.side, x, y });
+                }
+              }
+            }
+            if (pieces.length) initialLayout = { pieces };
+            customLayout = b.board;
+          }
+        } catch (e) {
+          // ignore layout construction errors
+          initialLayout = null;
+          customLayout = null;
+        }
+
         await this.records.create(pid, {
           opponent: opponentId ? String(opponentId) : '对手',
           startedAt: new Date(b.createdAt).toISOString(),
@@ -360,6 +431,8 @@ export class BattlesService {
           keyTags: [sourceLabel, sideLabel],
           moves: movesPayload,
           bookmarks: [],
+          initialLayout,
+          customLayout,
         } as any);
       } catch (e) {
         console.error(

@@ -9,8 +9,13 @@ export function generateCustomMoves(board: Board, from: Pos, customRules?: Custo
     if (!piece) return []
 
     const rules = customRules ?? getDefaultRules()
-    const rule = (rules as any)[piece.type]
-    if (!rule) return []
+    let rule = (rules as any)[piece.type]
+    // 若该棋子未定义自定义规则，则回退到标准规则的该棋子配置
+    if (!rule) {
+        const defaults = getDefaultRules()
+        rule = (defaults as any)[piece.type]
+        if (!rule) return []
+    }
 
     const res: Pos[] = []
     const side: Side = piece.side

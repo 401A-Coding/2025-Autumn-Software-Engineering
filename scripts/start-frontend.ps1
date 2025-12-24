@@ -1,3 +1,8 @@
+# Allow selecting dev server port (default 5173)
+param(
+    [int]$Port = 5173
+)
+
 # Move to frontend directory
 Set-Location -Path "$PSScriptRoot\..\frontend"
 
@@ -28,5 +33,5 @@ catch {
     Write-Warning "[start-frontend] Failed to start types watch job: $($_.Exception.Message)"
 }
 
-Write-Host "[start-frontend] Starting Vite dev server..."
-npm run dev
+Write-Host "[start-frontend] Starting Vite dev server on port $Port..."
+npm run dev -- --port $Port --strictPort
