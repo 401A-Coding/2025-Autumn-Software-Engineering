@@ -1654,6 +1654,14 @@
     margin-right: auto;
 }
 
+/* When topbar is placed inside the normal .page-container (which already
+   includes padding to offset the fixed header), avoid adding the header
+   height again — stick to the safe-area inset only so the visible gap
+   between the header and the topbar matches other pages. */
+.page-container .topbar-sticky {
+    top: env(safe-area-inset-top, 0px);
+}
+
 .loading-message,
 .error-message,
 .empty-message {
