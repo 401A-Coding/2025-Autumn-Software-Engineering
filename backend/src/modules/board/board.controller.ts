@@ -34,6 +34,24 @@ export class BoardController {
     @Req() req: Request & { user?: { sub: number } },
   ) {
     const ownerId = req.user!.sub;
+    // server-side validation for endgame layouts
+    try {
+      if (
+        createBoardDto.isEndgame &&
+        createBoardDto.layout &&
+        Array.isArray((createBoardDto.layout as any).pieces)
+      ) {
+        const { assertValidEndgameOrThrow } = require('./endgame.validator');
+        assertValidEndgameOrThrow((createBoardDto.layout as any).pieces);
+      }
+    } catch (e: any) {
+      // rethrow as BadRequest
+      const msg = e?.validation
+        ? e.validation.join('; ')
+        : e?.message || 'Invalid layout';
+      const { BadRequestException } = require('@nestjs/common');
+      throw new BadRequestException(msg);
+    }
     return this.boardService.create(createBoardDto, ownerId);
   }
 
