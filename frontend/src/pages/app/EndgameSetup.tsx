@@ -2,6 +2,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { useEffect, useMemo, useState } from 'react'
 import { boardApi } from '../../services/api'
 import '../../features/chess/board.css'
+import validateBoard from '../../features/chess/validateBoard'
 import './app-pages.css'
 import MobileFrame from '../../components/MobileFrame'
 
@@ -33,6 +34,13 @@ export default function EndgameSetup() {
                 type: p.type === 'chariot' ? 'rook' : p.type,
             }))
             setPieces(normalized)
+            // validate imported layout and show rules if any
+            const vr = validateBoard(normalized)
+            if (!vr.valid) {
+                setRuleMsg(vr.errors.join('; '))
+            } else {
+                setRuleMsg('')
+            }
         }
     }, [initialLayout])
 
@@ -302,6 +310,13 @@ export default function EndgameSetup() {
                                     setSaveMsg('')
                                     setSaving(true)
                                     try {
+                                        // validate board before saving
+                                        const vr = validateBoard(pieces)
+                                        if (!vr.valid) {
+                                            setRuleMsg(vr.errors.join('; '))
+                                            setSaving(false)
+                                            return
+                                        }
                                         const req: any = { name: name || '未命名残局', layout: { ...layout, turn }, preview: '', isEndgame: true }
                                         await boardApi.createTemplate(req)
                                         setSaveMsg('已保存到我的残局（模板）')
@@ -332,6 +347,12 @@ export default function EndgameSetup() {
                                     setSaveMsg('')
                                     setSaving(true)
                                     try {
+                                        // validate board before creating online room
+                                        const vr = validateBoard(pieces)
+                                        if (!vr.valid) {
+                                            setRuleMsg(vr.errors.join('; '))
+                                            throw new Error('棋盘校验未通过')
+                                        }
                                         const payload: any = {
                                             name: name || '未命名残局',
                                             layout: { ...layout, turn },
