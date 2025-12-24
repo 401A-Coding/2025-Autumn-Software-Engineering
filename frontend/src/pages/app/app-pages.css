@@ -1656,9 +1656,12 @@
     z-index: 19;
 }
 
-/* Mobile: make fixed topbars fill the viewport width (no centering transform) */
-@media (max-width: 420px) {
-    .topbar-sticky.fixed-to-viewport {
+/* Mobile: make fixed topbars fill the viewport width (no centering transform)
+   Use a slightly larger breakpoint to match --mobile-max-width variable. */
+@media (max-width: 430px) {
+
+    .topbar-sticky.fixed-to-viewport,
+    .mobile-viewport .topbar-sticky.fixed-to-viewport {
         left: 0;
         transform: none;
         max-width: 100%;
@@ -1753,7 +1756,7 @@
     left: 50%;
     transform: translateX(-50%);
     width: 100%;
-    max-width: 375px;
+    max-width: var(--mobile-max-width);
     box-sizing: border-box;
     z-index: 19;
 }
