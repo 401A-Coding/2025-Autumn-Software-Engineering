@@ -27,7 +27,12 @@ export default function EndgameSetup() {
 
     useEffect(() => {
         if (Array.isArray(initialLayout?.pieces)) {
-            setPieces(initialLayout.pieces)
+            // normalize legacy piece type 'chariot' -> 'rook' returned by some APIs
+            const normalized = initialLayout.pieces.map((p: any) => ({
+                ...p,
+                type: p.type === 'chariot' ? 'rook' : p.type,
+            }))
+            setPieces(normalized)
         }
     }, [initialLayout])
 
@@ -114,13 +119,13 @@ export default function EndgameSetup() {
 
     // Render the board from layout.pieces
     const BoardEditor = ({ pieces, onCellClick }: { pieces: Piece[]; onCellClick: (x: number, y: number) => void }) => {
-        const glyph = (type: PieceType, side: Side) => {
+        const glyph = (type: any, side: Side) => {
             if (type === 'general') return side === 'red' ? '帥' : '將'
             if (type === 'advisor') return side === 'red' ? '仕' : '士'
             if (type === 'elephant') return side === 'red' ? '相' : '象'
             if (type === 'soldier') return side === 'red' ? '兵' : '卒'
             if (type === 'horse') return '馬'
-            if (type === 'rook') return '車'
+            if (type === 'rook' || type === 'chariot') return '車'
             if (type === 'cannon') return '炮'
             return '?'
         }

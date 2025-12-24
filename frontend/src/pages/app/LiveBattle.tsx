@@ -575,7 +575,17 @@ export default function LiveBattle() {
 
     return (
         <div className="card-pad pos-rel">
-            <h2>在线对战</h2>
+            <div className="row align-center" style={{ marginBottom: 0 }}>
+                <div style={{ width: 360, maxWidth: '100%', margin: '0 auto', display: 'flex', alignItems: 'center' }}>
+                    {(!inRoom && (!action || action === 'join')) ? (
+                        <button className="btn-ghost" onClick={() => navigate(-1)}>← 返回</button>
+                    ) : (
+                        <div style={{ width: 64 }} />
+                    )}
+                    <h2 style={{ margin: 0, flex: 1, textAlign: 'center' }}>在线对战</h2>
+                    <div style={{ width: 64 }} />
+                </div>
+            </div>
             {endMessage && (
                 <div
                     className={
@@ -786,7 +796,6 @@ export default function LiveBattle() {
                                                 showTime={false}
                                                 nicknameWrap={true}
                                             />
-                                            <div style={{ fontWeight: 600, fontSize: 18, color: '#222', marginTop: 12 }}>{myProfile.nickname || '匿名用户'}</div>
                                             <div className="muted" style={{ marginTop: 8, fontSize: 15, textAlign: 'center', maxWidth: 320 }}>
                                                 {snapshot.source === 'room'
                                                     ? '房间已创建，等待好友输入房间号加入对局。你将执红方先手，对方加入后自动开始。'
@@ -936,11 +945,7 @@ export default function LiveBattle() {
             )}
 
             {/* 返回入口：仅在未入房时提供“返回” */}
-            {!inRoom && (
-                <div className="livebattle-return-bar">
-                    <button className="btn-ghost" onClick={() => navigate(-1)}>返回</button>
-                </div>
-            )}
+            {/* 返回入口：已移至页面头部 */}
 
             {/* Profile modal */}
             {showProfileModal && (
