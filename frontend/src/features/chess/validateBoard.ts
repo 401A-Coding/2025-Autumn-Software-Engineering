@@ -85,3 +85,47 @@ export default function validateBoard(pieces: Piece[] | undefined): ValidationRe
 
     return { valid: errors.length === 0, errors, highlights }
 }
+
+// per-piece placement validator (used by BoardEditor when placing a single piece)
+export function validatePlacement(candidate: Piece, pool: Piece[]): string | null {
+    // count current of this type on this side
+    const current = pool.filter(p => p.side === candidate.side && p.type === candidate.type).length
+    if (current >= MAX_COUNTS[candidate.type]) {
+        const label = candidate.type === 'general' ? (candidate.side === 'red' ? '帅' : '将')
+            : candidate.type === 'advisor' ? (candidate.side === 'red' ? '仕' : '士')
+                : candidate.type === 'elephant' ? (candidate.side === 'red' ? '相' : '象')
+                    : candidate.type === 'horse' ? '马'
+                        : candidate.type === 'rook' ? '车'
+                            : candidate.type === 'cannon' ? '炮' : (candidate.side === 'red' ? '兵' : '卒')
+        return `超出数量限制：${candidate.side === 'red' ? '红' : '黑'}方 ${label}`
+    }
+
+    // general must be in palace
+    const inPalace = (side: Side, x: number, y: number) => {
+        if (side === 'black') return x >= 3 && x <= 5 && y >= 0 && y <= 2
+        return x >= 3 && x <= 5 && y >= 7 && y <= 9
+    }
+    const inAdvisorPoints = (side: Side, x: number, y: number) => {
+        if (side === 'black') {
+            const pts = [[3, 0], [5, 0], [4, 1], [3, 2], [5, 2]]
+            return pts.some(([px, py]) => px === x && py === y)
+        } else {
+            const pts = [[3, 7], [5, 7], [4, 8], [3, 9], [5, 9]]
+            return pts.some(([px, py]) => px === x && py === y)
+        }
+    }
+    const elephantInOwnHalf = (side: Side, y: number) => (side === 'red' ? y >= 5 : y <= 4)
+
+    if (candidate.type === 'general' && !inPalace(candidate.side, candidate.x, candidate.y)) {
+        return '规则限制：将/帅不可出九宫'
+    }
+    if (candidate.type === 'advisor') {
+        if (!inPalace(candidate.side, candidate.x, candidate.y)) return '规则限制：士不可出九宫'
+        if (!inAdvisorPoints(candidate.side, candidate.x, candidate.y)) return '规则限制：士仅能在九宫斜点'
+    }
+    if (candidate.type === 'elephant' && !elephantInOwnHalf(candidate.side, candidate.y)) {
+        return '规则限制：象不可过河'
+    }
+
+    return null
+}

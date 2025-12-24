@@ -2,7 +2,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { useEffect, useMemo, useState } from 'react'
 import { boardApi } from '../../services/api'
 import '../../features/chess/board.css'
-import validateBoard from '../../features/chess/validateBoard'
+import validateBoard, { validatePlacement } from '../../features/chess/validateBoard'
 import './app-pages.css'
 import MobileFrame from '../../components/MobileFrame'
 
@@ -46,72 +46,7 @@ export default function EndgameSetup() {
 
     const layout = useMemo(() => ({ pieces }), [pieces])
 
-    // 规则：各棋子最大数量（每方）
-    const MAX_COUNTS: Record<PieceType, number> = {
-        general: 1,
-        advisor: 2,
-        elephant: 2,
-        horse: 2,
-        rook: 2,
-        cannon: 2,
-        soldier: 5,
-    }
-
-    function inPalace(side: Side, x: number, y: number): boolean {
-        if (side === 'black') return x >= 3 && x <= 5 && y >= 0 && y <= 2
-        return x >= 3 && x <= 5 && y >= 7 && y <= 9
-    }
-
-    function inAdvisorPoints(side: Side, x: number, y: number): boolean {
-        if (side === 'black') {
-            const pts = [
-                [3, 0], [5, 0], [4, 1], [3, 2], [5, 2],
-            ]
-            return pts.some(([px, py]) => px === x && py === y)
-        } else {
-            const pts = [
-                [3, 7], [5, 7], [4, 8], [3, 9], [5, 9],
-            ]
-            return pts.some(([px, py]) => px === x && py === y)
-        }
-    }
-
-    function elephantInOwnHalf(side: Side, y: number): boolean {
-        // 象不过河：红方 y >= 5；黑方 y <= 4
-        return side === 'red' ? y >= 5 : y <= 4
-    }
-
-    function countOf(side: Side, type: PieceType, pool: Piece[]): number {
-        return pool.filter(p => p.side === side && p.type === type).length
-    }
-
-    function validatePlacement(candidate: Piece, pool: Piece[]): string | null {
-        // 数量限制
-        const current = countOf(candidate.side, candidate.type, pool)
-        if (current >= MAX_COUNTS[candidate.type]) {
-            const label = candidate.type === 'general' ? (candidate.side === 'red' ? '帅' : '将')
-                : candidate.type === 'advisor' ? (candidate.side === 'red' ? '仕' : '士')
-                    : candidate.type === 'elephant' ? (candidate.side === 'red' ? '相' : '象')
-                        : candidate.type === 'horse' ? '马'
-                            : candidate.type === 'rook' ? '车'
-                                : candidate.type === 'cannon' ? '炮' : (candidate.side === 'red' ? '兵' : '卒')
-            return `超出数量限制：${candidate.side === 'red' ? '红' : '黑'}方 ${label}`
-        }
-        // 将/帅必须在九宫内
-        if (candidate.type === 'general' && !inPalace(candidate.side, candidate.x, candidate.y)) {
-            return '规则限制：将/帅不可出九宫'
-        }
-        // 士只能在九宫斜点（5个点）
-        if (candidate.type === 'advisor') {
-            if (!inPalace(candidate.side, candidate.x, candidate.y)) return '规则限制：士不可出九宫'
-            if (!inAdvisorPoints(candidate.side, candidate.x, candidate.y)) return '规则限制：士仅能在九宫斜点'
-        }
-        // 象不可过河
-        if (candidate.type === 'elephant' && !elephantInOwnHalf(candidate.side, candidate.y)) {
-            return '规则限制：象不可过河'
-        }
-        return null
-    }
+    // 校验逻辑已统一到 `validateBoard` / `validatePlacement` 模块
 
     // build a 10x9 board for Board component
     function buildInitialBoard() {
