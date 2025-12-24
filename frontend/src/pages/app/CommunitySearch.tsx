@@ -110,7 +110,7 @@ export default function CommunitySearch() {
 
     return (
         <div className="p-4">
-            <div className="mb-4 topbar-sticky" style={{ width: '100%' }}>
+            <div className="mb-4 topbar-sticky">
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                     <button className="btn-ghost" onClick={() => navigate(-1)} style={{ minWidth: 48 }}>⬅</button>
                     <input
