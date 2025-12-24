@@ -40,22 +40,12 @@ export default function CreatePost() {
             const autoTags = ['对局记录', '自定义棋局', '残局']
             const MAX_TAGS = 5
 
-            // helper to add tag; if full, replace first non-auto tag if possible
+            // helper to add tag; always append (allow exceeding MAX_TAGS)
             const addTagIfPossible = (t: string) => {
                 setTags(prev => {
                     if (prev.includes(t)) return prev
-                    if (prev.length < MAX_TAGS) return [...prev, t]
-
-                    // 已满：尝试替换第一个非自动标签
-                    const idx = prev.findIndex(p => !autoTags.includes(p))
-                    if (idx >= 0) {
-                        const next = [...prev]
-                        next[idx] = t
-                        return next
-                    }
-
-                    // 无可替换项，保留原样
-                    return prev
+                    // 直接追加，不替换已有标签
+                    return [...prev, t]
                 })
             }
 
@@ -239,12 +229,12 @@ export default function CreatePost() {
 
                     {/* 引用预览 */}
                     {resource.shareType === 'RECORD' && resource.shareRefId && (
-                        <div className="edit-area mb-16">
+                        <div className="edit-area mb-16 community-board-embed">
                             <RecordEmbed recordId={resource.shareRefId} enableSave={false} />
                         </div>
                     )}
                     {resource.shareType === 'BOARD' && resource.shareRefId && (
-                        <div className="edit-area mb-16">
+                        <div className="edit-area mb-16 community-board-embed">
                             <BoardEmbed
                                 boardId={resource.shareRefId}
                                 enableSave={false}
