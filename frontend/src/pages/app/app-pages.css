@@ -1639,7 +1639,8 @@
     left: 50%;
     transform: translateX(-50%);
     width: 100%;
-    max-width: var(--page-max-width);
+    /* match inner content width (page max minus page-container horizontal padding) */
+    max-width: calc(var(--page-max-width) - 32px);
     box-sizing: border-box;
     z-index: 19;
 }
@@ -1651,7 +1652,8 @@
     left: 50%;
     transform: translateX(-50%);
     width: 100%;
-    max-width: var(--page-max-width);
+    /* match inner content width (page max minus page-container horizontal padding) */
+    max-width: calc(var(--page-max-width) - 32px);
     box-sizing: border-box;
     z-index: 19;
 }
@@ -1721,8 +1723,8 @@
     border-radius: 12px;
     padding: 8px 12px;
     box-sizing: border-box;
-    /* match layout width of page content and center */
-    max-width: 520px;
+    /* match layout width of page content and center (account for .page-container padding) */
+    max-width: calc(var(--page-max-width) - 32px);
     margin-left: auto;
     margin-right: auto;
 }
