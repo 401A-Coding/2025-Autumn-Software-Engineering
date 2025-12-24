@@ -1600,6 +1600,7 @@
     flex: 1;
     overflow-y: auto;
     background: #fff7ed;
+    padding-bottom: 100px;
 }
 
 /* Utility to make a card fill available vertical space */
