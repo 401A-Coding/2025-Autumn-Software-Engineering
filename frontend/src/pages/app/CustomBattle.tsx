@@ -4,7 +4,10 @@ import { useNavigate } from 'react-router-dom'
 import Board from '../../features/chess/Board'
 import MobileFrame from '../../components/MobileFrame'
 import type { CustomRuleSet } from '../../features/chess/ruleEngine'
+import type { PieceType } from '../../features/chess/types'
 import { standardChessRules } from '../../features/chess/rulePresets'
+import { getModifiedPieceKeys, pieceDisplayNames } from '../../features/chess/ruleDiff'
+import RuleViewerModal from '../../components/RuleViewerModal'
 import { boardApi } from '../../services/api'
 import { apiBoardToLocalFormat, boardToApiFormat } from '../../features/chess/boardAdapter'
 import { recordStore } from '../../features/records/recordStore'
@@ -17,6 +20,7 @@ export default function CustomBattle() {
     const [ruleSet, setRuleSet] = useState<CustomRuleSet | null>(null)
     const [customBoard, setCustomBoard] = useState<any>(null)
     const currentBoardRef = useRef<any>(null)
+    const [viewerPieceKey, setViewerPieceKey] = useState<PieceType | null>(null)
 
     const location: any = useLocation()
     useEffect(() => {
@@ -125,7 +129,7 @@ export default function CustomBattle() {
         try {
             // 将保存时的二维布局同时转换为 API 格式（pieces）以便服务器接收并持久化
             const rawApi = (boardToSave && (boardToSave as any[]).length) ? boardToApiFormat(boardToSave as any, undefined, undefined) : undefined
-            const apiLayout = rawApi ? (rawApi.layout?.pieces ? { pieces: rawApi.layout.pieces } : (rawApi.pieces ? { pieces: rawApi.pieces } : undefined)) : undefined
+            const apiLayout = rawApi ? ((rawApi as any).layout?.pieces ? { pieces: (rawApi as any).layout.pieces } : ((rawApi as any).pieces ? { pieces: (rawApi as any).pieces } : undefined)) : undefined
 
             const rec: Omit<ChessRecord, 'id'> = {
                 startedAt,
@@ -209,6 +213,26 @@ export default function CustomBattle() {
                             onGameOver={(winner) => persistRecord(winner || undefined)}
                         />
                     </div>
+                    {ruleSet && (() => {
+                        const modifiedKeys = getModifiedPieceKeys(ruleSet, standardChessRules)
+                        if (modifiedKeys.length === 0) return null
+                        return (
+                            <div className="mt-8">
+                                <div className="text-13 fw-600 mb-6">已修改规则的棋子</div>
+                                <div className="row gap-8 wrap">
+                                    {modifiedKeys.map(k => (
+                                        <button
+                                            key={k}
+                                            className="chip chip-info"
+                                            onClick={() => setViewerPieceKey(k as PieceType)}
+                                        >
+                                            {pieceDisplayNames[k] || k}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        )
+                    })()}
                     {ruleSet.description && (
                         <div className="note-info">{ruleSet.description}</div>
                     )}
@@ -256,6 +280,13 @@ export default function CustomBattle() {
                 </div>
                 <div className="text-center text-12 muted mt-8">动作数: {moves.length}</div>
             </div>
+            {viewerPieceKey && ruleSet?.pieceRules?.[viewerPieceKey] && (
+                <RuleViewerModal
+                    title={pieceDisplayNames[viewerPieceKey] || ruleSet.pieceRules[viewerPieceKey]?.name || viewerPieceKey}
+                    rule={ruleSet.pieceRules[viewerPieceKey]!}
+                    onClose={() => setViewerPieceKey(null)}
+                />
+            )}
         </MobileFrame>
     )
 }

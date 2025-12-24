@@ -4,7 +4,6 @@ import { useNavigate } from 'react-router-dom'
 import type { PieceType, Piece, Side } from '../../features/chess/types'
 import { createInitialBoard } from '../../features/chess/types'
 import type { CustomRuleSet, MovePattern } from '../../features/chess/ruleEngine'
-import { standardChessRules } from '../../features/chess/rulePresets'
 import { moveTemplates, getDefaultTemplateForPiece, type MoveTemplateType } from '../../features/chess/moveTemplates'
 import '../../features/chess/board.css'
 
@@ -57,7 +56,8 @@ export default function VisualRuleEditor() {
                 console.error('Invalid rules in navigation state', e)
             }
         }
-        return standardChessRules
+        // 默认不加载任何标准规则，保留空规则集，确保保存只包含编辑器选择的点位
+        return { name: '自定义规则', pieceRules: {} as any }
     })
 
     // per-river-phase selections: pre / post
@@ -523,44 +523,37 @@ export default function VisualRuleEditor() {
             const { boardApi } = await import('../../services/api')
             const payload = boardToApiFormat(placementBoard, name, '')
 
-            // 生成最小可通过 DTO 校验的 RulesDto 结构
-            const toServerRules = () => {
-                const pieceRules: Record<string, any> = {}
-                const src = (ruleSet && (ruleSet as any).pieceRules) || {}
-                for (const [k, cfg] of Object.entries(src)) {
-                    if (!cfg || !(cfg as any).movePatterns) continue
-                    const patterns = (cfg as any).movePatterns as Array<{ dx: number; dy: number }>
-                    // 将本地 movePatterns 简化为 gridMask（忽略复杂条件与重复，仅保留目标相对坐标）
-                    const gridMask: [number, number][] = []
-                    const seen = new Set<string>()
-                    for (const p of patterns) {
-                        const key = `${p.dx},${p.dy}`
-                        if (seen.has(key)) continue
-                        seen.add(key)
-                        gridMask.push([p.dx, p.dy])
-                    }
-
-                    // 约束映射：仅保留与 DTO 对齐的字段
-                    const restrictions = (cfg as any).restrictions || {}
-                    const constraints: any = {}
-                    if (restrictions.mustStayInPalace === true) constraints.palace = 'insideOnly'
-                    if (restrictions.canCrossRiver === false) constraints.river = 'cannotCross'
-
-                    pieceRules[k] = {
-                        ruleType: 'custom',
-                        movement: gridMask.length ? { gridMask } : undefined,
-                        captureMode: 'sameAsMove',
-                        constraints: Object.keys(constraints).length ? constraints : undefined,
-                    }
+            // 使用共享适配器生成尽量保真的 RulesDto
+            const { ruleSetToServerRules } = await import('../../features/chess/ruleAdapter')
+            // 在保存前，若当前棋子有未应用的选择，自动应用到规则集，避免漏保存导致混入默认
+            const maybeApplyPendingEdits = () => {
+                const hasPending = selectedCellsPre.size > 0 || selectedCellsPost.size > 0 || Object.keys(selectedCellPatternsPre).length > 0 || Object.keys(selectedCellPatternsPost).length > 0
+                if (!hasPending) return
+                const patterns = generateMovePatterns()
+                if (!patterns.length) return
+                const prevRestrictions = ruleSet.pieceRules[editingPieceType]?.restrictions || {}
+                const normalizedRestrictions = {
+                    ...prevRestrictions,
+                    canJump: false,
+                    canCrossRiver: prevRestrictions.canCrossRiver ?? (editingPieceType === 'soldier' ? true : prevRestrictions.canCrossRiver),
                 }
-                return {
-                    ruleVersion: 1,
-                    layoutSource: 'empty',
-                    coordinateSystem: 'relativeToSide',
-                    mode: 'analysis',
-                    pieceRules,
+                const sanitizedPatterns = patterns.map(p => { const { jumpObstacle, ...rest } = p as any; return rest as MovePattern })
+                const updated = {
+                    ...ruleSet,
+                    pieceRules: {
+                        ...ruleSet.pieceRules,
+                        [editingPieceType]: {
+                            name: pieceNames[editingPieceType],
+                            movePatterns: sanitizedPatterns,
+                            restrictions: normalizedRestrictions,
+                        },
+                    },
                 }
+                setRuleSet(updated)
+                return updated
             }
+            const rsForSave = maybeApplyPendingEdits() || ruleSet
+            const toServerRules = () => ruleSetToServerRules(rsForSave)
 
                 // 后端必填字段：preview（string）；并标记为模板
                 ; (payload as any).preview = ''
@@ -582,8 +575,34 @@ export default function VisualRuleEditor() {
 
     // 保存并开始对局
     const handleSaveAndStart = () => {
-        // 不再将规则写入 localStorage，改为通过路由 state 传递给 CustomBattle
-        navigate('/app/custom-battle', { state: { layout: placementBoard, rules: ruleSet } })
+        // 保存并开始对局前，若有未应用编辑，先应用到规则集
+        const hasPending = selectedCellsPre.size > 0 || selectedCellsPost.size > 0 || Object.keys(selectedCellPatternsPre).length > 0 || Object.keys(selectedCellPatternsPost).length > 0
+        let nextRuleSet = ruleSet
+        if (hasPending) {
+            const patterns = generateMovePatterns()
+            if (patterns.length) {
+                const prevRestrictions = ruleSet.pieceRules[editingPieceType]?.restrictions || {}
+                const normalizedRestrictions = {
+                    ...prevRestrictions,
+                    canJump: false,
+                    canCrossRiver: prevRestrictions.canCrossRiver ?? (editingPieceType === 'soldier' ? true : prevRestrictions.canCrossRiver),
+                }
+                const sanitizedPatterns = patterns.map(p => { const { jumpObstacle, ...rest } = p as any; return rest as MovePattern })
+                nextRuleSet = {
+                    ...ruleSet,
+                    pieceRules: {
+                        ...ruleSet.pieceRules,
+                        [editingPieceType]: {
+                            name: pieceNames[editingPieceType],
+                            movePatterns: sanitizedPatterns,
+                            restrictions: normalizedRestrictions,
+                        },
+                    },
+                }
+                setRuleSet(nextRuleSet)
+            }
+        }
+        navigate('/app/custom-battle', { state: { layout: placementBoard, rules: nextRuleSet } })
     }
 
     // 处理规则编辑棋盘点击（根据当前编辑视图 pre/post 更新对应集合）

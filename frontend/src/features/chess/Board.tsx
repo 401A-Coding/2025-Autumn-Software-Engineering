@@ -39,7 +39,11 @@ export default function Board({ customRules: customRulesProp, initialBoard, init
     const customRules = useMemo(() => {
         if (!customRulesProp) return undefined
         if (isCustomRuleSet(customRulesProp)) {
-            return ruleSetToCustomRules(customRulesProp)
+            const rs = customRulesProp as CustomRuleSet
+            const hasAny = Object.values(rs.pieceRules || {}).some((cfg: any) => Array.isArray(cfg?.movePatterns) && cfg.movePatterns.length > 0)
+            // 若完全未定义任何自定义走法，则返回 undefined 以便使用标准规则；
+            // 若至少定义了一个棋子的走法，则只使用这些自定义走法（未定义的棋子不动）。
+            return hasAny ? ruleSetToCustomRules(rs) : undefined
         }
         return customRulesProp
     }, [customRulesProp])

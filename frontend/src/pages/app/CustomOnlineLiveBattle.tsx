@@ -5,15 +5,17 @@ import type { BattleMove, BattleSnapshot } from '../../services/battlesSocket'
 import { battleApi, userApi, boardApi } from '../../services/api'
 import OnlineBoard from '../../features/chess/OnlineBoard'
 import type { CustomRuleSet } from '../../features/chess/ruleEngine'
-import type { CustomRules } from '../../features/chess/types'
-import { ruleSetToCustomRules } from '../../features/chess/ruleAdapter'
+import type { CustomRules, PieceType } from '../../features/chess/types'
+import { ruleSetToCustomRules, ruleSetToServerRules, serverRulesToRuleSet } from '../../features/chess/ruleAdapter'
 import { recordStore } from '../../features/records/recordStore'
 import type { ChessRecord, MoveRecord } from '../../features/records/types'
 import { cloneBoard } from '../../features/chess/types'
 import { boardToApiFormat, apiBoardToLocalFormat } from '../../features/chess/boardAdapter'
-import { movePiece } from '../../features/chess/rules'
 // board adapter not needed; snapshot.board already local Board format
 import './LiveBattle.css'
+import { standardChessRules } from '../../features/chess/rulePresets'
+import { getModifiedPieceKeys, pieceDisplayNames } from '../../features/chess/ruleDiff'
+import RuleViewerModal from '../../components/RuleViewerModal'
 
 /**
  * 自定义在线对战页面
@@ -30,7 +32,7 @@ export default function CustomOnlineLiveBattle() {
     const [battleId, setBattleId] = useState<number | ''>('')
     const [joinIdInput, setJoinIdInput] = useState<string>(joinRoomParam || '')
     const [connected, setConnected] = useState(false)
-    const [snapshot, setSnapshot] = useState<BattleSnapshot | null>(null)
+
     const [endMessage, setEndMessage] = useState<string | null>(null)
     const [endKind, setEndKind] = useState<'win' | 'lose' | 'draw' | 'info' | null>(null)
     const [moves, setMoves] = useState<BattleMove[]>([])
@@ -40,12 +42,13 @@ export default function CustomOnlineLiveBattle() {
     const [customRuleSet, setCustomRuleSet] = useState<CustomRuleSet | null>(null)
     const [customRules, setCustomRules] = useState<CustomRules | null>(null)
     const [boardId, setBoardId] = useState<number | null>(null)
-
-    // 用户信息
     const [myUserId, setMyUserId] = useState<number | null>(null)
     const [myProfile, setMyProfile] = useState<{ id: number; nickname?: string; avatarUrl?: string } | null>(null)
     const [opponentProfile, setOpponentProfile] = useState<{ id: number; nickname?: string; avatarUrl?: string } | null>(null)
+    const [snapshot, setSnapshot] = useState<BattleSnapshot | null>(null)
+    const [viewerPieceKey, setViewerPieceKey] = useState<PieceType | null>(null)
 
+    // 用户信息
     // 内部引用
     const movesRef = useRef<BattleMove[]>([])
     const connRef = useRef<ReturnType<typeof connectBattle> | null>(null)
@@ -54,6 +57,12 @@ export default function CustomOnlineLiveBattle() {
     // 记录进入对局时的模板布局（优先使用此布局作为保存时的初始布局）
     const initialTemplateRef = useRef<{ initialLayout?: any; customLayout?: any } | null>(null)
     const createLockRef = useRef(false)
+
+    // 将本地 CustomRuleSet 转换为后端 DTO（RulesDto），尽量保真
+    function toServerRulesFromRuleSet(ruleSet?: CustomRuleSet | null) {
+        if (!ruleSet || !(ruleSet as any).pieceRules) return undefined
+        try { return ruleSetToServerRules(ruleSet) } catch { return undefined }
+    }
 
     // 初始化：获取当前用户、规则和棋盘
     useEffect(() => {
@@ -74,17 +83,69 @@ export default function CustomOnlineLiveBattle() {
         // 从路由状态获取规则和棋盘
         const state = loc.state || {}
         if (state.rules && state.rules.pieceRules) {
-            const rs = state.rules as CustomRuleSet
-            setCustomRuleSet(rs)
             try {
-                const cr = ruleSetToCustomRules(rs)
-                setCustomRules(cr)
+                // 兼容两种来源：
+                // - 已是 CustomRuleSet（来自编辑器/本地）
+                // - 服务器 Rules DTO（来自模板列表 lobby），需要先转换
+                const firstPiece: any = Object.values(state.rules.pieceRules)[0]
+                const looksLikeServerDto = firstPiece && (firstPiece.movement !== undefined || firstPiece.captureMode !== undefined)
+                const rs: CustomRuleSet = looksLikeServerDto
+                    ? serverRulesToRuleSet(state.rules)
+                    : (state.rules as CustomRuleSet)
+
+                setCustomRuleSet(rs)
+                try {
+                    const cr = ruleSetToCustomRules(rs)
+                    setCustomRules(cr)
+                } catch (e) {
+                    console.warn('ruleSet 转换为 customRules 失败，继续使用标准规则', e)
+                }
             } catch (e) {
-                console.warn('ruleSet 转换为 customRules 失败，继续使用标准规则', e)
+                console.warn('解析路由传入的规则失败，将尝试通过 boardId 载入', e)
             }
         }
         if (state.boardId) {
             setBoardId(state.boardId)
+            if (!state.rules) {
+                ;(async () => {
+                    try {
+                        const apiBoard = await boardApi.get(Number(state.boardId))
+                        if ((apiBoard as any)?.rules && !customRuleSet) {
+                            const rs = serverRulesToRuleSet((apiBoard as any).rules)
+                            setCustomRuleSet(rs)
+                            try { setCustomRules(ruleSetToCustomRules(rs)) } catch {}
+                        }
+                    } catch (e) {
+                        console.warn('加载模板规则失败', e)
+                    }
+                })()
+            }
+        }
+
+        // 如果路由 state 提供了 layout（用户来自编辑器并对布局做了修改），将其缓存为 initial template
+        if (state.layout) {
+            try {
+                const l = state.layout
+                if (Array.isArray(l)) {
+                    // 前端二维数组格式
+                    initialTemplateRef.current = {
+                        customLayout: l,
+                        initialLayout: boardToApiFormat(l as any, '路由传入模板')
+                    }
+                } else if (l && Array.isArray((l as any).pieces)) {
+                    // API pieces 格式
+                    const apiBoard = { layout: { pieces: (l as any).pieces } }
+                    initialTemplateRef.current = {
+                        customLayout: apiBoardToLocalFormat(apiBoard as any),
+                        initialLayout: apiBoard
+                    }
+                } else {
+                    // 其他格式，直接保存为 customLayout（保守处理）
+                    initialTemplateRef.current = { customLayout: l, initialLayout: undefined }
+                }
+            } catch (e) {
+                // ignore
+            }
         }
     }, [loc])
 
@@ -110,34 +171,40 @@ export default function CustomOnlineLiveBattle() {
             latestSnapshotRef.current = s
             setSnapshot(s)
 
-            // 首次收到快照时捕获模板布局（若服务器未包含 board，则尝试根据 boardId 拉取）
-            if (!initialTemplateRef.current) {
-                if (s.board) {
-                    try {
-                        initialTemplateRef.current = {
-                            customLayout: cloneBoard(s.board as any),
-                            initialLayout: boardToApiFormat(s.board as any),
-                        }
-                    } catch (e) {
-                        console.error('Failed to capture initial template from snapshot.board', e)
-                    }
-                } else {
-                    const bid = (s as any).boardId ?? boardId
-                    if (bid) {
-                        ;(async () => {
-                            try {
-                                const apiBoard = await boardApi.get(Number(bid))
-                                const local = apiBoardToLocalFormat(apiBoard as any)
-                                initialTemplateRef.current = {
-                                    customLayout: cloneBoard(local),
-                                    initialLayout: apiBoard,
-                                }
-                            } catch (e) {
-                                console.error('Failed to fetch board template on snapshot', e)
+            // 若服务器提供了 boardId，优先异步拉取该 board 的原始模板并缓存为 initialTemplateRef
+            // 注意：仅缓存，不覆盖当前快照（避免回放时显示为空或覆盖运行时 board）
+            try {
+                const bid = (s as any).boardId ?? boardId
+                if (bid && (!initialTemplateRef.current || !initialTemplateRef.current.initialLayout)) {
+                    ;(async () => {
+                        try {
+                            const apiBoard = await boardApi.get(Number(bid))
+                            const local = apiBoardToLocalFormat(apiBoard as any)
+                            initialTemplateRef.current = {
+                                customLayout: cloneBoard(local),
+                                initialLayout: apiBoard,
                             }
-                        })()
-                    }
+                            // 若还未设置自定义规则，且模板包含 rules，则作为本局规则注入
+                            if ((apiBoard as any)?.rules && !customRuleSet) {
+                                const rs = serverRulesToRuleSet((apiBoard as any).rules)
+                                setCustomRuleSet(rs)
+                                try { setCustomRules(ruleSetToCustomRules(rs)) } catch {}
+                            }
+                        } catch (e) {
+                            // 如果拉取失败且 snapshot 自带 board，则使用 snapshot.board 的拷贝作为缓存
+                            try {
+                                if (s.board && !initialTemplateRef.current) {
+                                    initialTemplateRef.current = {
+                                        customLayout: cloneBoard(s.board as any),
+                                        initialLayout: s.board ? boardToApiFormat(s.board as any) : undefined,
+                                    }
+                                }
+                            } catch { }
+                        }
+                    })()
                 }
+            } catch (e) {
+                // ignore
             }
 
             // 保持原有行为：直接使用从服务器/WS 接收到的快照
@@ -195,13 +262,59 @@ export default function CustomOnlineLiveBattle() {
         createLockRef.current = true
 
         try {
-            if (!boardId) {
+            let useBoardId = boardId
+            // 若用户有本地模板，优先将其持久化到服务器：
+            // - 若已有 boardId，则尝试更新该 board
+            // - 否则创建新 board 并使用返回 id
+            const tmp = initialTemplateRef.current?.customLayout
+            if (tmp) {
+                // tmp 可能是二维数组（前端格式）或 API 格式（含 pieces）
+                let payload: any
+                if (Array.isArray(tmp)) {
+                    payload = boardToApiFormat(tmp as any, '临时房间模板')
+                } else if ((tmp as any).pieces) {
+                    payload = { ...tmp }
+                } else {
+                    // 保守：把它视作前端二维数组的包装
+                    try {
+                        payload = boardToApiFormat(tmp as any, '临时房间模板')
+                    } catch {
+                        payload = { layout: { pieces: [] } }
+                    }
+                }
+
+                // 附加规则（若存在），确保模板保存包含棋子规则
+                const rulesDto = toServerRulesFromRuleSet(customRuleSet)
+                if (rulesDto) (payload as any).rules = rulesDto
+
+                try {
+                    if (useBoardId) {
+                        try {
+                            const updated = await boardApi.update(useBoardId as number, payload as any)
+                            useBoardId = (updated as any)?.id ?? (updated as any)?.boardId ?? useBoardId
+                        } catch (e) {
+                            console.warn('Failed to update existing board, trying to create new one', e)
+                            const created = await boardApi.create(payload as any)
+                            useBoardId = (created as any)?.id ?? (created as any)?.boardId ?? useBoardId
+                            if (useBoardId) setBoardId(Number(useBoardId))
+                        }
+                    } else {
+                        const created = await boardApi.create(payload as any)
+                        useBoardId = (created as any)?.id ?? (created as any)?.boardId ?? null
+                        if (useBoardId) setBoardId(Number(useBoardId))
+                    }
+                } catch (e) {
+                    console.error('Failed to persist template before room creation', e)
+                }
+            }
+
+            if (!useBoardId) {
                 alert('缺少棋局 ID')
                 return
             }
 
             const battle = await battleApi.create({
-                initialBoardId: boardId,
+                initialBoardId: useBoardId,
                 mode: 'custom'
             })
             // 后端返回字段为 data.battleId（见 OpenAPI 类型 ApiResponseBattleCreateResult）
@@ -536,6 +649,27 @@ export default function CustomOnlineLiveBattle() {
                                             />
                                         </div>
 
+                                        {customRuleSet && (() => {
+                                            const modifiedKeys = getModifiedPieceKeys(customRuleSet, standardChessRules)
+                                            if (modifiedKeys.length === 0) return null
+                                            return (
+                                                <div className="mt-8">
+                                                    <div className="text-13 fw-600 mb-6">已修改规则的棋子</div>
+                                                    <div className="row gap-8 wrap">
+                                                        {modifiedKeys.map(k => (
+                                                            <button
+                                                                key={k}
+                                                                className="chip chip-info"
+                                                                onClick={() => setViewerPieceKey(k as PieceType)}
+                                                            >
+                                                                {pieceDisplayNames[k] || k}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )
+                                        })()}
+
                                         {myProfile && mySide !== 'spectator' && (
                                             <div className="livebattle-board-wrapper" style={{ marginTop: 8, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8 }}>
                                                 <div style={{ fontWeight: 600, fontSize: 14, color: '#333' }}>
@@ -579,7 +713,7 @@ export default function CustomOnlineLiveBattle() {
                                     {connected ? '实时连接正常' : '连接中…'}
                                 </div>
                                 <div className="text-12 text-gray" style={{ marginTop: 4 }}>
-                                    {snapshot.status === 'waiting' ? '等待对手加入' : '对局进行中'}
+                                    {snapshot?.status === 'waiting' ? '等待对手加入' : '对局进行中'}
                                 </div>
                             </div>
 
@@ -625,6 +759,14 @@ export default function CustomOnlineLiveBattle() {
             </div>
         )
     }
+
+    {viewerPieceKey && customRuleSet?.pieceRules?.[viewerPieceKey] && (
+        <RuleViewerModal
+            title={pieceDisplayNames[viewerPieceKey] || customRuleSet.pieceRules[viewerPieceKey]?.name || viewerPieceKey}
+            rule={customRuleSet.pieceRules[viewerPieceKey]!}
+            onClose={() => setViewerPieceKey(null)}
+        />
+    )}
 
     return null
 }
