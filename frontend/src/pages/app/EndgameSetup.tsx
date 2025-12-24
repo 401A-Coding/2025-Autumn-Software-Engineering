@@ -350,7 +350,6 @@ export default function EndgameSetup() {
                     </div>
                 </section>
             </div>
-        </div>
-        </MobileFrame >
+        </MobileFrame>
     )
 }
