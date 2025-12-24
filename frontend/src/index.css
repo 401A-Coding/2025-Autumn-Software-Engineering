@@ -21,7 +21,7 @@
   --header-height: 56px;
   /* page max widths for centering topbars */
   --page-max-width: 520px;
-  --mobile-max-width: 375px;
+  --mobile-max-width: 430px;
 }
 
 * {
