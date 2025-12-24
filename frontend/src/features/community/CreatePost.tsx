@@ -38,7 +38,6 @@ export default function CreatePost() {
         let mounted = true
         async function applyAutoTag() {
             const autoTags = ['对局记录', '自定义棋局', '残局']
-            const MAX_TAGS = 5
 
             // helper to add tag; always append (allow exceeding MAX_TAGS)
             const addTagIfPossible = (t: string) => {

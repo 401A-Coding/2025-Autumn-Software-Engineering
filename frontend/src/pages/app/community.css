@@ -52,3 +52,9 @@
     background-color: #f2f4f6;
     border-radius: 6px;
 }
+
+/* Ensure scroll targets (post card / comments / replies) clear the top bar on scrollIntoView */
+.community-page .paper-card,
+.community-page [id^="comment-"] {
+    scroll-margin-top: calc(var(--header-height, 56px) + env(safe-area-inset-top) + 8px);
+}

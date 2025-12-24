@@ -104,7 +104,6 @@ export default function PostDetail() {
     const [replyTargetLabel, setReplyTargetLabel] = useState<string>('楼主')
     const [replyTargetContent, setReplyTargetContent] = useState<string>('')
     const [replyLikes, setReplyLikes] = useState<Record<number, boolean>>({})
-    const [atComments, setAtComments] = useState(false)
 
     async function loadPost() {
         if (!postId) return
@@ -204,20 +203,7 @@ export default function PostDetail() {
         loadCurrentUser()
     }, [postId])
 
-    // Observe whether comments section is in view to toggle bottom-bar comment button behavior
-    useEffect(() => {
-        const el = commentsRef.current
-        if (!el) return
-        const obs = new IntersectionObserver(
-            (entries) => {
-                const e = entries[0]
-                setAtComments(!!e && e.isIntersecting)
-            },
-            { root: null, threshold: 0.2 }
-        )
-        obs.observe(el)
-        return () => obs.disconnect()
-    }, [commentsRef.current])
+    // 采用点击时即时计算视口检测，不再依赖 IntersectionObserver
 
     // 处理主评论框失焦收起
     useEffect(() => {
@@ -587,60 +573,6 @@ export default function PostDetail() {
                                 </div>
                             </div>
                         )}
-
-                        {/* 附件 */}
-                        {post.attachments && post.attachments.length > 0 && (
-                            <div className="mb-16">
-                                <h4>附件</h4>
-                                <ul>
-                                    {post.attachments.map((att, idx) => (
-                                        <li key={idx}>
-                                            <a href={att.url} target="_blank" rel="noopener noreferrer">
-                                                {att.url}
-                                            </a>
-                                        </li>
-                                    ))}
-                                </ul>
-                            </div>
-                        )}
-
-                        {/* 互动按钮与统计 */}
-                        <div className="row-start gap-12 pt-12 border-top">
-                            <button
-                                className={`btn-ghost text-14 ${liked ? 'fw-600' : ''}`}
-                                onClick={handleLike}
-                                disabled={liking}
-                            >
-                                👍 {post.likeCount}
-                            </button>
-                            <span className="text-14 muted">💬 {post.commentCount}</span>
-                            <button
-                                className={`btn-ghost text-14 ${bookmarked ? 'fw-600' : ''}`}
-                                onClick={async () => {
-                                    if (!post || bookmarking) return
-                                    setBookmarking(true)
-                                    try {
-                                        if (bookmarked) {
-                                            await communityApi.unbookmarkPost(post.id)
-                                        } else {
-                                            await communityApi.bookmarkPost(post.id)
-                                        }
-                                        setBookmarked(!bookmarked)
-                                        setPost(prev => prev ? ({
-                                            ...prev,
-                                            bookmarkCount: Math.max(0, (prev.bookmarkCount ?? 0) + (bookmarked ? -1 : 1))
-                                        }) : prev)
-                                    } catch (err) {
-                                        console.error('Failed to toggle bookmark:', err)
-                                    } finally {
-                                        setBookmarking(false)
-                                    }
-                                }}
-                                disabled={bookmarking}
-                            >
-                                🔖 {post.bookmarkCount ?? 0}
-                            </button>
-                        </div>
                     </div>
                 </section>
 
@@ -1011,17 +943,44 @@ export default function PostDetail() {
                             className="interaction-btn"
                             title="评论"
                             onClick={() => {
-                                if (!commentsRef.current) return
-                                if (!atComments) {
-                                    // 当前在内容区：滚动到评论
-                                    commentsRef.current.scrollIntoView({ behavior: 'smooth' })
-                                } else {
-                                    // 当前在评论区：滚动回主楼
-                                    if (postMainRef.current) {
+                                // 简化滚动逻辑：依赖 CSS `scroll-margin-top`，使用 scrollIntoView 以获得更稳定的跨设备行为
+                                try {
+                                    const commentsEl = commentsRef.current as HTMLElement | null
+                                    if (!commentsEl) return
+
+                                    // 判断评论区与主楼切换的更精确策略：
+                                    // - 读取 header 偏移（优先 CSS 变量），并考虑 safe-area
+                                    const rootStyles = getComputedStyle(document.documentElement)
+                                    const headerVar = rootStyles.getPropertyValue('--header-height')
+                                    let headerOffset = 0
+                                    if (headerVar) {
+                                        const parsed = parseFloat(headerVar)
+                                        if (!Number.isNaN(parsed)) headerOffset = parsed
+                                    }
+                                    if (headerOffset === 0) {
+                                        const topbar = document.querySelector('.topbar-sticky') as HTMLElement | null
+                                        headerOffset = topbar ? topbar.getBoundingClientRect().height : 0
+                                    }
+                                    const safeInset = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('env(safe-area-inset-top)') || '0') || 0
+                                    headerOffset += safeInset
+
+                                    const rect = commentsEl.getBoundingClientRect()
+
+                                    // 如果评论区顶部已经贴近 header（<= headerOffset + 8px），认为当前在评论区，点击应回到主楼
+                                    const COMMENTS_AT_TOP_THRESHOLD = headerOffset + 8
+                                    const commentsAtTop = rect.top <= COMMENTS_AT_TOP_THRESHOLD
+
+                                    if (!commentsAtTop) {
+                                        // 评论区未在顶部，滚动到评论区；CSS 的 scroll-margin-top 会处理精确偏移
+                                        commentsEl.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                                    } else if (postMainRef.current) {
                                         postMainRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
                                     } else {
                                         window.scrollTo({ top: 0, behavior: 'smooth' })
                                     }
+                                } catch (err) {
+                                    // fallback
+                                    commentsRef.current && commentsRef.current.scrollIntoView({ behavior: 'smooth' })
                                 }
                             }}
                             style={{
