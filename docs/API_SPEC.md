@@ -337,6 +337,7 @@ Authorization: Bearer <token>
   }
 }
 ```
+
 ```
 
 创建棋局示例
@@ -370,6 +371,31 @@ POST /api/v1/boards
   "data": { "boardId": 301, "name": "中炮对屏风马", "isTemplate": true }
 }
 ```
+
+错误响应示例（布局校验失败）
+
+当提交的 `layout.pieces` 未通过后端校验（例如子力重叠、象放置在非法格、将帅直视等）时，服务端会返回 HTTP 400，并在 `data.errors` 中以结构化对象列出每一项校验失败的详情，包含可选的格子坐标：
+
+```http
+HTTP/1.1 400 Bad Request
+Content-Type: application/json
+```
+
+```json
+{
+  "code": 1001,
+  "message": "布局校验失败",
+  "data": {
+    "errors": [
+      { "code": "elephant_square", "message": "象放置位置不合法：(0,0)", "x": 0, "y": 0 },
+      { "code": "overlap", "message": "重叠：多个棋子占据格 (4,5)", "x": 4, "y": 5 },
+      { "code": "king_facing", "message": "将帅相对直视（同一列且中间无子）" }
+    ]
+  }
+}
+```
+
+前端可直接解析 `data.errors`，用于在编辑器中高亮对应格子并显示友好提示。请在调用 `/api/v1/boards` 前仍然在客户端做一次快速校验以提升交互体验（服务端为最终权威）。
 
 查询我的棋局示例（分页）
 
