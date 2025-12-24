@@ -109,7 +109,7 @@ export default function CommunitySearch() {
     const [history, setHistory] = useState<string[]>(() => loadHistory())
 
     return (
-        <div className="page-container">
+        <div>
             <div className="mb-4 topbar-sticky">
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                     <button className="btn-ghost" onClick={() => navigate(-1)} style={{ minWidth: 48 }}>⬅</button>
