@@ -109,7 +109,7 @@ export default function CommunitySearch() {
     const [history, setHistory] = useState<string[]>(() => loadHistory())
 
     return (
-        <div className="p-4">
+        <div className="page-container">
             <div className="mb-4 topbar-sticky">
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                     <button className="btn-ghost" onClick={() => navigate(-1)} style={{ minWidth: 48 }}>⬅</button>
@@ -125,7 +125,7 @@ export default function CommunitySearch() {
                 </div>
             </div>
 
-            <div style={{ padding: '12px' }}>
+            <div>
                 {/* Search history tags (shown before/after) */}
                 {!hasSearched && !authorId && history && history.length > 0 && (
                     <div className="mb-6 search-history">
