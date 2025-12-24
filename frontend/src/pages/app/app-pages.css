@@ -1772,3 +1772,18 @@
         font-size: 12px;
     }
 }
+
+/* MyPosts 列表项 (白色卡片风格，和 MyLikes/MyBookmarks 保持一致) */
+.post-item {
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid #e5e7eb;
+    background-color: #ffffff;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.post-item:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    border-color: #d1d5db;
+}

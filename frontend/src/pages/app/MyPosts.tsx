@@ -150,11 +150,11 @@ export default function MyPosts() {
                             {posts.map((post) => (
                                 <div
                                     key={post.id}
-                                    className="paper-card cursor-pointer hover:shadow-md transition-shadow"
+                                    className="paper-card post-item"
                                     style={{ padding: 0, overflow: 'hidden' }}
                                     onClick={() => navigate(`/app/community/${post.id}`, { state: { from: '/app/my-posts', tab } })}
                                 >
-                                    <div style={{ padding: '12px 16px', backgroundColor: '#fafafa', borderBottom: '1px solid #e0e0e0' }}>
+                                    <div style={{ padding: '12px 16px', backgroundColor: '#ffffff', borderBottom: '1px solid #e0e0e0' }}>
                                         <UserAvatar
                                             userId={post.authorId}
                                             nickname={post.authorNickname}
