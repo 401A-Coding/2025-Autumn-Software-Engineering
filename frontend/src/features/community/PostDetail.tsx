@@ -150,7 +150,7 @@ export default function PostDetail() {
             try {
                 // eslint-disable-next-line no-console
                 console.log('jump-debug:commentsLoaded', { postId: id, count: items.length, hasTarget: !!items.find((c: any) => c.id === targetCommentId || (c.replies || []).some((r: any) => r.id === targetCommentId)) })
-            } catch (e) {}
+            } catch (e) { }
         } catch (e) {
             console.error('Failed to load comments:', e)
             setComments([])
@@ -249,7 +249,7 @@ export default function PostDetail() {
 
     // 当评论加载完成且有目标评论ID时，滚动到该评论
     useEffect(() => {
-        try { console.log('jump-debug:useEffect', { targetCommentId, commentsLength: comments.length }) } catch (e) {}
+        try { console.log('jump-debug:useEffect', { targetCommentId, commentsLength: comments.length }) } catch (e) { }
         if (targetCommentId && comments.length > 0) {
             // 首先检查是否是楼中楼评论，如果是，先展开父评论
             let needExpand = false
@@ -300,17 +300,23 @@ export default function PostDetail() {
             }
 
             if (needExpand && parentCommentId) {
+                // Debug: log expand decision
+                try { console.log('jump-debug:decision', { targetCommentId, needExpand, parentCommentId }) } catch (e) { }
                 // 展开父评论
                 setExpandedReplies(prev => ({ ...prev, [parentCommentId]: true }))
 
                 // 等待DOM更新后再滚动（展开后 DOM 结构会改变）
                 setTimeout(() => {
                     const targetComment = document.getElementById(`comment-${targetCommentId}`)
+                    try { console.log('jump-debug:foundAfterExpand', { targetCommentId, exists: !!targetComment }) } catch (e) { }
                     scrollToElementWithRetry(targetComment)
                 }, 300)
             } else {
+                // Debug: log direct-scroll decision
+                try { console.log('jump-debug:decision', { targetCommentId, needExpand, parentCommentId }) } catch (e) { }
                 // 主评论直接滚动，使用重试函数以确保目标对齐
                 const targetComment = document.getElementById(`comment-${targetCommentId}`)
+                try { console.log('jump-debug:foundImmediate', { targetCommentId, exists: !!targetComment }) } catch (e) { }
                 if (targetComment) {
                     setTimeout(() => {
                         scrollToElementWithRetry(targetComment)
