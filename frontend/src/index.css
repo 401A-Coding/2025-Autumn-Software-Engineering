@@ -17,6 +17,8 @@
   --control-border: #e4d8b4;
   --control-text: #5a4632;
   --control-text-muted: #8c7758;
+  /* header height used by sticky topbars (matches .header-bar height) */
+  --header-height: 56px;
 }
 
 * {
