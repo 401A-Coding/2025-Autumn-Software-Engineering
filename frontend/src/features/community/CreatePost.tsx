@@ -115,105 +115,102 @@ export default function CreatePost() {
     }
 
     return (
-        <div className="app-page no-root-scroll">
-            <div className="app-page-header">
-                <div className="row align-center mb-0">
-                    <button className="btn-ghost" onClick={() => navigate(isEditMode ? `/app/community/${postId}` : '/app/community')}>
-                        ← 返回
-                    </button>
-                    <h2 style={{ margin: 0, flex: 1, textAlign: 'center' }}>{isEditMode ? '编辑帖子' : '发布新帖'}</h2>
-                    <div style={{ width: 64 }} />
-                </div>
+        <div>
+            <div className="row align-center mb-12 topbar-sticky">
+                <button className="btn-ghost" onClick={() => navigate(isEditMode ? `/app/community/${postId}` : '/app/community')}>
+                    ← 返回
+                </button>
+                <h2 style={{ margin: 0, flex: 1, textAlign: 'center' }}>{isEditMode ? '编辑帖子' : '发布新帖'}</h2>
+                <div style={{ width: 64 }} />
             </div>
 
-            <div className="app-page-content">
-                {/* 发帖表单 */}
-                <section className="paper-card card-pad">
+            {/* 发帖表单 */}
+            <section className="paper-card card-pad">
 
-                    {error && <div className="alert alert-error mb-16">{error}</div>}
+                {error && <div className="alert alert-error mb-16">{error}</div>}
 
-                    <form onSubmit={handleSubmit}>
-                        {/* 标题输入 - 隐式区域 */}
+                <form onSubmit={handleSubmit}>
+                    {/* 标题输入 - 隐式区域 */}
+                    <div className="edit-area mb-16">
+                        <input
+                            id="title"
+                            type="text"
+                            placeholder="标题（必填）"
+                            value={title}
+                            onChange={(e) => setTitle(e.target.value)}
+                            maxLength={200}
+                            className="edit-input edit-input--title"
+                        />
+                        <div className="text-12 muted mt-4">{title.length} / 200</div>
+                    </div>
+
+                    {/* 内容编辑 - 隐式区域 */}
+                    <div className="edit-area mb-16">
+                        <textarea
+                            id="content"
+                            placeholder="正文（必填，支持换行）"
+                            value={content}
+                            onChange={(e) => setContent(e.target.value)}
+                            maxLength={5000}
+                            rows={12}
+                            className="edit-input edit-input--content"
+                        />
+                        <div className="text-12 muted mt-4">{content.length} / 5000</div>
+                    </div>
+
+                    {/* 标签输入 */}
+                    <div className="edit-area mb-16">
+                        <div className="text-14 fw-500 mb-8">标签（可选）</div>
+                        <TagInput
+                            tags={tags}
+                            onChange={setTags}
+                            maxTags={5}
+                            placeholder="输入标签名称"
+                        />
+                    </div>
+
+                    {/* 资源引用 */}
+                    <div className="edit-area mb-16">
+                        <ResourceSelector value={resource} onChange={setResource} />
+                    </div>
+
+                    {/* 引用预览 */}
+                    {resource.shareType === 'RECORD' && resource.shareRefId && (
                         <div className="edit-area mb-16">
-                            <input
-                                id="title"
-                                type="text"
-                                placeholder="标题（必填）"
-                                value={title}
-                                onChange={(e) => setTitle(e.target.value)}
-                                maxLength={200}
-                                className="edit-input edit-input--title"
+                            <RecordEmbed recordId={resource.shareRefId} enableSave={false} />
+                        </div>
+                    )}
+                    {resource.shareType === 'BOARD' && resource.shareRefId && (
+                        <div className="edit-area mb-16">
+                            <BoardEmbed
+                                boardId={resource.shareRefId}
+                                enableSave={false}
+                                titleOverride="帖子引用的残局"
                             />
-                            <div className="text-12 muted mt-4">{title.length} / 200</div>
                         </div>
+                    )}
 
-                        {/* 内容编辑 - 隐式区域 */}
-                        <div className="edit-area mb-16">
-                            <textarea
-                                id="content"
-                                placeholder="正文（必填，支持换行）"
-                                value={content}
-                                onChange={(e) => setContent(e.target.value)}
-                                maxLength={5000}
-                                rows={12}
-                                className="edit-input edit-input--content"
-                            />
-                            <div className="text-12 muted mt-4">{content.length} / 5000</div>
-                        </div>
-
-                        {/* 标签输入 */}
-                        <div className="edit-area mb-16">
-                            <div className="text-14 fw-500 mb-8">标签（可选）</div>
-                            <TagInput
-                                tags={tags}
-                                onChange={setTags}
-                                maxTags={5}
-                                placeholder="输入标签名称"
-                            />
-                        </div>
-
-                        {/* 资源引用 */}
-                        <div className="edit-area mb-16">
-                            <ResourceSelector value={resource} onChange={setResource} />
-                        </div>
-
-                        {/* 引用预览 */}
-                        {resource.shareType === 'RECORD' && resource.shareRefId && (
-                            <div className="edit-area mb-16">
-                                <RecordEmbed recordId={resource.shareRefId} enableSave={false} />
-                            </div>
-                        )}
-                        {resource.shareType === 'BOARD' && resource.shareRefId && (
-                            <div className="edit-area mb-16">
-                                <BoardEmbed
-                                    boardId={resource.shareRefId}
-                                    enableSave={false}
-                                    titleOverride="帖子引用的残局"
-                                />
-                            </div>
-                        )}
-
-                        {/* 提交按钮 */}
-                        <div className="row-end gap-8">
-                            <button
-                                type="button"
-                                className="btn-ghost"
-                                onClick={() => navigate(isEditMode ? `/app/community/${postId}` : '/app/community')}
-                                disabled={submitting}
-                            >
-                                取消
-                            </button>
-                            <button
-                                type="submit"
-                                className="btn-primary"
-                                disabled={submitting || !title.trim() || !content.trim()}
-                            >
-                                {submitting ? (isEditMode ? '保存中...' : '发布中...') : (isEditMode ? '保存' : '发布')}
-                            </button>
-                        </div>
-                    </form>
-                </section>
-            </div>
+                    {/* 提交按钮 */}
+                    <div className="row-end gap-8">
+                        <button
+                            type="button"
+                            className="btn-ghost"
+                            onClick={() => navigate(isEditMode ? `/app/community/${postId}` : '/app/community')}
+                            disabled={submitting}
+                        >
+                            取消
+                        </button>
+                        <button
+                            type="submit"
+                            className="btn-primary"
+                            disabled={submitting || !title.trim() || !content.trim()}
+                        >
+                            {submitting ? (isEditMode ? '保存中...' : '发布中...') : (isEditMode ? '保存' : '发布')}
+                        </button>
+                    </div>
+                </form>
+            </section>
         </div>
+        </div >
     )
 }

@@ -109,28 +109,23 @@ export default function CommunitySearch() {
     const [history, setHistory] = useState<string[]>(() => loadHistory())
 
     return (
-        <div className="app-page no-root-scroll">
-            <div className="app-page-header">
-                <div style={{ padding: '12px' }}>
-                    {/* Top search area: back button, centered rounded search box, search button */}
-                    <div className="mb-0" style={{ width: '100%' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                            <button className="btn-ghost" onClick={() => navigate(-1)} style={{ minWidth: 48 }}>⬅</button>
-                            <input
-                                className="flex-1 search-input-full"
-                                placeholder={authorId && !hasSearched && !q ? `搜索${authorName || ''}的帖子` : '输入关键词后回车或点击搜索'}
-                                value={q}
-                                onChange={(e) => setQ(e.target.value)}
-                                onKeyDown={(e) => { if (e.key === 'Enter') { doSearch({ page: 1, q, tag, updateURL: true }); } }}
-                                autoFocus
-                            />
-                            <button className="btn-ghost" style={{ minWidth: 48 }} onClick={() => doSearch({ page: 1, q, tag, updateURL: true })}>🔍</button>
-                        </div>
-                    </div>
+        <div className="p-4">
+            <div className="mb-4 topbar-sticky" style={{ width: '100%' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <button className="btn-ghost" onClick={() => navigate(-1)} style={{ minWidth: 48 }}>⬅</button>
+                    <input
+                        className="flex-1 search-input-full"
+                        placeholder={authorId && !hasSearched && !q ? `搜索${authorName || ''}的帖子` : '输入关键词后回车或点击搜索'}
+                        value={q}
+                        onChange={(e) => setQ(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') { doSearch({ page: 1, q, tag, updateURL: true }); } }}
+                        autoFocus
+                    />
+                    <button className="btn-ghost" style={{ minWidth: 48 }} onClick={() => doSearch({ page: 1, q, tag, updateURL: true })}>🔍</button>
                 </div>
             </div>
 
-            <div className="app-page-content" style={{ padding: '12px' }}>
+            <div style={{ padding: '12px' }}>
                 {/* Search history tags (shown before/after) */}
                 {!hasSearched && !authorId && history && history.length > 0 && (
                     <div className="mb-6 search-history">
@@ -148,7 +143,6 @@ export default function CommunitySearch() {
                             ))}
                         </div>
                     </div>
-
                 )}
 
                 {/* Results area: after search show posts in community preview style */}

@@ -1635,6 +1635,15 @@
     z-index: 40;
 }
 
+/* 通用顶栏置顶样式：在不改变根滚动的前提下，使指定顶栏在页面顶部粘性停靠 */
+.topbar-sticky {
+    position: sticky;
+    top: 0;
+    z-index: 60;
+    background: #ffffff;
+    border-bottom: 1px solid #e5e7eb;
+}
+
 .loading-message,
 .error-message,
 .empty-message {

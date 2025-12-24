@@ -146,109 +146,104 @@ export default function Community() {
     const maxPage = Math.ceil(total / pageSize) || 1
 
     return (
-        <div className="app-page no-root-scroll">
-            <div className="app-page-header">
-                {/* 顶部导航栏 */}
-                <section className="paper-card card-pad mb-0">
-                    <div className="row-between align-center mb-12">
-                        <h3 className="mt-0 mb-0">社区</h3>
-                        <div className="row-start gap-8">
-                            <button
-                                className="btn-primary"
-                                title="发布新帖"
-                                onClick={() => navigate('/app/community/new')}
-                            >
-                                ➕ 发布
-                            </button>
-                        </div>
+        <div>
+            {/* 顶部导航栏 */}
+            <section className="paper-card card-pad mb-12 topbar-sticky">
+                <div className="row-between align-center mb-12">
+                    <h3 className="mt-0 mb-0">社区</h3>
+                    <div className="row-start gap-8">
+                        <button
+                            className="btn-primary"
+                            title="发布新帖"
+                            onClick={() => navigate('/app/community/new')}
+                        >
+                            ➕ 发布
+                        </button>
                     </div>
+                </div>
 
-                    {/* 搜索栏：点击输入框或搜索按钮均跳转到独立搜索页 */}
-                    <div className="mb-12">
-                        <div className="row-start gap-8" style={{ width: '100%' }}>
-                            <input
-                                type="text"
-                                placeholder="点击搜索"
-                                value={searchQuery}
-                                readOnly
-                                onClick={() => navigate(`/app/community/search${searchQuery && searchQuery.trim() ? `?q=${encodeURIComponent(searchQuery.trim())}` : ''}`)}
-                                className="flex-1 search-input-full"
-                            />
+                {/* 搜索栏：点击输入框或搜索按钮均跳转到独立搜索页 */}
+                <div className="mb-12">
+                    <div className="row-start gap-8" style={{ width: '100%' }}>
+                        <input
+                            type="text"
+                            placeholder="点击搜索"
+                            value={searchQuery}
+                            readOnly
+                            onClick={() => navigate(`/app/community/search${searchQuery && searchQuery.trim() ? `?q=${encodeURIComponent(searchQuery.trim())}` : ''}`)}
+                            className="flex-1 search-input-full"
+                        />
+                        <button
+                            type="button"
+                            className="btn-ghost"
+                            title="进入搜索"
+                            onClick={() => navigate(`/app/community/search${searchQuery && searchQuery.trim() ? `?q=${encodeURIComponent(searchQuery.trim())}` : ''}`)}
+                        >
+                            🔍
+                        </button>
+                        {isSearching && (
                             <button
                                 type="button"
                                 className="btn-ghost"
-                                title="进入搜索"
-                                onClick={() => navigate(`/app/community/search${searchQuery && searchQuery.trim() ? `?q=${encodeURIComponent(searchQuery.trim())}` : ''}`)}
+                                title="清除搜索"
+                                onClick={handleClearSearch}
                             >
-                                🔍
+                                ✕
                             </button>
-                            {isSearching && (
-                                <button
-                                    type="button"
-                                    className="btn-ghost"
-                                    title="清除搜索"
-                                    onClick={handleClearSearch}
-                                >
-                                    ✕
-                                </button>
-                            )}
-                        </div>
+                        )}
                     </div>
+                </div>
 
-                    {isSearching && (
-                        <div className="muted text-12">
-                            搜索结果："{searchQuery}" （共 {total} 条）
+                {isSearching && (
+                    <div className="muted text-12">
+                        搜索结果："{searchQuery}" （共 {total} 条）
+                    </div>
+                )}
+            </section>
+            {/* 帖子列表 */}
+            <section className="paper-card card-pad">
+                {loading ? (
+                    <div className="muted text-center py-24">加载中...</div>
+                ) : posts.length === 0 ? (
+                    <div className="empty-box">暂无帖子</div>
+                ) : (
+                    <>
+                        <div className="col gap-12">
+                            {posts.map((post) => (
+                                <PostPreview
+                                    key={post.id}
+                                    post={post}
+                                    onClick={() => navigate(`/app/community/${post.id}`)}
+                                    actionsNode={<DropdownMenu actions={getPostActions(post)} />}
+                                />
+                            ))}
                         </div>
-                    )}
-                </section>
-            </div>
 
-            <div className="app-page-content">
-                {/* 帖子列表 */}
-                <section className="paper-card card-pad">
-                    {loading ? (
-                        <div className="muted text-center py-24">加载中...</div>
-                    ) : posts.length === 0 ? (
-                        <div className="empty-box">暂无帖子</div>
-                    ) : (
-                        <>
-                            <div className="col gap-12">
-                                {posts.map((post) => (
-                                    <PostPreview
-                                        key={post.id}
-                                        post={post}
-                                        onClick={() => navigate(`/app/community/${post.id}`)}
-                                        actionsNode={<DropdownMenu actions={getPostActions(post)} />}
-                                    />
-                                ))}
+                        {/* 分页器 */}
+                        {maxPage > 1 && (
+                            <div className="row-center gap-8 mt-16 pt-12 border-top">
+                                <button
+                                    className="btn-ghost"
+                                    onClick={() => loadPosts(Math.max(1, page - 1))}
+                                    disabled={page <= 1}
+                                >
+                                    ← 上一页
+                                </button>
+                                <span className="muted text-12">
+                                    第 {page} / {maxPage} 页
+                                </span>
+                                <button
+                                    className="btn-ghost"
+                                    onClick={() => loadPosts(Math.min(maxPage, page + 1))}
+                                    disabled={page >= maxPage}
+                                >
+                                    下一页 →
+                                </button>
                             </div>
-
-                            {/* 分页器 */}
-                            {maxPage > 1 && (
-                                <div className="row-center gap-8 mt-16 pt-12 border-top">
-                                    <button
-                                        className="btn-ghost"
-                                        onClick={() => loadPosts(Math.max(1, page - 1))}
-                                        disabled={page <= 1}
-                                    >
-                                        ← 上一页
-                                    </button>
-                                    <span className="muted text-12">
-                                        第 {page} / {maxPage} 页
-                                    </span>
-                                    <button
-                                        className="btn-ghost"
-                                        onClick={() => loadPosts(Math.min(maxPage, page + 1))}
-                                        disabled={page >= maxPage}
-                                    >
-                                        下一页 →
-                                    </button>
-                                </div>
-                            )}
-                        </>
-                    )}
-                </section>
-            </div>
+                        )}
+                    </>
+                )}
+            </section>
         </div>
     )
 }

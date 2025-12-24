@@ -473,25 +473,23 @@ export default function PostDetail() {
     }
 
     return (
-        <div className="app-page no-root-scroll">
-            <div className="app-page-header">
-                <div className="row align-center mb-0">
-                    <button className="btn-ghost" onClick={handleBack}>
-                        ← 返回
-                    </button>
-                    <div style={{ flex: 1 }} />
-                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                        <button
-                            className="btn-ghost"
-                            title="搜索帖子内容"
-                            onClick={() => navigate('/app/community/search')}
-                        >🔍</button>
-                        <DropdownMenu actions={getPostActions()} />
-                    </div>
+        <div>
+            <div className="row align-center mb-12 topbar-sticky">
+                <button className="btn-ghost" onClick={handleBack}>
+                    ← 返回
+                </button>
+                <div style={{ flex: 1 }} />
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <button
+                        className="btn-ghost"
+                        title="搜索帖子内容"
+                        onClick={() => navigate('/app/community/search')}
+                    >🔍</button>
+                    <DropdownMenu actions={getPostActions()} />
                 </div>
             </div>
 
-            <div className="app-page-content" style={{ paddingBottom: expandedComment ? '400px' : '90px' }}>
+            <div style={{ paddingBottom: expandedComment ? '400px' : '90px' }}>
                 {/* 帖子内容 */}
                 <section className="paper-card mb-12" style={{ padding: 0, overflow: 'hidden' }}>
                     {/* 用户信息区域 */}
