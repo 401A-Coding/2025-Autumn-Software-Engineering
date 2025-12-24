@@ -86,7 +86,10 @@ export class BoardService {
   findTemplates() {
     // 自定义棋局模板：仅返回 isTemplate=true 且非残局
     return this.prisma.board
-      .findMany({ where: { isTemplate: true, isEndgame: false }, orderBy: { updatedAt: 'desc' } })
+      .findMany({
+        where: { isTemplate: true, isEndgame: false },
+        orderBy: { updatedAt: 'desc' },
+      })
       .then((rows) =>
         rows.map((r: any) => {
           try {
@@ -106,7 +109,10 @@ export class BoardService {
 
   findMyEndgames(ownerId: number) {
     return this.prisma.board
-      .findMany({ where: { ownerId, isEndgame: true }, orderBy: { updatedAt: 'desc' } })
+      .findMany({
+        where: { ownerId, isEndgame: true },
+        orderBy: { updatedAt: 'desc' },
+      })
       .then((rows) =>
         rows.map((r: any) => {
           try {

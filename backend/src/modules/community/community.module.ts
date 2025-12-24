@@ -16,4 +16,4 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
   controllers: [CommunityController],
   providers: [CommunityService, JwtAuthGuard],
 })
-export class CommunityModule { }
+export class CommunityModule {}

@@ -2,6 +2,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { useEffect, useMemo, useState } from 'react'
 import { boardApi } from '../../services/api'
 import '../../features/chess/board.css'
+import validateBoard, { validatePlacement } from '../../features/chess/validateBoard'
 import './app-pages.css'
 import MobileFrame from '../../components/MobileFrame'
 
@@ -24,6 +25,7 @@ export default function EndgameSetup() {
     const [saving, setSaving] = useState(false)
     const [saveMsg, setSaveMsg] = useState<string>('')
     const [ruleMsg, setRuleMsg] = useState<string>('')
+    const [highlights, setHighlights] = useState<{ x: number; y: number }[]>([])
 
     useEffect(() => {
         if (Array.isArray(initialLayout?.pieces)) {
@@ -33,77 +35,50 @@ export default function EndgameSetup() {
                 type: p.type === 'chariot' ? 'rook' : p.type,
             }))
             setPieces(normalized)
+            // validate imported layout and show rules if any
+            const vr = validateBoard(normalized)
+            if (!vr.valid) {
+                setRuleMsg(vr.errors.join('; '))
+                setHighlights(vr.highlights || [])
+            } else {
+                setRuleMsg('')
+                setHighlights([])
+            }
         }
     }, [initialLayout])
 
+    // re-validate when pieces change and update highlights
+    useEffect(() => {
+        const vr = validateBoard(pieces)
+        if (!vr.valid) {
+            setRuleMsg(vr.errors.join('; '))
+            setHighlights(vr.highlights || [])
+        } else {
+            setRuleMsg('')
+            setHighlights([])
+        }
+    }, [pieces])
+
     const layout = useMemo(() => ({ pieces }), [pieces])
 
-    // 规则：各棋子最大数量（每方）
-    const MAX_COUNTS: Record<PieceType, number> = {
-        general: 1,
-        advisor: 2,
-        elephant: 2,
-        horse: 2,
-        rook: 2,
-        cannon: 2,
-        soldier: 5,
-    }
-
-    function inPalace(side: Side, x: number, y: number): boolean {
-        if (side === 'black') return x >= 3 && x <= 5 && y >= 0 && y <= 2
-        return x >= 3 && x <= 5 && y >= 7 && y <= 9
-    }
-
-    function inAdvisorPoints(side: Side, x: number, y: number): boolean {
-        if (side === 'black') {
-            const pts = [
-                [3, 0], [5, 0], [4, 1], [3, 2], [5, 2],
-            ]
-            return pts.some(([px, py]) => px === x && py === y)
-        } else {
-            const pts = [
-                [3, 7], [5, 7], [4, 8], [3, 9], [5, 9],
-            ]
-            return pts.some(([px, py]) => px === x && py === y)
+    function parseApiValidationError(e: any) {
+        try {
+            const payload = e?.response?.data ?? e?.response ?? e?.data ?? null
+            const body = payload?.data && payload.data.errors ? payload.data : payload
+            const errs = body?.errors || body?.errors === 0 ? body.errors : null
+            if (Array.isArray(errs)) {
+                const messages: string[] = errs.map((it: any) => it.message || String(it))
+                const highlights = errs.filter((it: any) => typeof it.x === 'number' && typeof it.y === 'number').map((it: any) => ({ x: it.x, y: it.y }))
+                return { messages, highlights }
+            }
+            if (body && typeof body === 'string') return { messages: [body], highlights: [] }
+            return { messages: [e?.message || '保存失败'], highlights: [] }
+        } catch (err) {
+            return { messages: [e?.message || '保存失败'], highlights: [] }
         }
     }
 
-    function elephantInOwnHalf(side: Side, y: number): boolean {
-        // 象不过河：红方 y >= 5；黑方 y <= 4
-        return side === 'red' ? y >= 5 : y <= 4
-    }
-
-    function countOf(side: Side, type: PieceType, pool: Piece[]): number {
-        return pool.filter(p => p.side === side && p.type === type).length
-    }
-
-    function validatePlacement(candidate: Piece, pool: Piece[]): string | null {
-        // 数量限制
-        const current = countOf(candidate.side, candidate.type, pool)
-        if (current >= MAX_COUNTS[candidate.type]) {
-            const label = candidate.type === 'general' ? (candidate.side === 'red' ? '帅' : '将')
-                : candidate.type === 'advisor' ? (candidate.side === 'red' ? '仕' : '士')
-                    : candidate.type === 'elephant' ? (candidate.side === 'red' ? '相' : '象')
-                        : candidate.type === 'horse' ? '马'
-                            : candidate.type === 'rook' ? '车'
-                                : candidate.type === 'cannon' ? '炮' : (candidate.side === 'red' ? '兵' : '卒')
-            return `超出数量限制：${candidate.side === 'red' ? '红' : '黑'}方 ${label}`
-        }
-        // 将/帅必须在九宫内
-        if (candidate.type === 'general' && !inPalace(candidate.side, candidate.x, candidate.y)) {
-            return '规则限制：将/帅不可出九宫'
-        }
-        // 士只能在九宫斜点（5个点）
-        if (candidate.type === 'advisor') {
-            if (!inPalace(candidate.side, candidate.x, candidate.y)) return '规则限制：士不可出九宫'
-            if (!inAdvisorPoints(candidate.side, candidate.x, candidate.y)) return '规则限制：士仅能在九宫斜点'
-        }
-        // 象不可过河
-        if (candidate.type === 'elephant' && !elephantInOwnHalf(candidate.side, candidate.y)) {
-            return '规则限制：象不可过河'
-        }
-        return null
-    }
+    // 校验逻辑已统一到 `validateBoard` / `validatePlacement` 模块
 
     // build a 10x9 board for Board component
     function buildInitialBoard() {
@@ -118,7 +93,7 @@ export default function EndgameSetup() {
     }
 
     // Render the board from layout.pieces
-    const BoardEditor = ({ pieces, onCellClick }: { pieces: Piece[]; onCellClick: (x: number, y: number) => void }) => {
+    const BoardEditor = ({ pieces, onCellClick, highlights }: { pieces: Piece[]; onCellClick: (x: number, y: number) => void; highlights?: { x: number; y: number }[] }) => {
         const glyph = (type: any, side: Side) => {
             if (type === 'general') return side === 'red' ? '帥' : '將'
             if (type === 'advisor') return side === 'red' ? '仕' : '士'
@@ -148,6 +123,10 @@ export default function EndgameSetup() {
                     </div>
                 ))}
 
+                {/* highlights */}
+                {(highlights || []).map((h, i) => (
+                    <div key={`h-${i}`} className={`cell-highlight cell-x-${h.x} cell-y-${h.y}`} />
+                ))}
                 {/* Click areas */}
                 {Array.from({ length: 10 }).map((_, y) =>
                     Array.from({ length: 9 }).map((_, x) => (
@@ -271,6 +250,7 @@ export default function EndgameSetup() {
                         </div>
                         <BoardEditor
                             pieces={pieces}
+                            highlights={highlights}
                             onCellClick={(x, y) => {
                                 if (mode === 'erase') {
                                     setPieces(prev => prev.filter(p => !(p.x === x && p.y === y)))
@@ -293,7 +273,24 @@ export default function EndgameSetup() {
 
                     {/* 保存模板与对战入口 */}
                     <div className="mt-16 col gap-12">
-                        {ruleMsg && <div className="note-danger text-13">{ruleMsg}</div>}
+                        {ruleMsg && (
+                            <div className="note-danger text-13">
+                                {ruleMsg} <button className="btn-ghost btn-xs" onClick={() => {
+                                    // locate first highlighted cell
+                                    const h = highlights && highlights.length ? highlights[0] : null
+                                    if (!h) return
+                                    const sel = `.cell-x-${h.x}.cell-y-${h.y}`
+                                    const el = document.querySelector(sel) as HTMLElement | null
+                                    if (el) {
+                                        try {
+                                            el.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' })
+                                            el.classList.add('pulse')
+                                            setTimeout(() => el.classList.remove('pulse'), 1600)
+                                        } catch { }
+                                    }
+                                }}>定位错误</button>
+                            </div>
+                        )}
                         <div className="row-start gap-12">
                             <button
                                 className="btn-primary"
@@ -302,13 +299,26 @@ export default function EndgameSetup() {
                                     setSaveMsg('')
                                     setSaving(true)
                                     try {
+                                        // validate board before saving
+                                        const vr = validateBoard(pieces)
+                                        if (!vr.valid) {
+                                            setRuleMsg(vr.errors.join('; '))
+                                            setSaving(false)
+                                            return
+                                        }
                                         const req: any = { name: name || '未命名残局', layout: { ...layout, turn }, preview: '', isEndgame: true }
                                         await boardApi.createTemplate(req)
                                         setSaveMsg('已保存到我的残局（模板）')
                                     } catch (e: any) {
                                         console.error('保存残局模板失败: ', e)
-                                        const msg = e?.message || '保存失败（需登录后端才能保存）。'
-                                        setSaveMsg(msg)
+                                        const parsed = parseApiValidationError(e)
+                                        if (parsed && parsed.messages && parsed.messages.length) {
+                                            setRuleMsg(parsed.messages.join('; '))
+                                            setHighlights(parsed.highlights || [])
+                                        } else {
+                                            const msg = e?.message || '保存失败（需登录后端才能保存）。'
+                                            setSaveMsg(msg)
+                                        }
                                     } finally {
                                         setSaving(false)
                                     }
@@ -332,6 +342,12 @@ export default function EndgameSetup() {
                                     setSaveMsg('')
                                     setSaving(true)
                                     try {
+                                        // validate board before creating online room
+                                        const vr = validateBoard(pieces)
+                                        if (!vr.valid) {
+                                            setRuleMsg(vr.errors.join('; '))
+                                            throw new Error('棋盘校验未通过')
+                                        }
                                         const payload: any = {
                                             name: name || '未命名残局',
                                             layout: { ...layout, turn },
@@ -344,8 +360,14 @@ export default function EndgameSetup() {
                                         // 跳转到在线对战页，使用 initialBoardId 直达创建好友房
                                         nav(`/app/live-battle?action=create&initialBoardId=${boardId}`)
                                     } catch (e: any) {
-                                        const msg = e?.message || '创建好友房失败（需登录后端才能创建）。'
-                                        setSaveMsg(msg)
+                                        const parsed = parseApiValidationError(e)
+                                        if (parsed && parsed.messages && parsed.messages.length) {
+                                            setRuleMsg(parsed.messages.join('; '))
+                                            setHighlights(parsed.highlights || [])
+                                        } else {
+                                            const msg = e?.message || '创建好友房失败（需登录后端才能创建）。'
+                                            setSaveMsg(msg)
+                                        }
                                     } finally {
                                         setSaving(false)
                                     }
