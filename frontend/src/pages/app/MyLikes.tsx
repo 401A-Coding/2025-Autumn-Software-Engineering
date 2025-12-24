@@ -63,6 +63,18 @@ export default function MyLikes() {
         loadLikes(type, page)
     }, [type, page, loadLikes])
 
+    // 页面挂载时禁止 document 根滚动，卸载时恢复（仅影响此页面）
+    useEffect(() => {
+        const prevHtml = document.documentElement.style.overflow
+        const prevBody = document.body.style.overflow
+        document.documentElement.style.overflow = 'hidden'
+        document.body.style.overflow = 'hidden'
+        return () => {
+            document.documentElement.style.overflow = prevHtml
+            document.body.style.overflow = prevBody
+        }
+    }, [])
+
     const handleTypeChange = (newType: string) => {
         setType(newType as typeof type)
         setPage(1)
