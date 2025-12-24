@@ -1659,7 +1659,7 @@
    height again — stick to the safe-area inset only so the visible gap
    between the header and the topbar matches other pages. */
 .page-container .topbar-sticky {
-    top: env(safe-area-inset-top, 0px);
+    top: calc(var(--header-height) + env(safe-area-inset-top, 0px));
 }
 
 .loading-message,
