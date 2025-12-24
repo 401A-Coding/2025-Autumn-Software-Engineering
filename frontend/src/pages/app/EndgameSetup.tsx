@@ -162,7 +162,7 @@ export default function EndgameSetup() {
     return (
         <MobileFrame>
             <div>
-                <div className="row align-center mb-12 topbar-sticky">
+                <div className="row align-center mb-12 topbar-sticky fixed-to-viewport">
                     <button className="btn-ghost" onClick={() => nav('/app/endgame')}>← 返回</button>
                     <h2 style={{ margin: 0, flex: 1, textAlign: 'center' }}>布置残局</h2>
                     <div style={{ width: 64 }} />
