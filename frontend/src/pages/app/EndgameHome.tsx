@@ -17,7 +17,7 @@ export default function EndgameHome() {
         }
     }, [])
     return (
-        <div className="app-page no-root-scroll">
+        <div className="app-page no-root-scroll endgame-page">
             <div className="app-page-header">
                 <div className="row align-center mb-0 topbar-sticky fixed-to-viewport">
                     <button className="btn-ghost" onClick={() => nav('/app')}>← 返回</button>

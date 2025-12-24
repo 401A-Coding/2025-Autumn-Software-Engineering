@@ -1625,6 +1625,29 @@
     padding-right: 8px;
 }
 
+/* EndgameHome specific: reserve header/topbar space and fix topbar position */
+.endgame-page .app-page-header {
+    /* reserve space equal to topbar height to avoid overlap when topbar is fixed */
+    min-height: 56px;
+    padding: 0;
+}
+
+.endgame-page .topbar-sticky.fixed-to-viewport {
+    position: fixed;
+    top: calc(var(--header-height) + env(safe-area-inset-top, 0px));
+    left: 50%;
+    transform: translateX(-50%);
+    width: 100%;
+    max-width: 520px;
+    box-sizing: border-box;
+    z-index: 19;
+}
+
+/* Ensure saved list shows its rounded card bottom inside viewport */
+.endgame-saved-list {
+    padding-bottom: 24px;
+}
+
 /* 在特定页面上禁用 document root 滚动，仅允许内部内容区滚动 */
 .app-page.no-root-scroll {
     height: 100vh;
