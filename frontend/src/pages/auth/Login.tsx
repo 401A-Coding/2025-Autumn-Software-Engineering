@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import http from '../../lib/http'
 import { setTokens } from '../../lib/auth'
@@ -10,6 +10,7 @@ const phoneRegex = /^1[3-9]\d{9}$/
 export default function Login() {
     const [phone, setPhone] = useState('')
     const [password, setPassword] = useState('')
+    const [remember, setRemember] = useState(false)
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const navigate = useNavigate()
@@ -26,14 +27,40 @@ export default function Login() {
             const res = await http.post<LoginData>('/api/v1/auth/login', body)
             const data = res.data
             if (data?.accessToken && data?.refreshToken) setTokens(data)
+            if (remember) {
+                try { localStorage.setItem('rememberLogin', JSON.stringify({ phone, password })) } catch { }
+            } else {
+                try { localStorage.removeItem('rememberLogin') } catch { }
+            }
             navigate('/app/home', { replace: true })
-        } catch (e: unknown) {
-            const msg = e instanceof Error ? e.message : '登录失败'
+        } catch (e: any) {
+            // 更明确的失败原因映射
+            const status: number | undefined = e?.status ?? e?.response?.status
+            let msg = e?.serverMessage || e?.message || '登录失败'
+            if (status === 401) msg = '账号或密码错误，请确认后重试'
+            else if (status === 400 || status === 422) msg = '请求参数有误：请检查手机号格式与密码长度'
+            else if (status === 429) msg = '请求过于频繁，请稍后再试'
+            else if (typeof status === 'number' && status >= 500) msg = '服务器开小差了，请稍后再试'
+            else if (!status) msg = '网络或跨域配置异常：请检查后端地址和网络连接'
             setError(msg)
         } finally {
             setLoading(false)
         }
     }
+
+    useEffect(() => {
+        try {
+            const raw = localStorage.getItem('rememberLogin')
+            if (raw) {
+                const obj = JSON.parse(raw)
+                if (obj?.phone) setPhone(obj.phone)
+                if (obj?.password) setPassword(obj.password)
+                setRemember(true)
+            }
+        } catch {
+            // ignore
+        }
+    }, [])
 
     return (
         <div className="auth-container">
@@ -61,6 +88,13 @@ export default function Login() {
                             placeholder="至少 6 位"
                         />
                     </label>
+                    <div className="row-between" style={{ alignItems: 'center' }}>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
+                            记住密码
+                        </label>
+                        <Link to="/forgot-password" className="muted">忘记密码？</Link>
+                    </div>
                     {error && <div className="auth-error">{error}</div>}
                     <button type="submit" disabled={loading} className="btn-primary auth-submit">
                         {loading ? '请稍候…' : '登录'}

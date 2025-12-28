@@ -15,7 +15,22 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 
 @WebSocketGateway({
   namespace: '/battle',
-  cors: { origin: [/http:\/\/localhost:(5173|5174)$/] },
+  // 允许来自本机开发端口与生产站点的 WebSocket 连接
+  cors: {
+    origin: (origin, callback) => {
+      try {
+        if (!origin) return callback(null, true);
+        const allowed =
+          /^(http:\/\/localhost:(5173|5174)|http:\/\/101\.42\.118\.61)$/.test(
+            origin,
+          );
+        callback(null, allowed);
+      } catch {
+        callback(null, false);
+      }
+    },
+    credentials: true,
+  },
 })
 export class BattlesGateway
   implements OnGatewayConnection, OnGatewayDisconnect

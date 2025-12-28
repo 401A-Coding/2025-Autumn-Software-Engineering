@@ -10,7 +10,9 @@ import {
   Min,
   ValidateNested,
   IsIn,
+  IsObject,
 } from 'class-validator';
+// 注意：棋步中的棋子仅需要标识阵营与类型，不需要坐标
 
 class PosDto {
   @IsInt()
@@ -22,23 +24,16 @@ class PosDto {
   y!: number;
 }
 
-class PieceDto {
+// 复用棋子 DTO，享受后端统一归一化与校验
+
+class MovePieceDto {
   @IsOptional()
   @IsString()
-  @IsIn([
-    'general',
-    'advisor',
-    'elephant',
-    'horse',
-    'chariot',
-    'cannon',
-    'soldier',
-  ])
   type?: string;
 
+  @IsOptional()
   @IsString()
-  @IsIn(['red', 'black'])
-  side!: 'red' | 'black';
+  side?: string; // 'red' | 'black'
 }
 
 class MoveDto {
@@ -54,9 +49,11 @@ class MoveDto {
   @Type(() => PosDto)
   to!: PosDto;
 
+  // 对于移动记录，仅需要棋子阵营/类型，坐标由 from/to 表达
+  @IsOptional()
   @ValidateNested()
-  @Type(() => PieceDto)
-  piece!: PieceDto;
+  @Type(() => MovePieceDto)
+  piece?: MovePieceDto;
 
   @IsOptional()
   @IsString()
@@ -107,20 +104,41 @@ export class CreateRecordDto {
   @IsString()
   endReason?: string;
 
+  @IsOptional()
   @IsArray()
   @ArrayMinSize(0)
   @IsString({ each: true })
-  keyTags!: string[];
+  keyTags?: string[];
 
+  @IsOptional()
   @IsArray()
   @ArrayMinSize(0)
   @ValidateNested({ each: true })
   @Type(() => MoveDto)
-  moves!: MoveDto[];
+  moves?: MoveDto[];
 
   @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => BookmarkDto)
   bookmarks?: BookmarkDto[];
+
+  // 起始布局（残局/自定义棋局用）：{ pieces: [{ type, side, x, y }] }
+  @IsOptional()
+  @IsObject()
+  initialLayout?: any;
+
+  // 对战模式：standard=标准对战，custom=自定义规则对战
+  @IsOptional()
+  @IsString()
+  @IsIn(['standard', 'custom'])
+  mode?: 'standard' | 'custom';
+
+  // 自定义对战的完整棋盘布局（二维数组格式）
+  @IsOptional()
+  customLayout?: any;
+
+  // 自定义规则（CustomRuleSet 格式）
+  @IsOptional()
+  customRules?: any;
 }

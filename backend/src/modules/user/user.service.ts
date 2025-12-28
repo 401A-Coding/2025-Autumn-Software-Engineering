@@ -13,10 +13,39 @@ type MinimalUser = { id: number; username: string; role: 'USER' | 'ADMIN' };
 
 @Injectable()
 export class UserService {
+  private resetMap = new Map<string, { phone: string; expiresAt: number }>();
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
   ) {}
+
+  // 请求找回密码（开发环境：生成临时 requestId 并返回；真实环境应通过短信/邮件验证）
+  async requestPasswordReset(phone: string) {
+    const user = await this.prisma.user.findFirst({ where: { phone } });
+    if (!user) {
+      // 为避免泄露是否存在，仍返回 ok （但不生成 token）
+      return { requestId: null, expireIn: 0 };
+    }
+    const requestId = `reset_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    const expiresAt = Date.now() + 15 * 60 * 1000; // 15 minutes
+    this.resetMap.set(requestId, { phone, expiresAt });
+    return { requestId, expireIn: 15 * 60 };
+  }
+
+  // 使用 requestId 重置用户密码（开发环境简化实现）
+  async resetPassword(phone: string, requestId: string, newPassword: string) {
+    const entry = this.resetMap.get(requestId);
+    if (!entry || entry.phone !== phone || entry.expiresAt < Date.now()) {
+      throw new BadRequestException('重置令牌无效或已过期');
+    }
+    const hashed = await bcrypt.hash(newPassword, 10);
+    await this.prisma.user.update({
+      where: { phone },
+      data: { password: hashed },
+    });
+    this.resetMap.delete(requestId);
+    return {};
+  }
 
   // 注册
   async register(dto: CreateUserDto) {
@@ -147,10 +176,10 @@ export class UserService {
     role: 'USER' | 'ADMIN',
   ) {
     const payload = { sub, username, role };
-    const accessToken = this.jwt.sign(payload, { expiresIn: '30m' });
-    const refreshToken = this.jwt.sign(payload, { expiresIn: '7d' });
+    const accessToken = this.jwt.sign(payload, { expiresIn: '4h' });
+    const refreshToken = this.jwt.sign(payload, { expiresIn: '30d' });
     // keep contract in docs/openapi.yaml: expiresIn is seconds for access token TTL
-    const expiresIn = 30 * 60; // 30 minutes
+    const expiresIn = 4 * 60 * 60; // 4 hours
     return { accessToken, refreshToken, expiresIn };
   }
 
@@ -241,11 +270,72 @@ export class UserService {
         avatarUrl: true,
         role: true,
         createdAt: true,
+        bio: true,
       },
     });
     if (!user) throw new UnauthorizedException('用户不存在');
     const { username, ...rest } = user;
-    return { ...rest, nickname: username };
+    return { ...rest, nickname: username, bio: user.bio ?? null };
+  }
+
+  // 获取任意用户的公开信息（不返回手机号、邮箱等敏感字段）
+  async getPublicProfileById(userId: number) {
+    const [user, postCount, commentCount, likeCount, posts] =
+      await this.prisma.$transaction([
+        this.prisma.user.findUnique({
+          where: { id: userId },
+          select: {
+            id: true,
+            username: true,
+            avatarUrl: true,
+            role: true,
+            createdAt: true,
+            bio: true,
+          },
+        }),
+        this.prisma.post.count({
+          where: { authorId: userId, status: 'PUBLISHED' },
+        }),
+        this.prisma.communityComment.count({ where: { authorId: userId } }),
+        this.prisma.postLike.count({
+          where: { post: { authorId: userId } },
+        }),
+        this.prisma.post.findMany({
+          where: { authorId: userId, status: 'PUBLISHED' },
+          orderBy: { createdAt: 'desc' },
+          take: 10,
+          select: {
+            id: true,
+            title: true,
+            content: true,
+            createdAt: true,
+            _count: {
+              select: { likes: true, comments: true },
+            },
+          },
+        }),
+      ]);
+
+    if (!user) throw new UnauthorizedException('用户不存在');
+    const { username, ...rest } = user;
+    return {
+      ...rest,
+      nickname: username,
+      bio: (user as any).bio ?? null,
+      stats: {
+        posts: postCount,
+        comments: commentCount,
+        likes: likeCount,
+      },
+      posts: posts.map((p) => ({
+        id: p.id,
+        title: p.title ?? '(无标题)',
+        excerpt: p.content?.slice(0, 200) ?? '',
+        createdAt: p.createdAt,
+        likeCount: (p as any)._count?.likes ?? 0,
+        commentCount: (p as any)._count?.comments ?? 0,
+      })),
+    };
   }
 
   // 更新当前用户信息（支持 nickname/password/avatarUrl）
@@ -296,12 +386,18 @@ export class UserService {
   // 基于 userId 更新当前用户信息（配合 JwtAuthGuard 使用）
   async updateMeByUserId(
     userId: number,
-    patch: { password?: string; avatarUrl?: string | null; nickname?: string },
+    patch: {
+      password?: string;
+      avatarUrl?: string | null;
+      nickname?: string;
+      bio?: string | null;
+    },
   ) {
     const data: {
       password?: string;
       avatarUrl?: string | null;
       username?: string;
+      bio?: string | null;
     } = {};
     if (
       typeof patch.nickname === 'string' &&
@@ -315,6 +411,9 @@ export class UserService {
     if (typeof patch.password === 'string' && patch.password.length > 0) {
       data.password = await bcrypt.hash(patch.password, 10);
     }
+    if (typeof patch.bio === 'string' || patch.bio === null) {
+      data.bio = patch.bio;
+    }
     try {
       const updated = await this.prisma.user.update({
         where: { id: userId },
@@ -326,6 +425,7 @@ export class UserService {
           avatarUrl: true,
           role: true,
           createdAt: true,
+          bio: true,
         },
       });
       const { username, ...rest } = updated;

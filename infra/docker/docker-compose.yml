@@ -1,4 +1,4 @@
-version: "3.8"
+# version: "3.8"
 services:
   postgres:
     image: postgres:16
@@ -9,7 +9,7 @@ services:
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: mydb
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
 volumes:

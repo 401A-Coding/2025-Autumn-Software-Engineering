@@ -1,10 +1,14 @@
 import { useParams, useNavigate } from 'react-router-dom'
 import { useEffect, useState } from 'react'
+import { createInitialBoard } from '../../features/chess/types'
+import { movePiece } from '../../features/chess/rules'
 import BoardViewer from '../../features/chess/BoardViewer'
 import { recordStore } from '../../features/records/recordStore'
+import { recordsApi, userApi } from '../../services/api'
 import type { ChessRecord, Bookmark } from '../../features/records/types'
 // 书签即评论，统一用 bookmarks 展示
 import './app-pages.css'
+import MobileFrame from '../../components/MobileFrame'
 
 export default function RecordReplay() {
     const { id } = useParams<{ id: string }>()
@@ -20,6 +24,11 @@ export default function RecordReplay() {
     const [bmLabel, setBmLabel] = useState('')
     // 速度设置弹窗
     const [showSpeedSheet, setShowSpeedSheet] = useState(false)
+    // Profiles for header
+    const [myProfile, setMyProfile] = useState<{ id: number; nickname?: string; avatarUrl?: string } | null>(null)
+    const [opponentProfile, setOpponentProfile] = useState<{ id: number; nickname?: string; avatarUrl?: string } | null>(null)
+    // 视角切换开关（必须在任何条件返回之前声明，保持 hooks 顺序稳定）
+    const [flipOverride, setFlipOverride] = useState(false)
 
     // 计算总步数（在 hooks 之前，避免条件 hooks）
     const total = record?.moves.length ?? 0
@@ -36,6 +45,27 @@ export default function RecordReplay() {
                 }
             })()
     }, [id])
+
+    useEffect(() => {
+        // Load profiles once record is ready
+        (async () => {
+            try {
+                const me = await userApi.getMe()
+                setMyProfile({ id: me.id as number, nickname: (me as any).nickname, avatarUrl: (me as any).avatarUrl })
+            } catch { }
+            try {
+                const oppId = record && record.opponent && /^\d+$/.test(String(record.opponent)) ? Number(record.opponent) : null
+                if (oppId) {
+                    const info = await userApi.getById(oppId)
+                    setOpponentProfile({ id: info.id, nickname: info.nickname, avatarUrl: info.avatarUrl || undefined })
+                } else if (myProfile) {
+                    // local self vs self
+                    setOpponentProfile({ ...myProfile })
+                }
+            } catch { }
+        })()
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [record])
 
     function jumpToBookmarkStep(bm: Bookmark) {
         setStep(Math.max(0, Math.min(bm.step, total)))
@@ -57,223 +87,395 @@ export default function RecordReplay() {
 
     if (!record) {
         return (
-            <section className="paper-card card-pad">
-                <h3 className="mt-0">复盘</h3>
-                <div className="empty-box">记录不存在或已被清理</div>
-                <button className="btn-ghost mt-8" onClick={() => navigate('/app/history')}>返回列表</button>
-            </section>
+            <MobileFrame title="复盘">
+                <section className="paper-card card-pad">
+                    <h3 className="mt-0">复盘</h3>
+                    <div className="empty-box">记录不存在或已被清理</div>
+                    <button className="btn-ghost mt-8" onClick={() => navigate('/app/history')}>返回列表</button>
+                </section>
+            </MobileFrame>
         )
     }
 
     // 旧的添加方法已替换为 prompt 交互，保留位置注释避免误用
 
-    // 胜负标题与颜色
+    // 解析我方棋色：支持中文与英文字段，统一为 'red' | 'black'
+    const rawTag = ((record?.keyTags) || []).find((t: string) => t.startsWith('我方:'))
+    const parsed = rawTag ? rawTag.split(':')[1] : undefined
+    const mySide: 'red' | 'black' = ((): 'red' | 'black' => {
+        if (!parsed) return 'red'
+        if (parsed === '红' || parsed.toLowerCase() === 'red') return 'red'
+        if (parsed === '黑' || parsed.toLowerCase() === 'black') return 'black'
+        return 'red'
+    })()
+    const baseFlip = mySide === 'red' ? false : true
+    const shouldFlip = flipOverride ? !baseFlip : baseFlip
+
+    // 计算显示顺序：红方在左（先手），黑方在右（后手）
+    const leftProfile = mySide === 'red' ? myProfile : opponentProfile
+    const rightProfile = mySide === 'red' ? opponentProfile : myProfile
+
+    const renderFramedAvatar = (
+        profile: { id: number; nickname?: string; avatarUrl?: string } | null,
+        color: string,
+    ) => {
+        if (!profile) return null
+        const size = 48
+        const initials = (profile.nickname || '?').slice(0, 2).toUpperCase()
+        return (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+                <div
+                    className="cursor-pointer"
+                    onClick={() => navigate(`/app/users/${profile.id}`)}
+                    style={{
+                        width: size,
+                        height: size,
+                        borderRadius: '50%',
+                        border: `3px solid ${color}`,
+                        overflow: 'hidden',
+                        backgroundColor: profile.avatarUrl ? 'transparent' : '#e0e0e0',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexShrink: 0,
+                    }}
+                >
+                    {profile.avatarUrl ? (
+                        <img
+                            src={profile.avatarUrl}
+                            alt={profile.nickname || '玩家头像'}
+                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        />
+                    ) : (
+                        <span style={{ fontSize: 14, fontWeight: 600, color: '#666' }}>{initials}</span>
+                    )}
+                </div>
+                <div
+                    style={{
+                        fontWeight: 600,
+                        fontSize: 14,
+                        color: '#333',
+                        textAlign: 'center',
+                        maxWidth: 120,
+                    }}
+                    className="replay-nickname"
+                >
+                    {profile.nickname || '匿名用户'}
+                </div>
+            </div>
+        )
+    }
+
+    // 胜负标题与颜色（result 是相对红方的：red=红胜，black=黑胜，draw=平）
     const result = record.result
     let titleText = '平局'
     let titleClass = 'replay-title--draw'
-    if (result === 'red') { titleText = '红方胜'; titleClass = 'replay-title--red' }
-    else if (result === 'black') { titleText = '黑方胜'; titleClass = 'replay-title--black' }
+    if (result === 'red') { titleText = '先胜'; titleClass = 'replay-title--red' }
+    else if (result === 'black') { titleText = '先负'; titleClass = 'replay-title--black' }
     else if (!result || (record as any)?.result === 'unfinished') { titleText = '未结束'; titleClass = 'replay-title--ongoing' }
 
+    // 残局导出逻辑提取
+    function handleExport() {
+        if (!record) return;
+        let b: any[][];
+        if (record.mode === 'custom' && (record as any).customLayout) {
+            b = (record as any).customLayout as any[][];
+        } else {
+            const il: any = (record as any).initialLayout;
+            if (il && Array.isArray(il.pieces)) {
+                b = Array.from({ length: 10 }, () => Array.from({ length: 9 }, () => null)) as any[][];
+                let id = 0;
+                for (const p of il.pieces) {
+                    const x = Math.max(0, Math.min(8, p.x));
+                    const y = Math.max(0, Math.min(9, p.y));
+                    b[y][x] = { id: `init-${id++}`, type: p.type, side: p.side };
+                }
+            } else {
+                b = createInitialBoard();
+            }
+        }
+        for (let i = 0; i < Math.min(step, record.moves.length); i++) {
+            const m = record.moves[i];
+            const nb = movePiece(b, m.from, m.to);
+            for (let y = 0; y < 10; y++) {
+                for (let x = 0; x < 9; x++) {
+                    b[y][x] = nb[y][x];
+                }
+            }
+        }
+        const pieces: any[] = [];
+        for (let y = 0; y < 10; y++) {
+            for (let x = 0; x < 9; x++) {
+                const p: any = b[y][x];
+                if (p) pieces.push({ type: p.type, side: p.side, x, y });
+            }
+        }
+        const layout = { pieces };
+        const lastTurn = step > 0 ? (record.moves[step - 1]?.turn) : undefined;
+        const il: any = (record as any).initialLayout;
+        const t = il?.turn;
+        const initialTurn = t === 'red' || t === 'black' ? t : 'red';
+        const turn = lastTurn ? (lastTurn === 'red' ? 'black' : 'red') : initialTurn;
+        navigate('/app/endgame/setup', { state: { layout, name: `${record.opponent || '残局'}@步${step}`, turn } });
+    }
+
     return (
-        <div>
-            <section className="paper-card card-pad pos-rel">
-                <h2 className={`mt-0 ${titleClass}`}>{titleText}</h2>
-
-                <div className="muted text-13">
-                    开始：{new Date(record.startedAt).toLocaleString()} · 结束：{record.endedAt ? new Date(record.endedAt).toLocaleString() : '—'}
-                </div>
-
-                {/* 未结束时提供选择操作 */}
-                {(!record.result || (record as any).result === 'unfinished') && (
-                    <div className="mt-12 row-start gap-8">
-                        <button className="btn-primary" onClick={() => {/* 回顾对局：保持当前复盘视图 */ }}>回顾对局</button>
-                        <button className="btn-ghost" onClick={() => {/* 继续对战：占位，后续实现跳转或恢复对局 */ }}>继续对战</button>
-                    </div>
-                )}
-
-                <div className="mt-12">
-                    <BoardViewer moves={record.moves} step={step} />
-                </div>
-
-                {/* 步数控制 */}
-                <div className="mt-12 inline-controls">
-                    <button className="btn-ghost" disabled={step <= 0} onClick={() => setStep(s => Math.max(0, s - 1))}>◀</button>
-                    <button className="btn-ghost" disabled={step >= total} onClick={() => setStep(s => Math.min(total, s + 1))}>▶</button>
-                    <div className="minw-80 text-center">{step}/{total}</div>
-                    <button className="btn-ghost" onClick={() => setStep(0)}>开局</button>
-                    <button className="btn-ghost" onClick={() => setStep(total)}>终局</button>
-                    <button className="btn-ghost" onClick={() => setIsPlaying(p => !p)}>{isPlaying ? '⏸ 暂停' : '▶ 自动'}</button>
-                    <div className="ml-auto">
-                        <button className="btn-ghost" onClick={() => setShowSpeedSheet(true)}>修改播放速度</button>
-                    </div>
-                </div>
-
-                {/* 书签操作：改为按钮 prompt 编辑 */}
-                <div className="mt-16 row-start gap-12">
+        <MobileFrame>
+            <div>
+                <div className="row-between align-center mb-12" style={{ gap: 12 }}>
+                    <button className="btn-ghost" onClick={() => navigate('/app/history')}>← 返回列表</button>
+                    <h2 className={`mt-0 mb-0 ${titleClass}`} style={{ margin: 0, flex: 1, textAlign: 'center' }}>{titleText}</h2>
                     <button
                         className="btn-ghost"
-                        onClick={() => {
-                            setEditingBm(null)
-                            setBmLabel('')
-                            setShowBookmarkSheet(true)
+                        title={record.favorite ? '取消收藏' : '收藏'}
+                        onClick={async () => {
+                            try {
+                                if (record.favorite) {
+                                    await recordsApi.unfavorite(Number(record.id))
+                                    setRecord({ ...record, favorite: false })
+                                } else {
+                                    await recordsApi.favorite(Number(record.id))
+                                    setRecord({ ...record, favorite: true })
+                                }
+                            } catch (e) {
+                                console.error('Failed to toggle favorite:', e)
+                            }
                         }}
-                    >添加书签</button>
-                </div>
-
-                {/* 已有书签 */}
-                <div className="mt-16">
-                    <strong>书签 / 评论：</strong>
-                    {!(record.bookmarks && record.bookmarks.length) ? (
-                        <span className="muted"> 无</span>
-                    ) : (
-                        <div className="row-start wrap gap-6 mt-6">
-                            {record.bookmarks!.map(b => (
-                                <div key={b.id} className="paper-card pad-4-8 inline-flex align-center gap-6">
-                                    <button
-                                        className="btn-ghost btn-xs"
-                                        onClick={() => jumpToBookmarkStep(b)}
-                                        title={b.note ? b.note : undefined}
-                                    >步 {b.step}{b.label ? ' · ' + b.label : ''}</button>
-                                    {b.note && (
-                                        <span className="text-12 muted">{b.note}</span>
-                                    )}
-                                    <button
-                                        className="btn-ghost btn-xs"
-                                        title="编辑"
-                                        onClick={() => {
-                                            setEditingBm(b)
-                                            setBmLabel(b.label || '')
-                                            setShowBookmarkSheet(true)
-                                        }}
-                                    >✎</button>
-                                    <button
-                                        className="btn-ghost btn-xs"
-                                        aria-label="删除书签"
-                                        title="删除"
-                                        onClick={async () => {
-                                            await recordStore.removeBookmark(record.id, b.id)
-                                            const updated = await recordStore.get(record.id)
-                                            if (updated) setRecord(updated)
-                                        }}
-                                    >✕</button>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                </div>
-
-                {/* 评论与书签合并展示，见上方书签列表 */}
-
-                <div className="mt-24">
-                    <button className="btn-ghost" onClick={() => navigate('/app/history')}>返回列表</button>
-                </div>
-            </section>
-            {showBookmarkSheet && (
-                <div
-                    role="dialog"
-                    aria-modal="true"
-                    aria-label="书签编辑"
-                    className="modal-mask"
-                    onClick={() => setShowBookmarkSheet(false)}
-                >
-                    <div
-                        className="paper-card sheet-bottom mw-520"
-                        onClick={(e) => e.stopPropagation()}
+                        style={{ fontSize: '28px', lineHeight: 1 }}
                     >
-                        <div className="fw-600 mb-8">{editingBm ? '编辑书签' : '添加书签'}</div>
-                        <div className="row-start gap-8 align-center">
-                            <input
-                                placeholder="书签标签 (可留空)"
-                                value={bmLabel}
-                                onChange={(e) => setBmLabel(e.target.value)}
-                                className="flex-1"
+                        {record.favorite ? '❤️' : '🤍'}
+                    </button>
+                </div>
+                <section className="paper-card card-pad pos-rel">
+                    {/* 战果居中显示，两侧头像 */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 16, gap: 16 }}>
+                        <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-end' }}>
+                            {renderFramedAvatar(leftProfile, '#c8102e')}
+                        </div>
+                        <div className="fw-600" style={{ textAlign: 'center', fontSize: 18 }}>
+                            {result === 'red' ? '先胜' : result === 'black' ? '先负' : result === 'draw' ? '平局' : '未结束'}
+                        </div>
+                        <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-start' }}>
+                            {renderFramedAvatar(rightProfile, '#333')}
+                        </div>
+                    </div>
+
+                    <div className="muted text-13">
+                        开始：{new Date(record.startedAt).toLocaleString()} · 结束：{record.endedAt ? new Date(record.endedAt).toLocaleString() : '—'}
+                    </div>
+
+                    {/* 未结束操作区已移除（统一用“残局导出”流程） */}
+
+                    {/* 棋盘区域：上方黑方（棋盘上半），中间棋盘，下方红方（棋盘下半） */}
+                    <div className="mt-12" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
+                        {/* 上方：黑方玩家（棋盘上半部分）- 黑色边框 */}
+                        <div style={{ display: 'flex', justifyContent: 'center' }}>
+                            {renderFramedAvatar(rightProfile, '#333')}
+                        </div>
+
+                        {/* 中间：棋盘 */}
+                        <div>
+                            <BoardViewer
+                                moves={record.moves}
+                                step={step}
+                                flip={shouldFlip}
+                                initialLayout={
+                                    // 自定义模式优先使用 customLayout；若服务端未返回则回退到 initialLayout.pieces
+                                    record.mode === 'custom'
+                                        ? ((record as any).customLayout ?? (record.initialLayout as any))
+                                        : (record.initialLayout as any)
+                                }
                             />
                         </div>
-                        <div className="row-between mt-12 gap-8">
-                            <button className="btn-ghost" onClick={() => setShowBookmarkSheet(false)}>取消</button>
-                            <div className="row-start gap-8">
-                                {editingBm && (
+
+                        {/* 下方：红方玩家（棋盘下半部分）- 红色边框 */}
+                        <div style={{ display: 'flex', justifyContent: 'center' }}>
+                            {renderFramedAvatar(leftProfile, '#c8102e')}
+                        </div>
+                    </div>
+
+                    {/* 步数控制 */}
+                    <div className="mt-12 inline-controls">
+                        <button className="btn-ghost" disabled={step <= 0} onClick={() => setStep(s => Math.max(0, s - 1))}>◀</button>
+                        <button className="btn-ghost" disabled={step >= total} onClick={() => setStep(s => Math.min(total, s + 1))}>▶</button>
+                        <div className="minw-80 text-center">{step}/{total}</div>
+                        <button className="btn-ghost" onClick={() => setStep(0)}>开局</button>
+                        <button className="btn-ghost" onClick={() => setStep(total)}>终局</button>
+                        <button className="btn-ghost" onClick={() => setIsPlaying(p => !p)}>{isPlaying ? '⏸ 暂停' : '▶ 自动'}</button>
+                        <button className="btn-ghost" onClick={() => setFlipOverride(f => !f)} title="切换视角">切换视角</button>
+                        <div className="ml-auto">
+                            <button className="btn-ghost" title="修改播放速度" onClick={() => setShowSpeedSheet(true)}>⚙ 速度</button>
+                        </div>
+                    </div>
+
+                    {/* 残局导出：将当前步的局面导出到布置残局 */}
+                    <div className="mt-12">
+                        <button className="btn-primary" onClick={handleExport}>残局导出</button>
+                    </div>
+
+                    {/* 书签操作：改为按钮 prompt 编辑 */}
+                    <div className="mt-16 row-start gap-12">
+                        <button
+                            className="btn-ghost"
+                            onClick={() => {
+                                setEditingBm(null)
+                                setBmLabel('')
+                                setShowBookmarkSheet(true)
+                            }}
+                        >添加书签</button>
+                    </div>
+
+                    {/* 已有书签 */}
+                    <div className="mt-16">
+                        <strong>书签 / 评论：</strong>
+                        {!(record.bookmarks && record.bookmarks.length) ? (
+                            <span className="muted"> 无</span>
+                        ) : (
+                            <div className="row-start wrap gap-6 mt-6">
+                                {record.bookmarks!.map(b => (
+                                    <div key={b.id} className="paper-card pad-4-8 inline-flex align-center gap-6">
+                                        <button
+                                            className="btn-ghost btn-xs"
+                                            onClick={() => jumpToBookmarkStep(b)}
+                                            title={b.note ? b.note : undefined}
+                                        >步 {b.step}{b.label ? ' · ' + b.label : ''}</button>
+                                        {b.note && (
+                                            <span className="text-12 muted">{b.note}</span>
+                                        )}
+                                        <button
+                                            className="btn-ghost btn-xs"
+                                            title="编辑"
+                                            onClick={() => {
+                                                setEditingBm(b)
+                                                setBmLabel(b.label || '')
+                                                setShowBookmarkSheet(true)
+                                            }}
+                                        >✎</button>
+                                        <button
+                                            className="btn-ghost btn-xs"
+                                            aria-label="删除书签"
+                                            title="删除"
+                                            onClick={async () => {
+                                                await recordStore.removeBookmark(record.id, b.id)
+                                                const updated = await recordStore.get(record.id)
+                                                if (updated) setRecord(updated)
+                                            }}
+                                        >✕</button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* 评论与书签合并展示，见上方书签列表 */}
+
+                </section>
+                {showBookmarkSheet && (
+                    <div
+                        role="dialog"
+                        aria-modal="true"
+                        aria-label="书签编辑"
+                        className="modal-mask"
+                        onClick={() => setShowBookmarkSheet(false)}
+                    >
+                        <div
+                            className="paper-card sheet-bottom mw-520"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <div className="fw-600 mb-8">{editingBm ? '编辑书签' : '添加书签'}</div>
+                            <div className="row-start gap-8 align-center">
+                                <input
+                                    placeholder="书签标签 (可留空)"
+                                    value={bmLabel}
+                                    onChange={(e) => setBmLabel(e.target.value)}
+                                    className="flex-1"
+                                />
+                            </div>
+                            <div className="row-between mt-12 gap-8">
+                                <button className="btn-ghost" onClick={() => setShowBookmarkSheet(false)}>取消</button>
+                                <div className="row-start gap-8">
+                                    {editingBm && (
+                                        <button
+                                            className="btn-ghost"
+                                            onClick={async () => {
+                                                await recordStore.removeBookmark(record.id, editingBm.id)
+                                                const updated = await recordStore.get(record.id)
+                                                if (updated) setRecord(updated)
+                                                setShowBookmarkSheet(false)
+                                            }}
+                                        >删除</button>
+                                    )}
                                     <button
-                                        className="btn-ghost"
+                                        className="btn-primary"
                                         onClick={async () => {
-                                            await recordStore.removeBookmark(record.id, editingBm.id)
+                                            const trimmed = bmLabel.trim()
+                                            if (editingBm) {
+                                                await recordStore.updateBookmark(record.id, editingBm.id, trimmed ? trimmed : undefined, bmLabel ? bmLabel : undefined)
+                                            } else {
+                                                await recordStore.addBookmark(record.id, step, trimmed ? trimmed : undefined, bmLabel ? bmLabel : undefined)
+                                            }
                                             const updated = await recordStore.get(record.id)
                                             if (updated) setRecord(updated)
                                             setShowBookmarkSheet(false)
                                         }}
-                                    >删除</button>
-                                )}
+                                    >保存</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {showSpeedSheet && (
+                    <div
+                        role="dialog"
+                        aria-modal="true"
+                        aria-label="播放速度"
+                        className="modal-mask"
+                        onClick={() => setShowSpeedSheet(false)}
+                    >
+                        <div
+                            className="paper-card sheet-bottom mw-520"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <div className="fw-600 mb-8">修改播放速度</div>
+                            <div className="muted text-12 mb-6">以“秒/步”为单位，最小 1 秒</div>
+                            <div className="row-start align-center gap-8">
+                                <span className="minw-80">速度：</span>
+                                <input
+                                    type="number"
+                                    min={1}
+                                    step={1}
+                                    defaultValue={Math.max(1, Math.round(intervalMs / 1000))}
+                                    className="w-100"
+                                    placeholder="秒/步"
+                                    title="播放速度（秒/步）"
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') {
+                                            const target = e.target as HTMLInputElement
+                                            const sec = Math.max(1, parseInt(target.value || '1', 10) || 1)
+                                            setIntervalMs(sec * 1000)
+                                            setShowSpeedSheet(false)
+                                        }
+                                    }}
+                                    id="speed-input"
+                                />
+                            </div>
+                            <div className="row-between mt-12 gap-8">
+                                <button className="btn-ghost" onClick={() => setShowSpeedSheet(false)}>取消</button>
                                 <button
                                     className="btn-primary"
-                                    onClick={async () => {
-                                        const trimmed = bmLabel.trim()
-                                        if (editingBm) {
-                                            await recordStore.updateBookmark(record.id, editingBm.id, trimmed ? trimmed : undefined, bmLabel ? bmLabel : undefined)
-                                        } else {
-                                            await recordStore.addBookmark(record.id, step, trimmed ? trimmed : undefined, bmLabel ? bmLabel : undefined)
-                                        }
-                                        const updated = await recordStore.get(record.id)
-                                        if (updated) setRecord(updated)
-                                        setShowBookmarkSheet(false)
+                                    onClick={() => {
+                                        const el = document.getElementById('speed-input') as HTMLInputElement | null
+                                        const sec = Math.max(1, parseInt(el?.value || '1', 10) || 1)
+                                        setIntervalMs(sec * 1000)
+                                        setShowSpeedSheet(false)
                                     }}
                                 >保存</button>
                             </div>
                         </div>
                     </div>
-                </div>
-            )}
-
-            {showSpeedSheet && (
-                <div
-                    role="dialog"
-                    aria-modal="true"
-                    aria-label="播放速度"
-                    className="modal-mask"
-                    onClick={() => setShowSpeedSheet(false)}
-                >
-                    <div
-                        className="paper-card sheet-bottom mw-520"
-                        onClick={(e) => e.stopPropagation()}
-                    >
-                        <div className="fw-600 mb-8">修改播放速度</div>
-                        <div className="muted text-12 mb-6">以“秒/步”为单位，最小 1 秒</div>
-                        <div className="row-start align-center gap-8">
-                            <span className="minw-80">速度：</span>
-                            <input
-                                type="number"
-                                min={1}
-                                step={1}
-                                defaultValue={Math.max(1, Math.round(intervalMs / 1000))}
-                                className="w-100"
-                                placeholder="秒/步"
-                                title="播放速度（秒/步）"
-                                onKeyDown={(e) => {
-                                    if (e.key === 'Enter') {
-                                        const target = e.target as HTMLInputElement
-                                        const sec = Math.max(1, parseInt(target.value || '1', 10) || 1)
-                                        setIntervalMs(sec * 1000)
-                                        setShowSpeedSheet(false)
-                                    }
-                                }}
-                                id="speed-input"
-                            />
-                        </div>
-                        <div className="row-between mt-12 gap-8">
-                            <button className="btn-ghost" onClick={() => setShowSpeedSheet(false)}>取消</button>
-                            <button
-                                className="btn-primary"
-                                onClick={() => {
-                                    const el = document.getElementById('speed-input') as HTMLInputElement | null
-                                    const sec = Math.max(1, parseInt(el?.value || '1', 10) || 1)
-                                    setIntervalMs(sec * 1000)
-                                    setShowSpeedSheet(false)
-                                }}
-                            >保存</button>
-                        </div>
-                    </div>
-                </div>
-            )}
-        </div>
+                )}
+            </div>
+        </MobileFrame>
     )
 }

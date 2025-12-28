@@ -53,7 +53,7 @@ POST /api/v1/auth/register
 {
   "code": 0,
   "message": "注册成功",
-  "data": { "userId": 1024, "accessToken": "<JWT_TOKEN>", "refreshToken": "<REFRESH_TOKEN>", "expiresIn": 1800 }
+  "data": { "userId": 1024, "accessToken": "<JWT_TOKEN>", "refreshToken": "<REFRESH_TOKEN>", "expiresIn": 14400 }
 }
 ```
 
@@ -78,7 +78,7 @@ POST /api/v1/auth/login
     "userId": 1024,
     "accessToken": "<JWT_TOKEN>",
     "refreshToken": "<REFRESH_TOKEN>",
-    "expiresIn": 1800
+    "expiresIn": 14400
   }
 }
 ```
@@ -233,7 +233,8 @@ Authorization: Bearer <token>
 | 接口     | 方法     | 路径                         | 鉴权 | 描述          |
 | ------ | ------ | -------------------------- | -- | ----------- |
 | 获取标准棋盘 | GET    | `/api/v1/boards/standard` | ❌  | 返回中国象棋标准开局 |
-| 获取模板列表 | GET    | `/api/v1/boards/templates` | ❌  | 获取系统预设棋局模板  |
+| 获取模板列表 | GET    | `/api/v1/boards/templates` | ❌  | 获取自定义棋局模板（isTemplate=true；不含残局） |
+| 获取我的残局 | GET    | `/api/v1/boards/endgames`  | ✅  | 获取本人保存的所有残局 |
 | 创建棋局   | POST   | `/api/v1/boards`           | ✅  | 用户自定义棋局     |
 | 查询我的棋局 | GET    | `/api/v1/boards/mine`      | ✅  | 获取自己创建的所有棋局 |
 | 查看棋局详情 | GET    | `/api/v1/boards/:boardId`  | ✅  | 读取棋局布局与规则   |
@@ -256,8 +257,8 @@ GET /api/v1/boards/standard
     "description": "中国象棋标准开局布局",
     "layout": {
       "pieces": [
-        { "type": "chariot", "side": "black", "x": 0, "y": 0 },
-        { "type": "chariot", "side": "black", "x": 8, "y": 0 },
+        { "type": "rook", "side": "black", "x": 0, "y": 0 },
+        { "type": "rook", "side": "black", "x": 8, "y": 0 },
         { "type": "horse", "side": "black", "x": 1, "y": 0 },
         { "type": "horse", "side": "black", "x": 7, "y": 0 },
         { "type": "elephant", "side": "black", "x": 2, "y": 0 },
@@ -272,8 +273,8 @@ GET /api/v1/boards/standard
         { "type": "soldier", "side": "black", "x": 4, "y": 3 },
         { "type": "soldier", "side": "black", "x": 6, "y": 3 },
         { "type": "soldier", "side": "black", "x": 8, "y": 3 },
-        { "type": "chariot", "side": "red", "x": 0, "y": 9 },
-        { "type": "chariot", "side": "red", "x": 8, "y": 9 },
+        { "type": "rook", "side": "red", "x": 0, "y": 9 },
+        { "type": "rook", "side": "red", "x": 8, "y": 9 },
         { "type": "horse", "side": "red", "x": 1, "y": 9 },
         { "type": "horse", "side": "red", "x": 7, "y": 9 },
         { "type": "elephant", "side": "red", "x": 2, "y": 9 },
@@ -310,10 +311,33 @@ GET /api/v1/boards/templates
   "code": 0,
   "message": "success",
   "data": [
-    { "id": 1, "name": "中炮对屏风马", "preview": "/img/t1.png" },
-    { "id": 2, "name": "反宫马", "preview": "/img/t2.png" }
+    { "id": 1, "name": "中炮对屏风马", "preview": "/img/t1.png", "isTemplate": true },
+    { "id": 2, "name": "反宫马", "preview": "/img/t2.png", "isTemplate": true }
   ]
 }
+
+获取我的残局示例（分页）
+
+```json
+GET /api/v1/boards/endgames?page=1&pageSize=10
+Authorization: Bearer <token>
+```
+
+响应
+
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "items": [ { "id": 401, "name": "马后炮妙杀", "isEndgame": true } ],
+    "page": 1,
+    "pageSize": 10,
+    "total": 1
+  }
+}
+```
+
 ```
 
 创建棋局示例
@@ -324,14 +348,17 @@ POST /api/v1/boards
   "name": "中炮对屏风马",
   "description": "经典布局",
   "layout": {
+    "turn": "red",
     "pieces": [
-      { "type": "car", "x": 0, "y": 0, "side": "red" }
+      { "type": "rook", "x": 0, "y": 0, "side": "red" }
     ]
   },
   "rules": {
     "horse": "日字",
     "cannon": "跳吃"
-  }
+  },
+  "isTemplate": true,
+  "preview": ""
 }
 ```
 
@@ -341,9 +368,34 @@ POST /api/v1/boards
 {
   "code": 0,
   "message": "创建成功",
-  "data": { "boardId": 301, "name": "中炮对屏风马" }
+  "data": { "boardId": 301, "name": "中炮对屏风马", "isTemplate": true }
 }
 ```
+
+错误响应示例（布局校验失败）
+
+当提交的 `layout.pieces` 未通过后端校验（例如子力重叠、象放置在非法格、将帅直视等）时，服务端会返回 HTTP 400，并在 `data.errors` 中以结构化对象列出每一项校验失败的详情，包含可选的格子坐标：
+
+```http
+HTTP/1.1 400 Bad Request
+Content-Type: application/json
+```
+
+```json
+{
+  "code": 1001,
+  "message": "布局校验失败",
+  "data": {
+    "errors": [
+      { "code": "elephant_square", "message": "象放置位置不合法：(0,0)", "x": 0, "y": 0 },
+      { "code": "overlap", "message": "重叠：多个棋子占据格 (4,5)", "x": 4, "y": 5 },
+      { "code": "king_facing", "message": "将帅相对直视（同一列且中间无子）" }
+    ]
+  }
+}
+```
+
+前端可直接解析 `data.errors`，用于在编辑器中高亮对应格子并显示友好提示。请在调用 `/api/v1/boards` 前仍然在客户端做一次快速校验以提升交互体验（服务端为最终权威）。
 
 查询我的棋局示例（分页）
 
@@ -359,7 +411,7 @@ Authorization: Bearer <token>
   "code": 0,
   "message": "success",
   "data": {
-    "items": [ { "id": 301, "name": "中炮对屏风马" } ],
+    "items": [ { "id": 301, "name": "中炮对屏风马", "isEndgame": false } ],
     "page": 1,
     "pageSize": 10,
     "total": 1
@@ -635,6 +687,7 @@ Authorization: Bearer <token>
 说明：
 
 - 本模块覆盖“本地对战保存、列表、详情、收藏、复盘书签/笔记”等需求。
+- 支持残局/自定义棋局：记录包含 `initialLayout` 字段，复盘从该起始布局开始而非标准开局。
 - 新增记录时，后端会在“当前用户范围”内自动清理非收藏记录，仅保留最近 30 条；收藏记录不受影响。
 
 | 接口         | 方法     | 路径                                  | 鉴权 | 描述                     |
@@ -665,6 +718,7 @@ Authorization: Bearer <token>
   "result": "red",
   "endReason": "checkmate",
   "keyTags": ["中局反击", "双车压制"],
+  "initialLayout": { "pieces": [ { "type": "general", "side": "red", "x": 4, "y": 9 } ] },
   "moves": [
     {"moveIndex":0, "from":{"x":4,"y":9}, "to":{"x":4,"y":8}, "piece":{"type":"general","side":"red"}},
     {"moveIndex":1, "from":{"x":4,"y":0}, "to":{"x":4,"y":1}, "piece":{"type":"general","side":"black"}}
@@ -738,6 +792,7 @@ Authorization: Bearer <token>
     "endReason": "checkmate",
     "keyTags": ["中局反击"],
     "favorite": false,
+    "initialLayout": { "pieces": [ { "type": "general", "side": "red", "x": 4, "y": 9 } ] },
     "moves": [ { "moveIndex": 0 }, { "moveIndex": 1 } ],
     "bookmarks": [ { "id": 1, "step": 12, "label": "妙手" } ]
   }
@@ -939,91 +994,64 @@ Authorization: Bearer <token>
 
 ## 五、社区模块（Community）
 
-| 接口     | 方法     | 路径                                  | 鉴权 | 描述       |
-| ------ | ------ | ----------------------------------- | -- | -------- |
-| 获取分享广场 | GET    | `/api/v1/community/shares`          | ❌  | 热门对局流    |
-| 点赞对局   | POST   | `/api/v1/community/shares/:id/like` | ✅  | 点赞       |
-| 取消点赞   | DELETE | `/api/v1/community/shares/:id/like` | ✅  | 取消点赞     |
-| 举报内容   | POST   | `/api/v1/community/reports`         | ✅  | 举报违规内容   |
-| 搜索对局   | GET    | `/api/v1/community/search`          | ❌  | 按标签/作者搜索 |
+**社区模块 API 规范（草案）**
 
-获取分享广场示例
+- **目标**: 为象棋应用提供发帖驱动的社区，允许用户发布文本/图片，分享对局记录、自定义棋局或片段，并支持评论、点赞、收藏、举报与搜索。
 
-```json
-GET /api/v1/community/shares?page=1&pageSize=20
-```
+- **前缀**: 所有社区接口均使用 `/api/v1/community/...`。
 
-响应
+- **主要资源**:
+  - `Post`：社区帖子（可包含 `shareReference` 指向 record/board/clip，保存 snapshot）
+  - `Comment`：评论，支持父子回复
+  - `Like`：点赞（对帖子/评论）
+  - `Bookmark`：收藏帖子
+  - `Report`：用户举报
 
-```json
-{
-  "code": 0,
-  "message": "success",
-  "data": {
-    "items": [ { "shareId": 9001, "title": "名局回顾", "likes": 42 } ],
-    "page": 1,
-    "pageSize": 20,
-    "total": 200
-  }
-}
-```
+---
 
-点赞/取消点赞示例
+主要接口一览（简要）
 
-```json
-POST /api/v1/community/shares/9001/like
-Authorization: Bearer <token>
-```
+- 列表/时间线
+  - `GET /api/v1/community/posts` — 查询分页帖子（支持 `q`, `tag`, `type`, `authorId`, `sort`）
 
-```json
-DELETE /api/v1/community/shares/9001/like
-Authorization: Bearer <token>
-```
+- 帖子操作
+  - `POST /api/v1/community/posts` — 创建帖子（需要登录）
+  - `GET /api/v1/community/posts/{postId}` — 帖子详情（返回 `Post`，含 attachments 与 shareSnapshot）
+  - `PATCH /api/v1/community/posts/{postId}` — 更新帖子（仅作者或管理员）
+  - `DELETE /api/v1/community/posts/{postId}` — 删除帖子（软删除）
 
-响应（均返回）
+- 评论
+  - `GET /api/v1/community/posts/{postId}/comments` — 帖子评论分页
+  - `POST /api/v1/community/posts/{postId}/comments` — 添加评论（登录）
+  - `DELETE /api/v1/community/comments/{commentId}` — 删除评论（作者或管理员）
 
-```json
-{ "code": 0, "message": "success", "data": {} }
-```
+- 互动
+  - `POST/DELETE /api/v1/community/posts/{postId}/like` — 点赞/取消
+  - `POST/DELETE /api/v1/community/posts/{postId}/bookmark` — 收藏/取消
 
-举报内容示例
+- 举报与搜索
+  - `POST /api/v1/community/reports` — 举报帖子或评论
+  - `GET /api/v1/community/search` — 搜索帖子/记录（支持过滤/分页）
 
-```json
-POST /api/v1/community/reports
-Authorization: Bearer <token>
-{
-  "targetType": "share",
-  "targetId": 9001,
-  "reason": "涉嫌违规"
-}
-```
+---
 
-响应
+实现建议与注意事项
 
-```json
-{ "code": 0, "message": "已受理", "data": { "reportId": 8001 } }
-```
+- 发帖时强制保存引用资源快照（`PostShareReference.snapshot`），避免原资源变更后断链。
+- 对图片附件限制大小与数量（例如每图 ≤ 5MB，最多 10 张），并在前端做压缩。
+- 支持草稿（`status: draft`）或由前端临时保存草稿到 localStorage。
+- 审核策略：初期以人工/简单规则审核为主（关键词/频率），后期可接入自动检测与速率限制。
+- 搜索：先使用 Postgres full-text，实现后可迁移到 ElasticSearch。
 
-搜索对局示例
+---
 
-```json
-GET /api/v1/community/search?q=经典&tag=进攻&page=1&pageSize=10
-```
+下一步（我可以帮你做）
 
-响应
+- 生成 `openapi.yaml` 的完整社区路径与 schema（已完成基础草案）。
+- 生成 `backend` 的 Prisma schema 草案与迁移脚本。
+- 生成 `backend/src/modules/community` 的 NestJS 控制器/服务/DTO 模板。
 
-```json
-{
-  "code": 0,
-  "message": "success",
-  "data": {
-    "items": [ { "recordId": 501, "title": "经典进攻对局" } ],
-    "page": 1,
-    "pageSize": 10,
-    "total": 3
-  }
-}
-```
+请选择要我继续的下一步（例如“生成 Prisma schema 草案”或“生成后端控制器模板”）。
 
 ## 六、GraphQL 接口（复盘与统计）
 

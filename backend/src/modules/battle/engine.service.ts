@@ -26,4 +26,19 @@ export class ChessEngineService {
     const winner = checkGameOver(nb, nextTurn);
     return { ok: true, board: nb, nextTurn, winner };
   }
+
+  /**
+   * 自定义模式下的无校验应用：信任客户端已按自定义规则计算合法性。
+   * 后端仅做落子与轮次推进，不做标准规则校验与胜负判定。
+   */
+  applyUncheckedCustom(
+    board: Board,
+    turn: Side,
+    from: Pos,
+    to: Pos,
+  ): { board: Board; nextTurn: Side } {
+    const nb = movePiece(board, from, to);
+    const nextTurn: Side = turn === 'red' ? 'black' : 'red';
+    return { board: nb, nextTurn };
+  }
 }

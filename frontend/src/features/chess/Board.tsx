@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from 'react'
+import { useMemo, useState, useEffect, useCallback } from 'react'
 import type { Pos, Side, GameState, CustomRules } from './types'
 import { createInitialBoard, cloneBoard } from './types'
 import { generateLegalMoves, movePiece, checkGameOver, isInCheckWithCustomRules } from './rules'
@@ -30,22 +30,27 @@ function PieceGlyph({ type, side }: { type: string; side: Side }) {
 interface BoardProps {
     customRules?: CustomRules | CustomRuleSet
     initialBoard?: any
+    initialTurn?: Side
     onMove?: (payload: { from: Pos; to: Pos; turn: Side; ts: number }) => void
     onGameOver?: (winner: NonNullable<GameState['winner']>) => void
 }
 
-export default function Board({ customRules: customRulesProp, initialBoard, onMove, onGameOver }: BoardProps) {
+export default function Board({ customRules: customRulesProp, initialBoard, initialTurn, onMove, onGameOver }: BoardProps) {
     const customRules = useMemo(() => {
         if (!customRulesProp) return undefined
         if (isCustomRuleSet(customRulesProp)) {
-            return ruleSetToCustomRules(customRulesProp)
+            const rs = customRulesProp as CustomRuleSet
+            const hasAny = Object.values(rs.pieceRules || {}).some((cfg: any) => Array.isArray(cfg?.movePatterns) && cfg.movePatterns.length > 0)
+            // 若完全未定义任何自定义走法，则返回 undefined 以便使用标准规则；
+            // 若至少定义了一个棋子的走法，则只使用这些自定义走法（未定义的棋子不动）。
+            return hasAny ? ruleSetToCustomRules(rs) : undefined
         }
         return customRulesProp
     }, [customRulesProp])
 
     const [state, setState] = useState<GameState>({
         board: initialBoard || createInitialBoard(),
-        turn: 'red',
+        turn: initialTurn || 'red',
         selected: undefined,
         history: [],
         customRules,
@@ -55,6 +60,18 @@ export default function Board({ customRules: customRulesProp, initialBoard, onMo
     useEffect(() => {
         setState(prev => ({ ...prev, customRules }))
     }, [customRules])
+
+    useEffect(() => {
+        setState(prev => ({
+            ...prev,
+            board: initialBoard || createInitialBoard(),
+            turn: initialTurn || 'red',
+            selected: undefined,
+            history: [],
+            winner: undefined,
+        }))
+        setShowGameOver(false)
+    }, [initialBoard, initialTurn])
 
     const inCheck = useMemo(() => {
         return isInCheckWithCustomRules(state.board, state.turn, state.customRules)
@@ -86,13 +103,14 @@ export default function Board({ customRules: customRulesProp, initialBoard, onMo
         if (customRulesProp && isCustomRuleSet(customRulesProp)) {
             const ruleSet = customRulesProp as CustomRuleSet
             const pieceRule = ruleSet.pieceRules[p.type]
-            if (pieceRule) {
+            if (pieceRule && pieceRule.movePatterns && pieceRule.movePatterns.length > 0) {
                 const moves = generateMovesFromRules(state.board, { x, y }, pieceRule, state.turn)
                 return moves.filter(m => {
                     const target = state.board[m.y]?.[m.x]
                     return !target || target.side !== state.turn
                 })
             }
+            // 如果没有 movePatterns，降级到 customRules 或标准规则
         }
 
         if (state.customRules) {
@@ -145,17 +163,17 @@ export default function Board({ customRules: customRulesProp, initialBoard, onMo
         })
     }
 
-    function restart() {
+    const restart = useCallback(() => {
         setState(s => ({
             board: initialBoard || createInitialBoard(),
-            turn: 'red',
+            turn: initialTurn || 'red',
             selected: undefined,
             history: [],
             winner: undefined,
             customRules: s.customRules,
         }))
         setShowGameOver(false)
-    }
+    }, [initialBoard, initialTurn])
 
     function getWinnerText() {
         if (!state.winner) return ''

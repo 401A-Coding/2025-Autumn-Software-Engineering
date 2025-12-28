@@ -9,6 +9,7 @@ import { JwtService } from '@nestjs/jwt';
 import type { Board, Side } from '../../shared/chess/types';
 import { createHash } from 'node:crypto';
 import { ChessEngineService } from './engine.service';
+import { BoardService } from '../board/board.service';
 import { MetricsService } from '../metrics/metrics.service';
 import { RecordService } from '../record/record.service';
 
@@ -40,6 +41,8 @@ export interface BattleState {
   source: 'match' | 'room';
   visibility: 'match' | 'private' | 'public';
   ownerId?: number;
+  // optional initial board id persisted at match start
+  initialBoardId?: number | null;
 }
 
 @Injectable()
@@ -64,6 +67,10 @@ export class BattlesService {
     waitingTtlCleaned: 0,
     disconnectTtlTriggered: 0,
   };
+  // 临时自定义规则：按对局存储，仅在在线自定义对战期间有效
+  private readonly customRulesByBattle = new Map<number, any>();
+  // 临时回放记录：按对局存储，仅在在线自定义对战期间有效
+  private readonly tempReplayByBattle = new Map<number, any>();
 
   // TTL 配置（开发默认）
   private static readonly WAITING_TTL_MS = 10 * 60 * 1000; // 10min
@@ -76,7 +83,8 @@ export class BattlesService {
     @Optional() private readonly metrics?: MetricsService,
     @Optional() private readonly events?: EventEmitter2,
     @Optional() private readonly records?: RecordService,
-  ) { }
+    @Optional() private readonly boards?: BoardService,
+  ) {}
 
   verifyBearer(authorization?: string) {
     if (!authorization || !authorization.toLowerCase().startsWith('bearer ')) {
@@ -98,6 +106,7 @@ export class BattlesService {
       source?: 'match' | 'room';
       visibility?: 'match' | 'private' | 'public';
     },
+    seed?: { board: Board; turn: Side },
   ) {
     const source = opts?.source ?? 'room';
     const visibility =
@@ -120,16 +129,105 @@ export class BattlesService {
       moves: [],
       turnIndex: 0,
       createdAt: Date.now(),
-      board: this.engine.createInitialBoard(),
-      turn: 'red',
+      board: seed?.board ?? this.engine.createInitialBoard(),
+      turn: seed?.turn ?? 'red',
       onlineUserIds: [],
       source,
       visibility,
       ownerId: creatorId,
     };
+    // 同步 turnIndex 与初始先手
+    state.turnIndex = state.turn === 'red' ? 0 : 1;
     this.battles.set(id, state);
     this.scheduleWaitingTtl(id);
     return { battleId: id, status: state.status };
+  }
+
+  // 设置/获取/清理：对局临时自定义规则
+  setCustomRules(battleId: number, rulesDto: any) {
+    const b = this.getBattle(battleId);
+    // 仅房主（创建者，红方）可设置规则
+    if (!b.ownerId) throw new BadRequestException('房间没有所有者');
+    this.customRulesByBattle.set(battleId, rulesDto);
+    return { battleId, ok: true };
+  }
+  getCustomRules(battleId: number) {
+    const rules = this.customRulesByBattle.get(battleId);
+    return rules ?? null;
+  }
+  clearCustomRules(battleId: number) {
+    this.customRulesByBattle.delete(battleId);
+  }
+
+  // 设置/获取/清理：对局临时回放记录
+  setTempReplay(battleId: number, replayDto: any) {
+    const b = this.getBattle(battleId);
+    if (!b.ownerId) throw new BadRequestException('房间没有所有者');
+    this.tempReplayByBattle.set(battleId, replayDto);
+    return { battleId, ok: true };
+  }
+  getTempReplay(battleId: number) {
+    // 若有显式缓存，则直接返回
+    const cached = this.tempReplayByBattle.get(battleId);
+    if (cached) return cached;
+    // 否则基于当前对局状态构造一个回放快照
+    const b = this.getBattle(battleId);
+    const moves = (b.moves || []).map((mv) => ({
+      from: { x: mv.from.x, y: mv.from.y },
+      to: { x: mv.to.x, y: mv.to.y },
+      turn: mv.by === b.players[0] ? 'red' : 'black',
+      ts: mv.ts,
+    }));
+    // initialLayout/customLayout 构造与 handleBattleFinished 中保持一致
+    let initialLayout: any = null;
+    let customLayout: any = null;
+    try {
+      if (b.initialBoardId && this.boards) {
+        // 尝试读取持久化模板作为初始布局
+        const tmpl = this.boards.findOne(b.initialBoardId);
+        // 注意：findOne 可能是异步，这里尽量保持简单并容错
+        if (typeof (tmpl as any)?.then === 'function') {
+          // 异步 Promise：返回占位，前端可忽略 initialLayout 或稍后再取
+          initialLayout = null;
+          customLayout = b.board;
+        } else {
+          const layout: any = (tmpl as any)?.layout ?? null;
+          if (Array.isArray(layout?.pieces))
+            initialLayout = { pieces: layout.pieces };
+          customLayout = b.board;
+        }
+      } else {
+        // 从内存棋盘构造简单的 initialLayout
+        const pieces: any[] = [];
+        for (let y = 0; y < (b.board?.length || 10); y++) {
+          for (let x = 0; x < ((b.board?.[y] || []).length || 9); x++) {
+            const p = (b.board as any)[y][x];
+            if (p) {
+              const type = p.type === 'rook' ? 'chariot' : p.type;
+              pieces.push({ type, side: p.side, x, y });
+            }
+          }
+        }
+        if (pieces.length) initialLayout = { pieces };
+        customLayout = b.board;
+      }
+    } catch {
+      initialLayout = null;
+      customLayout = b.board;
+    }
+    const result = {
+      startedAt: new Date(b.createdAt).toISOString(),
+      status: b.status,
+      players: b.players,
+      winnerId: b.winnerId ?? null,
+      moves,
+      initialLayout,
+      customLayout,
+    };
+    return result;
+  }
+  clearTempReplay(battleId: number) {
+    this.tempReplayByBattle.delete(battleId);
   }
 
   joinBattle(userId: number, battleId: number, _password?: string | null) {
@@ -144,6 +242,42 @@ export class BattlesService {
     if (b.players.length >= 2) throw new BadRequestException('房间已满');
     b.players.push(userId);
     if (b.players.length === 2) b.status = 'playing';
+    // 当房间进入 playing 状态（两人已就位）时，若尚未持久化初始布局则写入 boards 表，供回放使用
+    if (b.status === 'playing' && !b.initialBoardId && this.boards) {
+      const pieces: any[] = [];
+      for (let y = 0; y < (b.board?.length || 10); y++) {
+        for (let x = 0; x < ((b.board?.[y] || []).length || 9); x++) {
+          const p = (b.board as any)[y][x];
+          if (p) {
+            const type = p.type === 'rook' ? 'chariot' : p.type;
+            pieces.push({ type, side: p.side, x, y });
+          }
+        }
+      }
+      const layout = { pieces, turn: b.turn };
+      this.boards
+        .create(
+          {
+            name: `match-initial-${b.id}`,
+            description: '自动保存：匹配初始布局',
+            layout,
+            preview: '',
+            isTemplate: false,
+            isEndgame: false,
+          } as any,
+          b.ownerId ?? undefined,
+        )
+        .then((created) => {
+          try {
+            b.initialBoardId = (created as any)?.id ?? null;
+          } catch {
+            /* ignore */
+          }
+        })
+        .catch((e) => {
+          console.warn('[battle.join] failed to persist initial board', e);
+        });
+    }
     // 进入对战后，清理等待 TTL
     if (b.status === 'playing') this.clearWaitingTtl(b.id);
     return { battleId: b.id, status: b.status };
@@ -176,6 +310,7 @@ export class BattlesService {
       source: b.source,
       visibility: b.visibility,
       ownerId: b.ownerId ?? null,
+      initialBoardId: b.initialBoardId ?? null,
     };
   }
 
@@ -202,18 +337,45 @@ export class BattlesService {
       const idx = b.players.indexOf(userId);
       if (idx === -1) throw new UnauthorizedException('不在房间内');
       if (idx !== b.turnIndex) throw new BadRequestException('未到你的回合');
-      // 权威校验与应用
-      const res = this.engine.validateAndApply(
-        b.board,
-        b.turn,
-        move.from,
-        move.to,
-      );
-      if (!('ok' in res) || !res.ok) {
-        throw new BadRequestException(res.reason || '非法走子');
+      // 自定义模式：后端不按标准规则校验，直接应用客户端计算的落子（仅做轮次推进）
+      if (b.mode === 'custom') {
+        const applied = this.engine.applyUncheckedCustom(
+          b.board,
+          b.turn,
+          move.from,
+          move.to,
+        );
+        b.board = applied.board;
+        b.turn = applied.nextTurn;
+      } else {
+        // 标准模式：权威校验与应用
+        const res = this.engine.validateAndApply(
+          b.board,
+          b.turn,
+          move.from,
+          move.to,
+        );
+        if (!('ok' in res) || !res.ok) {
+          throw new BadRequestException(res.reason || '非法走子');
+        }
+        b.board = res.board;
+        b.turn = res.nextTurn;
+        // 胜负判定（如有）
+        if (res.winner) {
+          console.log(
+            '[battle.move] winner detected',
+            res.winner,
+            'battleId',
+            b.id,
+          );
+          if (res.winner === 'draw') {
+            this.finish(b.id, { winnerId: null, reason: 'draw' });
+          } else {
+            const winnerId = res.winner === 'red' ? b.players[0] : b.players[1];
+            this.finish(b.id, { winnerId, reason: 'checkmate' });
+          }
+        }
       }
-      b.board = res.board;
-      b.turn = res.nextTurn;
       const m: Move = {
         ...move,
         by: userId,
@@ -227,21 +389,6 @@ export class BattlesService {
       b.turnIndex = b.turn === 'red' ? 0 : 1;
       // 附加最新 stateHash（给 ACK 与广播使用）
       m.stateHash = this.computeStateHash(b);
-      // 胜负判定（如有）
-      if (res.winner) {
-        console.log(
-          '[battle.move] winner detected',
-          res.winner,
-          'battleId',
-          b.id,
-        );
-        if (res.winner === 'draw') {
-          this.finish(b.id, { winnerId: null, reason: 'draw' });
-        } else {
-          const winnerId = res.winner === 'red' ? b.players[0] : b.players[1];
-          this.finish(b.id, { winnerId, reason: 'checkmate' });
-        }
-      }
       if (dedupeKey) {
         this.processedRequests.set(dedupeKey, {
           result: m,
@@ -278,6 +425,10 @@ export class BattlesService {
     // 广播对局结束事件，方便 Gateway 推送最新 snapshot 与记录创建
     console.log('[battle.finish] before emit', !!this.events);
     this.events?.emit('battle.finished', { battleId: b.id });
+    // 清理与对局关联的临时自定义规则
+    this.clearCustomRules(b.id);
+    // 清理与对局关联的临时回放记录
+    this.clearTempReplay(b.id);
     console.log('[battle.finish] after emit');
     return { battleId: b.id, ...result };
   }
@@ -294,12 +445,22 @@ export class BattlesService {
     if (!this.records) return;
     const b = this.battles.get(payload.battleId);
     if (!b) return;
-    // 目前只为双方玩家各落一份记录，后续可扩展观战者等
-    // 统一存储为棋方结果：'red' | 'black' | 'draw'
+
+    // 调试信息
+    console.log(
+      '[battle.finished] battle moves count:',
+      b.moves.length,
+      'moves:',
+      b.moves,
+    );
+
+    // 确定游戏结果（相对于红方）
+    // b.players[0] 是红方，b.players[1] 是黑方
     let gameResult: 'red' | 'black' | 'draw' = 'draw';
     if (b.winnerId !== null && typeof b.winnerId !== 'undefined') {
-      if (b.players[0] === b.winnerId) gameResult = 'red';
-      else if (b.players[1] === b.winnerId) gameResult = 'black';
+      if (b.players[0] === b.winnerId)
+        gameResult = 'red'; // 红方赢
+      else if (b.players[1] === b.winnerId) gameResult = 'black'; // 黑方赢
     }
 
     // 将对局内存中的 moves 映射为 Record 模块可接受的结构
@@ -311,19 +472,74 @@ export class BattlesService {
         side: mv.by === b.players[0] ? 'red' : 'black',
       },
     }));
-    // 对每个玩家各写一条记录
+
+    // 调试信息：输出 movesPayload
+    console.log(
+      '[battle.finished] movesPayload count:',
+      movesPayload.length,
+      'gameResult:',
+      gameResult,
+    );
+
+    // 对每个玩家各写一条记录（都用同一个 gameResult，并标记该玩家的棋方）
     for (const pid of b.players) {
       const opponentId = b.players.find((id) => id !== pid) ?? null;
+      const playerSide = pid === b.players[0] ? 'red' : 'black';
       try {
+        const sourceLabel = b.source === 'match' ? '在线匹配' : '好友对战';
+        // 在 keyTags 中标记该玩家的棋方
+        const sideLabel = playerSide === 'red' ? '我方:红' : '我方:黑';
+        console.log(
+          '[battle.finished] creating record for player',
+          pid,
+          'side:',
+          playerSide,
+          'result:',
+          gameResult,
+          'movesCount:',
+          movesPayload.length,
+        );
+        // 尝试构造 initialLayout（优先使用已持久化的 board 模板）
+        let initialLayout: any = null;
+        let customLayout: any = null;
+        try {
+          if (b.initialBoardId && this.boards) {
+            const tmpl = await this.boards.findOne(b.initialBoardId);
+            initialLayout = (tmpl as any).layout ?? null;
+            // 将数据库 layout 转为前端可用的 customLayout（二维数组），尝试用 record 模块的需求保留原样
+            customLayout = null;
+          } else {
+            // 从内存 board 构建 pieces 数组
+            const pieces: any[] = [];
+            for (let y = 0; y < (b.board?.length || 10); y++) {
+              for (let x = 0; x < ((b.board?.[y] || []).length || 9); x++) {
+                const p = (b.board as any)[y][x];
+                if (p) {
+                  const type = p.type === 'rook' ? 'chariot' : p.type;
+                  pieces.push({ type, side: p.side, x, y });
+                }
+              }
+            }
+            if (pieces.length) initialLayout = { pieces };
+            customLayout = b.board;
+          }
+        } catch (e) {
+          // ignore layout construction errors
+          initialLayout = null;
+          customLayout = null;
+        }
+
         await this.records.create(pid, {
           opponent: opponentId ? String(opponentId) : '对手',
           startedAt: new Date(b.createdAt).toISOString(),
           endedAt: new Date().toISOString(),
           result: gameResult,
           endReason: b.finishReason ?? 'other',
-          keyTags: [],
+          keyTags: [sourceLabel, sideLabel],
           moves: movesPayload,
           bookmarks: [],
+          initialLayout,
+          customLayout,
         } as any);
       } catch (e) {
         console.error(

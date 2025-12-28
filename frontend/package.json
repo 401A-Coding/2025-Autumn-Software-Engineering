@@ -5,7 +5,13 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "prebuild": "node ./scripts/gen-icons.js",
     "build": "tsc -b && vite build",
+    "cap:build": "npm run build && npx cap copy",
+    "cap:sync": "npm run build && npx cap sync",
+    "cap:android:init": "npm run build && npx cap add android || true && npx cap copy android && npx cap sync android",
+    "cap:open:android": "npx cap open android",
+    "cap:open:ios": "npx cap open ios",
     "lint": "eslint .",
     "preview": "vite preview",
     "gen:api-types": "openapi-typescript ../docs/openapi.yaml --output src/types/api.d.ts",
@@ -14,6 +20,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@capacitor/android": "^8.0.0",
     "axios": "^1.7.7",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
@@ -21,7 +28,12 @@
     "socket.io-client": "^4.8.1"
   },
   "devDependencies": {
+    "@capacitor/cli": "^5.7.8",
+    "@capacitor/core": "^8.0.0",
     "@eslint/js": "^9.36.0",
+    "@testing-library/jest-dom": "^6.4.2",
+    "@testing-library/react": "^16.0.0",
+    "@testing-library/user-event": "^14.5.2",
     "@types/node": "^24.6.0",
     "@types/react": "^19.1.16",
     "@types/react-dom": "^19.1.9",
@@ -30,14 +42,11 @@
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.22",
     "globals": "^16.4.0",
+    "jsdom": "^25.0.0",
     "openapi-typescript": "^7.4.2",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.45.0",
     "vite": "^7.1.7",
-    "vitest": "^2.1.4",
-    "@testing-library/react": "^16.0.0",
-    "@testing-library/user-event": "^14.5.2",
-    "@testing-library/jest-dom": "^6.4.2",
-    "jsdom": "^25.0.0"
+    "vitest": "^2.1.4"
   }
 }

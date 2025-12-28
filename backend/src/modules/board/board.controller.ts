@@ -11,12 +11,14 @@ import {
   ForbiddenException,
   UseGuards,
   Req,
+  BadRequestException,
 } from '@nestjs/common';
 import { BoardService } from './board.service';
 import { CreateBoardDto } from './dto/create-board.dto';
 import { UpdateBoardDto } from './dto/update-board.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { Request } from 'express';
+import { assertValidEndgameOrThrow } from './endgame.validator';
 
 @Controller('api/v1/boards')
 export class BoardController {
@@ -34,6 +36,20 @@ export class BoardController {
     @Req() req: Request & { user?: { sub: number } },
   ) {
     const ownerId = req.user!.sub;
+    // server-side validation for endgame layouts
+    try {
+      if (
+        createBoardDto.isEndgame &&
+        createBoardDto.layout &&
+        Array.isArray((createBoardDto.layout as any).pieces)
+      ) {
+        assertValidEndgameOrThrow((createBoardDto.layout as any).pieces);
+      }
+    } catch (e: any) {
+      if (e instanceof BadRequestException) throw e;
+      const msg = e?.message || 'Invalid layout';
+      throw new BadRequestException(msg);
+    }
     return this.boardService.create(createBoardDto, ownerId);
   }
 
@@ -67,6 +83,28 @@ export class BoardController {
     const p = page ? parseInt(page, 10) : 1;
     const ps = pageSize ? parseInt(pageSize, 10) : 10;
     return this.boardService.findMinePaginated(ownerId, p, ps);
+  }
+
+  @Get('endgames')
+  @UseGuards(JwtAuthGuard)
+  async findMyEndgames(
+    @Req() req: Request & { user?: { sub: number } },
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
+  ) {
+    const ownerId = req.user!.sub;
+    const p = page ? parseInt(page, 10) : 1;
+    const ps = pageSize ? parseInt(pageSize, 10) : 10;
+    const all = await this.boardService.findMyEndgames(ownerId);
+    const total = all.length;
+    const start = (Math.max(p, 1) - 1) * Math.min(Math.max(ps, 1), 100);
+    const items = all.slice(start, start + Math.min(Math.max(ps, 1), 100));
+    return {
+      items,
+      page: Math.max(p, 1),
+      pageSize: Math.min(Math.max(ps, 1), 100),
+      total,
+    };
   }
 
   @Get(':id')

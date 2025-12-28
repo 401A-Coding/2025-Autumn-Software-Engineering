@@ -9,8 +9,13 @@ export function generateCustomMoves(board: Board, from: Pos, customRules?: Custo
     if (!piece) return []
 
     const rules = customRules ?? getDefaultRules()
-    const rule = (rules as any)[piece.type]
-    if (!rule) return []
+    let rule = (rules as any)[piece.type]
+    // 若该棋子未定义自定义规则，则回退到标准规则的该棋子配置
+    if (!rule) {
+        const defaults = getDefaultRules()
+        rule = (defaults as any)[piece.type]
+        if (!rule) return []
+    }
 
     const res: Pos[] = []
     const side: Side = piece.side
@@ -18,7 +23,8 @@ export function generateCustomMoves(board: Board, from: Pos, customRules?: Custo
     for (const pattern of rule.moves) {
         const dx = pattern.dx || 0
         const dy = pattern.dy || 0
-        // displayDy: 编辑器中 dy 以编辑者视角为准，运行时根据棋子阵营翻转（red 方向相反）
+        // 视角翻转：红方为基准，黑方左右/上下镜像
+        const displayDx = side === 'red' ? dx : -dx
         const displayDy = side === 'red' ? -dy : dy
 
         // 条件：位置型（过河/九宫）优先判断
@@ -34,7 +40,7 @@ export function generateCustomMoves(board: Board, from: Pos, customRules?: Custo
                         if ((cond as any).notCrossedRiver === crossedHere) { ok = false; break }
                     }
                     if ((cond as any).inPalace !== undefined) {
-                        const pal = isPalace(from.x + dx, from.y + displayDy, side)
+                        const pal = isPalace(from.x + displayDx, from.y + displayDy, side)
                         if ((cond as any).inPalace !== pal) { ok = false; break }
                     }
                 }
@@ -49,7 +55,7 @@ export function generateCustomMoves(board: Board, from: Pos, customRules?: Custo
             let step = 1
             const maxStep = rule.maxRange && rule.maxRange > 0 ? rule.maxRange : 100
             while (step <= maxStep) {
-                const tx = from.x + dx * step
+                const tx = from.x + displayDx * step
                 const ty = from.y + displayDy * step
                 if (!inBounds(tx, ty)) break
                 if (rule.palaceOnly && !isPalace(tx, ty, side)) break
@@ -58,7 +64,7 @@ export function generateCustomMoves(board: Board, from: Pos, customRules?: Custo
                 // 需要先检测路径中是否有阻挡以防止越子
                 const pathCond = pattern.conditions?.find((c: any) => c.type === 'path' && (c as any).obstacleCount !== undefined) as any | undefined
                 if (!canJump && !pathCond) {
-                    const totalDx = dx * step
+                    const totalDx = displayDx * step
                     const totalDy = displayDy * step
                     const unitX = totalDx === 0 ? 0 : (totalDx > 0 ? 1 : -1)
                     const unitY = totalDy === 0 ? 0 : (totalDy > 0 ? 1 : -1)
@@ -123,7 +129,7 @@ export function generateCustomMoves(board: Board, from: Pos, customRules?: Custo
             }
         } else {
             // 单步移动
-            const tx = from.x + dx
+            const tx = from.x + displayDx
             const ty = from.y + displayDy
             if (!inBounds(tx, ty)) continue
             if (rule.palaceOnly && !isPalace(tx, ty, side)) continue
@@ -131,11 +137,11 @@ export function generateCustomMoves(board: Board, from: Pos, customRules?: Custo
             // 处理别马脚 / path.hasNoObstacle
             const pathNoObstacleCond = pattern.conditions?.find((c: any) => c.type === 'path' && (c as any).hasNoObstacle) as any | undefined
             if (pathNoObstacleCond) {
-                const absDx = Math.abs(dx)
+                const absDx = Math.abs(displayDx)
                 const absDy = Math.abs(displayDy)
                 let legX = from.x, legY = from.y
                 if (absDx === 2 && absDy === 1) {
-                    legX = from.x + (dx > 0 ? 1 : -1)
+                    legX = from.x + (displayDx > 0 ? 1 : -1)
                     legY = from.y
                 } else if (absDx === 1 && absDy === 2) {
                     legX = from.x
@@ -163,8 +169,32 @@ export function generateCustomMoves(board: Board, from: Pos, customRules?: Custo
             }
         }
     }
+    
+    // 不可变更的炮吃子：始终允许“隔一个子直线吃到第一个敌子”
+    if (piece.type === 'cannon') {
+        const addCapture = (dx: number, dy: number) => {
+            let x = from.x + dx, y = from.y + dy, jumped = false
+            while (inBounds(x, y)) {
+                const target = board[y][x]
+                if (!jumped) {
+                    if (target) { jumped = true; x += dx; y += dy; continue }
+                } else {
+                    if (target) { if (target.side !== side) res.push({ x, y }); break }
+                }
+                x += dx; y += dy
+            }
+        }
+        addCapture(1, 0)
+        addCapture(-1, 0)
+        addCapture(0, 1)
+        addCapture(0, -1)
+    }
 
-    return res
+    // 去重
+    const seen = new Set<string>()
+    const uniq: Pos[] = []
+    for (const m of res) { const k = `${m.x},${m.y}`; if (!seen.has(k)) { seen.add(k); uniq.push(m) } }
+    return uniq
 }
 
 // 计算路径上的障碍物数量（用于判断炮的隔子吃）
@@ -206,18 +236,18 @@ export function getDefaultRules(): CustomRules {
         },
         cannon: {
             moves: [
-                // 普通移动：沿直线重复走，但仅限于空格（遇子即阻挡）
+                // 普通移动：沿直线重复走，仅限空格（遇子即阻挡）
                 { dx: 1, dy: 0, repeat: true, moveOnly: true },
                 { dx: -1, dy: 0, repeat: true, moveOnly: true },
                 { dx: 0, dy: 1, repeat: true, moveOnly: true },
                 { dx: 0, dy: -1, repeat: true, moveOnly: true },
-                // 吃子规则（炮）：沿直线捕吃时需要恰好有一个隔子（obstacleCount === 1）
+                // 吃子：沿直线重复走，要求路径上恰好隔一个子
                 { dx: 1, dy: 0, repeat: true, captureOnly: true, conditions: [{ type: 'path', obstacleCount: 1 }] },
                 { dx: -1, dy: 0, repeat: true, captureOnly: true, conditions: [{ type: 'path', obstacleCount: 1 }] },
                 { dx: 0, dy: 1, repeat: true, captureOnly: true, conditions: [{ type: 'path', obstacleCount: 1 }] },
                 { dx: 0, dy: -1, repeat: true, captureOnly: true, conditions: [{ type: 'path', obstacleCount: 1 }] },
             ],
-            canJump: false, // 炮不允许越子（通过 obstacleCount 控制吃）
+            canJump: false, // 炮不可越子移动，但允许隔一个子进行吃子
             maxRange: 0,
         },
         horse: {
@@ -333,18 +363,18 @@ export function getSuperRules(): CustomRules {
         },
         cannon: {
             moves: [
-                // 普通移动：沿直线重复走，但仅限于空格（遇子即阻挡）
+                // 普通移动：沿直线重复走，仅限空格（遇子即阻挡）
                 { dx: 1, dy: 0, repeat: true, moveOnly: true },
                 { dx: -1, dy: 0, repeat: true, moveOnly: true },
                 { dx: 0, dy: 1, repeat: true, moveOnly: true },
                 { dx: 0, dy: -1, repeat: true, moveOnly: true },
-                // 吃子规则（炮）：沿直线捕吃时需要恰好有一个隔子（obstacleCount === 1）
+                // 吃子：沿直线重复走，要求路径上恰好隔一个子
                 { dx: 1, dy: 0, repeat: true, captureOnly: true, conditions: [{ type: 'path', obstacleCount: 1 }] },
                 { dx: -1, dy: 0, repeat: true, captureOnly: true, conditions: [{ type: 'path', obstacleCount: 1 }] },
                 { dx: 0, dy: 1, repeat: true, captureOnly: true, conditions: [{ type: 'path', obstacleCount: 1 }] },
                 { dx: 0, dy: -1, repeat: true, captureOnly: true, conditions: [{ type: 'path', obstacleCount: 1 }] },
             ],
-            canJump: false,
+            canJump: false, // 炮不可越子移动，但允许隔一个子进行吃子
             maxRange: 0,
         },
         advisor: {

@@ -9,10 +9,11 @@
     flex-wrap: wrap;
     gap: 8px;
     margin-top: 8px;
+    justify-content: center;
 }
 
 .livebattle-room-input {
-    width: 140px;
+    width: 200px;
 }
 
 .livebattle-banner {
@@ -112,6 +113,58 @@
 
 .livebattle-board-wrapper {
     margin-top: 12px;
+    width: 360px;
+    max-width: 100%;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+/* 加入房间卡片 */
+.livebattle-join-card {
+    width: 360px;
+    max-width: 100%;
+    padding: 12px;
+    border-radius: 10px;
+    background: var(--muted-bg);
+    border: 1px solid var(--border);
+}
+
+.livebattle-join-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--accent);
+}
+
+.livebattle-join-sub {
+    font-size: 12px;
+    opacity: .85;
+    margin-top: 4px;
+}
+
+.livebattle-join-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 10px;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.livebattle-join-hint {
+    font-size: 12px;
+    margin-top: 6px;
+    text-align: center;
+    color: var(--text, #333);
+}
+
+.livebattle-join-hint.invalid {
+    color: var(--danger, #b3261e);
+}
+
+.livebattle-join-self {
+    margin-top: 10px;
+    display: flex;
+    justify-content: center;
 }
 
 .livebattle-offline-hint {
@@ -175,6 +228,39 @@
     border-color: var(--border);
 }
 
+.player-card {
+    flex: 1 1 260px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    background: #fff;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+}
+
+.player-card.active-turn {
+    animation: pulse-border 1s infinite;
+    border-color: var(--accent);
+}
+
+.player-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #888;
+}
+
+.player-dot.dot-red {
+    background: #c8102e;
+}
+
+.player-dot.dot-black {
+    background: #333;
+}
+
+.avatar-click {
+    cursor: pointer;
+}
+
 @keyframes livebattle-fade-in {
     from {
         opacity: 0;
@@ -184,5 +270,19 @@
     to {
         opacity: 1;
         transform: translateY(0);
+    }
+}
+
+@keyframes pulse-border {
+
+    0%,
+    100% {
+        opacity: 1;
+        box-shadow: 0 0 0 0 rgba(200, 16, 46, 0.4);
+    }
+
+    50% {
+        opacity: 0.7;
+        box-shadow: 0 0 8px 2px rgba(200, 16, 46, 0.6);
     }
 }

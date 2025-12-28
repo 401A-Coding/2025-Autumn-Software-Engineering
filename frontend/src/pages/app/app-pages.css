@@ -3,6 +3,14 @@
     padding: 16px;
 }
 
+/* Online lobby main card: widen to ~1.5x of original small card */
+.online-lobby-card {
+    width: 540px;
+    max-width: 100%;
+    margin-left: auto;
+    margin-right: auto;
+}
+
 .pad-4 {
     padding: 4px;
 }
@@ -103,6 +111,10 @@
     gap: 8px;
 }
 
+.gap-10 {
+    gap: 10px;
+}
+
 .gap-12 {
     gap: 12px;
 }
@@ -170,6 +182,10 @@
     margin-left: auto;
 }
 
+.ml-4 {
+    margin-left: 4px;
+}
+
 .inline-flex {
     display: inline-flex;
 }
@@ -185,6 +201,10 @@
 /* Width helpers */
 .w-60 {
     width: 60px;
+}
+
+.w-100 {
+    width: 100%;
 }
 
 .w-64 {
@@ -309,6 +329,136 @@
     color: #2563eb;
 }
 
+.like-item--compact {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.left-align {
+    text-align: left;
+}
+
+.like-type-badge.left {
+    align-self: flex-start;
+    display: inline-block;
+    font-size: 12px;
+    color: #374151;
+    background: #f3f4f6;
+    border: 1px solid #e5e7eb;
+    padding: 2px 8px;
+    border-radius: 999px;
+}
+
+.like-item-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: #111827;
+}
+
+.like-item-excerpt {
+    margin-top: 4px;
+    color: #4b5563;
+    font-size: 14px;
+}
+
+.like-item-stats {
+    margin-top: 8px;
+    display: flex;
+    gap: 16px;
+    color: #6b7280;
+    font-size: 13px;
+}
+
+.liked-comment-box {
+    border: 1px dashed #c7d2fe;
+    background: #eef2ff;
+    border-radius: 8px;
+    padding: 10px;
+}
+
+.liked-comment-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+}
+
+.liked-comment-header .badge {
+    font-size: 12px;
+    color: #3730a3;
+    background: #e0e7ff;
+    border: 1px solid #c7d2fe;
+    padding: 2px 6px;
+    border-radius: 6px;
+}
+
+.liked-comment-stats {
+    font-size: 12px;
+    color: #4f46e5;
+}
+
+.liked-comment-content {
+    color: #1f2937;
+    font-size: 14px;
+    line-height: 1.5;
+    white-space: pre-wrap;
+}
+
+.like-item-footer.left-align {
+    font-size: 12px;
+    color: #6b7280;
+}
+
+/* Community search input style: rounded, light gray background, full-width */
+.search-input-full {
+    background: #f3f4f6;
+    border: 1px solid #e5e7eb;
+    padding: 8px 12px;
+    border-radius: 12px;
+    color: #111827;
+    outline: none;
+    transition: box-shadow 0.12s, border-color 0.12s;
+}
+
+.search-input-full:focus {
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.08);
+    border-color: #93c5fd;
+}
+
+.search-input-full[readonly] {
+    cursor: pointer;
+}
+
+/* Allow search input to shrink inside flex containers and be responsive */
+.topbar-sticky .search-input-full {
+    min-width: 0;
+    /* allow flex child to shrink, preventing overflow */
+}
+
+@media (max-width: 640px) {
+    .topbar-sticky .search-input-full {
+        padding: 6px 8px;
+        font-size: 14px;
+    }
+
+    .topbar-sticky .btn-ghost {
+        min-width: 40px;
+        /* reduce button min width on narrow screens */
+    }
+}
+
+@media (max-width: 420px) {
+    .topbar-sticky .search-input-full {
+        padding: 6px 6px;
+        font-size: 13px;
+    }
+
+    .topbar-sticky .btn-ghost {
+        min-width: 36px;
+    }
+}
+
 .text-orange-700 {
     color: #92400e;
 }
@@ -430,6 +580,35 @@
 
 .nowrap {
     white-space: nowrap;
+}
+
+/* Mobile adjustments for replay controls to avoid wrap/misalignment */
+@media (max-width: 500px) {
+    .inline-controls {
+        flex-wrap: nowrap;
+        gap: 4px;
+        overflow: hidden;
+        /* keep single line without scroll */
+    }
+
+    .inline-controls .btn-ghost,
+    .inline-controls .btn-compact,
+    .inline-controls .btn-primary {
+        padding: 4px 6px;
+        font-size: 12px;
+        line-height: 1.1;
+        flex: 0 0 auto;
+    }
+
+    .inline-controls .minw-80 {
+        min-width: 48px;
+        font-size: 11px;
+    }
+
+    .inline-controls .ml-auto {
+        margin-left: 4px;
+        flex: 0 0 auto;
+    }
 }
 
 /* Buttons */
@@ -569,6 +748,70 @@
     color: var(--muted);
 }
 
+/* Search history area */
+.search-history {
+    padding: 10px;
+    background: #ffffff;
+    border: 1px solid #eef2f5;
+    border-radius: 10px;
+}
+
+.search-history .muted {
+    font-weight: 600;
+    color: #6b7280;
+}
+
+.history-list {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.history-tag {
+    background: #f8fafc;
+    border: 1px solid #e6eef6;
+    padding: 6px 10px;
+    border-radius: 999px;
+    font-size: 13px;
+    color: #0f172a;
+    cursor: pointer;
+    transition: background 0.12s, transform 0.08s;
+}
+
+.history-tag:hover {
+    background: #eef2ff;
+    transform: translateY(-1px);
+}
+
+.history-clear {
+    padding: 6px 8px;
+    font-size: 13px;
+    color: #6b7280;
+}
+
+/* Record list readable scaling under narrow screens */
+@media (max-width: 500px) {
+
+    /* Card title and key texts slightly smaller */
+    .paper-card.pad-12 .fw-600 {
+        font-size: 14px;
+    }
+
+    .paper-card.pad-12 .muted {
+        font-size: 12px;
+    }
+
+    /* Action buttons compact */
+    .paper-card.pad-12 .btn-ghost,
+    .paper-card.pad-12 .btn-compact,
+    .paper-card.pad-12 .btn-primary {
+        padding: 4px 6px;
+        font-size: 12px;
+        line-height: 1.1;
+    }
+}
+
 .tip-box {
     margin-top: 12px;
     padding: 12px;
@@ -618,6 +861,48 @@
 .opt-btn--active {
     border: 2px solid #3b82f6;
     background: #eff6ff;
+}
+
+/* Small-screen adjustments to avoid overflow in piece selection (start < 500px) */
+@media (max-width: 500px) {
+    .grid-7 {
+        grid-template-columns: repeat(4, 1fr);
+    }
+
+    .opt-btn {
+        padding: 8px 6px;
+        font-size: 16px;
+    }
+
+    .opt-btn--icon {
+        font-size: 18px;
+    }
+
+    .minw-80 {
+        min-width: 60px;
+    }
+}
+
+@media (max-width: 360px) {
+    .grid-7 {
+        grid-template-columns: repeat(3, 1fr);
+    }
+
+    .opt-btn {
+        padding: 8px 4px;
+        font-size: 15px;
+    }
+}
+
+@media (max-width: 330px) {
+    .grid-7 {
+        grid-template-columns: repeat(3, 1fr);
+    }
+
+    .opt-btn {
+        padding: 6px 4px;
+        font-size: 14px;
+    }
 }
 
 /* Rule editor helpers */
@@ -803,6 +1088,79 @@
     color: var(--muted);
 }
 
+/* Community */
+.community-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--control-bg);
+}
+
+.pill-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 12px;
+    border-radius: 999px;
+    border: 1px solid var(--control-border);
+    background: var(--control-bg);
+    color: var(--control-text);
+    cursor: pointer;
+}
+
+.pill-btn--active {
+    border-color: var(--accent);
+    background: #fce8ea;
+    color: var(--accent-dark);
+}
+
+.like-chip {
+    background: var(--muted-bg);
+    color: var(--muted);
+    border-radius: 999px;
+    padding: 2px 8px;
+    font-size: 12px;
+    border: 1px solid var(--border);
+}
+
+.link-btn {
+    background: transparent;
+    border: none;
+    color: var(--accent);
+    cursor: pointer;
+    text-decoration: underline;
+    padding: 4px 8px;
+}
+
+.community-search {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+}
+
+.community-input {
+    flex: 1;
+    min-width: 140px;
+    padding: 10px 12px;
+    border: 1px solid var(--control-border);
+    border-radius: 10px;
+    background: var(--control-bg);
+    color: var(--control-text);
+}
+
+.community-result {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px;
+}
+
 /* Page background helpers */
 .minh-100vh {
     min-height: 100vh;
@@ -832,6 +1190,12 @@
     width: 100%;
 }
 
+@media (max-width: 420px) {
+    .board-area {
+        flex: 1 1 100%;
+    }
+}
+
 /* Badge helpers */
 .status-badge {
     padding: 6px 12px;
@@ -840,7 +1204,748 @@
     background: #eef2ff;
 }
 
+/* Implicit input areas for post editing */
+.edit-area {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.edit-input {
+    width: 100%;
+    padding: 12px 0;
+    border: none;
+    border-bottom: 1px solid transparent;
+    background: transparent;
+    color: var(--control-text);
+    font-family: inherit;
+    font-size: 16px;
+    line-height: 1.5;
+    resize: vertical;
+    transition: border-color 0.2s ease, background-color 0.2s ease;
+}
+
+.edit-input::placeholder {
+    color: var(--muted);
+    font-weight: 400;
+}
+
+.edit-input:focus {
+    outline: none;
+    border-bottom-color: var(--accent);
+    background-color: rgba(var(--accent-rgb), 0.02);
+}
+
+.edit-input--title {
+    font-size: 20px;
+    font-weight: 600;
+    padding: 16px 0 12px 0;
+}
+
+.edit-input--content {
+    font-size: 15px;
+    line-height: 1.6;
+    padding: 12px 0;
+    min-height: 180px;
+}
+
 /* Misc text helpers */
 .text-gray {
     color: #374151;
+}
+
+/* MyViews page */
+.view-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 16px;
+}
+
+.view-item {
+    padding: 12px;
+    border-radius: 8px;
+    /* 改为与 MyLikes / MyBookmarks 一致的白色卡片样式 */
+    border: 1px solid #e5e7eb;
+    background-color: #ffffff;
+    transition: all 0.2s;
+}
+
+.view-item.clickable {
+    cursor: pointer;
+}
+
+.view-item.clickable:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    border-color: #d1d5db;
+}
+
+/* 删除/不可导航的灰显样式 */
+.like-item--disabled {
+    opacity: 0.6;
+    filter: grayscale(30%);
+}
+
+.like-item--disabled:hover {
+    box-shadow: none;
+    border-color: #e5e7eb;
+}
+
+.view-item.deleted {
+    background-color: #f9fafb;
+    color: #9ca3af;
+}
+
+.view-title {
+    font-size: 15px;
+    font-weight: 500;
+    margin-bottom: 8px;
+    word-break: break-word;
+}
+
+.deleted-tag {
+    color: #d1d5db;
+    font-size: 12px;
+}
+
+.view-date {
+    font-size: 12px;
+    color: #9ca3af;
+}
+
+/* MyLikes page */
+.like-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 16px;
+}
+
+.like-filter-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 16px;
+    padding: 8px 16px;
+    /* 置顶不随列表滚动 */
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    background: #fff7ed;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.like-filter-label {
+    font-size: 12px;
+    color: #666;
+}
+
+.header-spacer {
+    width: 60px;
+}
+
+.simple-avatar {
+    flex-shrink: 0;
+}
+
+.avatar-image {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background-color: #e5e7eb;
+    background-size: cover;
+    background-position: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: 600;
+    color: #6b7280;
+    overflow: hidden;
+}
+
+.avatar-image img {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.like-item {
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid #e5e7eb;
+    background-color: #ffffff;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.like-item:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    border-color: #d1d5db;
+}
+
+.like-item-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+
+.like-item-meta {
+    flex: 1;
+}
+
+.like-item-author {
+    font-size: 14px;
+    font-weight: 500;
+    color: #1f2937;
+}
+
+.like-item-date {
+    font-size: 12px;
+    color: #9ca3af;
+    margin-top: 2px;
+}
+
+.like-type-badge {
+    font-size: 12px;
+    background-color: #f3f4f6;
+    color: #6b7280;
+    padding: 2px 8px;
+    border-radius: 4px;
+}
+
+.like-item-content {
+    margin-bottom: 8px;
+}
+
+.like-item-title {
+    font-size: 15px;
+    font-weight: 500;
+    color: #1f2937;
+    margin-bottom: 4px;
+    word-break: break-word;
+}
+
+.like-item-excerpt {
+    font-size: 13px;
+    color: #6b7280;
+    line-height: 1.5;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.like-item-post-title {
+    font-size: 12px;
+    color: #9ca3af;
+    margin-bottom: 4px;
+}
+
+.like-item-comment-content {
+    font-size: 13px;
+    color: #1f2937;
+    line-height: 1.5;
+}
+
+.like-item-footer {
+    font-size: 12px;
+    color: #9ca3af;
+    border-top: 1px solid #f3f4f6;
+    padding-top: 8px;
+}
+
+/* MyBookmarks page */
+.bookmark-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 16px;
+}
+
+.bookmark-item {
+    position: relative;
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid #e5e7eb;
+    background-color: #ffffff;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.bookmark-item:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    border-color: #d1d5db;
+}
+
+.bookmark-item.edit-mode {
+    padding-left: 44px;
+}
+
+.remove-button {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 24px;
+    height: 24px;
+    border: none;
+    border-radius: 50%;
+    background-color: #f3f4f6;
+    color: #ef4444;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.remove-button:hover {
+    background-color: #ef4444;
+    color: #ffffff;
+}
+
+.bookmark-item-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+
+.bookmark-item-meta {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    /* 昵称与日期左对齐靠头像 */
+}
+
+.bookmark-item-author {
+    font-size: 14px;
+    font-weight: 500;
+    color: #1f2937;
+    text-align: left;
+}
+
+.bookmark-item-date {
+    font-size: 12px;
+    color: #9ca3af;
+    margin-top: 2px;
+    text-align: left;
+}
+
+.bookmark-item-content {
+    margin-bottom: 8px;
+}
+
+.bookmark-item-title {
+    font-size: 15px;
+    font-weight: 500;
+    color: #1f2937;
+    margin-bottom: 4px;
+    word-break: break-word;
+    text-align: left;
+    /* 标题左对齐 */
+}
+
+.bookmark-item-excerpt {
+    font-size: 13px;
+    color: #6b7280;
+    line-height: 1.5;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-align: left;
+    /* 正文预览左对齐 */
+}
+
+.bookmark-item-footer {
+    font-size: 12px;
+    color: #9ca3af;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border-top: 1px solid #f3f4f6;
+    padding-top: 8px;
+}
+
+.bookmark-date {
+    margin-left: auto;
+}
+
+/* App page base styles */
+.app-page {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    background-color: #ffffff;
+}
+
+.app-page-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    border-bottom: 1px solid #e5e7eb;
+    background-color: #ffffff;
+}
+
+.app-page-header h2 {
+    flex: 1;
+    text-align: center;
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: #1f2937;
+}
+
+.back-button,
+.action-button {
+    padding: 8px 12px;
+    border: none;
+    border-radius: 6px;
+    background-color: #f3f4f6;
+    color: #1f2937;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.2s;
+}
+
+.back-button:hover,
+.action-button:hover:not(:disabled) {
+    background-color: #e5e7eb;
+}
+
+.action-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.app-page-content {
+    flex: 1;
+    overflow-y: auto;
+    background: #fff7ed;
+    padding-bottom: 100px;
+}
+
+/* Utility to make a card fill available vertical space */
+.full-height {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+}
+
+/* Endgame saved list: allow the list area to grow and scroll inside the card */
+.endgame-saved-root {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+}
+
+.endgame-saved-list {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    padding-right: 8px;
+}
+
+/* EndgameHome specific: reserve header/topbar space and fix topbar position */
+
+/* For EndgameHome, reserve space in the content area so the fixed
+   topbar does not overlap content when positioned below the global header. */
+.endgame-page .app-page-content {
+    padding-top: calc(var(--header-height) + env(safe-area-inset-top, 0px));
+}
+
+.endgame-page .topbar-sticky.fixed-to-viewport {
+    position: fixed;
+    top: calc(var(--header-height) + env(safe-area-inset-top, 0px));
+    left: 50%;
+    transform: translateX(-50%);
+    width: 100%;
+    /* match inner content width (page max minus page-container horizontal padding) */
+    max-width: calc(var(--page-max-width) - 32px);
+    box-sizing: border-box;
+    z-index: 19;
+}
+
+/* Generic fixed-to-viewport topbar: center and match page max width on wide screens */
+.topbar-sticky.fixed-to-viewport {
+    position: fixed;
+    top: calc(var(--header-height) + env(safe-area-inset-top, 0px));
+    left: 50%;
+    transform: translateX(-50%);
+    width: 100%;
+    /* match inner content width (page max minus page-container horizontal padding) */
+    max-width: calc(var(--page-max-width) - 32px);
+    box-sizing: border-box;
+    z-index: 19;
+}
+
+/* Mobile: make fixed topbars fill the viewport width (no centering transform)
+   Use a slightly larger breakpoint to match --mobile-max-width variable. */
+@media (max-width: 430px) {
+
+    .topbar-sticky.fixed-to-viewport,
+    .mobile-viewport .topbar-sticky.fixed-to-viewport {
+        left: 0;
+        transform: none;
+        max-width: 100%;
+        padding-left: 12px;
+        padding-right: 12px;
+    }
+}
+
+/* Ensure saved list shows its rounded card bottom inside viewport */
+.endgame-saved-list {
+    padding-bottom: 24px;
+}
+
+/* 在特定页面上禁用 document root 滚动，仅允许内部内容区滚动 */
+.app-page.no-root-scroll {
+    height: 100vh;
+    overflow: hidden;
+}
+
+.app-page.no-root-scroll .app-page-content {
+    overflow-y: auto;
+}
+
+/* MyPosts 专用筛选栏，紧贴 header 下方 */
+.posts-filter-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin: 0;
+    /* 取消默认外边距，紧贴 header */
+    padding: 8px 16px;
+    position: sticky;
+    top: 0;
+    z-index: 38;
+    background: #ffffff;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+/* 当使用 no-root-scroll 布局时，让 header 固定在视口顶部 */
+.app-page.no-root-scroll .app-page-header {
+    position: sticky;
+    top: 0;
+    z-index: 40;
+}
+
+/* 通用顶栏置顶样式：在不改变根滚动的前提下，使指定顶栏在页面顶部粘性停靠 */
+.topbar-sticky {
+    position: sticky;
+    /* stay directly below the header (respect safe-area inset on notched devices) */
+    top: calc(var(--header-height) + env(safe-area-inset-top, 0px));
+    /* ensure header remains above the topbar */
+    z-index: 19;
+    background: #ffffff;
+    border-bottom: 1px solid #e5e7eb;
+    /* rounded card-like topbar */
+    border-radius: 12px;
+    padding: 8px 12px;
+    box-sizing: border-box;
+    /* match layout width of page content and center (account for .page-container padding) */
+    max-width: calc(var(--page-max-width) - 32px);
+    margin-left: auto;
+    margin-right: auto;
+}
+
+/* When topbar is placed inside the normal .page-container (which already
+   includes padding to offset the fixed header), avoid adding the header
+   height again — stick to the safe-area inset only so the visible gap
+   between the header and the topbar matches other pages. */
+.page-container .topbar-sticky {
+    top: calc(var(--header-height) + env(safe-area-inset-top, 0px));
+}
+
+/* When topbar lives inside a mobile viewport (MobileFrame), it should
+   stick to the top of the mobile scrolling container (which is already
+   positioned below the global header). Use safe-area inset only to avoid
+   extra offset; keep z-index below header. */
+.mobile-viewport .topbar-sticky {
+    /* Initially keep in flow but prepare for fixed behavior on root scroll.
+       Use 0 top so it sits at top of mobile-content when not fixed. */
+    top: 0;
+    z-index: 19;
+}
+
+/* Make mobile topbar fixed relative to viewport to avoid being scrolled
+   into the global header when the root page scrolls. Center to match
+   the mobile viewport width and provide a placeholder margin on the
+   following element to prevent overlap. */
+.mobile-viewport .topbar-sticky.fixed-to-viewport {
+    position: fixed;
+    top: calc(var(--header-height) + env(safe-area-inset-top, 0px));
+    left: 50%;
+    transform: translateX(-50%);
+    width: 100%;
+    max-width: var(--mobile-max-width);
+    box-sizing: border-box;
+    z-index: 19;
+}
+
+.mobile-viewport .topbar-sticky.fixed-to-viewport+* {
+    margin-top: var(--mobile-topbar-offset, 64px);
+}
+
+.loading-message,
+.error-message,
+.empty-message {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 200px;
+    font-size: 14px;
+    color: #9ca3af;
+}
+
+.error-message {
+    color: #ef4444;
+}
+
+.pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 16px;
+    font-size: 14px;
+    color: #6b7280;
+}
+
+.pagination button {
+    padding: 8px 16px;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    background-color: #ffffff;
+    color: #1f2937;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.pagination button:hover:not(:disabled) {
+    background-color: #f3f4f6;
+    border-color: #d1d5db;
+}
+
+.pagination button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Avatar action alignment for mobile: keep button under avatar centered */
+.avatar-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+}
+
+@media (max-width: 500px) {
+    .avatar-actions .btn-compact {
+        display: inline-block;
+        min-width: 96px;
+        text-align: center;
+    }
+}
+
+/* Allow nickname wrap or smaller font under narrow screens */
+@media (max-width: 480px) {
+    .replay-nickname {
+        white-space: normal !important;
+        overflow: visible !important;
+        text-overflow: clip !important;
+        font-size: 12px;
+        line-height: 1.2;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        /* up to 2 lines */
+        -webkit-box-orient: vertical;
+    }
+}
+
+/* Record list: allow wrap and reduce font on small screens */
+.record-card .row-between {
+    min-width: 0;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.record-card .row-between>* {
+    min-width: 0;
+}
+
+.record-card .fw-600,
+.record-card .muted {
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
+/* Extra small screens: tighten typography further */
+@media (max-width: 400px) {
+    .record-card .fw-600 {
+        font-size: 13px;
+    }
+
+    .record-card .muted {
+        font-size: 11px;
+    }
+}
+
+@media (max-width: 500px) {
+    .record-card .fw-600 {
+        font-size: 14px;
+    }
+
+    .record-card .muted {
+        font-size: 12px;
+    }
+}
+
+/* Record list: nickname clamp to 2 lines on small screens */
+.record-nickname {
+    white-space: normal !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+}
+
+@media (max-width: 500px) {
+    .record-nickname {
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        font-size: 14px;
+        line-height: 1.2;
+    }
+}
+
+@media (max-width: 400px) {
+    .record-nickname {
+        font-size: 12px;
+    }
+}
+
+/* MyPosts 列表项 (白色卡片风格，和 MyLikes/MyBookmarks 保持一致) */
+.post-item {
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid #e5e7eb;
+    background-color: #ffffff;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.post-item:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    border-color: #d1d5db;
 }

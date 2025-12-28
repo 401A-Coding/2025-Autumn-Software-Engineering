@@ -33,6 +33,14 @@ model User {
   recordFavorites       RecordFavorite[]
   recordShares          RecordShare[]
   userRecordPreferences UserRecordPreference[]
+  posts                 Post[]
+  communityComments     CommunityComment[]
+  postLikes             PostLike[]
+  postBookmarks         PostBookmark[]
+  postViews             PostView[]
+  commentLikes          CommentLike[]
+  reports               Report[]
+  moderatorActions      ModeratorAction[]
 }
 
 enum Role {
@@ -46,6 +54,7 @@ model Board {
   description String?
   layout      Json
   rules       Json
+  isEndgame   Boolean  @default(false)
   isTemplate  Boolean  @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -55,26 +64,31 @@ model Board {
 
   @@index([ownerId])
   @@index([isTemplate])
+  @@index([isEndgame])
 }
 
 // 对局记录主表
 model Record {
-  id        Int              @id @default(autoincrement())
-  ownerId   Int? // 记录拥有者（创建者）
-  owner     User?            @relation(fields: [ownerId], references: [id])
-  opponent  String // 对手标识（可能是用户名或外部来源）
-  startedAt DateTime
-  endedAt   DateTime
-  result    String // 结果，如 win / lose / draw / abandon 等
-  endReason String // 结束原因，如 checkmate / timeout / resign
-  keyTags   String[] // 关键标签
-  createdAt DateTime         @default(now())
-  updatedAt DateTime         @updatedAt
-  moves     Move[]
-  bookmarks Bookmark[]
-  comments  RecordComment[]
-  favorites RecordFavorite[]
-  shares    RecordShare[]
+  id            Int              @id @default(autoincrement())
+  ownerId       Int? // 记录拥有者（创建者）
+  owner         User?            @relation(fields: [ownerId], references: [id])
+  opponent      String // 对手标识（可能是用户名或外部来源）
+  startedAt     DateTime
+  endedAt       DateTime
+  result        String // 结果，如 win / lose / draw / abandon 等
+  endReason     String // 结束原因，如 checkmate / timeout / resign
+  keyTags       String[] // 关键标签
+  initialLayout Json? // 初始布局（支持残局/自定义棋局），如 { pieces: [{type, side, x, y}] }
+  mode          String? // 对战模式：standard 或 custom
+  customLayout  Json? // 自定义对战的完整棋盘布局（二维数组格式）
+  customRules   Json? // 自定义规则（CustomRuleSet 格式）
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  moves         Move[]
+  bookmarks     Bookmark[]
+  comments      RecordComment[]
+  favorites     RecordFavorite[]
+  shares        RecordShare[]
 
   @@index([ownerId])
   @@index([startedAt])
@@ -168,4 +182,179 @@ model UserRecordPreference {
   retentionLimit   Int      @default(200) // 最大保留记录条数
   autoCleanEnabled Boolean  @default(true) // 是否自动清理非收藏记录
   updatedAt        DateTime @updatedAt
+}
+
+// ---- Community models (posts, comments, likes, bookmarks, reports) ----
+
+enum PostStatus {
+  DRAFT
+  PUBLISHED
+  REMOVED
+}
+
+enum ShareType {
+  NONE
+  RECORD
+  BOARD
+  CLIP
+}
+
+model Post {
+  id          Int                @id @default(autoincrement())
+  authorId    Int
+  author      User               @relation(fields: [authorId], references: [id])
+  title       String?
+  content     String
+  status      PostStatus         @default(PUBLISHED)
+  shareType   ShareType          @default(NONE)
+  shareRefId  Int? // 引用的 record.id / board.id / clip id
+  shareSnap   Json? // 快照，保存必要元信息以防原资源被删除
+  attachments PostAttachment[]
+  tags        PostTag[]
+  comments    CommunityComment[]
+  likes       PostLike[]
+  bookmarks   PostBookmark[]
+  views       PostView[]
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  @@index([authorId])
+  @@index([createdAt])
+}
+
+model PostAttachment {
+  id        Int      @id @default(autoincrement())
+  postId    Int
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  url       String
+  mimeType  String?
+  width     Int?
+  height    Int?
+  size      Int? // bytes
+  createdAt DateTime @default(now())
+
+  @@index([postId])
+}
+
+model Tag {
+  id    Int       @id @default(autoincrement())
+  name  String    @unique
+  posts PostTag[]
+}
+
+model PostTag {
+  id     Int  @id @default(autoincrement())
+  postId Int
+  tagId  Int
+  post   Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  tag    Tag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, tagId])
+  @@index([tagId])
+}
+
+model CommunityComment {
+  id        Int                @id @default(autoincrement())
+  postId    Int
+  post      Post               @relation(fields: [postId], references: [id], onDelete: Cascade)
+  authorId  Int?
+  author    User?              @relation(fields: [authorId], references: [id])
+  parentId  Int? // 支持回复
+  parent    CommunityComment?  @relation("CommentReplies", fields: [parentId], references: [id])
+  replies   CommunityComment[] @relation("CommentReplies")
+  likes     CommentLike[]
+  content   String
+  deletedAt DateTime? // 软删除标记
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+
+  @@index([postId])
+  @@index([authorId])
+}
+
+model CommentLike {
+  id        Int              @id @default(autoincrement())
+  commentId Int
+  comment   CommunityComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  userId    Int
+  user      User             @relation(fields: [userId], references: [id])
+  createdAt DateTime         @default(now())
+
+  @@unique([commentId, userId])
+  @@index([userId])
+}
+
+model PostLike {
+  id        Int      @id @default(autoincrement())
+  postId    Int
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@unique([postId, userId])
+  @@index([userId])
+}
+
+model PostBookmark {
+  id        Int      @id @default(autoincrement())
+  postId    Int
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@unique([postId, userId])
+  @@index([userId])
+}
+
+model PostView {
+  id        Int      @id @default(autoincrement())
+  postId    Int
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  viewedAt  DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([postId, userId])
+  @@index([userId])
+  @@index([updatedAt])
+}
+
+enum ReportTargetType {
+  POST
+  COMMENT
+  RECORD
+}
+
+model Report {
+  id         Int              @id @default(autoincrement())
+  reporterId Int
+  reporter   User             @relation(fields: [reporterId], references: [id])
+  targetType ReportTargetType
+  targetId   Int
+  reason     String
+  details    String?
+  status     String           @default("open")
+  createdAt  DateTime         @default(now())
+  resolvedBy Int?
+  resolvedAt DateTime?
+
+  @@index([reporterId])
+  @@index([targetType, targetId])
+}
+
+model ModeratorAction {
+  id          Int      @id @default(autoincrement())
+  moderatorId Int
+  moderator   User     @relation(fields: [moderatorId], references: [id])
+  actionType  String // remove|warn|ban|restore
+  targetType  String
+  targetId    Int
+  reason      String?
+  metadata    Json?
+  createdAt   DateTime @default(now())
+
+  @@index([moderatorId])
 }

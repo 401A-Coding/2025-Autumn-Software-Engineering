@@ -1,5 +1,5 @@
 import Board from '../../features/chess/Board'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { useState } from 'react'
 import './app-pages.css'
 import { recordStore } from '../../features/records/recordStore'
@@ -7,6 +7,9 @@ import type { MoveRecord, ChessRecord } from '../../features/records/types'
 
 export default function LocalPlay() {
     const navigate = useNavigate()
+    const location = useLocation() as any
+    const injectedInitialBoard = location.state?.initialBoard
+    const injectedInitialTurn = (location.state?.turn as ('red' | 'black' | undefined))
     const [showExitConfirm, setShowExitConfirm] = useState(false)
     const [moves, setMoves] = useState<MoveRecord[]>([])
     const [startedAt] = useState<string>(new Date().toISOString())
@@ -31,11 +34,23 @@ export default function LocalPlay() {
             endedAt: new Date().toISOString(),
             opponent: '本地',
             result,
-            keyTags: [],
+            keyTags: ['标准对战', '本地对战'],
             favorite: false,
             moves,
             bookmarks: [],
             notes: [],
+            mode: 'standard', // 标记为标准对战
+        }
+        // 如果是从残局/自定义进入的本地对战，附带初始布局，供后续复盘正确还原开局
+        if (injectedInitialBoard) {
+            const pieces: any[] = []
+            for (let y = 0; y < 10; y++) {
+                for (let x = 0; x < 9; x++) {
+                    const p: any = injectedInitialBoard[y]?.[x]
+                    if (p) pieces.push({ type: p.type, side: p.side, x, y })
+                }
+            }
+            ; (rec as any).initialLayout = { pieces, turn: injectedInitialTurn ?? 'red' }
         }
         setSaving(true)
         try {
@@ -66,16 +81,18 @@ export default function LocalPlay() {
         navigate('/app/history')
     }
     return (
-        <div className="pad-16">
-            <div className="row-between mb-8">
-                <button className="btn-ghost" onClick={handleExitClick}>退出对局</button>
-                <div className="fw-700">本地对战</div>
-                <div className="w-64" />
-            </div>
-
+        <div className="pad-16 local-play">
             <div className="row-center">
                 <div>
+                    <div className="row-between mb-8">
+                        <button className="btn-ghost" onClick={handleExitClick}>退出对局</button>
+                        <div className="fw-700">本地对战</div>
+                        <div className="w-64" />
+                    </div>
+
                     <Board
+                        initialBoard={injectedInitialBoard}
+                        initialTurn={injectedInitialTurn}
                         onMove={(m) => setMoves((prev) => [...prev, m])}
                         onGameOver={(result) => {
                             persistRecord(result || undefined)

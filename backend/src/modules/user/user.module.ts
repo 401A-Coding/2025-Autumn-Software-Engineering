@@ -11,7 +11,7 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
     PrismaModule,
     JwtModule.register({
       secret: process.env.JWT_SECRET || 'dev-secret', // 建议改为 @nestjs/config
-      signOptions: { expiresIn: '30m' },
+      signOptions: { expiresIn: '4h' },
     }),
   ],
   controllers: [AuthController, UsersController],

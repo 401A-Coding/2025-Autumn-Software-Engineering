@@ -582,3 +582,91 @@
 .board-center {
     margin: 0 auto;
 }
+
+/* Mobile sizing: keep 40px by default; start responsive below 500px */
+.mobile-viewport .board {
+    --cell-size: 40px !important;
+}
+
+@media (max-width: 500px) {
+    .mobile-viewport .board {
+        /* Shrink even faster on narrow screens */
+        --cell-size: clamp(20px, calc(((100vw - 80px) / 9) * 0.9), 40px) !important;
+    }
+}
+
+/* Slight typography reduction on very small screens */
+@media (max-width: 400px) {
+    .board-toolbar {
+        font-size: 15px;
+    }
+
+    .incheck-banner {
+        font-size: 15px;
+    }
+
+    .river-text {
+        font-size: 15px;
+    }
+
+    /* Scale piece glyph text with cell size */
+    .piece {
+        font-size: calc(var(--cell-size) * 0.48);
+    }
+
+
+}
+
+/* LocalPlay only: when super narrow (<500px), shrink more aggressively */
+@media (max-width: 500px) {
+    .local-play .board {
+        /* stronger padding deduction + lower cap to fit small phones */
+        --cell-size: clamp(24px, calc((100vw - 80px) / 9), 40px) !important;
+    }
+}
+
+@media (max-width: 500px) {
+    .livebattle-board .board {
+        /* stronger padding deduction + lower cap to fit small phones */
+        --cell-size: clamp(28px, calc((100vw - 80px) / 9), 40px) !important;
+    }
+}
+
+/* Custom editor: below 500px shrink faster without affecting others */
+@media (max-width: 500px) {
+    .custom-editor .board {
+        /* slightly aggressive than default mobile: larger deduction and scale */
+        --cell-size: clamp(24px, calc(((100vw - 80px) / 9) * 0.85), 40px) !important;
+    }
+}
+
+/* Community embeds: align board sizing behavior with other pages */
+.community-board .board {
+    --cell-size: 40px !important;
+}
+
+@media (max-width: 600px) {
+    .community-board .board {
+        /* community: shrink earlier and faster */
+        --cell-size: clamp(18px, calc(((100vw - 80px) / 9) * 0.70), 40px) !important;
+    }
+}
+
+/* Community piece glyph size: start reducing at 600px to match board shrink */
+@media (max-width: 600px) {
+    .community-board .piece {
+        font-size: calc(var(--cell-size) * 0.45);
+    }
+}
+
+/* Highlight invalid cells in editors (overlay, non-interactive) */
+.cell-highlight {
+    position: absolute;
+    width: var(--cell-size);
+    height: var(--cell-size);
+    border-radius: 8px;
+    background: rgba(166, 35, 55, 0.08);
+    border: 2px solid rgba(166, 35, 55, 0.18);
+    pointer-events: none;
+    box-sizing: border-box;
+}

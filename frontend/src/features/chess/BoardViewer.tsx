@@ -18,22 +18,63 @@ function PieceGlyph({ type, side }: { type: string; side: Side }) {
     return <div className={`piece ${side === 'red' ? 'piece--red' : 'piece--black'}`}>{textMap[type] || '?'}</div>
 }
 
-export default function BoardViewer({ moves, step }: { moves: MoveRecord[]; step: number }) {
+type InitialLayout = { pieces?: { type: string; side: Side; x: number; y: number }[] } | any[][]
+
+export default function BoardViewer({ moves, step, initialLayout, flip }: { moves: MoveRecord[]; step: number; initialLayout?: InitialLayout; flip?: boolean }) {
     const { board, last } = useMemo(() => {
-        const b = createInitialBoard()
+        // 从初始布局构建棋盘（若无则使用标准开局），务必深拷贝避免在回放中污染原始布局
+        const base = (() => {
+            // 支持二维数组格式（自定义对战使用）
+            if (Array.isArray(initialLayout)) {
+                return initialLayout.map((row, ry) =>
+                    row.map((cell, rx) => {
+                        if (!cell) return null
+                        const c = { ...cell } as any
+                        if (!c.id) c.id = `init-${ry}-${rx}-${c.type || 'unknown'}-${c.side || 'unknown'}`
+                        return c
+                    })
+                ) as any
+            }
+            // 支持 pieces 顶层格式（标准对战/残局使用）
+            if (initialLayout && Array.isArray((initialLayout as any).pieces)) {
+                const b = Array.from({ length: 10 }, () => Array.from({ length: 9 }, () => null as any))
+                let id = 0
+                for (const p of (initialLayout as any).pieces) {
+                    const x = Math.max(0, Math.min(8, p.x))
+                    const y = Math.max(0, Math.min(9, p.y))
+                    const type = (p.type === 'chariot' ? 'rook' : p.type)
+                    b[y][x] = { id: `init-${id++}`, type, side: p.side }
+                }
+                return b as any
+            }
+            // 支持嵌套 layout.pieces（服务端可能返回此结构）
+            if (initialLayout && Array.isArray((initialLayout as any)?.layout?.pieces)) {
+                const pieces = (initialLayout as any).layout.pieces
+                const b = Array.from({ length: 10 }, () => Array.from({ length: 9 }, () => null as any))
+                let id = 0
+                for (const p of pieces) {
+                    const x = Math.max(0, Math.min(8, p.x))
+                    const y = Math.max(0, Math.min(9, p.y))
+                    const type = (p.type === 'chariot' ? 'rook' : p.type)
+                    b[y][x] = { id: `init-${id++}`, type, side: p.side }
+                }
+                return b as any
+            }
+            return createInitialBoard()
+        })()
+
+        let board = base
         let last: { x: number; y: number } | null = null
         for (let i = 0; i < Math.min(step, moves.length); i++) {
             const m = moves[i]
-            const nb = movePiece(b, m.from, m.to)
-            // mutate b in place (movePiece returns new board or mutated? In our impl it returns new board)
-            for (let y = 0; y < 10; y++) for (let x = 0; x < 9; x++) b[y][x] = nb[y][x]
+            board = movePiece(board, m.from, m.to)
             last = m.to
         }
-        return { board: b, last }
-    }, [moves, step])
+        return { board, last }
+    }, [moves, step, initialLayout])
 
     return (
-        <div className="board board-center">
+        <div className={`board board-center ${flip ? 'board--flip' : ''}`}>
             {Array.from({ length: 10 }).map((_, row) => (
                 <div key={'h' + row} className={`grid-h row-${row}`} />
             ))}
@@ -45,8 +86,8 @@ export default function BoardViewer({ moves, step }: { moves: MoveRecord[]; step
             <div className="palace-top" />
             <div className="palace-bottom" />
 
-            {board.map((row, y) =>
-                row.map((p, x) =>
+            {board.map((row: any, y: number) =>
+                row.map((p: any, x: number) =>
                     p ? (
                         <div key={p.id} className={`piece-wrap piece-x-${x} piece-y-${y}`}>
                             <PieceGlyph type={p.type} side={p.side} />

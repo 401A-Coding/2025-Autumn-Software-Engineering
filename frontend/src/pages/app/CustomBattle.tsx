@@ -1,26 +1,54 @@
-﻿import { useEffect, useState } from 'react'
+﻿import { useEffect, useState, useRef } from 'react'
 import { useLocation } from 'react-router-dom'
 import { useNavigate } from 'react-router-dom'
 import Board from '../../features/chess/Board'
+import MobileFrame from '../../components/MobileFrame'
 import type { CustomRuleSet } from '../../features/chess/ruleEngine'
+import type { PieceType } from '../../features/chess/types'
 import { standardChessRules } from '../../features/chess/rulePresets'
-import { recordsApi, boardApi } from '../../services/api'
-import { apiBoardToLocalFormat } from '../../features/chess/boardAdapter'
+import { getModifiedPieceKeys, pieceDisplayNames } from '../../features/chess/ruleDiff'
+import RuleViewerModal from '../../components/RuleViewerModal'
+import { boardApi } from '../../services/api'
+import { apiBoardToLocalFormat, boardToApiFormat } from '../../features/chess/boardAdapter'
 import { recordStore } from '../../features/records/recordStore'
 import type { MoveRecord, ChessRecord } from '../../features/records/types'
+import { cloneBoard } from '../../features/chess/types'
+import { movePiece } from '../../features/chess/rules'
 
 export default function CustomBattle() {
     const navigate = useNavigate()
     const [ruleSet, setRuleSet] = useState<CustomRuleSet | null>(null)
     const [customBoard, setCustomBoard] = useState<any>(null)
+    const currentBoardRef = useRef<any>(null)
+    const [viewerPieceKey, setViewerPieceKey] = useState<PieceType | null>(null)
+    // 记录移动与起局的稳定引用，避免异步状态导致少一步或起局不一致
+    const movesRef = useRef<MoveRecord[]>([])
+    const initialBoardRef = useRef<any>(null)
 
     const location: any = useLocation()
     useEffect(() => {
         const state = location?.state || {}
+
         // 优先使用路由 state 传入的布局与规则（来自模板管理或编辑器）
         if (state.rules) {
             try {
-                setRuleSet(state.rules as CustomRuleSet)
+                const rules = state.rules as any
+                // 检查是否是完整的 CustomRuleSet 格式（有 pieceRules 字段）
+                if (rules && typeof rules === 'object' && rules.pieceRules && Object.keys(rules.pieceRules).length > 0) {
+                    // 验证每个 pieceRule 都有 movePatterns
+                    const hasValidMovePatterns = Object.values(rules.pieceRules).every((pr: any) =>
+                        pr && pr.movePatterns && Array.isArray(pr.movePatterns) && pr.movePatterns.length > 0
+                    )
+                    if (hasValidMovePatterns) {
+                        setRuleSet(rules as CustomRuleSet)
+                    } else {
+                        console.warn('Incomplete or unrecognized rules format, using standard chess rules', rules)
+                        setRuleSet(standardChessRules)
+                    }
+                } else {
+                    console.warn('Incomplete or unrecognized rules format, using standard chess rules', rules)
+                    setRuleSet(standardChessRules)
+                }
             } catch (e) {
                 console.error('Invalid rules in navigation state', e)
                 setRuleSet(standardChessRules)
@@ -29,9 +57,9 @@ export default function CustomBattle() {
             setRuleSet(standardChessRules)
         }
 
+        // 设置布局（不管规则是否设置）
         if (state.layout) {
             setCustomBoard(state.layout)
-            return
         }
 
         // 如果没有通过路由 state 提供布局，尝试从查询参数读取 boardId 并从后端拉取
@@ -40,11 +68,21 @@ export default function CustomBattle() {
         if (boardIdStr) {
             const id = Number(boardIdStr)
             if (!Number.isNaN(id)) {
-                ;(async () => {
+                ; (async () => {
                     try {
                         const apiBoard = await boardApi.get(id)
                         // 将 API 格式转换为本地二维数组
                         setCustomBoard(apiBoardToLocalFormat(apiBoard as any))
+                        // 如果 apiBoard 有 rules，尝试使用它
+                        if (apiBoard.rules && typeof apiBoard.rules === 'object' && (apiBoard.rules as any).pieceRules) {
+                            const rules = apiBoard.rules as any
+                            const hasValidMovePatterns = Object.values(rules.pieceRules).every((pr: any) =>
+                                pr && pr.movePatterns && Array.isArray(pr.movePatterns) && pr.movePatterns.length > 0
+                            )
+                            if (hasValidMovePatterns) {
+                                setRuleSet(rules as CustomRuleSet)
+                            }
+                        }
                     } catch (e) {
                         console.error('Failed to load board from server', e)
                     }
@@ -57,32 +95,77 @@ export default function CustomBattle() {
     const [moves, setMoves] = useState<MoveRecord[]>([])
     const [startedAt] = useState<string>(new Date().toISOString())
 
-    const persistRecord = async (result?: 'red' | 'black' | 'draw') => {
-        console.log('persistRecord called, moves:', moves.length)
-        const rec: Omit<ChessRecord, 'id'> = {
-            startedAt,
-            endedAt: new Date().toISOString(),
-            opponent: '本地',
-            result,
-            keyTags: [],
-            favorite: false,
-            moves,
-            bookmarks: [],
-            notes: [],
+    // 初始化当前棋盘引用
+    useEffect(() => {
+        if (customBoard) {
+            const snap = cloneBoard(customBoard)
+            initialBoardRef.current = snap // 起局快照
+            currentBoardRef.current = cloneBoard(customBoard) // 运行时盘面
+            movesRef.current = []
         }
+    }, [customBoard])
 
+    const persistRecord = async (result?: 'red' | 'black' | 'draw') => {
+        const movesToSave = movesRef.current.slice()
+        console.log('[CustomBattle] persistRecord called, moves:', movesToSave.length)
+        // 起局用于复盘的布局（二维数组）
+        let initialLocalBoard = initialBoardRef.current || customBoard
+
+        // 如果路由或 location.state 指定了 boardId，则优先从后端拉取模板并作为保存时的初始布局
         try {
-            // Use recordStore.saveNew which will attempt server save if token exists,
-            // otherwise fall back to local-only saving. This centralizes save logic and
-            // avoids direct 401 errors from calling recordsApi.create here.
-            const { record, savedToServer } = await recordStore.saveNew(rec)
+            const params = new URLSearchParams(location.search || '')
+            const boardIdStr = params.get('boardId') || (location.state && (location.state as any).boardId)
+            if (boardIdStr) {
+                const bid = Number(boardIdStr)
+                if (!Number.isNaN(bid) && bid > 0) {
+                    try {
+                        const apiBoard = await boardApi.get(bid)
+                        const local = apiBoardToLocalFormat(apiBoard as any)
+                        if (local) {
+                            initialLocalBoard = local
+                            console.log('[CustomBattle] applied template layout from boardId', bid)
+                        }
+                    } catch (e) {
+                        console.error('[CustomBattle] failed to fetch board template', e)
+                    }
+                }
+            }
+        } catch (e) {
+            /* ignore */
+        }
+        
+        try {
+            // 将保存时的二维布局同时转换为 API 格式（pieces）以便服务器接收并持久化
+            const rawApi = (initialLocalBoard && (initialLocalBoard as any[]).length) ? boardToApiFormat(initialLocalBoard as any, undefined, undefined) : undefined
+            const apiLayout = rawApi ? ((rawApi as any).layout?.pieces ? { pieces: (rawApi as any).layout.pieces } : ((rawApi as any).pieces ? { pieces: (rawApi as any).pieces } : undefined)) : undefined
+
+            const rec: Omit<ChessRecord, 'id'> = {
+                startedAt,
+                endedAt: new Date().toISOString(),
+                opponent: '本地',
+                result,
+                keyTags: ['自定义对战', '本地对战'],
+                favorite: false,
+                moves: movesToSave,
+                bookmarks: [],
+                notes: [],
+                mode: 'custom',
+                // 保存初始布局：
+                // - `initialLayout` 为 API 格式（pieces），用于服务器持久化与列表展示
+                // - `customLayout` 为起局的前端二维数组，便于本地回放使用
+                customLayout: initialLocalBoard ?? customBoard,
+                initialLayout: apiLayout,
+                customRules: ruleSet, // 直接保存规则
+            }
+
+            const { savedToServer } = await recordStore.saveNew(rec)
             if (savedToServer) {
                 alert('对局已保存到服务器')
             } else {
                 alert('对局已保存在本地（未登录或服务器不可用）')
             }
         } catch (e) {
-            console.error('failed to save record', e)
+            console.error('[CustomBattle] failed to save record', e)
             alert('保存对局失败，请查看控制台')
         }
     }
@@ -106,29 +189,20 @@ export default function CustomBattle() {
     }
 
     return (
-        <div className="pad-16">
-            {/* header */}
-            <div className="row-between gap-12 wrap mb-12">
-                <div className="row align-center gap-12">
-                    <button className="btn-ghost" onClick={handleBackToHome}>← 返回首页</button>
-                    <div className="text-18 fw-700">自定义对局</div>
-                </div>
+        <MobileFrame>
+            <div className="pad-16">
+                {/* header */}
+                <div className="row-between gap-12 wrap mb-12">
+                    <div className="row align-center gap-12">
+                        <button className="btn-ghost" onClick={handleBackToHome}>← 返回首页</button>
+                        <div className="text-18 fw-700">自定义对局</div>
+                    </div>
 
-                <div className="row align-center gap-8">
-                    <div className="chip chip-info">{ruleSet.name || '自定义规则'}</div>
-                    <button className="btn-danger" onClick={handleEndGame}>结束对局</button>
+                    <div className="row align-center gap-8">
+                        <div className="chip chip-info">{ruleSet.name || '自定义规则'}</div>
+                        <button className="btn-danger" onClick={handleEndGame}>结束对局</button>
+                    </div>
                 </div>
-            </div>
-
-            {/* tips */}
-            <div className="col gap-12 mb-12">
-                <div className="note-warn">
-                    💡 "重新开始"将保留当前规则和棋盘，"结束对局"将清除所有自定义设置
-                </div>
-                {ruleSet.description && (
-                    <div className="note-info">{ruleSet.description}</div>
-                )}
-            </div>
 
             {/* 主体：棋盘 + 侧栏（在窄屏隐藏） */}
             <div className="row gap-16 align-start wrap">
@@ -137,52 +211,92 @@ export default function CustomBattle() {
                         <Board
                             customRules={ruleSet}
                             initialBoard={customBoard}
-                            onMove={(m) => setMoves(prev => [...prev, m])}
+                            onMove={(m) => {
+                                // 先写入 ref，确保 onGameOver 紧随其后调用时不会少最后一步
+                                movesRef.current = [...movesRef.current, m]
+                                setMoves([...movesRef.current])
+                                // 更新当前棋盘状态
+                                if (currentBoardRef.current) {
+                                    currentBoardRef.current = movePiece(currentBoardRef.current, m.from, m.to)
+                                }
+                            }}
                             onGameOver={(winner) => persistRecord(winner || undefined)}
                         />
                     </div>
+                    {ruleSet && (() => {
+                        const modifiedKeys = getModifiedPieceKeys(ruleSet, standardChessRules)
+                        if (modifiedKeys.length === 0) return null
+                        return (
+                            <div className="mt-8">
+                                <div className="text-13 fw-600 mb-6">已修改规则的棋子</div>
+                                <div className="row gap-8 wrap">
+                                    {modifiedKeys.map(k => (
+                                        <button
+                                            key={k}
+                                            className="chip chip-info"
+                                            onClick={() => setViewerPieceKey(k as PieceType)}
+                                        >
+                                            {pieceDisplayNames[k] || k}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        )
+                    })()}
+                    {ruleSet.description && (
+                        <div className="note-info">{ruleSet.description}</div>
+                    )}
                 </div>
 
-                <aside className="col gap-12 flex-1 minw-260">
-                    <div className="pad-12 bg-muted rounded-8">
-                        <div className="fw-700 mb-8">规则摘要</div>
-                        <div className="text-13 text-gray">{ruleSet.name || '自定义规则'}</div>
-                    </div>
-
-                    <details className="pad-12 bg-muted rounded-8">
-                        <summary className="cursor-pointer fw-600">📋 详细规则配置</summary>
-                        <div className="grid-auto-120 gap-8 mt-8">
-                            {Object.entries(ruleSet.pieceRules).map(([pieceType, rule]) => {
-                                if (!rule) return null
-                                const pieceNames: Record<string, string> = {
-                                    general: '将/帅',
-                                    advisor: '士/仕',
-                                    elephant: '象/相',
-                                    horse: '马/马',
-                                    rook: '车/车',
-                                    cannon: '炮/炮',
-                                    soldier: '兵/卒',
-                                }
-                                const movePatterns = rule?.movePatterns
-                                return (
-                                    <div key={pieceType} className="pad-8 bg-white rounded-6 text-12">
-                                        <div className="fw-600">{pieceNames[pieceType] || rule.name}</div>
-                                        <div className="text-12 muted">{movePatterns ? `${movePatterns.length} 种走法` : ''}</div>
-                                    </div>
-                                )
-                            })}
+                {/* 侧栏与棋盘并列（在窄屏隐藏侧栏） */}
+                    <aside className="col gap-12 flex-1 minw-260 hide-on-mobile">
+                        <div className="pad-12 bg-muted rounded-8">
+                            <div className="fw-700 mb-8">规则摘要</div>
+                            <div className="text-13 text-gray">{ruleSet.name || '自定义规则'}</div>
                         </div>
-                    </details>
-                </aside>
-            </div>
 
-            {/* 操作栏 */}
-            <div className="row justify-center gap-12 mt-16">
-                <button className="btn-ghost btn-compact" onClick={() => window.location.reload()}>重新开始</button>
-                <button className="btn-secondary btn-compact" onClick={() => persistRecord()}>💾 保存对局</button>
-                <button className="btn-primary btn-compact" onClick={handleBackToHome}>返回首页</button>
+                        <details className="pad-12 bg-muted rounded-8">
+                            <summary className="cursor-pointer fw-600">📋 详细规则配置</summary>
+                            <div className="grid-auto-120 gap-8 mt-8">
+                                {Object.entries(ruleSet.pieceRules).map(([pieceType, rule]) => {
+                                    if (!rule) return null
+                                    const pieceNames: Record<string, string> = {
+                                        general: '将/帅',
+                                        advisor: '士/仕',
+                                        elephant: '象/相',
+                                        horse: '马/马',
+                                        rook: '车/车',
+                                        cannon: '炮/炮',
+                                        soldier: '兵/卒',
+                                    }
+                                    const movePatterns = rule?.movePatterns
+                                    return (
+                                        <div key={pieceType} className="pad-8 bg-white rounded-6 text-12">
+                                            <div className="fw-600">{pieceNames[pieceType] || rule.name}</div>
+                                            <div className="text-12 muted">{movePatterns ? `${movePatterns.length} 种走法` : ''}</div>
+                                        </div>
+                                    )
+                                })}
+                            </div>
+                        </details>
+                    </aside>
+                </div>
+
+                {/* 操作栏 */}
+                <div className="row justify-center gap-12 mt-16">
+                    <button className="btn-ghost btn-compact" onClick={() => window.location.reload()}>重新开始</button>
+                    <button className="btn-secondary btn-compact" onClick={() => persistRecord()}>💾 保存对局</button>
+                    <button className="btn-primary btn-compact" onClick={handleBackToHome}>返回首页</button>
+                </div>
+                <div className="text-center text-12 muted mt-8">动作数: {moves.length}</div>
             </div>
-            <div className="text-center text-12 muted mt-8">动作数: {moves.length}</div>
-        </div>
+            {viewerPieceKey && ruleSet?.pieceRules?.[viewerPieceKey] && (
+                <RuleViewerModal
+                    title={pieceDisplayNames[viewerPieceKey] || ruleSet.pieceRules[viewerPieceKey]?.name || viewerPieceKey}
+                    rule={ruleSet.pieceRules[viewerPieceKey]!}
+                    onClose={() => setViewerPieceKey(null)}
+                />
+            )}
+        </MobileFrame>
     )
 }

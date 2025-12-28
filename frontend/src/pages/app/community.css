@@ -1,0 +1,60 @@
+.community-page {
+    background-color: #ffffff;
+}
+
+.community-page .paper-card {
+    background-color: #ffffff;
+    color: #222;
+}
+
+.community-page .paper-card .muted {
+    color: #666;
+}
+
+/* small helpers for comment input */
+.comment-input-collapsed {
+    border: 1px solid #e8e8e8;
+}
+
+/* ensure badges remain legible */
+.community-page .badge-light {
+    background-color: #fafafa;
+}
+
+/* make badges/tags more badge-like in community pages */
+.community-page .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 8px;
+    border-radius: 12px;
+    background-color: #fff7f0;
+    border: 1px solid #e6e0d6;
+    color: #5a4632;
+    font-size: 12px;
+}
+
+.community-page .badge-light {
+    background-color: #f7f7f8;
+    border: 1px solid #e8e8e8;
+}
+
+/* Board preview area: slight gray to distinguish from white cards */
+.community-board-embed {
+    background-color: #eceff1;
+    /* 稍深一点的浅灰 */
+    padding: 8px;
+    border-radius: 8px;
+}
+
+/* Nested replies container (楼中楼)：稍深浅灰用于区分 */
+.community-nested-reply {
+    background-color: #f2f4f6;
+    border-radius: 6px;
+}
+
+/* Ensure scroll targets (post card / comments / replies) clear the top bar on scrollIntoView */
+.community-page .paper-card,
+.community-page [id^="comment-"] {
+    scroll-margin-top: calc(var(--header-height, 56px) + env(safe-area-inset-top) + 8px);
+}

@@ -36,6 +36,19 @@ export class RecordController {
       .then((record) => ({ code: 0, message: 'success', data: record }));
   }
 
+  @Patch(':id')
+  @UseGuards(JwtAuthGuard)
+  update(
+    @Param('id') id: string,
+    @Body() body: any,
+    @Req() req: Request & { user?: { sub: number } },
+  ) {
+    const userId = req.user!.sub;
+    return this.recordService
+      .update(userId, +id, body)
+      .then((data) => ({ code: 0, message: 'success', data }));
+  }
+
   @Get()
   @UseGuards(JwtAuthGuard)
   findAll(
@@ -59,6 +72,22 @@ export class RecordController {
     return this.recordService
       .findAllPaginated(userId, p, ps, fav, result)
       .then((res) => ({ code: 0, message: 'success', data: res }));
+  }
+
+  @Get('prefs')
+  @UseGuards(JwtAuthGuard)
+  getRetentionPrefs(@Req() req: Request & { user?: { sub: number } }) {
+    const userId = req.user!.sub;
+    // 将后端字段映射为 keepLimit 以与前端契约一致
+    return this.recordService.getRetentionPrefs(userId).then((data) => ({
+      code: 0,
+      message: 'success',
+      data: {
+        keepLimit: (data as any).retentionLimit ?? 30,
+        autoCleanEnabled: (data as any).autoCleanEnabled ?? true,
+        updatedAt: (data as any).updatedAt,
+      },
+    }));
   }
 
   @Get(':id')
@@ -199,23 +228,6 @@ export class RecordController {
     return this.recordService
       .removeBookmark(userId, +id, +bid)
       .then(() => ({ code: 0, message: 'success', data: {} }));
-  }
-
-  // 个人对局记录保留条数设置
-  @Get('prefs')
-  @UseGuards(JwtAuthGuard)
-  getRetentionPrefs(@Req() req: Request & { user?: { sub: number } }) {
-    const userId = req.user!.sub;
-    // 将后端字段映射为 keepLimit 以与前端契约一致
-    return this.recordService.getRetentionPrefs(userId).then((data) => ({
-      code: 0,
-      message: 'success',
-      data: {
-        keepLimit: (data as any).retentionLimit ?? 30,
-        autoCleanEnabled: (data as any).autoCleanEnabled ?? true,
-        updatedAt: (data as any).updatedAt,
-      },
-    }));
   }
 
   // 个人对局记录保留条数修改

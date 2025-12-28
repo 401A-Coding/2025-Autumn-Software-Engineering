@@ -1,6 +1,31 @@
 import type { ChessRecord, Bookmark, Note, MoveRecord } from './types'
 import { recordsApi } from '../../services/api'
+import http from '../../lib/http'
 import type { components } from '../../types/api'
+
+const LOCAL_KEY = 'saved.records.v1'
+
+function readLocal(): ChessRecord[] {
+    try {
+        const raw = localStorage.getItem(LOCAL_KEY)
+        if (!raw) return []
+        const arr = JSON.parse(raw)
+        if (!Array.isArray(arr)) return []
+        return arr as ChessRecord[]
+    } catch (e) {
+        console.warn('[recordStore] failed to read local records', e)
+        return []
+    }
+}
+
+function writeLocal(list: ChessRecord[]) {
+    try {
+        localStorage.setItem(LOCAL_KEY, JSON.stringify(list))
+        try { window.dispatchEvent(new CustomEvent('saved-records-changed')) } catch { }
+    } catch (e) {
+        console.warn('[recordStore] failed to write local records', e)
+    }
+}
 
 function uid() {
     return `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
@@ -50,6 +75,10 @@ export const recordStore = {
             })),
             bookmarks: (it.bookmarks || []).map((b: any) => ({ id: String(b.id), step: b.step || 0, label: b.label || undefined, note: b.note || undefined })),
             notes: [],
+            initialLayout: (it as any).initialLayout ?? undefined,
+            customLayout: (it as any).customLayout ?? undefined,
+            customRules: (it as any).customRules ?? undefined,
+            mode: (it as any).mode ?? undefined,
         }))
         return mapped.sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime())
     },
@@ -76,6 +105,10 @@ export const recordStore = {
                 })),
                 bookmarks: (it.bookmarks || []).map((b: any) => ({ id: String(b.id), step: b.step || 0, label: b.label || undefined, note: b.note || undefined })),
                 notes: [],
+                initialLayout: (it as any).initialLayout ?? undefined,
+                customLayout: (it as any).customLayout ?? undefined,
+                customRules: (it as any).customRules ?? undefined,
+                mode: (it as any).mode ?? undefined,
             }
             return rec
         } catch (e) {
@@ -85,57 +118,98 @@ export const recordStore = {
 
     async saveNew(partial: Omit<ChessRecord, 'id'>): Promise<{ record: ChessRecord; savedToServer: boolean }> {
         // prepare server payload
-        const body: components['schemas']['RecordCreateRequest'] = {
+        // 清洗 moves，确保 from/to 存在且为数字
+        const sanitizedMoves = (partial.moves || []).map((m: MoveRecord, idx) => {
+            const fx = Number(m.from?.x ?? 0)
+            const fy = Number(m.from?.y ?? 0)
+            const tx = Number(m.to?.x ?? 0)
+            const ty = Number(m.to?.y ?? 0)
+            return {
+                moveIndex: idx,
+                from: { x: Number.isFinite(fx) ? Math.floor(fx) : 0, y: Number.isFinite(fy) ? Math.floor(fy) : 0 },
+                to: { x: Number.isFinite(tx) ? Math.floor(tx) : 0, y: Number.isFinite(ty) ? Math.floor(ty) : 0 },
+                // 与 OpenAPI 对齐：piece 仅包含 type/side
+                piece: {
+                    type: 'soldier',
+                    side: (m.turn === 'red' || m.turn === 'black') ? m.turn : 'red',
+                },
+            }
+        }).filter(m => Number.isFinite(m.from.x) && Number.isFinite(m.from.y) && Number.isFinite(m.to.x) && Number.isFinite(m.to.y))
+
+        let rec: ChessRecord;
+        const body: components['schemas']['RecordCreateRequest'] & { initialLayout?: any } = {
             opponent: partial.opponent,
             startedAt: partial.startedAt,
             endedAt: partial.endedAt,
             result: partial.result as any,
             keyTags: partial.keyTags,
-            moves: (partial.moves || []).map((m: MoveRecord, idx) => ({
-                moveIndex: idx,
-                from: { x: m.from.x, y: m.from.y },
-                to: { x: m.to.x, y: m.to.y },
-                piece: { side: m.turn },
-            })),
+            moves: sanitizedMoves,
             bookmarks: (partial.bookmarks || []).map(b => ({ step: b.step, label: b.label, note: (b as any).note })),
+            // 仅发送 initialLayout（符合契约：{ pieces: [...] }）
+            ...(partial as any).initialLayout ? { initialLayout: (partial as any).initialLayout } : {},
         }
 
         let created: any = null
         let savedToServer = false
-        // 如果没有 token 则跳过服务器保存，直接本地保存
-        const token = localStorage.getItem('token')
-        if (token) {
+        // 尝试向服务器保存（若未登录或网络/授权失败则回退到本地保存）
+        try {
+            // 调试信息：记录是否有 token 以及请求体摘要
+            try { console.debug('[recordStore] attempting server save, hasToken=', !!localStorage.getItem('token'), 'body=', { opponent: body.opponent, moves: body.moves?.length }) } catch { }
+            // 使用 axios 实例以触发 refresh token 流程（若需要）并正确处理拦截器
+            try { console.debug('[recordStore] first move sample', JSON.stringify(body.moves && body.moves[0])) } catch { }
+            const res = await http.post('/api/v1/records', body)
+            const envelope = res?.data
+            created = envelope?.data // 统一响应包：{ code, message, data }
+            savedToServer = !!created && (envelope?.code === 0 || envelope?.code == null)
+            try { console.debug('[recordStore] server save result', savedToServer, created?.id) } catch { }
+        } catch (e: any) {
+            // 后端保存失败（可能未登录或网络问题），将降级为仅本地保存
             try {
-                created = await recordsApi.create(body)
-                savedToServer = !!created
-            } catch (e) {
-                // 后端保存失败（未登录或网络问题），将降级为仅本地保存
-                created = null
-                savedToServer = false
-            }
+                console.error('[recordStore] server save failed, falling back to local, status=', e?.status ?? e?.response?.status, 'msg=', e?.serverMessage ?? e?.message ?? e)
+            } catch { }
+            created = null
+            savedToServer = false
         }
+        // const created = await recordsApi.create(body)
 
-        const rec: ChessRecord = {
-            id: String((created as any)?.id ?? uid()),
-            startedAt: (created as any).startedAt ?? partial.startedAt,
-            endedAt: (created as any).endedAt ?? partial.endedAt,
-            opponent: (created as any).opponent ?? partial.opponent,
-            result: (created as any).result ?? partial.result,
-            keyTags: (created as any).keyTags ?? partial.keyTags ?? [],
-            favorite: !!(created as any).favorite,
-            moves: ((created as any).moves || (partial.moves || [])).map((mv: any, idx: number) => ({
+        // 构造 rec
+        rec = {
+            id: String(created?.id ?? uid()),
+            startedAt: created?.startedAt ?? partial.startedAt,
+            endedAt: created?.endedAt ?? partial.endedAt,
+            opponent: created?.opponent ?? partial.opponent,
+            result: (created?.result ?? partial.result) as import('./types').GameResult,
+            keyTags: created?.keyTags ?? partial.keyTags ?? [],
+            favorite: !!created?.favorite,
+            moves: (created?.moves || partial.moves || []).map((mv: any, idx: number) => ({
                 from: { x: mv.from?.x ?? partial.moves?.[idx]?.from.x ?? 0, y: mv.from?.y ?? partial.moves?.[idx]?.from.y ?? 0 },
                 to: { x: mv.to?.x ?? partial.moves?.[idx]?.to.x ?? 0, y: mv.to?.y ?? partial.moves?.[idx]?.to.y ?? 0 },
                 turn: (mv.piece?.side as any) ?? (mv.pieceSide as any) ?? partial.moves?.[idx]?.turn ?? 'red',
-                ts: (partial.moves && partial.moves[idx] && partial.moves[idx].ts) || Date.now(),
+                ts: partial.moves?.[idx]?.ts ?? Date.now(),
             })),
-            bookmarks: ((created as any).bookmarks || (partial.bookmarks || [])).map((b: any) => ({
+            bookmarks: (created?.bookmarks || partial.bookmarks || []).map((b: any) => ({
                 id: String(b.id ?? uid()),
                 step: b.step ?? 0,
                 label: b.label ?? undefined,
                 note: b.note || undefined,
             })),
             notes: partial.notes || [],
+            initialLayout: created?.initialLayout ?? (partial as any).initialLayout ?? undefined,
+            customLayout: (created as any)?.customLayout ?? (partial as any).customLayout ?? undefined,
+            customRules: (created as any)?.customRules ?? (partial as any).customRules ?? undefined,
+            mode: (created as any)?.mode ?? (partial as any).mode ?? undefined,
+        }
+
+        // 如果未能保存到服务器，落盘到 localStorage
+        if (!savedToServer) {
+            try {
+                const list = readLocal()
+                // 确保不重复 id
+                const next = [rec, ...list.filter(r => r.id !== rec.id)]
+                writeLocal(next)
+            } catch (e) {
+                console.warn('[recordStore] failed to persist record locally', e)
+            }
         }
 
         return { record: rec, savedToServer }
@@ -211,5 +285,15 @@ export const recordStore = {
             // ignore
         }
         // no local mutation
+    },
+
+    async remove(id: string) {
+        try {
+            const nid = Number(id)
+            await recordsApi.delete(nid)
+        } catch (e) {
+            // ignore server error
+        }
+        // no local mutation; caller should refresh list
     },
 }

@@ -1,0 +1,7 @@
+{
+    "registry-mirrors": [
+        "https://docker.nju.edu.cn",
+        "https://mirror.baidubce.com",
+        "https://hub-mirror.c.163.com"
+    ]
+}
