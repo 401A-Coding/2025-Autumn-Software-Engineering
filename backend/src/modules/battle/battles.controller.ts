@@ -19,7 +19,7 @@ export class BattlesController {
   constructor(
     private readonly battles: BattlesService,
     private readonly boards: BoardService,
-  ) {}
+  ) { }
 
   @Post()
   @UseGuards(JwtAuthGuard)
@@ -38,9 +38,9 @@ export class BattlesController {
     // 构造种子：优先使用 initialLayout，其次尝试 initialBoardId（模板表中的 layout）
     let seed:
       | {
-          board: import('../../shared/chess/types').Board;
-          turn: import('../../shared/chess/types').Side;
-        }
+        board: import('../../shared/chess/types').Board;
+        turn: import('../../shared/chess/types').Side;
+      }
       | undefined;
     const turn = body.initialLayout?.turn ?? 'red';
     if (
@@ -109,7 +109,7 @@ export class BattlesController {
         // 找不到模板或布局异常则忽略，退回默认开局
       }
     }
-    return this.battles.createBattle(
+    return await this.battles.createBattle(
       req.user!.sub,
       body.mode || 'pvp',
       {
@@ -122,11 +122,11 @@ export class BattlesController {
 
   @Post('join')
   @UseGuards(JwtAuthGuard)
-  join(
+  async join(
     @Body() body: { battleId: number; password?: string | null },
     @Req() req: Request & { user?: { sub: number } },
   ) {
-    this.battles.joinBattle(req.user!.sub, body.battleId, body.password);
+    await this.battles.joinBattle(req.user!.sub, body.battleId, body.password);
     return this.battles.snapshot(body.battleId);
   }
 
@@ -194,11 +194,11 @@ export class BattlesController {
 
   @Post('match')
   @UseGuards(JwtAuthGuard)
-  match(
+  async match(
     @Body() body: { mode?: string },
     @Req() req: Request & { user?: { sub: number } },
   ) {
-    return this.battles.quickMatch(req.user!.sub, body.mode || 'pvp');
+    return await this.battles.quickMatch(req.user!.sub, body.mode || 'pvp');
   }
 
   @Post('cancel')

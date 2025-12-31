@@ -21,13 +21,21 @@ import { Request } from 'express';
 
 @Controller('api/v1/users')
 export class UsersController {
-  constructor(private readonly userService: UserService) {}
+  constructor(private readonly userService: UserService) { }
 
   @Get('me')
   @HttpCode(200)
   @UseGuards(JwtAuthGuard)
   async me(@Req() req: Request & { user?: { sub: number } }) {
     return this.userService.getMeByUserId(req.user!.sub);
+  }
+
+  @Get('me/moderation')
+  @HttpCode(200)
+  @UseGuards(JwtAuthGuard)
+  async getMyModeration(@Req() req: Request & { user?: { sub: number } }) {
+    const actions = await this.userService.getModerationActionsForUser(req.user!.sub);
+    return { code: 0, message: 'success', data: actions };
   }
 
   // 获取指定用户的公开信息（仅返回非敏感字段）

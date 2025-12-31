@@ -23,6 +23,9 @@ model User {
   avatarUrl             String?
   bio                   String?
   rating                Int                    @default(1200)
+  isBanned              Boolean                @default(false)
+  bannedUntil           DateTime?
+  deletedAt             DateTime?
   role                  Role                   @default(USER)
   createdAt             DateTime               @default(now())
   updatedAt             DateTime               @updatedAt
@@ -41,6 +44,7 @@ model User {
   commentLikes          CommentLike[]
   reports               Report[]
   moderatorActions      ModeratorAction[]
+  adminActionLogs       AdminActionLog[]
 }
 
 enum Role {
@@ -357,4 +361,20 @@ model ModeratorAction {
   createdAt   DateTime @default(now())
 
   @@index([moderatorId])
+}
+
+// 管理员操作审计日志
+model AdminActionLog {
+  id         Int      @id @default(autoincrement())
+  adminId    Int
+  admin      User     @relation(fields: [adminId], references: [id])
+  action     String   // e.g. 'update_user_role', 'delete_post'
+  targetType String?
+  targetId   Int?
+  payload    Json?
+  ip         String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  @@index([adminId])
 }

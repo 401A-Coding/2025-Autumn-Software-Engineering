@@ -3,9 +3,11 @@ import {
   UnauthorizedException,
   BadRequestException,
   Optional,
+  ForbiddenException,
 } from '@nestjs/common';
 import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 import { JwtService } from '@nestjs/jwt';
+import { PrismaService } from '../../prisma/prisma.service';
 import type { Board, Side } from '../../shared/chess/types';
 import { createHash } from 'node:crypto';
 import { ChessEngineService } from './engine.service';
@@ -80,11 +82,28 @@ export class BattlesService {
   constructor(
     private readonly jwt: JwtService,
     private readonly engine: ChessEngineService,
+    private readonly prisma: PrismaService,
     @Optional() private readonly metrics?: MetricsService,
     @Optional() private readonly events?: EventEmitter2,
     @Optional() private readonly records?: RecordService,
     @Optional() private readonly boards?: BoardService,
-  ) {}
+  ) { }
+
+  private async ensureNotBanned(userId: number) {
+    const u = await this.prisma.user.findUnique({ where: { id: userId }, select: { isBanned: true, bannedUntil: true } });
+    if (!u) return;
+    if (u.isBanned) {
+      const until = u.bannedUntil ? new Date(u.bannedUntil).getTime() : null;
+      if (until && until <= Date.now()) {
+        // expired: auto clear
+        try {
+          await this.prisma.user.update({ where: { id: userId }, data: { isBanned: false, bannedUntil: null } });
+        } catch { }
+        return;
+      }
+      throw new ForbiddenException('您的账号已被封禁，暂时无法进行此操作');
+    }
+  }
 
   verifyBearer(authorization?: string) {
     if (!authorization || !authorization.toLowerCase().startsWith('bearer ')) {
@@ -99,7 +118,7 @@ export class BattlesService {
     }
   }
 
-  createBattle(
+  async createBattle(
     creatorId: number,
     mode = 'pvp',
     opts?: {
@@ -108,6 +127,7 @@ export class BattlesService {
     },
     seed?: { board: Board; turn: Side },
   ) {
+    await this.ensureNotBanned(creatorId);
     const source = opts?.source ?? 'room';
     const visibility =
       opts?.visibility ?? (source === 'match' ? 'match' : 'private');
@@ -230,8 +250,9 @@ export class BattlesService {
     this.tempReplayByBattle.delete(battleId);
   }
 
-  joinBattle(userId: number, battleId: number, _password?: string | null) {
+  async joinBattle(userId: number, battleId: number, _password?: string | null) {
     void _password;
+    await this.ensureNotBanned(userId);
     const b = this.battles.get(battleId);
     if (!b) throw new BadRequestException('房间不存在');
     if (b.status === 'finished') throw new BadRequestException('对局已结束');
@@ -567,7 +588,8 @@ export class BattlesService {
     });
   }
 
-  quickMatch(userId: number, mode = 'pvp') {
+  async quickMatch(userId: number, mode = 'pvp') {
+    await this.ensureNotBanned(userId);
     const selfWaiting = this.findUserWaiting(userId, mode);
     if (selfWaiting) {
       return { battleId: selfWaiting };
@@ -585,7 +607,7 @@ export class BattlesService {
     }
 
     // 仅为匹配创建 match 对局并加入匹配池
-    const { battleId } = this.createBattle(userId, mode, {
+    const { battleId } = await this.createBattle(userId, mode, {
       source: 'match',
       visibility: 'match',
     });

@@ -98,6 +98,7 @@ export default function PostDetail() {
     const commentInputRef = useRef<HTMLDivElement>(null)
     const replyInputRefs = useRef<Map<number, HTMLDivElement>>(new Map())
     const [currentUserId, setCurrentUserId] = useState<number | null>(null)
+    const [currentUserRole, setCurrentUserRole] = useState<string | null>(null)
     const [commentLikes, setCommentLikes] = useState<Record<number, boolean>>({})
     const [expandedReplies, setExpandedReplies] = useState<Record<number, boolean>>({})
     const [replyingOnComment, setReplyingOnComment] = useState<number | null>(null)
@@ -206,6 +207,8 @@ export default function PostDetail() {
         loadComments()
         loadCurrentUser()
     }, [postId])
+
+    const isAdminView = location.pathname.includes('/app/admin')
 
     // 采用点击时即时计算视口检测，不再依赖 IntersectionObserver
 
@@ -329,6 +332,7 @@ export default function PostDetail() {
         try {
             const me = await userApi.getMe()
             setCurrentUserId(me.id as number)
+            setCurrentUserRole((me as any).role ?? null)
         } catch (e) {
             console.error('Failed to get current user:', e)
             setCurrentUserId(null)
@@ -350,10 +354,12 @@ export default function PostDetail() {
             })
         }
 
-        actions.push({
-            label: '举报',
-            onClick: () => handleReportPost(),
-        })
+        if (!isAdminView) {
+            actions.push({
+                label: '举报',
+                onClick: () => handleReportPost(),
+            })
+        }
 
         return actions
     }
@@ -369,10 +375,21 @@ export default function PostDetail() {
             })
         }
 
-        actions.push({
-            label: '举报',
-            onClick: () => handleReportComment(comment.id),
-        })
+        // Admins can delete any comment
+        if (currentUserRole === 'ADMIN') {
+            actions.unshift({
+                label: '管理员删除',
+                onClick: () => handleAdminDeleteComment(comment.id),
+                danger: true,
+            })
+        }
+
+        if (!isAdminView) {
+            actions.push({
+                label: '举报',
+                onClick: () => handleReportComment(comment.id),
+            })
+        }
 
         return actions
     }
@@ -395,8 +412,17 @@ export default function PostDetail() {
         }
     }
 
-    function handleReportPost() {
-        alert('举报功能即将推出')
+    async function handleReportPost() {
+        if (!post) return
+        try {
+            const reason = window.prompt('请输入举报原因（可选）', '') || undefined
+            if (reason === undefined) return
+            await communityApi.report({ targetType: 'post', targetId: post.id, reason } as any)
+            alert('感谢您的举报，我们会尽快处理')
+        } catch (e) {
+            console.error('Report post failed:', e)
+            alert('提交举报失败')
+        }
     }
 
     async function handleDeleteComment(commentId: number) {
@@ -414,8 +440,31 @@ export default function PostDetail() {
         }
     }
 
-    function handleReportComment(_commentId: number) {
-        alert('举报功能即将推出')
+    async function handleAdminDeleteComment(commentId: number) {
+        const reason = window.prompt('请输入删除原因（可选）', '') || undefined
+        const ok = window.confirm('确认以管理员身份删除此评论吗？此操作会记录原因并通知作者。')
+        if (!ok) return
+        try {
+            await (await import('../../services/api')).adminApi.deleteComment(commentId, { reason })
+            setComments(comments.filter(c => c.id !== commentId))
+            if (post) setPost({ ...post, commentCount: Math.max(0, post.commentCount - 1) })
+            alert('评论已删除（管理员）')
+        } catch (e) {
+            console.error('Admin delete comment failed:', e)
+            alert('删除失败')
+        }
+    }
+
+    async function handleReportComment(commentId: number) {
+        try {
+            const reason = window.prompt('请输入举报原因（可选）', '') || undefined
+            if (reason === undefined) return
+            await communityApi.report({ targetType: 'comment', targetId: commentId, reason } as any)
+            alert('感谢您的举报，我们会尽快处理')
+        } catch (e) {
+            console.error('Report comment failed:', e)
+            alert('提交举报失败')
+        }
     }
 
     async function handleLikeComment(commentId: number) {
@@ -507,10 +556,24 @@ export default function PostDetail() {
                 danger: true,
             })
         }
-        actions.push({
-            label: '举报',
-            onClick: () => alert('举报功能即将推出'),
-        })
+        if (!isAdminView) {
+            actions.push({
+                label: '举报',
+                onClick: () => {
+                    const r = window.prompt('请输入举报原因（可选）', '') || undefined
+                    if (r === undefined) return
+                    (async () => {
+                        try {
+                            await communityApi.report({ targetType: 'comment', targetId: reply.id, reason: r } as any)
+                            alert('感谢您的举报，我们会尽快处理')
+                        } catch (e) {
+                            console.error('Report reply failed:', e)
+                            alert('提交举报失败')
+                        }
+                    })()
+                },
+            })
+        }
         return actions
     }
     if (loading) {

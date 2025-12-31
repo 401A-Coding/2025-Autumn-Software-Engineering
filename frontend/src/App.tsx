@@ -32,6 +32,14 @@ import CommunitySearch from './pages/app/CommunitySearch.tsx'
 import PostDetail from './features/community/PostDetail.tsx'
 import CreatePost from './features/community/CreatePost.tsx'
 import UserProfile from './pages/app/UserProfile.tsx'
+import AdminUsers from './pages/app/AdminUsers'
+import AdminPosts from './pages/app/AdminPosts'
+import AdminLogs from './pages/app/AdminLogs'
+import AdminReports from './pages/app/AdminReports'
+import AdminRoute from './routes/AdminRoute'
+import AdminLayout from './layouts/AdminLayout'
+import AdminUserView from './pages/app/AdminUserView'
+import AdminPostDetail from './pages/app/AdminPostDetail'
 
 function App() {
   return (
@@ -73,6 +81,17 @@ function App() {
             <Route path="live-battle" element={<LiveBattle />} />
             <Route path="custom-online-lobby" element={<CustomOnlineLobby />} />
             <Route path="custom-online-live-battle" element={<CustomOnlineLiveBattle />} />
+            <Route path="admin" element={<AdminRoute />}>
+              <Route element={<AdminLayout />}>
+                <Route index element={<Navigate to="users" replace />} />
+                <Route path="users" element={<AdminUsers />} />
+                <Route path="users/:userId" element={<AdminUserView />} />
+                <Route path="posts" element={<AdminPosts />} />
+                <Route path="posts/:postId" element={<AdminPostDetail />} />
+                <Route path="reports" element={<AdminReports />} />
+                <Route path="logs" element={<AdminLogs />} />
+              </Route>
+            </Route>
           </Route>
         </Route>
 

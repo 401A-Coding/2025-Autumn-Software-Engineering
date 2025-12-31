@@ -551,6 +551,74 @@ export const recordsApi = {
     return await res.text()
   },
 }
+
+/**
+ * 管理相关 API（需要管理员权限）
+ */
+export const adminApi = {
+  async listUsers(q?: string) {
+    const url = q ? `/api/v1/admin/users?q=${encodeURIComponent(q)}` : '/api/v1/admin/users'
+    const res = await apiRequest<any[]>(url)
+    return res.data
+  },
+
+  async updateUserRole(id: number, role: 'USER' | 'ADMIN') {
+    const res = await apiRequest<any>(`/api/v1/admin/users/${id}/role`, {
+      method: 'PATCH',
+      body: JSON.stringify({ role }),
+    })
+    return res.data
+  },
+  async banUser(id: number, body: { reason?: string; days?: number }) {
+    const res = await apiRequest<any>(`/api/v1/admin/users/${id}/ban`, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    })
+    return res.data
+  },
+  async unbanUser(id: number) {
+    const res = await apiRequest<any>(`/api/v1/admin/users/${id}/unban`, {
+      method: 'PATCH',
+    })
+    return res.data
+  },
+  async listPosts(q?: string, status?: string) {
+    let url = '/api/v1/admin/posts'
+    const parts: string[] = []
+    if (q) parts.push(`q=${encodeURIComponent(q)}`)
+    if (status) parts.push(`status=${encodeURIComponent(status)}`)
+    if (parts.length) url += `?${parts.join('&')}`
+    const res = await apiRequest<any[]>(url)
+    return res.data
+  },
+  async removePost(id: number) {
+    const res = await apiRequest<any>(`/api/v1/admin/posts/${id}`, { method: 'DELETE' })
+    return res.data
+  },
+  async restorePost(id: number) {
+    const res = await apiRequest<any>(`/api/v1/admin/posts/${id}/restore`, { method: 'PATCH' })
+    return res.data
+  },
+  async deleteComment(commentId: number, body?: { reason?: string }) {
+    const res = await apiRequest<any>(`/api/v1/admin/comments/${commentId}`, { method: 'DELETE', body: JSON.stringify(body || {}) })
+    return res.data
+  },
+  async listReports(opts?: { targetType?: string; status?: string; page?: number; pageSize?: number }) {
+    const params: string[] = []
+    if (opts?.targetType) params.push(`targetType=${encodeURIComponent(opts.targetType)}`)
+    if (opts?.status) params.push(`status=${encodeURIComponent(opts.status)}`)
+    if (opts?.page) params.push(`page=${opts.page}`)
+    if (opts?.pageSize) params.push(`pageSize=${opts.pageSize}`)
+    const url = `/api/v1/admin/reports${params.length ? '?' + params.join('&') : ''}`
+    const res = await apiRequest<any>(url)
+    return res.data
+  },
+  async listLogs(adminId?: number) {
+    const url = adminId ? `/api/v1/admin/logs?adminId=${adminId}` : '/api/v1/admin/logs'
+    const res = await apiRequest<any[]>(url)
+    return res.data
+  },
+}
 /**
  * 用户相关 API
  */
@@ -606,6 +674,10 @@ export const userApi = {
       createdAt: string
     }
     const res = await apiRequest<UserData>(`/api/v1/users/${userId}`)
+    return res.data
+  },
+  async getModerationActions() {
+    const res = await apiRequest<any[]>('/api/v1/users/me/moderation')
     return res.data
   },
 }

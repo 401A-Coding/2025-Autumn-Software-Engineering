@@ -33,3 +33,9 @@ export const IconProfile = ({ size = 20 }: { size?: number }) => (
         <path d="M4 21c1.5-3.5 4.5-5.5 8-5.5s6.5 2 8 5.5" stroke="currentColor" strokeWidth="1.5" />
     </svg>
 )
+
+export const IconShield = ({ size = 20 }: { size?: number }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 3l7 3v5c0 5-3.5 9-7 10-3.5-1-7-5-7-10V6l7-3z" stroke="currentColor" strokeWidth="1.2" fill="none" />
+    </svg>
+)
