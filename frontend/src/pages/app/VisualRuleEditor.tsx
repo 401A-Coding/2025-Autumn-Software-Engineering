@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import type { PieceType, Piece, Side } from '../../features/chess/types'
 import { createInitialBoard } from '../../features/chess/types'
 import type { CustomRuleSet, MovePattern } from '../../features/chess/ruleEngine'
-import { moveTemplates, getDefaultTemplateForPiece, type MoveTemplateType } from '../../features/chess/moveTemplates'
+import { moveTemplates, getDefaultTemplateForPiece, applyTemplate, type MoveTemplateType } from '../../features/chess/moveTemplates'
 import '../../features/chess/board.css'
 
 
@@ -48,16 +48,36 @@ export default function VisualRuleEditor() {
 
     // 步骤3: 规则编辑
     const [ruleSet, setRuleSet] = useState<CustomRuleSet>(() => {
-        // 不再使用 localStorage 持久化；优先使用路由 state 中传入的 rules（由模板管理导入）
+        // 优先使用路由 state 中传入的 rules（由模板管理导入）
         if (stateAny.rules) {
-            try {
-                return stateAny.rules as CustomRuleSet
-            } catch (e) {
-                console.error('Invalid rules in navigation state', e)
-            }
+            try { return stateAny.rules as CustomRuleSet } catch (e) { console.error('Invalid rules in navigation state', e) }
         }
-        // 默认不加载任何标准规则，保留空规则集，确保保存只包含编辑器选择的点位
-        return { name: '自定义规则', pieceRules: {} as any }
+        // 若无外部规则，使用标准基线规则（基于 moveTemplates 的默认映射）
+        try {
+            const pieceTypes = ['general','advisor','elephant','horse','rook','cannon','soldier'] as const
+            const pr: any = {}
+            for (const pt of pieceTypes) {
+                const tpl = getDefaultTemplateForPiece(pt as string)
+                const pats = applyTemplate(tpl)
+                // 默认 restrictions（与传统象棋语义一致）
+                const defaultRestrictions: any = {
+                    canJump: false,
+                    canCrossRiver: pt === 'elephant' ? false : true,
+                    mustStayInPalace: pt === 'general' || pt === 'advisor' ? true : false,
+                    maxMoveDistance: 0,
+                    minMoveDistance: 0,
+                }
+                pr[pt] = {
+                    name: pt,
+                    movePatterns: pats,
+                    restrictions: defaultRestrictions,
+                }
+            }
+            return { name: '标准规则基线', pieceRules: pr }
+        } catch (e) {
+            console.error('failed to build default ruleSet', e)
+            return { name: '自定义规则', pieceRules: {} as any }
+        }
     })
 
     // per-river-phase selections: pre / post
@@ -85,19 +105,11 @@ export default function VisualRuleEditor() {
     const [horseLegBlockedPost, setHorseLegBlockedPost] = useState(true)
     const [elephantEyeBlockedPre, setElephantEyeBlockedPre] = useState(true)
     const [elephantEyeBlockedPost, setElephantEyeBlockedPost] = useState(true)
-    const [useCannonCapturePre, setUseCannonCapturePre] = useState(false)
-    const [useCannonCapturePost, setUseCannonCapturePost] = useState(false)
-    const [allowDualCapturePre, setAllowDualCapturePre] = useState(false)
-    const [allowDualCapturePost, setAllowDualCapturePost] = useState(false)
-
     const getCurrentHorseLegBlocked = () => editingRiverView === 'pre' ? horseLegBlockedPre : horseLegBlockedPost
     const setCurrentHorseLegBlocked = (v: boolean) => { if (editingRiverView === 'pre') setHorseLegBlockedPre(v); else setHorseLegBlockedPost(v) }
     const getCurrentElephantEyeBlocked = () => editingRiverView === 'pre' ? elephantEyeBlockedPre : elephantEyeBlockedPost
     const setCurrentElephantEyeBlocked = (v: boolean) => { if (editingRiverView === 'pre') setElephantEyeBlockedPre(v); else setElephantEyeBlockedPost(v) }
-    const getCurrentUseCannonCapture = () => editingRiverView === 'pre' ? useCannonCapturePre : useCannonCapturePost
-    const setCurrentUseCannonCapture = (v: boolean) => { if (editingRiverView === 'pre') setUseCannonCapturePre(v); else setUseCannonCapturePost(v) }
-    const getCurrentAllowDualCapture = () => editingRiverView === 'pre' ? allowDualCapturePre : allowDualCapturePost
-    const setCurrentAllowDualCapture = (v: boolean) => { if (editingRiverView === 'pre') setAllowDualCapturePre(v); else setAllowDualCapturePost(v) }
+    // note: cannon-capture options removed — only `cannon` has screen-capture enforced by the engine
     // display base used when showing templates (soldier templates should use red as base)
     const [templateDisplayBase, setTemplateDisplayBase] = useState<Side>('black')
 
@@ -314,8 +326,6 @@ export default function VisualRuleEditor() {
         // helper to process a phase's selections
         const processPhase = (phase: 'pre' | 'post', cells: Set<string>, cellPats: Record<string, MovePattern[]>) => {
             const injectRiverCond = phase === 'pre' ? { type: 'position' as const, notCrossedRiver: true } : { type: 'position' as const, crossedRiver: true }
-            const cannonEnabled = phase === 'pre' ? (useCannonCapturePre || allowDualCapturePre) : (useCannonCapturePost || allowDualCapturePost)
-            const allowDual = phase === 'pre' ? allowDualCapturePre : allowDualCapturePost
             const horseBlocked = phase === 'pre' ? horseLegBlockedPre : horseLegBlockedPost
             const elephantBlocked = phase === 'pre' ? elephantEyeBlockedPre : elephantEyeBlockedPost
             cells.forEach(cellKey => {
@@ -375,17 +385,7 @@ export default function VisualRuleEditor() {
                             conditions: tplPat.conditions ? [...tplPat.conditions] : undefined,
                         }
 
-                        // 如果启用了“炮式吃子”，则在为直线方向添加炮式吃子时，取消原有的吃子能力（仅保留移动），
-                        // 以达到“变成炮吃子后原来的吃子方式取消”的语义。
-                        if (cannonEnabled && (dx === 0 || dy === 0 || Math.abs(dx) === Math.abs(dy))) {
-                            // 如果启用了“炮式吃子”，并且没有选中“同时保留原吃子”，则把原有吃子改为仅移动
-                            if (!allowDual) {
-                                if (!base.moveOnly) {
-                                    base.moveOnly = true
-                                    base.captureOnly = false
-                                }
-                            }
-                        }
+                        // 保持原有吃子/移动标记，不在此处强制取消原有吃子能力。
 
                         // ensure river condition exists for this phase only if template didn't specify it
                         const hasRiverCond = (base.conditions || []).some(c => c.type === 'position' && ((c as any).crossedRiver !== undefined || (c as any).notCrossedRiver !== undefined))
@@ -393,30 +393,22 @@ export default function VisualRuleEditor() {
                             base.conditions = [...(base.conditions || []), injectRiverCond]
                         }
 
+                        // 对于多格/重复的直线或斜线移动，默认要求路径无阻碍，避免用户编辑后产生可跳过棋子的走法。
+                        // 若 pattern 已显式包含 obstacleCount（炮式隔子）或 hasNoObstacle，则保留原样。
+                        const adx = Math.abs(dx)
+                        const ady = Math.abs(dy)
+                        const isMultiStep = base.repeat || Math.max(adx, ady) > 1
+                        const hasObstacleCountCond = (base.conditions || []).some((c: any) => (c && (c as any).obstacleCount !== undefined))
+                        const hasHasNoObstacle = (base.conditions || []).some((c: any) => (c && (c as any).hasNoObstacle !== undefined))
+                        if (isMultiStep && !hasObstacleCountCond && !hasHasNoObstacle) {
+                            base.conditions = [...(base.conditions || []), { type: 'path' as const, hasNoObstacle: true } as any]
+                        }
+
                         patterns.push(base)
 
                         // 如果启用了“炮型吃子”选项，并且此 pattern 允许吃子（不是纯移动），
                         // 则为该方向添加一个额外的炮式吃子 pattern（只在直线方向有意义）。
-                        const tplAllowsCapture = !(moveOnlyVal === true)
-                        if (cannonEnabled && tplAllowsCapture) {
-                            // 仅在直线方向添加炮吃子行为（dx===0 || dy===0）
-                            if (dx === 0 || dy === 0 || Math.abs(dx) === Math.abs(dy)) {
-                                // 不重复添加已有的 obstacleCount 条件
-                                const existingPathCond = (tplPat.conditions || []).find((c: any) => c.type === 'path' && (c as any).obstacleCount !== undefined)
-                                if (!existingPathCond) {
-                                    const cannonCond = { type: 'path' as const, obstacleCount: 1 }
-                                    const cannonPattern: MovePattern = {
-                                        dx,
-                                        dy,
-                                        repeat: true,
-                                        maxSteps: 0,
-                                        captureOnly: true,
-                                        conditions: [...(tplPat.conditions || []), cannonCond],
-                                    }
-                                    patterns.push(cannonPattern)
-                                }
-                            }
-                        }
+                        // 不为非炮棋子自动添加炮式吃子；炮的隔子吃由内核在运行时注入
                     }
                     return
                 }
@@ -431,14 +423,15 @@ export default function VisualRuleEditor() {
                     captureOnly: moveType === 'capture',
                     conditions: [injectRiverCond as any],
                 }
-                // 如果启用了炮式吃子并且是直线方向，取消默认的吃子（保留移动）
-                if (cannonEnabled && (dx === 0 || dy === 0 || Math.abs(dx) === Math.abs(dy))) {
-                    if (!allowDual) {
-                        if (!base.moveOnly) {
-                            base.moveOnly = true
-                            base.captureOnly = false
-                        }
-                    }
+                // 不在此处取消默认吃子行为；炮式吃子由额外的 cannon pattern 提供（若启用）
+                // 对于多格/重复方向，注入路径无阻碍条件以禁止跳子（除非模板/用户已显式声明炮式隔子或无阻挡条件）
+                const fadx = Math.abs(dx)
+                const fady = Math.abs(dy)
+                const fisMulti = base.repeat || Math.max(fadx, fady) > 1
+                const fHasObstacleCount = (base.conditions || []).some((c: any) => (c && (c as any).obstacleCount !== undefined))
+                const fHasHasNoObstacle = (base.conditions || []).some((c: any) => (c && (c as any).hasNoObstacle !== undefined))
+                if (fisMulti && !fHasObstacleCount && !fHasHasNoObstacle) {
+                    base.conditions = [...(base.conditions || []), { type: 'path' as const, hasNoObstacle: true } as any]
                 }
                 // 如果是马/象/炮等需要额外阻塞判断的棋子，自动注入相应条件（除非模板已指定）
                 // 马的别马脚
@@ -460,9 +453,14 @@ export default function VisualRuleEditor() {
             })
         }
 
-        // process pre and post separately
-        processPhase('pre', selectedCellsPre, selectedCellPatternsPre)
-        processPhase('post', selectedCellsPost, selectedCellPatternsPost)
+        // 如果一侧为空，则自动继承另一侧的选择（避免用户只在 pre 设置导致 post 缺失）
+        const effectivePreCells = selectedCellsPre.size > 0 ? selectedCellsPre : (selectedCellsPost.size > 0 ? selectedCellsPost : selectedCellsPre)
+        const effectivePostCells = selectedCellsPost.size > 0 ? selectedCellsPost : (selectedCellsPre.size > 0 ? selectedCellsPre : selectedCellsPost)
+        const effectivePreMap = Object.keys(selectedCellPatternsPre).length > 0 ? selectedCellPatternsPre : (Object.keys(selectedCellPatternsPost).length > 0 ? selectedCellPatternsPost : selectedCellPatternsPre)
+        const effectivePostMap = Object.keys(selectedCellPatternsPost).length > 0 ? selectedCellPatternsPost : (Object.keys(selectedCellPatternsPre).length > 0 ? selectedCellPatternsPre : selectedCellPatternsPost)
+
+        processPhase('pre', effectivePreCells, effectivePreMap)
+        processPhase('post', effectivePostCells, effectivePostMap)
 
         return patterns
     }
@@ -485,11 +483,14 @@ export default function VisualRuleEditor() {
             canCrossRiver: prevRestrictions.canCrossRiver ?? (editingPieceType === 'soldier' ? true : prevRestrictions.canCrossRiver),
         }
 
+        console.debug('[VRE] Applying rule for', editingPieceType, 'restrictions=', normalizedRestrictions)
+        console.debug('[VRE] Patterns (pre-sanitize)=', patterns)
         // 为防止可视化编辑意外引入跳子字段或其他运行时不允许的属性，清理 patterns
         const sanitizedPatterns = patterns.map(p => {
             const { jumpObstacle, ...rest } = p as any
             return rest as MovePattern
         })
+        console.debug('[VRE] Patterns (sanitized)=', sanitizedPatterns)
 
         const updatedRuleSet = {
             ...ruleSet,
@@ -991,14 +992,7 @@ export default function VisualRuleEditor() {
                             <span>塞象眼</span>
                         </label>
                     )}
-                    <label className="row gap-6 mt-8 text-14 cursor-pointer">
-                        <input type="checkbox" checked={getCurrentUseCannonCapture()} onChange={(e) => setCurrentUseCannonCapture(e.target.checked)} />
-                        <span>将所选模板的吃子方式改为炮（隔子吃），移动方式保持不变</span>
-                    </label>
-                    <label className="row gap-6 mt-6 text-14 cursor-pointer">
-                        <input type="checkbox" checked={getCurrentAllowDualCapture()} onChange={(e) => { const v = e.target.checked; setCurrentAllowDualCapture(v); }} />
-                        <span>同时保留原始吃子规则与炮式吃子（两种吃子方式共存）</span>
-                    </label>
+                    {/* 炮式吃子选项已移除；炮默认并且唯一支持隔子吃（由内核强制） */}
                     {/* 已移除“炮吃子需要炮架子”开关；请使用模板自带条件控制 */}
                 </div>
 

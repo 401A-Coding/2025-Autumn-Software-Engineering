@@ -186,7 +186,10 @@ export function serverRulesToRuleSet(rulesDto: any, name = '服务器规则'): C
                 const vecs: Array<[number, number]> = r.vectors || []
                 const maxSteps = r.maxSteps || 0
                 for (const [dx, dy] of vecs) {
-                    patterns.push({ dx, dy, repeat: true, ...(maxSteps ? { maxSteps } : {}) })
+                    // movement.rays 表示可重复的多格移动：通常应要求路径无阻碍。
+                    // 将该语义恢复为条件以防在后续转换中丢失（例如 hasNoObstacle）
+                    const conds = [{ type: 'path' as const, hasNoObstacle: true }]
+                    patterns.push({ dx, dy, repeat: true, ...(maxSteps ? { maxSteps } : {}), conditions: conds })
                 }
             }
         }
