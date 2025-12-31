@@ -34,6 +34,43 @@ export default function Profile() {
         { title: '我的收藏', description: '我收藏的帖子', to: '/app/my-bookmarks' },
     ]
 
+    const [moderations, setModerations] = useState<any[] | null>(null)
+    const [loadingModerations, setLoadingModerations] = useState(false)
+    const [expandedRows, setExpandedRows] = useState<Record<number, boolean>>({})
+
+    // Normalize moderation records returned by different backend shapes
+    function normalizeModeration(m: any) {
+        const rawAction = m.action || m.actionType || ''
+        const targetType = m.targetType || m.target || ''
+
+        // Map backend actionType + targetType to frontend action keys
+        let action = rawAction
+        if (!m.action && m.actionType) {
+            if (m.actionType === 'ban' && String(targetType).toUpperCase() === 'USER') action = 'ban_user'
+            else if (m.actionType === 'remove' && String(targetType).toUpperCase() === 'POST') action = 'remove_post'
+            else if (m.actionType === 'remove' && String(targetType).toUpperCase() === 'COMMENT') action = 'remove_comment'
+            else if (m.actionType === 'restore' && String(targetType).toUpperCase() === 'POST') action = 'restore_post'
+            else if (m.actionType === 'unban') action = 'unban_user'
+            else action = m.actionType
+        }
+
+        // Build payload: prefer explicit payload, then metadata; always merge top-level reason/days
+        let payload: any = null
+        if (m.payload) payload = m.payload
+        else if (m.metadata) payload = m.metadata
+        else payload = {}
+
+        if (m.reason && (!payload || typeof payload !== 'object' || !('reason' in payload))) {
+            payload = { ...(payload || {}), reason: m.reason }
+        }
+        if ((m as any).days && (!payload || typeof payload !== 'object' || !('days' in payload))) {
+            payload = { ...(payload || {}), days: (m as any).days }
+        }
+
+        // ensure payload is at least an object
+        if (!payload) payload = {}
+        return { action, payload }
+    }
     function formatDate(iso?: string | Date | null) {
         if (!iso) return '-'
         const d = typeof iso === 'string' ? new Date(iso) : iso
@@ -53,6 +90,20 @@ export default function Profile() {
                 setError(e instanceof Error ? e.message : '加载失败')
             } finally {
                 setLoading(false)
+            }
+        })()
+    }, [])
+
+    useEffect(() => {
+        (async () => {
+            setLoadingModerations(true)
+            try {
+                const list = await userApi.getModerationActions()
+                setModerations(list || [])
+            } catch (e) {
+                // ignore silently for now
+            } finally {
+                setLoadingModerations(false)
             }
         })()
     }, [])
@@ -136,6 +187,76 @@ export default function Profile() {
                     <button className="btn-ghost" onClick={onLogout}>退出登录</button>
                 </div>
             </section>
+
+            {((moderations && moderations.length > 0) || (me && ((me as any).isBanned))) && (
+                <section className="paper-card card-pad mt-12">
+                    <div className="row-between align-center mb-8">
+                        <h3 className="mt-0 mb-0">处理记录</h3>
+                        <span className="muted text-12">管理员对您账号或内容的操作历史</span>
+                    </div>
+
+                    {loadingModerations ? (
+                        <p className="muted">加载中…</p>
+                    ) : (
+                        <div>
+                            {/* 若账号被封禁，优先展示封禁提示 */}
+                            {me && (me as any).isBanned && (
+                                <div style={{ borderLeft: '4px solid #f56', padding: 12, marginBottom: 12, background: '#fff8f8' }}>
+                                    {(() => {
+                                        const until = (me as any).bannedUntil
+                                        if (!until) return '您的账号已被永久封禁，期间无法在线匹配或进入社区模块。'
+                                        try {
+                                            const days = Math.ceil((new Date(until).getTime() - Date.now()) / (24 * 3600 * 1000))
+                                            if (days <= 0) return '您的账号封禁即将结束，某些功能可能仍受限。'
+                                            return `您的账号已被封禁，剩余 ${days} 天，期间无法在线匹配或进入社区模块。`
+                                        } catch {
+                                            return '您的账号已被封禁，期间无法在线匹配或进入社区模块。'
+                                        }
+                                    })()}
+                                </div>
+                            )}
+
+                            {!moderations || moderations.length === 0 ? (
+                                <div className="muted">暂无处理记录</div>
+                            ) : (
+                                <table className="w-full table-auto">
+                                    <thead>
+                                        <tr>
+                                            <th>时间</th>
+                                            <th>操作</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {moderations.map((m: any) => {
+                                            const { action, payload } = normalizeModeration(m)
+                                            return (
+                                                <tr key={m.id}>
+                                                    <td>{new Date(m.createdAt).toLocaleString()}</td>
+                                                    <td style={{ whiteSpace: 'nowrap' }}>
+                                                        <span>{formatModActionWithPayload(action, payload)}</span>
+                                                        <button
+                                                            className="btn-ghost btn-compact"
+                                                            style={{ marginLeft: 8 }}
+                                                            onClick={() => setExpandedRows(prev => ({ ...prev, [m.id]: !prev[m.id] }))}
+                                                        >{expandedRows[m.id] ? '收起原因' : '查看原因'}</button>
+
+                                                        {expandedRows[m.id] && (
+                                                            <div className="muted text-12 mt-2" style={{ whiteSpace: 'pre-wrap' }}>
+                                                                {payload && payload.reason ? `原因：${payload.reason}` : '无详细说明'}
+                                                                {payload && payload.days ? '\n' + `封禁时长：${payload.days} 天` : ''}
+                                                            </div>
+                                                        )}
+                                                    </td>
+                                                </tr>
+                                            )
+                                        })}
+                                    </tbody>
+                                </table>
+                            )}
+                        </div>
+                    )}
+                </section>
+            )}
 
             <section className="paper-card card-pad mt-12">
                 <div className="row-between align-center mb-8">
@@ -272,4 +393,65 @@ export default function Profile() {
             )}
         </div>
     );
+}
+
+function formatModAction(action: string) {
+    switch (action) {
+        case 'ban_user': return '封禁账号'
+        case 'unban_user': return '解除封禁'
+        case 'remove_post': return '帖子被删除'
+        case 'restore_post': return '帖子已恢复'
+        case 'remove_comment': return '评论被删除'
+        default: return action
+    }
+}
+
+function formatModDescription(action: string, payload: any) {
+    payload = payload || {}
+    try {
+        switch (action) {
+            case 'ban_user': {
+                const days = payload.days
+                const reason = payload.reason
+                const when = days ? `封禁 ${days} 天` : '永久封禁'
+                return reason ? `${when}（原因：${reason}）` : when
+            }
+            case 'unban_user': return '账号已解除封禁'
+            case 'remove_post': return payload.reason ? `帖子被删除（原因：${payload.reason}）` : '帖子被删除'
+            case 'restore_post': return '帖子已恢复'
+            case 'remove_comment': return payload.reason ? `评论被删除（原因：${payload.reason}）` : '评论被删除'
+            default: {
+                const s = JSON.stringify(payload)
+                return s === '{}' ? '-' : s
+            }
+        }
+    } catch (e) {
+        return '-'
+    }
+}
+
+function formatModActionWithPayload(action: string, payload: any) {
+    // Combine short action label with important payload info (e.g., ban days)
+    const base = formatModAction(action)
+    if (!payload) return base
+    try {
+        switch (action) {
+            case 'ban_user': {
+                const days = payload.days
+                return days ? `${base} — ${days} 天` : `${base} — 永久`
+            }
+            case 'remove_post': {
+                if (payload.reason) return `${base} — ${payload.reason}`
+                return base
+            }
+            case 'remove_comment': {
+                if (payload.reason) return `${base} — ${payload.reason}`
+                return base
+            }
+            default:
+                return base
+        }
+    } catch {
+        return base
+    }
 }

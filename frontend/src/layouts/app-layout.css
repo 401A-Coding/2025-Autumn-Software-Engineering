@@ -12,6 +12,26 @@
     padding-top: env(safe-area-inset-top);
 }
 
+/* Make header content adapt on small screens */
+@media (max-width: 420px) {
+    .header-bar {
+        padding-left: 8px;
+        padding-right: 8px;
+        justify-content: flex-start;
+    }
+
+    .header-bar>div {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .header-title {
+        font-size: 16px;
+        font-weight: 700;
+    }
+}
+
 /* When tabbar is hidden, reduce bottom padding */
 .page-container.no-tabbar {
     padding-bottom: 8px;

@@ -1,11 +1,26 @@
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
-import { IconHome, IconFun, IconProfile, IconCommunity } from '../components/icons'
+import { IconHome, IconFun, IconProfile, IconCommunity, IconShield } from '../components/icons'
 import './app-layout.css'
+import { useEffect, useState } from 'react'
+import { userApi } from '../services/api'
 
 export default function AppLayout() {
     const location = useLocation()
     const path = location.pathname
     const showTabbar = ['/app/home', '/app/community', '/app/fun', '/app/profile'].includes(path)
+    const [isAdmin, setIsAdmin] = useState(false)
+
+    useEffect(() => {
+        let mounted = true
+        userApi.getMe().then(u => {
+            if (!mounted) return
+            setIsAdmin(u?.role === 'ADMIN')
+        }).catch(() => {
+            // ignore
+        })
+        return () => { mounted = false }
+    }, [])
+
     return (
         <div>
             <header className="header-bar with-safe-area">
@@ -34,6 +49,12 @@ export default function AppLayout() {
                         <IconProfile />
                         <span>我的</span>
                     </NavLink>
+                    {isAdmin && (
+                        <NavLink to="/app/admin/users" className={({ isActive }) => `tab-item ${isActive ? 'active' : ''}`}>
+                            <IconShield />
+                            <span>管理</span>
+                        </NavLink>
+                    )}
                 </nav>
             )}
         </div>
