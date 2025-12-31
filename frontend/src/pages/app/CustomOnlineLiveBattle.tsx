@@ -114,9 +114,11 @@ export default function CustomOnlineLiveBattle() {
                     ? serverRulesToRuleSet(state.rules)
                     : (state.rules as CustomRuleSet)
 
+                console.debug('[CUSTLIVE] Initial route rules loaded, ruleSet=', rs)
                 setCustomRuleSet(rs)
                 try {
                     const cr = ruleSetToCustomRules(rs)
+                    console.debug('[CUSTLIVE] Converted initial ruleSet -> customRules', cr)
                     setCustomRules(cr)
                 } catch (e) {
                     console.warn('ruleSet 转换为 customRules 失败，继续使用标准规则', e)
@@ -133,8 +135,9 @@ export default function CustomOnlineLiveBattle() {
                         const apiBoard = await boardApi.get(Number(state.boardId))
                         if ((apiBoard as any)?.rules && !customRuleSet) {
                             const rs = serverRulesToRuleSet((apiBoard as any).rules)
-                            setCustomRuleSet(rs)
-                            try { setCustomRules(ruleSetToCustomRules(rs)) } catch {}
+                                console.debug('[CUSTLIVE] Loaded apiBoard.rules -> ruleSet=', rs)
+                                setCustomRuleSet(rs)
+                                try { const cr = ruleSetToCustomRules(rs); console.debug('[CUSTLIVE] Converted apiBoard.ruleSet -> customRules', cr); setCustomRules(cr) } catch {}
                         }
                     } catch (e) {
                         console.warn('加载模板规则失败', e)
@@ -232,9 +235,10 @@ export default function CustomOnlineLiveBattle() {
                                     if (httpBid) {
                                         const apiBoard2 = await boardApi.get(Number(httpBid))
                                         if ((apiBoard2 as any)?.rules) {
-                                            const rs2 = serverRulesToRuleSet((apiBoard2 as any).rules)
-                                            setCustomRuleSet(rs2)
-                                            try { setCustomRules(ruleSetToCustomRules(rs2)) } catch { /* ignore */ }
+                                                const rs2 = serverRulesToRuleSet((apiBoard2 as any).rules)
+                                                console.debug('[CUSTLIVE] Fetched board by id -> ruleSet=', rs2)
+                                                setCustomRuleSet(rs2)
+                                                try { const cr2 = ruleSetToCustomRules(rs2); console.debug('[CUSTLIVE] Converted fetched ruleSet -> customRules', cr2); setCustomRules(cr2) } catch { /* ignore */ }
                                         }
                                     }
                                 }
@@ -454,9 +458,10 @@ export default function CustomOnlineLiveBattle() {
                         }
                         // 无论缓存与否，若尚未设置规则则同步规则
                         if ((apiBoard as any)?.rules && !customRuleSet) {
-                            const rs = serverRulesToRuleSet((apiBoard as any).rules)
-                            setCustomRuleSet(rs)
-                            try { setCustomRules(ruleSetToCustomRules(rs)) } catch { /* ignore */ }
+                                const rs = serverRulesToRuleSet((apiBoard as any).rules)
+                                console.debug('[CUSTLIVE] Joined: loaded initial board rules -> ruleSet=', rs)
+                                setCustomRuleSet(rs)
+                                try { const cr = ruleSetToCustomRules(rs); console.debug('[CUSTLIVE] Joined: converted ruleSet -> customRules', cr); setCustomRules(cr) } catch { /* ignore */ }
                         }
                     } catch (e) {
                         console.warn('加载房间初始模板失败', e)
@@ -476,9 +481,10 @@ export default function CustomOnlineLiveBattle() {
                 try {
                     const tempRules = await battleApi.getRules(roomId)
                     if (tempRules && (tempRules as any).pieceRules) {
-                        const rs = serverRulesToRuleSet(tempRules)
-                        setCustomRuleSet(rs)
-                        try { setCustomRules(ruleSetToCustomRules(rs)) } catch { /* ignore */ }
+                            const rs = serverRulesToRuleSet(tempRules)
+                            console.debug('[CUSTLIVE] Pulled tempRules from battleApi -> ruleSet=', rs)
+                            setCustomRuleSet(rs)
+                            try { const cr = ruleSetToCustomRules(rs); console.debug('[CUSTLIVE] Converted temp ruleSet -> customRules', cr); setCustomRules(cr) } catch { /* ignore */ }
                     }
                 } catch (e) {
                     console.warn('拉取临时规则失败', e)
