@@ -564,7 +564,7 @@ export class CommunityService {
     const created = await this.prisma.report.create({
       data: {
         reporterId: userId,
-        targetType: normalized.toUpperCase(),
+        targetType: normalized.toUpperCase() as any,
         targetId: data.targetId,
         reason: data.reason ?? 'unspecified',
       },

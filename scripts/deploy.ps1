@@ -139,6 +139,8 @@ BACKEND_IMAGE=$BackendImageName
 BACKEND_CONTAINER=$BackendContainer
 DATABASE_URL="$DatabaseUrl"
 JWT_SECRET="$JwtSecret"
+NETWORK_MODE="${NETWORK_MODE:-host}"
+NETWORK_NAME="${NETWORK_NAME:-}"
 
 rm -rf "$REMOTE_WORK" && mkdir -p "$REMOTE_WORK"
 tar -xzf "$ZIP_PATH" -C "$REMOTE_WORK"
@@ -146,14 +148,25 @@ cd "$REMOTE_WORK"
 docker build -t "$BACKEND_IMAGE" .
 old_image=$(docker inspect -f '{{.Image}}' "$BACKEND_CONTAINER" 2>/dev/null || true)
 docker rm -f "$BACKEND_CONTAINER" 2>/dev/null || true
-docker run -d --name "$BACKEND_CONTAINER" --restart unless-stopped --network host \
-    -e DATABASE_URL="$DATABASE_URL" -e JWT_SECRET="$JWT_SECRET" "$BACKEND_IMAGE"
+RUN_NET_ARGS="--network host"
+RUN_PORT_ARGS=""
+if [ "$NETWORK_MODE" = "bridge" ]; then
+    if [ -n "$NETWORK_NAME" ]; then
+        RUN_NET_ARGS="--network $NETWORK_NAME"
+    else
+        RUN_NET_ARGS="--network bridge"
+    fi
+    # Publish backend HTTP port when using bridge mode
+    RUN_PORT_ARGS="-p 3000:3000"
+fi
+docker run -d --name "$BACKEND_CONTAINER" --restart unless-stopped $RUN_NET_ARGS $RUN_PORT_ARGS \
+        -e DATABASE_URL="$DATABASE_URL" -e JWT_SECRET="$JWT_SECRET" "$BACKEND_IMAGE"
 sleep 2
 if [ -z "$(docker ps --filter name=$BACKEND_CONTAINER --filter status=running -q)" ]; then
     echo 'New backend container not running, rolling back...' >&2
     if [ -n "$old_image" ]; then
         docker rm -f "$BACKEND_CONTAINER" 2>/dev/null || true
-        docker run -d --name "$BACKEND_CONTAINER" --restart unless-stopped --network host -e DATABASE_URL="$DATABASE_URL" -e JWT_SECRET="$JWT_SECRET" "$old_image"
+                docker run -d --name "$BACKEND_CONTAINER" --restart unless-stopped $RUN_NET_ARGS $RUN_PORT_ARGS -e DATABASE_URL="$DATABASE_URL" -e JWT_SECRET="$JWT_SECRET" "$old_image"
     fi
     exit 1
 fi
@@ -210,6 +223,10 @@ fi
     $execEnv += 'BACKEND_CONTAINER="' + $BackendContainer + '" '
     $execEnv += 'DATABASE_URL="' + $escapedDb + '" '
     $execEnv += 'JWT_SECRET="' + $escapedJwt + '" '
+    $execEnv += 'NETWORK_MODE="' + $BackendNetworkMode + '" '
+    if ($BackendNetworkMode -eq 'bridge') {
+        $execEnv += 'NETWORK_NAME="' + $BackendDockerNetworkName + '" '
+    }
 
     $sshCmd = "ssh $SshExtraArgs $SshTarget 'sudo chmod +x $RemoteTemp/remote-run-bash.sh; sudo $execEnv $RemoteTemp/remote-run-bash.sh $remoteScriptPath'"
     Run $sshCmd 'remote build image and restart container (via remote-run-bash)'
