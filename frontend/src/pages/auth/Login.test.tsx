@@ -92,6 +92,6 @@ describe('Login page', () => {
         fireEvent.change(passwordInput, { target: { value: 'password123' } })
         fireEvent.click(submitBtn)
 
-        expect(await screen.findByText('网络错误')).toBeInTheDocument()
+        expect(await screen.findByText('网络或跨域配置异常：请检查后端地址和网络连接')).toBeInTheDocument()
     })
 })

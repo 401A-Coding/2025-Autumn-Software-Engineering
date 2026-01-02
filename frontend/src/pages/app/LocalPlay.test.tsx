@@ -38,6 +38,7 @@ describe('LocalPlay page', () => {
     beforeEach(() => {
         vi.clearAllMocks()
         navigateMock.mockClear()
+        mockSaveNew.mockResolvedValue({ savedToServer: true } as any)
     })
 
     it('renders title and exit button', () => {
@@ -75,7 +76,7 @@ describe('LocalPlay page', () => {
         expect(navigateMock).toHaveBeenCalledWith('/app/home')
     })
 
-    it('save and exit persists record and navigates home', () => {
+    it('save and exit persists record and navigates to history', async () => {
         const BoardMock = vi.mocked(Board as any) as any
         const movesHandlers: any[] = []
         BoardMock.mockImplementation(({ onMove }: any) => {
@@ -95,11 +96,11 @@ describe('LocalPlay page', () => {
         const saveBtn = screen.getByRole('button', { name: '保存并退出' })
         fireEvent.click(saveBtn)
 
-        expect(mockSaveNew).toHaveBeenCalledTimes(1)
+        await vi.waitFor(() => expect(mockSaveNew).toHaveBeenCalledTimes(1))
         const arg = mockSaveNew.mock.calls[0][0]
         expect(arg.opponent).toBe('本地')
         expect(Array.isArray(arg.moves)).toBe(true)
         expect(arg.moves.length).toBe(2)
-        expect(navigateMock).toHaveBeenCalledWith('/app/home')
+        await vi.waitFor(() => expect(navigateMock).toHaveBeenCalledWith('/app/history'))
     })
 })
