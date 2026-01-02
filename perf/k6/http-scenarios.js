@@ -2,7 +2,8 @@ import http from 'k6/http';
 import { check, sleep } from 'k6';
 import { Trend, Counter } from 'k6/metrics';
 
-const BASE_URL = __ENV.BASE_URL || 'http://localhost:3000';
+// Default to the shared test server; override via BASE_URL if needed
+const BASE_URL = __ENV.BASE_URL || 'http://101.42.118.61';
 // Nest controllers are prefixed with api/v1; adjust if you have an upstream prefix
 const AUTH_PATH = __ENV.AUTH_PATH || '/api/v1/auth/login';
 const BATTLE_CREATE_PATH = __ENV.BATTLE_CREATE_PATH || '/api/v1/battles';
@@ -15,6 +16,7 @@ const loginLatency = new Trend('auth_latency');
 const battleLatency = new Trend('battle_create_latency');
 const listLatency = new Trend('list_latency');
 const httpErrors = new Counter('http_errors');
+const DEBUG = __ENV.DEBUG === '1' || __ENV.DEBUG === 'true';
 
 export const options = {
     scenarios: {
@@ -39,8 +41,9 @@ export const options = {
 function login() {
     const body = JSON.stringify({
         // API expects phone + password
-        phone: __ENV.PHONE || __ENV.USERNAME || '13000000000',
-        password: __ENV.PASSWORD || 'pass1',
+        // Only allow explicit PHONE env or the known test phone; avoid OS USERNAME overriding phone
+        phone: __ENV.PHONE || '13053083296',
+        password: __ENV.PASSWORD || '123456',
     });
     const res = http.post(`${BASE_URL}${AUTH_PATH}`, body, {
         headers: { 'Content-Type': 'application/json' },
@@ -50,6 +53,9 @@ function login() {
         'auth status 200/201': (r) => r.status === 200 || r.status === 201,
     });
     if (!ok) {
+        if (DEBUG) {
+            console.error(`auth failed status=${res.status} body=${res.body}`);
+        }
         httpErrors.add(1);
         throw new Error(`auth failed status=${res.status}`);
     }
