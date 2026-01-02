@@ -98,6 +98,17 @@ infra/logs/
 infra/docker/.env
 infra/ci-cd/.env
 
+# 性能测试相关忽略 (perf/)
+perf/socketio/node_modules/
+perf/socketio/package-lock.json
+perf/artillery/node_modules/
+perf/artillery/package-lock.json
+perf/k6/node_modules/
+perf/k6/package-lock.json
+perf/**/*.json.gz
+perf/**/report*.json
+perf/**/report*.html
+
 # 编辑器配置（可选，根据团队情况保留）
 .idea/
 .vscode/
