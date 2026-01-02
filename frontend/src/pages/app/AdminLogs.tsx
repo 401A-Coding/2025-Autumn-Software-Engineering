@@ -25,12 +25,12 @@ export default function AdminLogs() {
             {loading ? (
                 <div>加载中…</div>
             ) : (
-                <table className="w-full table-auto">
+                <table className="w-full table-auto admin-logs-table">
                     <thead>
                         <tr>
                             <th>id</th>
-                            <th>管理员</th>
-                            <th>操作</th>
+                            <th className="cell--nowrap">管理员</th>
+                            <th className="cell--nowrap">操作</th>
                             <th>目标</th>
                             <th>时间</th>
                             <th>描述</th>
@@ -40,8 +40,8 @@ export default function AdminLogs() {
                         {logs.map((l) => (
                             <tr key={l.id}>
                                 <td>{l.id}</td>
-                                <td>{l.adminId}</td>
-                                <td>{formatAction(l.action)}</td>
+                                <td className="cell--nowrap">{l.adminId}</td>
+                                <td className="cell--nowrap">{formatAction(l.action)}</td>
                                 <td>{l.targetType}:{l.targetId}</td>
                                 <td>{new Date(l.createdAt).toLocaleString()}</td>
                                 <td>{formatDescription(l.action, l.payload)}</td>

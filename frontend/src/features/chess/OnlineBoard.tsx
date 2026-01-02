@@ -187,7 +187,7 @@ export default function OnlineBoard({ moves, turnIndex, players, myUserId, onAtt
     const isFlipped = mySide === 'black'
 
     return (
-        <div>
+        <div className="livebattle-board">
             {inCheck && !gameOver && (
                 <div className="incheck-banner pulse" style={{ marginBottom: 8, textAlign: 'center' }}>⚠️ 将军！</div>
             )}

@@ -97,3 +97,12 @@
 .admin-search input {
     min-width: 0
 }
+
+/* Admin logs table: keep admin and action columns on one line */
+.admin-logs-table th.cell--nowrap,
+.admin-logs-table td.cell--nowrap {
+    white-space: nowrap;
+    max-width: 220px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}

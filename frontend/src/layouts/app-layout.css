@@ -13,7 +13,7 @@
 }
 
 /* Make header content adapt on small screens */
-@media (max-width: 420px) {
+@media (max-width: 450px) {
     .header-bar {
         padding-left: 8px;
         padding-right: 8px;

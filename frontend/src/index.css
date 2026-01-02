@@ -153,7 +153,7 @@ a:hover {
 }
 
 /* Smaller header on narrow screens */
-@media (max-width: 420px) {
+@media (max-width: 450px) {
   :root {
     --header-height: 48px;
   }
@@ -344,7 +344,7 @@ a:hover {
 }
 
 /* Global small-screen edge removal (works without MobileFrame) */
-@media (max-width: 420px) {
+@media (max-width: 450px) {
   .page-container {
     max-width: 100% !important;
     margin-left: 0 !important;
