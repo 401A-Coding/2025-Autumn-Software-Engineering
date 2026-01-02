@@ -42,10 +42,15 @@ function kingFacing(pieces: Piece[]) {
   return between ? null : { x };
 }
 
+const ELEPHANT_SQUARES: Record<string, Set<string>> = {
+  red: new Set(['0,7', '2,9', '4,7', '6,9', '8,7', '2,5', '6,5']),
+  black: new Set(['0,2', '2,0', '4,2', '6,0', '8,2', '2,4', '6,4']),
+};
+
 function isElephantSquare(side: Side | string, x: number, y: number) {
-  if (x % 2 !== 0) return false;
-  if (String(side) === 'red') return y % 2 === 1 && y >= 5;
-  return y % 2 === 0 && y <= 4;
+  const key = `${x},${y}`;
+  const bucket = ELEPHANT_SQUARES[String(side)] ?? new Set<string>();
+  return bucket.has(key);
 }
 
 function isSoldierPositionLegal(side: Side | string, y: number) {

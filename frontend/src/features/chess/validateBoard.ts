@@ -35,13 +35,14 @@ function kingFacing(pieces: Piece[]) {
     return between ? null : { x }
 }
 
+const ELEPHANT_SQUARES: Record<Side, Set<string>> = {
+    // legal elephant anchor points; 0-based board with red at bottom (y=9)
+    red: new Set(['0,7', '2,9', '4,7', '6,9', '8,7', '2,5', '6,5']),
+    black: new Set(['0,2', '2,0', '4,2', '6,0', '8,2', '2,4', '6,4']),
+}
+
 function isElephantSquare(side: Side, x: number, y: number) {
-    // Elephant moves two points diagonally; parity constraint + own-half
-    // For red initial elephants y parity is odd (9), x even; red half y>=5
-    // For black initial elephants y parity is even (0), x even; black half y<=4
-    if (x % 2 !== 0) return false
-    if (side === 'red') return (y % 2 === 1) && y >= 5
-    return (y % 2 === 0) && y <= 4
+    return ELEPHANT_SQUARES[side].has(`${x},${y}`)
 }
 
 function isSoldierPositionLegal(side: Side, y: number) {
