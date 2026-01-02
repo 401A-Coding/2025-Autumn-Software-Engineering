@@ -600,7 +600,7 @@ export class BattlesService {
       const bid = pool.shift()!;
       const b = this.battles.get(bid);
       if (b && b.status === 'waiting' && !b.players.includes(userId)) {
-        this.joinBattle(userId, bid);
+        await this.joinBattle(userId, bid);
         this.waitingByMode.set(mode, pool);
         return { battleId: bid };
       }
