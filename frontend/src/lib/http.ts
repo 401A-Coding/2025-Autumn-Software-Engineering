@@ -54,7 +54,10 @@ http.interceptors.response.use(
     async (error: AxiosError) => {
         const response = error.response
         const original = (error.config || {}) as AxiosRequestConfig & { _retry?: boolean }
-        if (response?.status === 401 && !original._retry) {
+        const url = String(original?.url || '')
+        const isAuthEndpoint = /\/api\/v1\/auth\/(login|register|sms|reset|request-reset)/.test(url)
+        // 401 自动刷新仅在非认证端点触发，避免登录/注册时被强制重定向导致错误提示一闪而过
+        if (response?.status === 401 && !original._retry && !isAuthEndpoint) {
             original._retry = true
             try {
                 if (!refreshing) refreshing = runRefreshOnce().finally(() => { refreshing = null })
@@ -71,15 +74,25 @@ http.interceptors.response.use(
         }
         const norm: any = error
         norm.status = response?.status
-        // Try to extract server-provided message
+        // Try to extract server-provided code/message from envelope or raw error body
         try {
             const data: any = response?.data
             if (data && typeof data === 'object') {
+                // If the backend returned the unified envelope even for error cases
+                if ('code' in data) norm.code = (data as any).code
                 if ('message' in data) {
                     const m = (data as any).message
                     norm.serverMessage = Array.isArray(m) ? m.join('；') : m
                 }
                 if ('error' in data) norm.serverMessage = ((data as any).error?.message) || norm.serverMessage
+                // Extract detailed validation messages for 400 from envelope data.details
+                const envData = (data as any).data
+                if (envData && typeof envData === 'object' && Array.isArray(envData.details)) {
+                    const details = (envData.details as unknown[]).filter((d): d is string => typeof d === 'string')
+                    if (details.length) {
+                        norm.serverMessage = details.join('；')
+                    }
+                }
             } else if (typeof data === 'string') {
                 norm.serverMessage = data
             }

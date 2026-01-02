@@ -17,7 +17,7 @@ export class UserService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
-  ) {}
+  ) { }
 
   // 请求找回密码（开发环境：生成临时 requestId 并返回；真实环境应通过短信/邮件验证）
   async requestPasswordReset(phone: string) {
@@ -271,11 +271,35 @@ export class UserService {
         role: true,
         createdAt: true,
         bio: true,
+        isBanned: true,
+        bannedUntil: true,
       },
     });
     if (!user) throw new UnauthorizedException('用户不存在');
     const { username, ...rest } = user;
     return { ...rest, nickname: username, bio: user.bio ?? null };
+  }
+
+  // 获取针对当前用户或其内容的管理员/版主操作记录（用于向用户展示处理结果与原因）
+  async getModerationActionsForUser(userId: number) {
+    // 获取用户的帖子与评论 id 列表（限制数量以避免过大查询）
+    const [posts, comments] = await Promise.all([
+      this.prisma.post.findMany({ where: { authorId: userId }, select: { id: true }, take: 1000 }),
+      this.prisma.communityComment.findMany({ where: { authorId: userId }, select: { id: true }, take: 1000 }),
+    ]);
+    const postIds = posts.map(p => p.id);
+    const commentIds = comments.map(c => c.id);
+
+    const where: any = {
+      OR: [
+        { targetType: 'USER', targetId: userId },
+      ],
+    } as any;
+    if (postIds.length) where.OR.push({ targetType: 'POST', targetId: { in: postIds } });
+    if (commentIds.length) where.OR.push({ targetType: 'COMMENT', targetId: { in: commentIds } });
+
+    const actions = await this.prisma.moderatorAction.findMany({ where, orderBy: { createdAt: 'desc' }, take: 200 });
+    return actions;
   }
 
   // 获取任意用户的公开信息（不返回手机号、邮箱等敏感字段）

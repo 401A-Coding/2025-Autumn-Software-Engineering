@@ -1,0 +1,7 @@
+import PostDetail from '../../features/community/PostDetail'
+
+export default function AdminPostDetail() {
+    // Reuse community PostDetail component inside admin layout.
+    // PostDetail reads postId from params and displays post; admin-only controls may be added later.
+    return <PostDetail />
+}

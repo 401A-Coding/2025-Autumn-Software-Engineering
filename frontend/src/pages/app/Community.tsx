@@ -125,7 +125,17 @@ export default function Community() {
 
         actions.push({
             label: '举报',
-            onClick: () => alert('举报功能即将推出'),
+            onClick: async () => {
+                try {
+                    const reason = window.prompt('请输入举报原因（可选）', '') || undefined
+                    if (reason === undefined) return
+                    await communityApi.report({ targetType: 'post', targetId: post.id, reason } as any)
+                    alert('感谢您的举报，我们会尽快处理')
+                } catch (e: any) {
+                    console.error('Report failed', e)
+                    alert('提交举报失败')
+                }
+            },
         })
 
         return actions

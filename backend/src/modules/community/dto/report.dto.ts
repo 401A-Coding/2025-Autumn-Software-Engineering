@@ -1,8 +1,9 @@
-import { IsInt, IsOptional, IsString } from 'class-validator';
+import { IsInt, IsOptional, IsString, IsIn } from 'class-validator';
 
 export class ReportCreateDto {
   @IsString()
-  targetType!: string; // share|post|comment|record
+  @IsIn(['post', 'comment', 'record'])
+  targetType!: string; // expected: 'post' | 'comment' | 'record' (lowercase)
 
   @IsInt()
   targetId!: number;

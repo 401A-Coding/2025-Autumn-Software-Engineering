@@ -83,7 +83,7 @@ a:hover {
 }
 
 .header-bar {
-  height: 56px;
+  height: var(--header-height);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -129,10 +129,43 @@ a:hover {
 
 .page-container {
   padding: 16px;
-  padding-top: 56px;
+  padding-top: var(--header-height);
   padding-bottom: 80px;
   max-width: var(--page-max-width);
   margin: 0 auto;
+}
+
+/* Ensure admin tables show horizontal text for headers and cells */
+.table-horizontal th,
+.table-horizontal td {
+  writing-mode: horizontal-tb;
+  text-orientation: mixed;
+  white-space: nowrap;
+  /* keep author/title on one line */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: middle;
+}
+
+.table-horizontal td>div,
+.table-horizontal td>span {
+  display: inline-block;
+}
+
+/* Smaller header on narrow screens */
+@media (max-width: 450px) {
+  :root {
+    --header-height: 48px;
+  }
+
+  .header-title {
+    font-size: 16px;
+  }
+
+  .btn-ghost {
+    padding: 6px 8px;
+    border-radius: 8px;
+  }
 }
 
 /* 等待/加载的居中与动画（象棋风配色） */
@@ -311,7 +344,7 @@ a:hover {
 }
 
 /* Global small-screen edge removal (works without MobileFrame) */
-@media (max-width: 420px) {
+@media (max-width: 450px) {
   .page-container {
     max-width: 100% !important;
     margin-left: 0 !important;

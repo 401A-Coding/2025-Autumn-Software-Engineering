@@ -1,10 +1,10 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { Prisma, ShareType } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 
 @Injectable()
 export class CommunityService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   // Build a lightweight record snapshot so posts can render embeds without hitting record permissions
   private async buildRecordSnapshot(recordId: number, ownerId?: number) {
@@ -72,10 +72,10 @@ export class CommunityService {
       ];
     const tagFilter = tag
       ? {
-          tags: {
-            some: { tag: { name: { equals: tag, mode: 'insensitive' } } },
-          },
-        }
+        tags: {
+          some: { tag: { name: { equals: tag, mode: 'insensitive' } } },
+        },
+      }
       : {};
 
     const orderBy: any =
@@ -127,10 +127,10 @@ export class CommunityService {
           p.shareType === 'NONE'
             ? null
             : {
-                refType: String(p.shareType).toLowerCase(),
-                refId: p.shareRefId ?? 0,
-                snapshot,
-              },
+              refType: String(p.shareType).toLowerCase(),
+              refId: p.shareRefId ?? 0,
+              snapshot,
+            },
         createdAt: p.createdAt,
         likeCount: p._count.likes,
         commentCount: p._count.comments,
@@ -142,6 +142,21 @@ export class CommunityService {
   }
 
   async createPost(userId: number, data: any) {
+    // 禁止被封禁用户发帖
+    try {
+      const u = await this.prisma.user.findUnique({ where: { id: userId }, select: { isBanned: true, bannedUntil: true } });
+      if (u?.isBanned) {
+        const until = u.bannedUntil ? new Date(u.bannedUntil).getTime() : null;
+        if (!until || until > Date.now()) {
+          throw new ForbiddenException('账号被封禁，无法发帖');
+        } else {
+          // expired: auto clear
+          try { await this.prisma.user.update({ where: { id: userId }, data: { isBanned: false, bannedUntil: null } }); } catch { }
+        }
+      }
+    } catch (e) {
+      if (e instanceof ForbiddenException) throw e;
+    }
     const shareType = (data.shareType?.toUpperCase() ?? 'NONE') as ShareType;
     const shareRefId = data.shareRefId ?? null;
     const shareSnap =
@@ -222,10 +237,10 @@ export class CommunityService {
         p.shareType === 'NONE'
           ? null
           : {
-              refType: String(p.shareType).toLowerCase(),
-              refId: p.shareRefId ?? 0,
-              snapshot: shareSnapshot ?? null,
-            },
+            refType: String(p.shareType).toLowerCase(),
+            refId: p.shareRefId ?? 0,
+            snapshot: shareSnapshot ?? null,
+          },
       attachments:
         p.attachments?.map((a: any) => ({
           url: a.url,
@@ -293,16 +308,16 @@ export class CommunityService {
         content: patch.content ?? post.content,
         ...(shouldUpdateShare
           ? {
-              shareType: nextShareType,
-              shareRefId:
-                nextShareType === 'NONE' ? null : (nextShareRefId ?? null),
-              shareSnap:
-                nextShareType === 'NONE'
-                  ? Prisma.JsonNull
-                  : nextShareType === 'RECORD' && nextShareRefId
-                    ? (nextShareSnap ?? Prisma.JsonNull)
-                    : Prisma.JsonNull,
-            }
+            shareType: nextShareType,
+            shareRefId:
+              nextShareType === 'NONE' ? null : (nextShareRefId ?? null),
+            shareSnap:
+              nextShareType === 'NONE'
+                ? Prisma.JsonNull
+                : nextShareType === 'RECORD' && nextShareRefId
+                  ? (nextShareSnap ?? Prisma.JsonNull)
+                  : Prisma.JsonNull,
+          }
           : {}),
       },
       include: { tags: { include: { tag: true } } },
@@ -352,25 +367,25 @@ export class CommunityService {
     // 取出每个顶级评论下的所有楼中楼：直接子回复 + 子回复的子回复
     const allReplies = topIds.length
       ? await this.prisma.communityComment.findMany({
-          where: {
-            OR: [
-              { parentId: { in: topIds } },
-              { parent: { parentId: { in: topIds } } },
-            ],
-          },
-          orderBy: { createdAt: 'asc' },
-          include: {
-            author: { select: { id: true, username: true, avatarUrl: true } },
-            parent: {
-              select: {
-                id: true,
-                parentId: true,
-                author: { select: { id: true, username: true } },
-              },
+        where: {
+          OR: [
+            { parentId: { in: topIds } },
+            { parent: { parentId: { in: topIds } } },
+          ],
+        },
+        orderBy: { createdAt: 'asc' },
+        include: {
+          author: { select: { id: true, username: true, avatarUrl: true } },
+          parent: {
+            select: {
+              id: true,
+              parentId: true,
+              author: { select: { id: true, username: true } },
             },
-            _count: { select: { likes: true } },
           },
-        })
+          _count: { select: { likes: true } },
+        },
+      })
       : [];
 
     const repliesByRoot: Record<number, any[]> = {};
@@ -419,6 +434,20 @@ export class CommunityService {
   }
 
   async addComment(userId: number, postId: number, body: any) {
+    // 禁止被封禁用户评论
+    try {
+      const u = await this.prisma.user.findUnique({ where: { id: userId }, select: { isBanned: true, bannedUntil: true } });
+      if (u?.isBanned) {
+        const until = u.bannedUntil ? new Date(u.bannedUntil).getTime() : null;
+        if (!until || until > Date.now()) {
+          throw new ForbiddenException('账号被封禁，无法评论');
+        } else {
+          try { await this.prisma.user.update({ where: { id: userId }, data: { isBanned: false, bannedUntil: null } }); } catch { }
+        }
+      }
+    } catch (e) {
+      if (e instanceof ForbiddenException) throw e;
+    }
     const created = await this.prisma.communityComment.create({
       data: {
         postId,
@@ -486,6 +515,33 @@ export class CommunityService {
     return { ok: true };
   }
 
+  // Admin-level comment deletion (soft delete) with optional reason
+  async adminDeleteComment(adminId: number, commentId: number, reason?: string) {
+    const comment = await this.prisma.communityComment.findUnique({ where: { id: commentId } });
+    if (!comment) return { ok: false, reason: 'not_found' };
+    if (comment.deletedAt) return { ok: false, reason: 'already_deleted' };
+
+    await this.prisma.communityComment.update({ where: { id: commentId }, data: { deletedAt: new Date() } });
+
+    // record moderator action for audit and user visibility
+    try {
+      await this.prisma.moderatorAction.create({
+        data: {
+          moderatorId: adminId,
+          actionType: 'remove',
+          targetType: 'COMMENT',
+          targetId: commentId,
+          reason: reason ?? null,
+          metadata: {},
+        },
+      });
+    } catch (e) {
+      console.error('Failed to write moderator action', e);
+    }
+
+    return { ok: true };
+  }
+
   async bookmarkPost(userId: number, postId: number) {
     await this.prisma.postBookmark.upsert({
       where: { postId_userId: { postId, userId } },
@@ -501,10 +557,14 @@ export class CommunityService {
   }
 
   async createReport(userId: number, data: any) {
+    const raw = (data.targetType ?? 'post')
+    const normalized = String(raw).toLowerCase()
+    const allowed = ['post', 'comment', 'record']
+    if (!allowed.includes(normalized)) throw new BadRequestException('invalid targetType')
     const created = await this.prisma.report.create({
       data: {
         reporterId: userId,
-        targetType: (data.targetType ?? 'POST').toUpperCase(),
+        targetType: normalized.toUpperCase() as any,
         targetId: data.targetId,
         reason: data.reason ?? 'unspecified',
       },
@@ -529,10 +589,10 @@ export class CommunityService {
       ];
     const tagFilter = tag
       ? {
-          tags: {
-            some: { tag: { name: { equals: tag, mode: 'insensitive' } } },
-          },
-        }
+        tags: {
+          some: { tag: { name: { equals: tag, mode: 'insensitive' } } },
+        },
+      }
       : {};
     const [items, total] = await this.prisma.$transaction([
       this.prisma.post.findMany({

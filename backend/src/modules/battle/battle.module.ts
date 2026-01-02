@@ -9,12 +9,14 @@ import { MetricsModule } from '../metrics/metrics.module';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { RecordModule } from '../record/record.module';
 import { BoardModule } from '../board/board.module';
+import { PrismaModule } from '../../prisma/prisma.module';
 
 @Module({
   imports: [
     JwtModule.register({
       secret: process.env.JWT_SECRET || 'dev-secret',
     }),
+    PrismaModule,
     MetricsModule,
     EventEmitterModule.forRoot(),
     forwardRef(() => RecordModule),
@@ -24,4 +26,4 @@ import { BoardModule } from '../board/board.module';
   providers: [BattlesService, BattlesGateway, ChessEngineService, JwtAuthGuard],
   exports: [BattlesService],
 })
-export class BattleModule {}
+export class BattleModule { }

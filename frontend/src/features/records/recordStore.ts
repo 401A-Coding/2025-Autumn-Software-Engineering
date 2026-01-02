@@ -158,9 +158,9 @@ export const recordStore = {
             // 使用 axios 实例以触发 refresh token 流程（若需要）并正确处理拦截器
             try { console.debug('[recordStore] first move sample', JSON.stringify(body.moves && body.moves[0])) } catch { }
             const res = await http.post('/api/v1/records', body)
-            const envelope = res?.data
-            created = envelope?.data // 统一响应包：{ code, message, data }
-            savedToServer = !!created && (envelope?.code === 0 || envelope?.code == null)
+            // http 拦截器已在 code===0 时解包为 data，因此此处直接取 data
+            created = res?.data
+            savedToServer = !!created
             try { console.debug('[recordStore] server save result', savedToServer, created?.id) } catch { }
         } catch (e: any) {
             // 后端保存失败（可能未登录或网络问题），将降级为仅本地保存
