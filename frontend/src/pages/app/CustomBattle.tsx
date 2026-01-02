@@ -228,7 +228,7 @@ export default function CustomBattle() {
                         if (modifiedKeys.length === 0) return null
                         return (
                             <div className="mt-8">
-                                <div className="text-13 fw-600 mb-6">已修改规则的棋子</div>
+                                <div className="text-13 fw-600 mb-6">棋子规则</div>
                                 <div className="row gap-8 wrap">
                                     {modifiedKeys.map(k => (
                                         <button
@@ -251,34 +251,9 @@ export default function CustomBattle() {
                 {/* 侧栏与棋盘并列（在窄屏隐藏侧栏） */}
                     <aside className="col gap-12 flex-1 minw-260 hide-on-mobile">
                         <div className="pad-12 bg-muted rounded-8">
-                            <div className="fw-700 mb-8">规则摘要</div>
-                            <div className="text-13 text-gray">{ruleSet.name || '自定义规则'}</div>
+                            <div className="fw-700 mb-8">标准规则基线</div>
+                            <div className="text-13 text-gray">{ruleSet.name || '标准规则基线'}</div>
                         </div>
-
-                        <details className="pad-12 bg-muted rounded-8">
-                            <summary className="cursor-pointer fw-600">📋 详细规则配置</summary>
-                            <div className="grid-auto-120 gap-8 mt-8">
-                                {Object.entries(ruleSet.pieceRules).map(([pieceType, rule]) => {
-                                    if (!rule) return null
-                                    const pieceNames: Record<string, string> = {
-                                        general: '将/帅',
-                                        advisor: '士/仕',
-                                        elephant: '象/相',
-                                        horse: '马/马',
-                                        rook: '车/车',
-                                        cannon: '炮/炮',
-                                        soldier: '兵/卒',
-                                    }
-                                    const movePatterns = rule?.movePatterns
-                                    return (
-                                        <div key={pieceType} className="pad-8 bg-white rounded-6 text-12">
-                                            <div className="fw-600">{pieceNames[pieceType] || rule.name}</div>
-                                            <div className="text-12 muted">{movePatterns ? `${movePatterns.length} 种走法` : ''}</div>
-                                        </div>
-                                    )
-                                })}
-                            </div>
-                        </details>
                     </aside>
                 </div>
 

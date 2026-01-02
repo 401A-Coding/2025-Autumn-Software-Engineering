@@ -111,12 +111,19 @@ export function generateCustomMoves(board: Board, from: Pos, customRules?: Custo
                             }
                         }
                     } else {
-                        if (pattern.captureOnly) {
-                            if (isEnemy) res.push({ x: tx, y: ty })
-                        } else if (pattern.moveOnly) {
-                            if (!canJump) break
+                        // 对于炮：除非模式显式声明 obstacleCount，否则不得吃子
+                        if (piece.type === 'cannon') {
+                            // 无 path.obstacleCount 的普通碰子视为阻挡
+                            if (!pathCondLocal) { if (!canJump) break }
+                            else { if (isEnemy) res.push({ x: tx, y: ty }) }
                         } else {
-                            if (isEnemy) res.push({ x: tx, y: ty })
+                            if (pattern.captureOnly) {
+                                if (isEnemy) res.push({ x: tx, y: ty })
+                            } else if (pattern.moveOnly) {
+                                if (!canJump) break
+                            } else {
+                                if (isEnemy) res.push({ x: tx, y: ty })
+                            }
                         }
                     }
                 } else {
@@ -170,7 +177,7 @@ export function generateCustomMoves(board: Board, from: Pos, customRules?: Custo
         }
     }
     
-    // 不可变更的炮吃子：始终允许“隔一个子直线吃到第一个敌子”
+    // 不可变更的炮吃子：始终允许“隔一个子直线吃到第一个敌子”；同时禁止炮使用普通的“遇子即吃”行为
     if (piece.type === 'cannon') {
         const addCapture = (dx: number, dy: number) => {
             let x = from.x + dx, y = from.y + dy, jumped = false

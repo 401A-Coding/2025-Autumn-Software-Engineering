@@ -146,12 +146,22 @@ export function generateMovesFromRules(
     
     if (!piece) return moves
 
-    // 合并普通 movePatterns 与 captureRules.capturePattern（如果存在），以确保
-    // 像炮这样的吃子模式不会因为被放在 captureRules 中而被忽略。
+    // 合并普通 movePatterns 与 captureRules.capturePattern（如果存在）。
+    // 对于炮（cannon）强制规则：
+    // - 保留其移动模式（非吃子部分）
+    // - 屏蔽来自外部规则的任何直接吃子模式（只能通过隔子吃实现）
     const allPatterns: MovePattern[] = []
-    if (ruleConfig.movePatterns && ruleConfig.movePatterns.length) allPatterns.push(...ruleConfig.movePatterns)
-    if (ruleConfig.captureRules && Array.isArray((ruleConfig as any).captureRules.capturePattern)) {
-        allPatterns.push(...((ruleConfig as any).captureRules.capturePattern as MovePattern[]))
+    if (piece.type === 'cannon') {
+        if (ruleConfig.movePatterns && ruleConfig.movePatterns.length) {
+            // 仅收集非 captureOnly 的移动模式
+            allPatterns.push(...ruleConfig.movePatterns.filter(p => !(p.captureOnly === true)))
+        }
+        // 不直接合并 captureRules；炮的捕吃由内核注入的隔子吃模式负责
+    } else {
+        if (ruleConfig.movePatterns && ruleConfig.movePatterns.length) allPatterns.push(...ruleConfig.movePatterns)
+        if (ruleConfig.captureRules && Array.isArray((ruleConfig as any).captureRules.capturePattern)) {
+            allPatterns.push(...((ruleConfig as any).captureRules.capturePattern as MovePattern[]))
+        }
     }
 
     // 不可变更的炮吃子：无论外部规则如何配置，都注入炮的隔子吃（直线、要求 obstacleCount=1）
