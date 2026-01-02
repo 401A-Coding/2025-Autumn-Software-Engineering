@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom'
 export default function AdminUsers() {
     const [users, setUsers] = useState<any[]>([])
     const [loading, setLoading] = useState(false)
-    const [pending, setPending] = useState<Record<number, boolean>>({})
+    const [, setPending] = useState<Record<number, boolean>>({})
     const [currentUserId, setCurrentUserId] = useState<number | null>(null)
     const [query, setQuery] = useState('')
     const navigate = useNavigate()

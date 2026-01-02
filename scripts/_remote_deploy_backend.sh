@@ -12,6 +12,10 @@ BACKEND_CONTAINER=${BACKEND_CONTAINER:-chess-backend}
 DATABASE_URL=${DATABASE_URL:-"postgresql://postgres:postgres@127.0.0.1:5432/mydb?schema=public"}
 JWT_SECRET=${JWT_SECRET:-}
 
+# Networking options
+NETWORK_MODE=${NETWORK_MODE:-host}
+NETWORK_NAME=${NETWORK_NAME:-}
+
 rm -rf "$REMOTE_WORK" && mkdir -p "$REMOTE_WORK"
 
 tar -xzf "$ZIP_PATH" -C "$REMOTE_WORK"
@@ -40,8 +44,19 @@ old_image=$(docker inspect -f '{{.Image}}' "$BACKEND_CONTAINER" 2>/dev/null || t
 
 docker rm -f "$BACKEND_CONTAINER" 2>/dev/null || true
 
-docker run -d --name "$BACKEND_CONTAINER" --restart unless-stopped --network host \
-  -e DATABASE_URL="$DATABASE_URL" -e JWT_SECRET="$JWT_SECRET" "$BACKEND_IMAGE"
+if [ "$NETWORK_MODE" = "bridge" ]; then
+  if [ -z "$NETWORK_NAME" ]; then
+    echo "[remote] NETWORK_MODE=bridge requires NETWORK_NAME" >&2
+    exit 1
+  fi
+  echo "[remote] starting container on bridge network '$NETWORK_NAME' and publishing port 3000"
+  docker run -d --name "$BACKEND_CONTAINER" --restart unless-stopped --network "$NETWORK_NAME" -p 3000:3000 \
+    -e DATABASE_URL="$DATABASE_URL" -e JWT_SECRET="$JWT_SECRET" "$BACKEND_IMAGE"
+else
+  echo "[remote] starting container on host network"
+  docker run -d --name "$BACKEND_CONTAINER" --restart unless-stopped --network host \
+    -e DATABASE_URL="$DATABASE_URL" -e JWT_SECRET="$JWT_SECRET" "$BACKEND_IMAGE"
+fi
 
 sleep 5
 
@@ -70,7 +85,11 @@ else
   echo "New backend container missing /docs/openapi.yaml after repair, rolling back..." >&2
   if [ -n "$old_image" ]; then
     docker rm -f "$BACKEND_CONTAINER" 2>/dev/null || true
-    docker run -d --name "$BACKEND_CONTAINER" --restart unless-stopped --network host -e DATABASE_URL="$DATABASE_URL" -e JWT_SECRET="$JWT_SECRET" "$old_image"
+    if [ "$NETWORK_MODE" = "bridge" ]; then
+      docker run -d --name "$BACKEND_CONTAINER" --restart unless-stopped --network "$NETWORK_NAME" -p 3000:3000 -e DATABASE_URL="$DATABASE_URL" -e JWT_SECRET="$JWT_SECRET" "$old_image"
+    else
+      docker run -d --name "$BACKEND_CONTAINER" --restart unless-stopped --network host -e DATABASE_URL="$DATABASE_URL" -e JWT_SECRET="$JWT_SECRET" "$old_image"
+    fi
   fi
   exit 1
 fi
@@ -79,7 +98,11 @@ if [ -z "$(docker ps --filter name=$BACKEND_CONTAINER --filter status=running -q
   echo 'New backend container not running, rolling back...' >&2
   if [ -n "$old_image" ]; then
     docker rm -f "$BACKEND_CONTAINER" 2>/dev/null || true
-    docker run -d --name "$BACKEND_CONTAINER" --restart unless-stopped --network host -e DATABASE_URL="$DATABASE_URL" -e JWT_SECRET="$JWT_SECRET" "$old_image"
+    if [ "$NETWORK_MODE" = "bridge" ]; then
+      docker run -d --name "$BACKEND_CONTAINER" --restart unless-stopped --network "$NETWORK_NAME" -p 3000:3000 -e DATABASE_URL="$DATABASE_URL" -e JWT_SECRET="$JWT_SECRET" "$old_image"
+    else
+      docker run -d --name "$BACKEND_CONTAINER" --restart unless-stopped --network host -e DATABASE_URL="$DATABASE_URL" -e JWT_SECRET="$JWT_SECRET" "$old_image"
+    fi
   fi
   exit 1
 fi

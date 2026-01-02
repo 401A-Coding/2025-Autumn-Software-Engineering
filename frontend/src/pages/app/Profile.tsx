@@ -406,29 +406,6 @@ function formatModAction(action: string) {
     }
 }
 
-function formatModDescription(action: string, payload: any) {
-    payload = payload || {}
-    try {
-        switch (action) {
-            case 'ban_user': {
-                const days = payload.days
-                const reason = payload.reason
-                const when = days ? `封禁 ${days} 天` : '永久封禁'
-                return reason ? `${when}（原因：${reason}）` : when
-            }
-            case 'unban_user': return '账号已解除封禁'
-            case 'remove_post': return payload.reason ? `帖子被删除（原因：${payload.reason}）` : '帖子被删除'
-            case 'restore_post': return '帖子已恢复'
-            case 'remove_comment': return payload.reason ? `评论被删除（原因：${payload.reason}）` : '评论被删除'
-            default: {
-                const s = JSON.stringify(payload)
-                return s === '{}' ? '-' : s
-            }
-        }
-    } catch (e) {
-        return '-'
-    }
-}
 
 function formatModActionWithPayload(action: string, payload: any) {
     // Combine short action label with important payload info (e.g., ban days)
