@@ -596,7 +596,7 @@
 }
 
 /* Slight typography reduction on very small screens */
-@media (max-width: 400px) {
+@media (max-width: 450px) {
     .board-toolbar {
         font-size: 15px;
     }
@@ -621,14 +621,14 @@
 @media (max-width: 500px) {
     .local-play .board {
         /* stronger padding deduction + lower cap to fit small phones */
-        --cell-size: clamp(24px, calc((100vw - 80px) / 9), 40px) !important;
+        --cell-size: clamp(26px, calc((100vw - 80px) / 9), 40px) !important;
     }
 }
 
 @media (max-width: 500px) {
     .livebattle-board .board {
         /* stronger padding deduction + lower cap to fit small phones */
-        --cell-size: clamp(28px, calc((100vw - 80px) / 9), 40px) !important;
+        --cell-size: clamp(28px, calc((100vw - 60px) / 9), 40px) !important;
     }
 }
 
@@ -636,7 +636,7 @@
 @media (max-width: 500px) {
     .custom-editor .board {
         /* slightly aggressive than default mobile: larger deduction and scale */
-        --cell-size: clamp(24px, calc(((100vw - 80px) / 9) * 0.85), 40px) !important;
+        --cell-size: clamp(26px, calc(((100vw - 80px) / 9) * 0.88), 40px) !important;
     }
 }
 
@@ -648,7 +648,7 @@
 @media (max-width: 600px) {
     .community-board .board {
         /* community: shrink earlier and faster */
-        --cell-size: clamp(18px, calc(((100vw - 80px) / 9) * 0.70), 40px) !important;
+        --cell-size: clamp(18px, calc(((100vw - 80px) / 9) * 0.75), 40px) !important;
     }
 }
 

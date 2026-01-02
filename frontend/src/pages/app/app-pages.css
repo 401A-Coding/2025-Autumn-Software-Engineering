@@ -448,7 +448,7 @@
     }
 }
 
-@media (max-width: 420px) {
+@media (max-width: 450px) {
     .topbar-sticky .search-input-full {
         padding: 6px 6px;
         font-size: 13px;

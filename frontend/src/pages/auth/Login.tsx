@@ -34,9 +34,9 @@ export default function Login() {
             }
             navigate('/app/home', { replace: true })
         } catch (e: any) {
-            // 更明确的失败原因映射
+            // 更明确的失败原因映射（避免展示技术性后端报错）
             const status: number | undefined = e?.status ?? e?.response?.status
-            let msg = e?.serverMessage || e?.message || '登录失败'
+            let msg = '登录失败'
             if (status === 401) msg = '账号或密码错误，请确认后重试'
             else if (status === 400 || status === 422) msg = '请求参数有误：请检查手机号格式与密码长度'
             else if (status === 429) msg = '请求过于频繁，请稍后再试'

@@ -40,23 +40,27 @@ export default function Register() {
         } catch (err: any) {
             // 将服务端/网络错误转换为明确提示
             const status: number | undefined = err?.status ?? err?.response?.status
-            const serverMsg: string | undefined = err?.serverMessage
-            let msg = serverMsg || err?.message || '注册失败'
-            if (status === 409) msg = '该手机号已注册，请直接登录或更换手机号'
-            else if (status === 400) {
-                // 部分后端会用 400 表示唯一约束冲突或“已注册”
-                const lower = (serverMsg || '').toLowerCase()
-                if (/已注册|已存在|存在|重复|duplicate|unique|used/.test(lower)) {
-                    msg = '该手机号已注册，请直接登录或更换手机号'
-                } else {
-                    msg = '请求参数有误：请检查手机号格式与密码长度'
-                }
+            const serverMsg: string = String(err?.serverMessage || '')
+            const lower = serverMsg.toLowerCase()
+            const code: string | undefined = err?.code
+            let msg = '注册失败'
+            // 唯一约束/已注册：优先命中明确提示
+            if (status === 409 || code === 'P2002' || /已注册|已存在|存在|重复|占用|duplicate|unique|used|already|exists|conflict/.test(lower)) {
+                msg = '该手机号已注册，请直接登录或更换手机号'
             }
-            else if (status === 422) msg = '请求参数有误：请检查手机号格式与密码长度'
-            else if (status === 429) msg = '请求过于频繁，请稍后再试'
-            else if (typeof status === 'number' && status >= 500) msg = '服务器开小差了，请稍后再试'
-            else if (!status) msg = '网络或跨域配置异常：请检查后端地址和网络连接'
-            setError(msg);
+            else if (status === 400 || status === 422) {
+                msg = '请求参数有误：请检查手机号格式与密码长度'
+            }
+            else if (status === 429) {
+                msg = '请求过于频繁，请稍后再试'
+            }
+            else if (typeof status === 'number' && status >= 500) {
+                msg = '服务器开小差了，请稍后再试'
+            }
+            else if (!status) {
+                msg = '网络或跨域配置异常：请检查后端地址和网络连接'
+            }
+            setError(msg)
         } finally {
             setLoading(false);
         }
