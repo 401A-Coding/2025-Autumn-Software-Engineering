@@ -854,7 +854,7 @@ export default function CustomOnlineLiveBattle() {
                                             if (modifiedKeys.length === 0) return null
                                             return (
                                                 <div className="mt-8">
-                                                    <div className="text-13 fw-600 mb-6">已修改规则的棋子</div>
+                                                    <div className="text-13 fw-600 mb-6">棋子规则</div>
                                                     <div className="row gap-8 wrap">
                                                         {modifiedKeys.map(k => (
                                                             <button
