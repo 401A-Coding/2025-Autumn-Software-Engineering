@@ -65,9 +65,10 @@ export default function LiveBattle() {
             console.log('[WS] snapshot', s, 'myUserId=', myUserId);
             latestSnapshotRef.current = s;
             setSnapshot(s);
-            // derive opponent profile when possible
-            if (myUserId && Array.isArray(s.players)) {
-                const oppId = s.players.find((uid) => uid !== myUserId);
+            // derive opponent profile when possible（使用 ref 避免闭包问题）
+            const currentUserId = myUserIdRef.current;
+            if (currentUserId && Array.isArray(s.players)) {
+                const oppId = s.players.find((uid) => uid !== currentUserId);
                 if (typeof oppId === 'number') {
                     (async () => {
                         try {
