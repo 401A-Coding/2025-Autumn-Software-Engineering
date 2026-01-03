@@ -39,14 +39,7 @@ export class UsersController {
     return { code: 0, message: 'success', data: actions };
   }
 
-  // 获取指定用户的公开信息（仅返回非敏感字段）
-  @Get(':id')
-  @HttpCode(200)
-  async getById(@Param('id', ParseIntPipe) id: number) {
-    return this.userService.getPublicProfileById(id);
-  }
-
-  // 搜索用户
+  // 搜索用户（必须在 :id 路由之前）
   @Get('search-by-name')
   @HttpCode(200)
   async searchUsers(@Query('q') q: string) {
@@ -55,6 +48,13 @@ export class UsersController {
     }
     const users = await this.userService.searchUsers(q);
     return { code: 0, message: 'success', data: users };
+  }
+
+  // 获取指定用户的公开信息（仅返回非敏感字段）
+  @Get(':id')
+  @HttpCode(200)
+  async getById(@Param('id', ParseIntPipe) id: number) {
+    return this.userService.getPublicProfileById(id);
   }
 
   @Patch('me')
