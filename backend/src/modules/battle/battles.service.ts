@@ -834,6 +834,11 @@ export class BattlesService {
 
   async quickMatch(userId: number, mode = 'pvp') {
     await this.ensureNotBanned(userId);
+    // 若用户已有进行中的对局，优先返回原对局，避免刷新后重复开新局
+    const active = this.findActiveBattle(userId);
+    if (active) {
+      return { battleId: active };
+    }
     const selfWaiting = this.findUserWaiting(userId, mode);
     if (selfWaiting) {
       return { battleId: selfWaiting };
@@ -932,6 +937,16 @@ export class BattlesService {
         b.players.length === 1 &&
         b.players[0] === userId
       ) {
+        return bid;
+      }
+    }
+    return undefined;
+  }
+
+  // 查找用户已有的进行中对局（playing 状态）
+  private findActiveBattle(userId: number): number | undefined {
+    for (const [bid, b] of this.battles.entries()) {
+      if (b && b.status === 'playing' && b.players.includes(userId)) {
         return bid;
       }
     }

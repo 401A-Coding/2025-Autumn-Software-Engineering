@@ -9,6 +9,7 @@ import UserAvatar from '../../components/UserAvatar';
 import DropdownMenu from '../../components/DropdownMenu';
 
 export default function LiveBattle() {
+    const DISCONNECT_TTL_MINUTES = 15;
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
     const action = searchParams.get('action'); // create | join | match | null
@@ -37,6 +38,30 @@ export default function LiveBattle() {
     const createLockRef = useRef(false);
     const matchLockRef = useRef(false);
     const autoActionRef = useRef(false);
+    const popGuardActiveRef = useRef(false);
+    const allowPopRef = useRef(false);
+    const graceResignTimerRef = useRef<number | null>(null);
+    const isUnmountingRef = useRef(false);
+    const offlineAlreadySentRef = useRef(false);  // 标记已发送 offline
+
+    const scheduleGraceResign = (id: number) => {
+        if (graceResignTimerRef.current) {
+            clearTimeout(graceResignTimerRef.current);
+        }
+        graceResignTimerRef.current = window.setTimeout(() => {
+            battleApi.resign(id).catch(() => { /* ignore */ });
+            clearPersistBattleId();
+            graceResignTimerRef.current = null;
+        }, 2 * 60 * 1000); // 2 min grace
+    };
+
+    const clearGraceResign = () => {
+        if (graceResignTimerRef.current) {
+            clearTimeout(graceResignTimerRef.current);
+            graceResignTimerRef.current = null;
+        }
+    };
+
     // Profiles for overlay and modal
     const [myProfile, setMyProfile] = useState<{ id: number; nickname?: string; avatarUrl?: string } | null>(null);
     const [opponentProfile, setOpponentProfile] = useState<{ id: number; nickname?: string; avatarUrl?: string } | null>(null);
@@ -46,6 +71,13 @@ export default function LiveBattle() {
     const [drawOfferFromUserId, setDrawOfferFromUserId] = useState<number | null>(null);
     const [showUndoOfferDialog, setShowUndoOfferDialog] = useState(false);
     const [undoOfferFromUserId, setUndoOfferFromUserId] = useState<number | null>(null);
+    const PERSIST_KEY = 'livebattle.activeBattleId';
+    const persistBattleId = (id: number) => {
+        try { localStorage.setItem(PERSIST_KEY, String(id)); } catch { /* ignore */ }
+    };
+    const clearPersistBattleId = () => {
+        try { localStorage.removeItem(PERSIST_KEY); } catch { /* ignore */ }
+    };
 
     const conn = useMemo(() => {
         const c = connectBattle();
@@ -81,6 +113,7 @@ export default function LiveBattle() {
 
             // 若对局结束，给出一次性的结束提示（尽量使用 myUserId 判别阵营；缺失时也给基础提示）
             if (s.status === 'finished') {
+                clearPersistBattleId();
                 console.log('[WS] finished snapshot', {
                     myUserId,
                     players: s.players,
@@ -267,6 +300,12 @@ export default function LiveBattle() {
                 c.snapshot(id);
             }
         });
+        c.onOfflineNotice((p) => {
+            const id = battleIdRef.current;
+            if (!id || p.battleId !== id) return;
+            // 拉一次 snapshot，确保 onlineUserIds 更新并触发 UI 提示
+            c.snapshot(id);
+        });
         // 监听提和请求
         c.onDrawOffer((p) => {
             const currentUserId = myUserIdRef.current;
@@ -316,7 +355,82 @@ export default function LiveBattle() {
 
     useEffect(() => {
         return () => {
-            connRef.current?.socket?.close();
+            isUnmountingRef.current = true;
+            const id = battleIdRef.current;
+            const status = latestSnapshotRef.current?.status;
+            const alreadySent = offlineAlreadySentRef.current;
+            console.log('[unmount] cleanup: id=', id, 'status=', status, 'offlineAlreadySent=', alreadySent);
+
+            // 如果有 battleId，就必须确保 offline 被发出去
+            if (id) {
+                console.log('[unmount] cleanup: starting for battleId=', id, 'socket.connected=', connRef.current?.socket?.connected);
+
+                // 立即发送 offline 信号（同步 fire-and-forget）
+                // 即使 popstate 已标记发送过，也要再发一次（后端幂等），因为 popstate 时可能 socket 已断
+                (async () => {
+                    // 先等 50ms，让 history.back() 的路由导航初始化，但 socket 还没完全关闭
+                    await new Promise(r => setTimeout(r, 50));
+
+                    let offlineSent = false;
+                    console.log('[unmount] firing offline signal for id=', id, 'connected=', connRef.current?.socket?.connected);
+                    try {
+                        // 使用 fire-and-forget 模式，尝试 WebSocket
+                        const offlinePromise = connRef.current?.offline?.(id);
+                        if (offlinePromise) {
+                            offlinePromise.then((result) => {
+                                console.log('[unmount] offline ack received:', result);
+                                if (result?.ok) offlineSent = true;
+                            }).catch(e => {
+                                console.error('[unmount] offline error:', e?.message);
+                            });
+                        }
+                    } catch (e) {
+                        console.error('[unmount] offline send error:', e);
+                    }
+
+                    // 等待一点时间看 offline 是否成功
+                    await new Promise(r => setTimeout(r, 300));
+
+                    // 如果 WebSocket 未成功，则用 REST 作为 fallback
+                    if (!offlineSent) {
+                        console.log('[unmount] WebSocket offline failed, using REST fallback for id=', id);
+                        try {
+                            const userId = myUserIdRef.current;
+                            const baseUrl = import.meta.env.VITE_API_BASE || 'http://localhost:3000';
+                            const url = `${baseUrl}/api/v1/battles/${id}/offline`;
+                            // 使用 fetch with keepalive，确保页面卸载时也能发送请求
+                            // 在 body 中传递 userId（无需认证）
+                            await fetch(url, {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                },
+                                body: JSON.stringify({ userId }),
+                                keepalive: true,
+                            }).catch(e => {
+                                console.error('[unmount] REST offline error:', e);
+                            });
+                            console.log('[unmount] REST offline sent via fetch with keepalive');
+                        } catch (e) {
+                            console.error('[unmount] REST offline fetch error:', e);
+                        }
+                    }
+
+                    // 只有进行中的对局才需要 2 分钟宽限认输
+                    if (status === 'playing') {
+                        console.log('[unmount] scheduling grace resign for playing battle');
+                        scheduleGraceResign(id);
+                    }
+
+                    // 300ms 后关闭 socket（给 offline 消息在出站队列中沉淀）
+                    await new Promise(r => setTimeout(r, 300));
+                    console.log('[unmount] closing socket');
+                    connRef.current?.socket?.close();
+                })();
+            } else {
+                // 没有 battleId，直接断开
+                connRef.current?.socket?.close();
+            }
         };
     }, []);
 
@@ -359,6 +473,25 @@ export default function LiveBattle() {
         })();
     }, []);
 
+    // 若已在房间但未拿到对手头像（可能因为恢复时先拿到 snapshot，再拿到 myUserId），补拉对手资料
+    useEffect(() => {
+        if (!snapshot || !myUserId) return;
+        if (opponentProfile) return;
+        const oppId = snapshot.players?.find((uid) => uid !== myUserId);
+        if (!oppId) return;
+        let alive = true;
+        (async () => {
+            try {
+                const info = await userApi.getById(oppId);
+                if (!alive) return;
+                setOpponentProfile({ id: info.id, nickname: info.nickname, avatarUrl: info.avatarUrl || undefined });
+            } catch {
+                /* ignore */
+            }
+        })();
+        return () => { alive = false; };
+    }, [snapshot, myUserId, opponentProfile]);
+
     const handleJoin = async () => {
         const raw = joinIdInput.trim();
         if (!/^\d+$/.test(raw)) return;
@@ -389,6 +522,41 @@ export default function LiveBattle() {
         conn.join(id, 0);
         conn.snapshot(id);
     };
+
+    // 刷新/重开页面后，若存在未结束对局，则尝试恢复并直接 rejoin
+    useEffect(() => {
+        const saved = (() => {
+            try { return localStorage.getItem(PERSIST_KEY); } catch { return null; }
+        })();
+        if (!saved) return;
+        const id = Number(saved);
+        if (!id) {
+            clearPersistBattleId();
+            return;
+        }
+        autoActionRef.current = true; // 避免再次自动匹配/创建
+        (async () => {
+            try {
+                const snap = await battleApi.snapshot(id);
+                // 若对局已结束则清理
+                if (snap.status === 'finished') {
+                    clearPersistBattleId();
+                    return;
+                }
+                setBattleId(id);
+                setSnapshot(snap as BattleSnapshot);
+                const snapMoves = (snap as BattleSnapshot).moves || [];
+                setMoves(snapMoves);
+                movesRef.current = snapMoves;
+                battleIdRef.current = id;
+                const lastSeq = snapMoves.length ? snapMoves[snapMoves.length - 1].seq : 0;
+                conn.join(id, lastSeq);
+                conn.snapshot(id);
+            } catch {
+                clearPersistBattleId();
+            }
+        })();
+    }, []);
 
     const handleAttemptMove = async (from: { x: number; y: number }, to: { x: number; y: number }) => {
         const id = Number(battleId);
@@ -462,6 +630,11 @@ export default function LiveBattle() {
 
     useEffect(() => {
         battleIdRef.current = typeof battleId === 'number' ? battleId : null;
+        if (typeof battleId === 'number' && battleId > 0) {
+            persistBattleId(battleId);
+        } else {
+            clearPersistBattleId();
+        }
     }, [battleId]);
 
     // 心跳：进入房间且连接后启动 interval；离开或断开时清理
@@ -491,6 +664,96 @@ export default function LiveBattle() {
             }
         };
     }, [inRoom, connected]);
+
+    // 防止进行中对局时意外关闭/刷新页面
+    useEffect(() => {
+        const handler = (e: BeforeUnloadEvent) => {
+            if (battleIdRef.current && snapshot?.status === 'playing') {
+                e.preventDefault();
+                e.returnValue = '';
+            }
+        };
+        window.addEventListener('beforeunload', handler);
+        return () => window.removeEventListener('beforeunload', handler);
+    }, [snapshot?.status]);
+
+    // 浏览器回退时的确认：通过 pushState 创建“哨兵”历史记录，先拦截，再决定是否真正回退
+    useEffect(() => {
+        if (snapshot?.status === 'playing') {
+            // 标记进入 guard 状态，并创建一个当前页的历史记录，下一次 back 先触发 popstate 而不是直接离开
+            popGuardActiveRef.current = true;
+            allowPopRef.current = false;
+            window.history.pushState({ livebattleGuard: true }, '', window.location.href);
+        } else {
+            popGuardActiveRef.current = false;
+            allowPopRef.current = false;
+        }
+    }, [snapshot?.status]);
+
+    useEffect(() => {
+        const handler = (e: PopStateEvent) => {
+            if (!popGuardActiveRef.current) return;
+            if (!(battleIdRef.current && snapshot?.status === 'playing')) return;
+
+            if (allowPopRef.current) {
+                // 已允许真正离开，交给浏览器默认行为
+                return;
+            }
+
+            const ok = window.confirm('离开将视为退出对局（可能判负），是否继续？');
+            if (!ok) {
+                // 用户取消：把哨兵再推回去，维持当前页面
+                window.history.pushState({ livebattleGuard: true }, '', window.location.href);
+                return;
+            }
+
+            // 用户确认离开：立即发离线信号（无条件），然后导航离开
+            allowPopRef.current = true;
+            offlineAlreadySentRef.current = true;  // 标记已发送 offline
+            const id = battleIdRef.current;
+            const myId = myUserIdRef.current;
+
+            // 无论 unmount 是否正在执行，都立即尝试发 offline
+            if (id) {
+                console.log('[popstate] firing offline signal for id=', id, 'connected=', connRef.current?.socket?.connected);
+                try {
+                    // 同时尝试 WebSocket 和 REST（不等结果，立即back）
+                    // WebSocket: fire-and-forget
+                    connRef.current?.offline?.(id).then(() => {
+                        console.log('[popstate] offline ack received');
+                    }).catch(e => {
+                        console.error('[popstate] offline error:', e?.message);
+                    });
+
+                    // REST: 立即发送（带 keepalive），不等回复
+                    if (myId && id) {
+                        const baseUrl = import.meta.env.VITE_API_BASE || 'http://localhost:3000';
+                        const url = `${baseUrl}/api/v1/battles/${id}/offline`;
+                        fetch(url, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ userId: myId }),
+                            keepalive: true,
+                        }).catch(e => {
+                            console.error('[popstate] REST offline error:', e?.message);
+                        });
+                    }
+                } catch (e) {
+                    console.error('[popstate] offline send error:', e);
+                }
+
+                // 在 popstate 中也启动 grace resign（不要依赖 unmount，因为页面卸载时定时器可能不运行）
+                console.log('[popstate] scheduling grace resign for id=', id);
+                scheduleGraceResign(id);
+            }
+
+            // 立即执行 back
+            console.log('[popstate] executing back immediately');
+            window.history.back();
+        };
+        window.addEventListener('popstate', handler);
+        return () => window.removeEventListener('popstate', handler);
+    }, [snapshot?.status]);
 
     const copyRoomId = async () => {
         const id = battleIdRef.current;
@@ -536,6 +799,7 @@ export default function LiveBattle() {
                 setMoves([]);
                 setBattleId('');
                 setJoinIdInput('');
+                clearPersistBattleId();
                 navigate('/app/online-lobby');
             }
             return;
@@ -556,6 +820,7 @@ export default function LiveBattle() {
             setEndMessage('您已认输，对局结束，本局记为落败。');
             setEndKind('lose');
             setEndCountdown(3);
+            clearPersistBattleId();
         }
     };
 
@@ -569,6 +834,10 @@ export default function LiveBattle() {
 
     useEffect(() => {
         (window as any).battleDebug = { snapshot, moves };
+        // 只要重新回到对局页面，就清理延迟认输的定时器
+        if (snapshot?.status === 'playing') {
+            clearGraceResign();
+        }
     }, [snapshot, moves]);
 
     // 结束后的 3 秒倒计时自动返回大厅
@@ -837,6 +1106,34 @@ export default function LiveBattle() {
                                     <button className="btn-ghost" onClick={handleReconnect}>重试连接</button>
                                 </div>
                             )}
+                            {(() => {
+                                const meId = myUserId;
+                                const oppId = meId && Array.isArray(snapshot.players)
+                                    ? snapshot.players.find((uid) => uid !== meId)
+                                    : undefined;
+                                const online = snapshot.onlineUserIds || [];
+                                const meOnline = typeof meId === 'number' ? online.includes(meId) : false;
+                                const oppOnline = typeof oppId === 'number' ? online.includes(oppId) : false;
+                                const allOffline = online.length === 0;
+                                const justMeOnline = meOnline && online.length === 1;
+                                if (snapshot.status !== 'playing') return null;
+                                if (oppOnline && !allOffline) return null;
+                                const ttl = DISCONNECT_TTL_MINUTES;
+                                let text = '对手掉线，等待重连…';
+                                if (justMeOnline) {
+                                    text = `对手掉线，等待重连…超过 ${ttl} 分钟未返回将自动判您获胜。`;
+                                } else if (allOffline) {
+                                    text = `玩家均已离线，超过 ${ttl} 分钟未恢复将按规则自动裁定（通常判和）。`;
+                                } else if (!oppOnline) {
+                                    text = `对手掉线，等待重连…若 ${ttl} 分钟内未恢复，系统将自动裁定结果。`;
+                                }
+                                return (
+                                    <div className="livebattle-disconnect-banner" role="status" aria-live="polite">
+                                        <span className="livebattle-dot-yellow" />
+                                        {text}
+                                    </div>
+                                );
+                            })()}
                             {/* 玩家在线状态与对局状态信息在同一行，宽度与棋盘一致 */}
                             <div className="livebattle-board-wrapper" style={{ marginTop: 8, marginBottom: 8 }}>
                                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16, flexDirection: 'column' }}>
