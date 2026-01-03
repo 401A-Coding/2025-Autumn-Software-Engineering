@@ -50,6 +50,11 @@ export interface BattleState {
     fromUserId: number;
     timestamp: number;
   } | null;
+  // 悔棋请求状态
+  undoRequest?: {
+    fromUserId: number;
+    timestamp: number;
+  } | null;
 }
 
 @Injectable()
@@ -684,8 +689,8 @@ export class BattlesService {
     return { ok: true, message: '已拒绝提和请求' };
   }
 
-  // 悔棋：撤销自己的最后一步
-  undoLastMove(userId: number, battleId: number) {
+  // 悔棋：发起悔棋请求
+  offerUndo(userId: number, battleId: number) {
     const b = this.getBattle(battleId);
     if (b.status !== 'playing') {
       throw new BadRequestException('当前对局未在进行中');
@@ -697,10 +702,43 @@ export class BattlesService {
       throw new BadRequestException('还没有落子，无法悔棋');
     }
     // 检查最后一步是否是该用户下的
-    const lastMove = b.moves[b.moves.length - 1];
     const lastMovePlayer = b.moves.length % 2 === 1 ? b.players[0] : b.players[1];
     if (lastMovePlayer !== userId) {
       throw new BadRequestException('最后一步不是您下的，无法悔棋');
+    }
+    // 如果已有悔棋请求，不能重复发起
+    if (b.undoRequest && b.undoRequest.fromUserId === userId) {
+      throw new BadRequestException('您已发起悔棋请求，请等待对方回应');
+    }
+    // 设置悔棋请求
+    b.undoRequest = {
+      fromUserId: userId,
+      timestamp: Date.now(),
+    };
+    // 广播悔棋请求
+    this.events?.emit('battle.undo-offer', {
+      battleId,
+      fromUserId: userId,
+      toUserId: b.players.find((id) => id !== userId),
+    });
+    return { ok: true, message: '悔棋请求已发送' };
+  }
+
+  // 接受悔棋
+  acceptUndo(userId: number, battleId: number) {
+    const b = this.getBattle(battleId);
+    if (b.status !== 'playing') {
+      throw new BadRequestException('当前对局未在进行中');
+    }
+    if (!b.players.includes(userId)) {
+      throw new UnauthorizedException('不在房间内');
+    }
+    if (!b.undoRequest) {
+      throw new BadRequestException('当前没有悔棋请求');
+    }
+    // 只有对方可以接受悔棋
+    if (b.undoRequest.fromUserId === userId) {
+      throw new BadRequestException('不能接受自己的悔棋请求');
     }
     // 删除最后一步
     b.moves.pop();
@@ -708,27 +746,56 @@ export class BattlesService {
     const newState = this.recomputeBoardState(b);
     b.board = newState.board;
     b.turn = newState.turn;
-    // 广播悔棋事件
-    this.events?.emit('battle.undo', {
+    // 清除悔棋请求
+    b.undoRequest = null;
+    // 广播悔棋接受
+    this.events?.emit('battle.undo-accepted', {
       battleId,
-      userId,
     });
-    return { ok: true, message: '悔棋成功' };
+    return { ok: true, message: '已同意悔棋' };
+  }
+
+  // 拒绝悔棋
+  declineUndo(userId: number, battleId: number) {
+    const b = this.getBattle(battleId);
+    if (b.status !== 'playing') {
+      throw new BadRequestException('当前对局未在进行中');
+    }
+    if (!b.players.includes(userId)) {
+      throw new UnauthorizedException('不在房间内');
+    }
+    if (!b.undoRequest) {
+      throw new BadRequestException('当前没有悔棋请求');
+    }
+    // 只有对方可以拒绝悔棋
+    if (b.undoRequest.fromUserId === userId) {
+      throw new BadRequestException('不能拒绝自己的悔棋请求');
+    }
+    // 清除悔棋请求
+    const fromUserId = b.undoRequest.fromUserId;
+    b.undoRequest = null;
+    // 广播悔棋被拒绝
+    this.events?.emit('battle.undo-declined', {
+      battleId,
+      byUserId: userId,
+      toUserId: fromUserId,
+    });
+    return { ok: true, message: '已拒绝悔棋请求' };
   }
 
   // 从初始局面重放所有moves，重新计算棋盘状态
   private recomputeBoardState(b: BattleState): { board: any; turn: 'red' | 'black' } {
-    // 从初始棋盘开始
-    let board = JSON.parse(JSON.stringify(b.initialBoard));
+    // 从初始棋盘开始（重新创建标准棋盘）
+    let board = this.engine.createInitialBoard();
     let turn: 'red' | 'black' = 'red';
 
     // 重放所有moves
     for (const move of b.moves) {
-      // 应用移动
-      const piece = board[move.from.row]?.[move.from.col];
+      // 应用移动（坐标是x, y而不是row, col）
+      const piece = board[move.from.y]?.[move.from.x];
       if (piece) {
-        board[move.to.row][move.to.col] = piece;
-        board[move.from.row][move.from.col] = null;
+        board[move.to.y][move.to.x] = piece;
+        board[move.from.y][move.from.x] = null;
       }
       // 切换回合
       turn = turn === 'red' ? 'black' : 'red';

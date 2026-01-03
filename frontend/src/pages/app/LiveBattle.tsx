@@ -44,6 +44,8 @@ export default function LiveBattle() {
     const [profileDetail, setProfileDetail] = useState<{ loading: boolean; data: any | null; error?: string }>({ loading: false, data: null });
     const [showDrawOfferDialog, setShowDrawOfferDialog] = useState(false);
     const [drawOfferFromUserId, setDrawOfferFromUserId] = useState<number | null>(null);
+    const [showUndoOfferDialog, setShowUndoOfferDialog] = useState(false);
+    const [undoOfferFromUserId, setUndoOfferFromUserId] = useState<number | null>(null);
 
     const conn = useMemo(() => {
         const c = connectBattle();
@@ -283,11 +285,29 @@ export default function LiveBattle() {
                 alert('对方拒绝了您的提和请求');
             }
         });
-        // 监听悔棋
-        c.onUndo((p) => {
+        // 监听悔棋请求
+        c.onUndoOffer((p) => {
             const currentUserId = myUserIdRef.current;
-            console.log('[UNDO] Someone undid a move:', p, 'myUserId=', currentUserId);
-            // 悔棋后快照会自动更新，无需额外处理
+            console.log('[UNDO] Received undo offer:', p, 'myUserId=', currentUserId);
+            if (p.fromUserId !== currentUserId) {
+                console.log('[UNDO] Showing dialog because fromUserId !== myUserId');
+                setUndoOfferFromUserId(p.fromUserId);
+                setShowUndoOfferDialog(true);
+            } else {
+                console.log('[UNDO] Ignoring because I am the sender');
+            }
+        });
+        // 监听悔棋接受
+        c.onUndoAccepted(() => {
+            console.log('[UNDO] Undo accepted, board will be updated via snapshot');
+        });
+        // 监听悔棋被拒绝
+        c.onUndoDeclined((p) => {
+            const currentUserId = myUserIdRef.current;
+            console.log('[UNDO] Received undo declined:', p, 'myUserId=', currentUserId);
+            if (p.toUserId === currentUserId) {
+                alert('对方拒绝了您的悔棋请求');
+            }
         });
         return c;
     }, []);
@@ -963,9 +983,10 @@ export default function LiveBattle() {
                                                                         disabled: !canUndo,
                                                                         onClick: async () => {
                                                                             try {
-                                                                                await battleApi.undoLastMove(battleId);
+                                                                                await battleApi.offerUndo(battleId);
+                                                                                alert('已向对方发起悔棋请求');
                                                                             } catch (e: any) {
-                                                                                alert(e?.message || '悔棋失败');
+                                                                                alert(e?.message || '悔棋请求失败');
                                                                             }
                                                                         }
                                                                     }
@@ -1194,6 +1215,48 @@ export default function LiveBattle() {
                                 }}
                             >
                                 接受
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* 悔棋请求对话框 */}
+            {showUndoOfferDialog && undoOfferFromUserId !== null && (
+                <div className="modal-overlay">
+                    <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 400 }}>
+                        <h3 style={{ marginBottom: 16 }}>悔棋请求</h3>
+                        <p style={{ marginBottom: 24 }}>
+                            对方请求悔棋，是否同意？
+                        </p>
+                        <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
+                            <button
+                                className="btn-secondary"
+                                onClick={async () => {
+                                    try {
+                                        await battleApi.declineUndo(battleId);
+                                        setShowUndoOfferDialog(false);
+                                        setUndoOfferFromUserId(null);
+                                    } catch (e: any) {
+                                        alert(e?.message || '拒绝悔棋失败');
+                                    }
+                                }}
+                            >
+                                拒绝
+                            </button>
+                            <button
+                                className="btn-primary"
+                                onClick={async () => {
+                                    try {
+                                        await battleApi.acceptUndo(battleId);
+                                        setShowUndoOfferDialog(false);
+                                        setUndoOfferFromUserId(null);
+                                    } catch (e: any) {
+                                        alert(e?.message || '同意悔棋失败');
+                                    }
+                                }}
+                            >
+                                同意
                             </button>
                         </div>
                     </div>

@@ -321,9 +321,27 @@ export const battleApi = {
     return res.data
   },
 
-  /** 悔棋（撤销自己的最后一步） */
-  async undoLastMove(battleId: number): Promise<{ ok: boolean; message: string }> {
-    const res = await apiRequest<{ ok: boolean; message: string }>('/api/v1/battles/undo', {
+  /** 发起悔棋请求 */
+  async offerUndo(battleId: number): Promise<{ ok: boolean; message: string }> {
+    const res = await apiRequest<{ ok: boolean; message: string }>('/api/v1/battles/undo/offer', {
+      method: 'POST',
+      body: JSON.stringify({ battleId }),
+    })
+    return res.data
+  },
+
+  /** 接受悔棋请求 */
+  async acceptUndo(battleId: number): Promise<{ ok: boolean; message: string }> {
+    const res = await apiRequest<{ ok: boolean; message: string }>('/api/v1/battles/undo/accept', {
+      method: 'POST',
+      body: JSON.stringify({ battleId }),
+    })
+    return res.data
+  },
+
+  /** 拒绝悔棋请求 */
+  async declineUndo(battleId: number): Promise<{ ok: boolean; message: string }> {
+    const res = await apiRequest<{ ok: boolean; message: string }>('/api/v1/battles/undo/decline', {
       method: 'POST',
       body: JSON.stringify({ battleId }),
     })

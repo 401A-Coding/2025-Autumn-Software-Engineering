@@ -101,7 +101,9 @@ export function connectBattle() {
     const onPlayerJoin = (cb: (p: { userId: number }) => void) => socket.on('battle.player_join', cb);
     const onDrawOffer = (cb: (p: { fromUserId: number; toUserId?: number }) => void) => socket.on('battle.draw-offer', cb);
     const onDrawDeclined = (cb: (p: { byUserId: number; toUserId: number }) => void) => socket.on('battle.draw-declined', cb);
-    const onUndo = (cb: (p: { userId: number }) => void) => socket.on('battle.undo', cb);
+    const onUndoOffer = (cb: (p: { fromUserId: number; toUserId?: number }) => void) => socket.on('battle.undo-offer', cb);
+    const onUndoAccepted = (cb: () => void) => socket.on('battle.undo-accepted', cb);
+    const onUndoDeclined = (cb: (p: { byUserId: number; toUserId: number }) => void) => socket.on('battle.undo-declined', cb);
 
-    return { socket, join, move, snapshot, heartbeat, onMove, onSnapshot, onReplay, onPlayerJoin, onDrawOffer, onDrawDeclined, onUndo };
+    return { socket, join, move, snapshot, heartbeat, onMove, onSnapshot, onReplay, onPlayerJoin, onDrawOffer, onDrawDeclined, onUndoOffer, onUndoAccepted, onUndoDeclined };
 }

@@ -255,13 +255,31 @@ export class BattlesController {
     return this.battles.declineDraw(req.user!.sub, body.battleId);
   }
 
-  @Post('undo')
+  @Post('undo/offer')
   @UseGuards(JwtAuthGuard)
-  undoLastMove(
+  offerUndo(
     @Body() body: { battleId: number },
     @Req() req: Request & { user?: { sub: number } },
   ) {
-    return this.battles.undoLastMove(req.user!.sub, body.battleId);
+    return this.battles.offerUndo(req.user!.sub, body.battleId);
+  }
+
+  @Post('undo/accept')
+  @UseGuards(JwtAuthGuard)
+  acceptUndo(
+    @Body() body: { battleId: number },
+    @Req() req: Request & { user?: { sub: number } },
+  ) {
+    return this.battles.acceptUndo(req.user!.sub, body.battleId);
+  }
+
+  @Post('undo/decline')
+  @UseGuards(JwtAuthGuard)
+  declineUndo(
+    @Body() body: { battleId: number },
+    @Req() req: Request & { user?: { sub: number } },
+  ) {
+    return this.battles.declineUndo(req.user!.sub, body.battleId);
   }
 
   @Get('history')
