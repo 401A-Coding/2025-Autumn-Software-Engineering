@@ -383,14 +383,13 @@ export class CommunityService {
     ]);
 
     const topIds = topComments.map((c) => c.id);
-    // 取出每个顶级评论下的所有楼中楼：直接子回复 + 子回复的子回复
+
+    // 获取这些顶级评论下的所有回复（任意层级），再按根评论分组
     const allReplies = topIds.length
       ? await this.prisma.communityComment.findMany({
         where: {
-          OR: [
-            { parentId: { in: topIds } },
-            { parent: { parentId: { in: topIds } } },
-          ],
+          postId,
+          parentId: { not: null },
         },
         orderBy: { createdAt: 'asc' },
         include: {
@@ -407,15 +406,33 @@ export class CommunityService {
       })
       : [];
 
+    const replyMap = new Map<number, any>();
+    for (const r of allReplies) {
+      replyMap.set(r.id, r);
+    }
+
+    const rootCache = new Map<number, number | null>();
+    const findRoot = (reply: any): number | null => {
+      if (rootCache.has(reply.id)) return rootCache.get(reply.id) as number | null;
+      let currentParentId = reply.parentId as number | null;
+      while (currentParentId && !topIds.includes(currentParentId)) {
+        const parent = replyMap.get(currentParentId);
+        if (!parent) {
+          currentParentId = null;
+          break;
+        }
+        currentParentId = parent.parentId as number | null;
+      }
+      const root = currentParentId && topIds.includes(currentParentId)
+        ? currentParentId
+        : null;
+      rootCache.set(reply.id, root);
+      return root;
+    };
+
     const repliesByRoot: Record<number, any[]> = {};
     for (const r of allReplies) {
-      const parentId = r.parentId ?? null;
-      const parentParentId = r.parent?.parentId ?? null;
-      const rootId = topIds.includes(parentId as number)
-        ? (parentId as number)
-        : topIds.includes(parentParentId as number)
-          ? (parentParentId as number)
-          : null;
+      const rootId = findRoot(r);
       if (!rootId) continue;
       if (!repliesByRoot[rootId]) repliesByRoot[rootId] = [];
       repliesByRoot[rootId].push(r);
