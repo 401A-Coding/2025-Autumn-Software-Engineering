@@ -60,19 +60,24 @@ export default function CommunitySearch() {
     const handleSearch = async () => {
         let finalTag = tag
         let finalAuthorId = authorId
+        let finalQ = q
 
         // 检查是否有匹配的标签或用户
         const match = await fuzzyMatchTagsAndUsers(q)
         if (match) {
             if (match.type === 'tag') {
                 finalTag = match.data.name
+                // 匹配到标签时，清空关键词，只按标签搜索
+                finalQ = ''
             } else if (match.type === 'user') {
                 finalAuthorId = match.data.id
                 setAuthorName(match.data.username)
+                // 匹配到用户时，清空关键词，只搜索该用户的所有帖子
+                finalQ = ''
             }
         }
 
-        doSearch({ page: 1, q, tag: finalTag, authorId: finalAuthorId, updateURL: true })
+        doSearch({ page: 1, q: finalQ, tag: finalTag, authorId: finalAuthorId, updateURL: true })
     }
 
     const doSearch = useCallback(async (opts?: { page?: number; q?: string; tag?: string; authorId?: number | null; updateURL?: boolean }) => {
