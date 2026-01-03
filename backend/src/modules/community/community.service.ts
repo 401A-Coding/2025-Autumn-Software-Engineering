@@ -65,11 +65,30 @@ export class CommunityService {
     const where: any = {};
     if (authorId) where.authorId = authorId;
     if (type) where.shareType = (type || '').toUpperCase();
-    if (q)
+
+    // 扩展搜索：同时匹配内容、标签和作者名
+    if (q) {
       where.OR = [
+        // 1. 标题或内容包含关键词
         { title: { contains: q, mode: 'insensitive' } },
         { content: { contains: q, mode: 'insensitive' } },
+        // 2. 标签包含关键词
+        {
+          tags: {
+            some: {
+              tag: { name: { contains: q, mode: 'insensitive' } },
+            },
+          },
+        },
+        // 3. 作者用户名包含关键词
+        {
+          author: {
+            username: { contains: q, mode: 'insensitive' },
+          },
+        },
       ];
+    }
+
     const tagFilter = tag
       ? {
         tags: {
