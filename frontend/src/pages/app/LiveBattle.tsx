@@ -890,7 +890,7 @@ export default function LiveBattle() {
                                                     <div className="livebattle-board-wrapper" style={{ marginTop: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
                                                         {/* 左侧菜单按钮 */}
                                                         <div>
-                                                            <DropdownMenu actions={[
+                                                            <DropdownMenu position="top" actions={[
                                                                 {
                                                                     label: '🏳️ 认输',
                                                                     danger: true,

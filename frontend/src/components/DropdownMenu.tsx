@@ -8,9 +8,10 @@ export interface MenuAction {
 
 interface DropdownMenuProps {
     actions: MenuAction[]
+    position?: 'top' | 'bottom'
 }
 
-export default function DropdownMenu({ actions }: DropdownMenuProps) {
+export default function DropdownMenu({ actions, position = 'bottom' }: DropdownMenuProps) {
     const [open, setOpen] = useState(false)
     const menuRef = useRef<HTMLDivElement>(null)
 
@@ -49,7 +50,7 @@ export default function DropdownMenu({ actions }: DropdownMenuProps) {
                 <div
                     style={{
                         position: 'absolute',
-                        top: '100%',
+                        ...(position === 'top' ? { bottom: '100%', marginBottom: 4 } : { top: '100%', marginTop: 4 }),
                         right: 0,
                         backgroundColor: 'white',
                         border: '1px solid #e0e0e0',
@@ -57,7 +58,6 @@ export default function DropdownMenu({ actions }: DropdownMenuProps) {
                         boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
                         minWidth: 120,
                         zIndex: 1000,
-                        marginTop: 4,
                     }}
                 >
                     {actions.map((action, idx) => (
