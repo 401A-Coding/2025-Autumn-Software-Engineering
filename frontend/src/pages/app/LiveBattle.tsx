@@ -264,13 +264,18 @@ export default function LiveBattle() {
         });
         // 监听提和请求
         c.onDrawOffer((p) => {
+            console.log('[DRAW] Received draw offer:', p, 'myUserId=', myUserId);
             if (p.fromUserId !== myUserId) {
+                console.log('[DRAW] Showing dialog because fromUserId !== myUserId');
                 setDrawOfferFromUserId(p.fromUserId);
                 setShowDrawOfferDialog(true);
+            } else {
+                console.log('[DRAW] Ignoring because I am the sender');
             }
         });
         // 监听提和被拒绝
         c.onDrawDeclined((p) => {
+            console.log('[DRAW] Received draw declined:', p, 'myUserId=', myUserId);
             if (p.toUserId === myUserId) {
                 alert('对方拒绝了您的提和请求');
             }
