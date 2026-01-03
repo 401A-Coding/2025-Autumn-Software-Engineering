@@ -51,7 +51,7 @@ export default function DropdownMenu({ actions, position = 'bottom' }: DropdownM
                     style={{
                         position: 'absolute',
                         ...(position === 'top' ? { bottom: '100%', marginBottom: 4 } : { top: '100%', marginTop: 4 }),
-                        right: 0,
+                        left: 0,
                         backgroundColor: 'white',
                         border: '1px solid #e0e0e0',
                         borderRadius: 4,
