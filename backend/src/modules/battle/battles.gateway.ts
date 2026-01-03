@@ -73,25 +73,9 @@ export class BattlesGateway
       const { battleId, fromUserId, toUserId } = payload;
       try {
         const snapshot = this.battles.snapshot(battleId);
-        // 向整个房间广播快照更新
+        // 向整个房间广播快照更新和提和通知
         this.server.to(`battle:${battleId}`).emit('battle.snapshot', snapshot);
-        // 只向对方发送提和通知（遍历房间中的socket，找到对方）
-        if (toUserId) {
-          const room = this.server.sockets.adapter.rooms.get(`battle:${battleId}`);
-          this.logger.debug(`[draw-offer] Room battle:${battleId} has ${room?.size || 0} sockets, looking for userId=${toUserId}`);
-          if (room) {
-            for (const socketId of room) {
-              const socket = this.server.sockets.sockets.get(socketId);
-              const socketUserId = socket ? this.users.get(socket) : undefined;
-              this.logger.debug(`[draw-offer] Socket ${socketId} -> userId=${socketUserId}`);
-              if (socket && socketUserId === toUserId) {
-                this.logger.debug(`[draw-offer] Found target socket, emitting to userId=${toUserId}`);
-                socket.emit('battle.draw-offer', { fromUserId, toUserId });
-                break;
-              }
-            }
-          }
-        }
+        this.server.to(`battle:${battleId}`).emit('battle.draw-offer', { fromUserId, toUserId });
       } catch (err) {
         this.logger.error(`[draw-offer] Error: ${err}`);
       }
@@ -101,23 +85,9 @@ export class BattlesGateway
       const { battleId, byUserId, toUserId } = payload;
       try {
         const snapshot = this.battles.snapshot(battleId);
-        // 向整个房间广播快照更新
+        // 向整个房间广播快照更新和拒绝通知
         this.server.to(`battle:${battleId}`).emit('battle.snapshot', snapshot);
-        // 只向提和发起者发送拒绝通知
-        const room = this.server.sockets.adapter.rooms.get(`battle:${battleId}`);
-        this.logger.debug(`[draw-declined] Room battle:${battleId} has ${room?.size || 0} sockets, looking for userId=${toUserId}`);
-        if (room) {
-          for (const socketId of room) {
-            const socket = this.server.sockets.sockets.get(socketId);
-            const socketUserId = socket ? this.users.get(socket) : undefined;
-            this.logger.debug(`[draw-declined] Socket ${socketId} -> userId=${socketUserId}`);
-            if (socket && socketUserId === toUserId) {
-              this.logger.debug(`[draw-declined] Found target socket, emitting to userId=${toUserId}`);
-              socket.emit('battle.draw-declined', { byUserId, toUserId });
-              break;
-            }
-          }
-        }
+        this.server.to(`battle:${battleId}`).emit('battle.draw-declined', { byUserId, toUserId });
       } catch (err) {
         this.logger.error(`[draw-declined] Error: ${err}`);
       }
