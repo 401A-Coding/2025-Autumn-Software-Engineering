@@ -12,6 +12,7 @@ import {
   Req,
   Param,
   ParseIntPipe,
+  Query,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { UserService } from './user.service';
@@ -36,6 +37,17 @@ export class UsersController {
   async getMyModeration(@Req() req: Request & { user?: { sub: number } }) {
     const actions = await this.userService.getModerationActionsForUser(req.user!.sub);
     return { code: 0, message: 'success', data: actions };
+  }
+
+  // 搜索用户（必须在 :id 路由之前）
+  @Get('search-by-name')
+  @HttpCode(200)
+  async searchUsers(@Query('q') q: string) {
+    if (!q || q.trim().length === 0) {
+      return { code: 0, message: 'success', data: [] };
+    }
+    const users = await this.userService.searchUsers(q);
+    return { code: 0, message: 'success', data: users };
   }
 
   // 获取指定用户的公开信息（仅返回非敏感字段）

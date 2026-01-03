@@ -460,4 +460,23 @@ export class UserService {
       throw e;
     }
   }
+
+  // 搜索用户
+  async searchUsers(q: string, limit = 10) {
+    const users = await this.prisma.user.findMany({
+      where: {
+        username: {
+          contains: q,
+          mode: 'insensitive',
+        },
+      },
+      select: {
+        id: true,
+        username: true,
+        avatarUrl: true,
+      },
+      take: limit,
+    });
+    return users;
+  }
 }

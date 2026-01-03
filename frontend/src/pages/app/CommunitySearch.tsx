@@ -18,6 +18,11 @@ export default function CommunitySearch() {
     const navigate = useNavigate()
     const location = useLocation()
 
+    // 处理搜索
+    const handleSearch = () => {
+        doSearch({ page: 1, q, tag, authorId, updateURL: true })
+    }
+
     const doSearch = useCallback(async (opts?: { page?: number; q?: string; tag?: string; authorId?: number | null; updateURL?: boolean }) => {
         try {
             setLoading(true)
@@ -109,7 +114,7 @@ export default function CommunitySearch() {
     const [history, setHistory] = useState<string[]>(() => loadHistory())
 
     return (
-        <div>
+        <div className="community-page">
             <div className="mb-4 topbar-sticky">
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                     <button className="btn-ghost" onClick={() => navigate(-1)} style={{ minWidth: 48 }}>⬅</button>
@@ -118,10 +123,14 @@ export default function CommunitySearch() {
                         placeholder={authorId && !hasSearched && !q ? `搜索${authorName || ''}的帖子` : '输入关键词后回车或点击搜索'}
                         value={q}
                         onChange={(e) => setQ(e.target.value)}
-                        onKeyDown={(e) => { if (e.key === 'Enter') { doSearch({ page: 1, q, tag, updateURL: true }); } }}
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                                handleSearch()
+                            }
+                        }}
                         autoFocus
                     />
-                    <button className="btn-ghost" style={{ minWidth: 48 }} onClick={() => doSearch({ page: 1, q, tag, updateURL: true })}>🔍</button>
+                    <button className="btn-ghost" style={{ minWidth: 48 }} onClick={handleSearch}>🔍</button>
                 </div>
             </div>
 
