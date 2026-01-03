@@ -290,11 +290,10 @@ export class BattlesController {
     @Body() body: { userId?: number },
   ) {
     // offline 信号可以来自页面导航时的 REST fallback（无认证）或 WebSocket（已认证）
-    // 我们从 body 中尝试读取 userId，如果没有则跳过（后端验证会从参与者列表中查）
+    // 我们从 body 中尝试读取 userId，如果没有则跳过
     const userId = body?.userId;
     if (!userId || !battleId) {
       // 如果 body 中没有 userId，无法标记谁离线，仅视为心跳信号
-      this.logger.warn(`[offline] missing userId or battleId: userId=${userId}, battleId=${battleId}`);
       return { ok: false };
     }
     this.battles.setOnline(battleId, userId, false);
