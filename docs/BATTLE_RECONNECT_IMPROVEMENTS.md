@@ -232,7 +232,7 @@ this.events?.on('battle.offline', (payload: { userId, battleId, snapshot }) => {
 | 对手看到"掉线"提示 | < 200ms | WebSocket |
 | 对手看到"掉线"提示 | < 1500ms | REST fallback |
 | Grace resign 执行 | 2 min | 用户可在此期间重连 |
-| 后端 TTL 自动裁定 | 15 min | 最终兜底 |
+| 后端 TTL 自动裁定 | 2 min | 与 grace resign 保持一致 |
 
 ## 已知限制
 
@@ -252,7 +252,36 @@ this.events?.on('battle.offline', (payload: { userId, battleId, snapshot }) => {
 1. **双通道信号**：WebSocket 为首选，REST 作为 fallback
 2. **多层防护**：popstate + unmount 两层离线检测
 3. **宽限期保护**：2 分钟自动认输，防止用户被迫认负
-4. **后端兜底**：15 分钟 TTL，确保最终裁定
-5. **完整测试**：E2E 测试 + 手动测试场景
+4. **后端兜底**：2 分钟 TTL（与前端 grace resign 保持一致），确保最终裁定
+5. **动态刷新**：OnlineLobby 每 5 秒检查对局状态，确保对局自动结束后"继续对局"卡片消失
+6. **完整测试**：E2E 测试 + 手动测试场景
 
 整个方案具有高可用性、良好的降级策略和用户友好的设计。
+
+## 最近修复（2026年1月）
+
+### 1. DISCONNECT_TTL 调整为 2 分钟
+
+**问题**：后端 TTL 原设为 15 分钟，与前端 grace resign 2 分钟不一致，造成用户体验混淆。
+
+**修复**：
+
+- 前端 `LiveBattle.tsx`：`DISCONNECT_TTL_MINUTES = 2`
+- 后端 `battles.service.ts`：`DISCONNECT_TTL_MS = 2 * 60 * 1000`
+- 现在前后端保持一致：2 分钟自动判负
+
+### 2. OnlineLobby 动态刷新"继续对局"卡片
+
+**问题**：对局在后台自动结束（达到 2 分钟 TTL）时，OnlineLobby 的"继续未完成对局"卡片不会自动消失，因为只在初始加载时查询一次。
+
+**修复**：
+
+- 改进 useEffect，使用 `setInterval` 每 5 秒定期检查对局状态
+- 当对局状态变为 'finished' 时，自动清除 localStorage 和卡片
+- 确保用户看到实时的对局状态
+
+**效果**：
+
+- 用户离开对局后，2 分钟 → 自动认输
+- 5 秒内（最多）自动刷新，卡片消失
+- 不再有"幽灵"卡片挡在页面上
