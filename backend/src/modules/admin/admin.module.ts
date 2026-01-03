@@ -7,16 +7,16 @@ import { PrismaModule } from '../../prisma/prisma.module';
 import { CommunityModule } from '../community/community.module';
 
 @Module({
-    imports: [
-        PrismaModule,
-        CommunityModule,
-        JwtModule.register({
-            secret: process.env.JWT_SECRET || 'dev-secret',
-            signOptions: { expiresIn: '4h' },
-        }),
-    ],
-    controllers: [AdminController],
-    providers: [AdminService, AdminActionService],
-    exports: [AdminService, AdminActionService],
+  imports: [
+    PrismaModule,
+    CommunityModule,
+    JwtModule.register({
+      secret: process.env.JWT_SECRET || 'dev-secret',
+      signOptions: { expiresIn: '4h' },
+    }),
+  ],
+  controllers: [AdminController],
+  providers: [AdminService, AdminActionService],
+  exports: [AdminService, AdminActionService],
 })
-export class AdminModule { }
+export class AdminModule {}

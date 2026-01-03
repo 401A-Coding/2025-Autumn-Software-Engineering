@@ -22,7 +22,7 @@ import { Request } from 'express';
 
 @Controller('api/v1/users')
 export class UsersController {
-  constructor(private readonly userService: UserService) { }
+  constructor(private readonly userService: UserService) {}
 
   @Get('me')
   @HttpCode(200)
@@ -35,7 +35,9 @@ export class UsersController {
   @HttpCode(200)
   @UseGuards(JwtAuthGuard)
   async getMyModeration(@Req() req: Request & { user?: { sub: number } }) {
-    const actions = await this.userService.getModerationActionsForUser(req.user!.sub);
+    const actions = await this.userService.getModerationActionsForUser(
+      req.user!.sub,
+    );
     return { code: 0, message: 'success', data: actions };
   }
 
