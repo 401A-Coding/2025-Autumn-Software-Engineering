@@ -684,6 +684,59 @@ export class BattlesService {
     return { ok: true, message: '已拒绝提和请求' };
   }
 
+  // 悔棋：撤销自己的最后一步
+  undoLastMove(userId: number, battleId: number) {
+    const b = this.getBattle(battleId);
+    if (b.status !== 'playing') {
+      throw new BadRequestException('当前对局未在进行中');
+    }
+    if (!b.players.includes(userId)) {
+      throw new UnauthorizedException('不在房间内');
+    }
+    if (b.moves.length === 0) {
+      throw new BadRequestException('还没有落子，无法悔棋');
+    }
+    // 检查最后一步是否是该用户下的
+    const lastMove = b.moves[b.moves.length - 1];
+    const lastMovePlayer = b.moves.length % 2 === 1 ? b.players[0] : b.players[1];
+    if (lastMovePlayer !== userId) {
+      throw new BadRequestException('最后一步不是您下的，无法悔棋');
+    }
+    // 删除最后一步
+    b.moves.pop();
+    // 重新计算棋盘状态
+    const newState = this.recomputeBoardState(b);
+    b.board = newState.board;
+    b.turn = newState.turn;
+    // 广播悔棋事件
+    this.events?.emit('battle.undo', {
+      battleId,
+      userId,
+    });
+    return { ok: true, message: '悔棋成功' };
+  }
+
+  // 从初始局面重放所有moves，重新计算棋盘状态
+  private recomputeBoardState(b: BattleState): { board: any; turn: 'red' | 'black' } {
+    // 从初始棋盘开始
+    let board = JSON.parse(JSON.stringify(b.initialBoard));
+    let turn: 'red' | 'black' = 'red';
+
+    // 重放所有moves
+    for (const move of b.moves) {
+      // 应用移动
+      const piece = board[move.from.row]?.[move.from.col];
+      if (piece) {
+        board[move.to.row][move.to.col] = piece;
+        board[move.from.row][move.from.col] = null;
+      }
+      // 切换回合
+      turn = turn === 'red' ? 'black' : 'red';
+    }
+
+    return { board, turn };
+  }
+
 
   async quickMatch(userId: number, mode = 'pvp') {
     await this.ensureNotBanned(userId);

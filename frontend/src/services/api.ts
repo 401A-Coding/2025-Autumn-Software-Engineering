@@ -321,6 +321,15 @@ export const battleApi = {
     return res.data
   },
 
+  /** 悔棋（撤销自己的最后一步） */
+  async undoLastMove(battleId: number): Promise<{ ok: boolean; message: string }> {
+    const res = await apiRequest<{ ok: boolean; message: string }>('/api/v1/battles/undo', {
+      method: 'POST',
+      body: JSON.stringify({ battleId }),
+    })
+    return res.data
+  },
+
   /** 获取当前对局最新快照（用于兜底轮询） */
   async snapshot(battleId: number): Promise<
     NonNullable<operations['battlesGet']['responses'][200]['content']['application/json']['data']>

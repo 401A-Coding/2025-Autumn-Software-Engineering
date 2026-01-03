@@ -255,6 +255,15 @@ export class BattlesController {
     return this.battles.declineDraw(req.user!.sub, body.battleId);
   }
 
+  @Post('undo')
+  @UseGuards(JwtAuthGuard)
+  undoLastMove(
+    @Body() body: { battleId: number },
+    @Req() req: Request & { user?: { sub: number } },
+  ) {
+    return this.battles.undoLastMove(req.user!.sub, body.battleId);
+  }
+
   @Get('history')
   @UseGuards(JwtAuthGuard)
   history(

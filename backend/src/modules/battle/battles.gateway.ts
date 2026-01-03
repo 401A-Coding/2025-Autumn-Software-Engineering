@@ -92,6 +92,18 @@ export class BattlesGateway
         this.logger.error(`[draw-declined] Error: ${err}`);
       }
     });
+    // 监听悔棋事件
+    this.events?.on('battle.undo', (payload: { battleId: number; userId: number }) => {
+      const { battleId, userId } = payload;
+      try {
+        const snapshot = this.battles.snapshot(battleId);
+        // 向整个房间广播快照更新和悔棋通知
+        this.server.to(`battle:${battleId}`).emit('battle.snapshot', snapshot);
+        this.server.to(`battle:${battleId}`).emit('battle.undo', { userId });
+      } catch (err) {
+        this.logger.error(`[undo] Error: ${err}`);
+      }
+    });
   }
 
   private readonly users = new WeakMap<Socket, number>();

@@ -283,6 +283,12 @@ export default function LiveBattle() {
                 alert('对方拒绝了您的提和请求');
             }
         });
+        // 监听悔棋
+        c.onUndo((p) => {
+            const currentUserId = myUserIdRef.current;
+            console.log('[UNDO] Someone undid a move:', p, 'myUserId=', currentUserId);
+            // 悔棋后快照会自动更新，无需额外处理
+        });
         return c;
     }, []);
 
@@ -911,86 +917,102 @@ export default function LiveBattle() {
                                                 </div>
 
                                                 {/* 我的头像在棋盘下方：头像右对齐，昵称在左 */}
-                                                {myProfile && mySide !== 'spectator' && (
-                                                    <div className="livebattle-board-wrapper" style={{ marginTop: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                                                        {/* 左侧菜单按钮 */}
-                                                        <div>
-                                                            <DropdownMenu position="top" actions={[
-                                                                {
-                                                                    label: '🏳️ 认输',
-                                                                    danger: true,
-                                                                    onClick: async () => {
-                                                                        if (!battleId || typeof battleId !== 'number') return;
-                                                                        if (!window.confirm('确定要认输吗？')) return;
-                                                                        try {
-                                                                            await battleApi.resign(battleId);
-                                                                            // 认输后重新获取快照
-                                                                            conn.snapshot(battleId);
-                                                                        } catch (e: any) {
-                                                                            alert(e?.message || '认输失败');
+                                                {myProfile && mySide !== 'spectator' && (() => {
+                                                    // 判断是否可以悔棋：最后一步是自己下的
+                                                    const canUndo = snapshot && moves.length > 0 && myUserId && snapshot.players && (() => {
+                                                        const lastMoveIndex = moves.length - 1;
+                                                        // 奇数步（1,3,5...）是红方（players[0]），偶数步（0,2,4...）是黑方（players[1]）
+                                                        // 注意：moves数组是0-based，所以第1步是index 0
+                                                        const lastMovePlayer = lastMoveIndex % 2 === 0 ? snapshot.players[0] : snapshot.players[1];
+                                                        return lastMovePlayer === myUserId;
+                                                    })();
+
+                                                    return (
+                                                        <div className="livebattle-board-wrapper" style={{ marginTop: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                                                            {/* 左侧菜单按钮 */}
+                                                            <div>
+                                                                <DropdownMenu position="top" actions={[
+                                                                    {
+                                                                        label: '🏳️ 认输',
+                                                                        danger: true,
+                                                                        onClick: async () => {
+                                                                            if (!battleId || typeof battleId !== 'number') return;
+                                                                            if (!window.confirm('确定要认输吗？')) return;
+                                                                            try {
+                                                                                await battleApi.resign(battleId);
+                                                                                // 认输后重新获取快照
+                                                                                conn.snapshot(battleId);
+                                                                            } catch (e: any) {
+                                                                                alert(e?.message || '认输失败');
+                                                                            }
+                                                                        }
+                                                                    },
+                                                                    {
+                                                                        label: '🤝 提和',
+                                                                        onClick: async () => {
+                                                                            try {
+                                                                                await battleApi.offerDraw(battleId);
+                                                                                alert('已向对方发起提和请求');
+                                                                            } catch (e: any) {
+                                                                                alert(e?.message || '提和请求失败');
+                                                                            }
+                                                                        }
+                                                                    },
+                                                                    {
+                                                                        label: '↩️ 悔棋',
+                                                                        disabled: !canUndo,
+                                                                        onClick: async () => {
+                                                                            try {
+                                                                                await battleApi.undoLastMove(battleId);
+                                                                            } catch (e: any) {
+                                                                                alert(e?.message || '悔棋失败');
+                                                                            }
                                                                         }
                                                                     }
-                                                                },
-                                                                {
-                                                                    label: '🤝 提和',
-                                                                    onClick: async () => {
-                                                                        try {
-                                                                            await battleApi.offerDraw(battleId);
-                                                                            alert('已向对方发起提和请求');
-                                                                        } catch (e: any) {
-                                                                            alert(e?.message || '提和请求失败');
-                                                                        }
-                                                                    }
-                                                                },
-                                                                {
-                                                                    label: '↩️ 悔棋',
-                                                                    onClick: () => {
-                                                                        alert('悔棋功能开发中');
-                                                                    }
-                                                                }
-                                                            ]} />
-                                                        </div>
-                                                        {/* 右侧昵称和头像 */}
-                                                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                                            <div
-                                                                className="cursor-pointer"
-                                                                onClick={() => setShowProfileModal({ userId: myProfile.id })}
-                                                                style={{ fontWeight: 600, fontSize: 14, color: '#333' }}
-                                                            >
-                                                                {myProfile.nickname || '匿名用户'}
+                                                                ]} />
                                                             </div>
-                                                            <div
-                                                                className="cursor-pointer"
-                                                                onClick={() => setShowProfileModal({ userId: myProfile.id })}
-                                                                style={{
-                                                                    width: avatarSize,
-                                                                    height: avatarSize,
-                                                                    borderRadius: '50%',
-                                                                    border: `3px solid ${mySide === 'red' ? '#c8102e' : '#333'}`,
-                                                                    overflow: 'hidden',
-                                                                    flexShrink: 0,
-                                                                    animation: isMyTurn ? 'pulse-border 1s infinite' : 'none',
-                                                                    backgroundColor: myProfile.avatarUrl ? 'transparent' : '#e0e0e0',
-                                                                    display: 'flex',
-                                                                    alignItems: 'center',
-                                                                    justifyContent: 'center'
-                                                                }}
-                                                            >
-                                                                {myProfile.avatarUrl ? (
-                                                                    <img
-                                                                        src={myProfile.avatarUrl}
-                                                                        alt={myProfile.nickname || '我'}
-                                                                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                                                                    />
-                                                                ) : (
-                                                                    <span style={{ fontSize: 14, fontWeight: 600, color: '#666' }}>
-                                                                        {(myProfile.nickname || '?').slice(0, 2).toUpperCase()}
-                                                                    </span>
-                                                                )}
+                                                            {/* 右侧昵称和头像 */}
+                                                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                                                <div
+                                                                    className="cursor-pointer"
+                                                                    onClick={() => setShowProfileModal({ userId: myProfile.id })}
+                                                                    style={{ fontWeight: 600, fontSize: 14, color: '#333' }}
+                                                                >
+                                                                    {myProfile.nickname || '匿名用户'}
+                                                                </div>
+                                                                <div
+                                                                    className="cursor-pointer"
+                                                                    onClick={() => setShowProfileModal({ userId: myProfile.id })}
+                                                                    style={{
+                                                                        width: avatarSize,
+                                                                        height: avatarSize,
+                                                                        borderRadius: '50%',
+                                                                        border: `3px solid ${mySide === 'red' ? '#c8102e' : '#333'}`,
+                                                                        overflow: 'hidden',
+                                                                        flexShrink: 0,
+                                                                        animation: isMyTurn ? 'pulse-border 1s infinite' : 'none',
+                                                                        backgroundColor: myProfile.avatarUrl ? 'transparent' : '#e0e0e0',
+                                                                        display: 'flex',
+                                                                        alignItems: 'center',
+                                                                        justifyContent: 'center'
+                                                                    }}
+                                                                >
+                                                                    {myProfile.avatarUrl ? (
+                                                                        <img
+                                                                            src={myProfile.avatarUrl}
+                                                                            alt={myProfile.nickname || '我'}
+                                                                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                                                        />
+                                                                    ) : (
+                                                                        <span style={{ fontSize: 14, fontWeight: 600, color: '#666' }}>
+                                                                            {(myProfile.nickname || '?').slice(0, 2).toUpperCase()}
+                                                                        </span>
+                                                                    )}
+                                                                </div>
                                                             </div>
                                                         </div>
-                                                    </div>
-                                                )}
+                                                    );
+                                                })()}
                                             </>
                                         );
                                     })()}
