@@ -12,6 +12,7 @@ import {
   Req,
   Param,
   ParseIntPipe,
+  Query,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { UserService } from './user.service';
@@ -43,6 +44,17 @@ export class UsersController {
   @HttpCode(200)
   async getById(@Param('id', ParseIntPipe) id: number) {
     return this.userService.getPublicProfileById(id);
+  }
+
+  // 搜索用户
+  @Get('search-by-name')
+  @HttpCode(200)
+  async searchUsers(@Query('q') q: string) {
+    if (!q || q.trim().length === 0) {
+      return { code: 0, message: 'success', data: [] };
+    }
+    const users = await this.userService.searchUsers(q);
+    return { code: 0, message: 'success', data: users };
   }
 
   @Patch('me')
