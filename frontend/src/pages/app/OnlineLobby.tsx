@@ -24,27 +24,30 @@ export default function OnlineLobby() {
             clearPersistBattleId()
             return
         }
-        let alive = true
-        setResumeLoading(true)
-            ; (async () => {
-                try {
-                    const snap = await battleApi.snapshot(id)
-                    if (!alive) return
-                    if ((snap as any)?.status === 'finished') {
-                        clearPersistBattleId()
-                        setResumeInfo(null)
-                        return
-                    }
-                    setResumeInfo({ battleId: id, source: (snap as any)?.source, status: (snap as any)?.status })
-                } catch (e) {
-                    console.error('[OnlineLobby] fetch resume snapshot failed', e)
+        const loadResumeInfo = async () => {
+            setResumeLoading(true)
+            try {
+                const snap = await battleApi.snapshot(id)
+                if ((snap as any)?.status === 'finished') {
                     clearPersistBattleId()
-                    if (alive) setResumeInfo(null)
-                } finally {
-                    if (alive) setResumeLoading(false)
+                    setResumeInfo(null)
+                    return
                 }
-            })()
-        return () => { alive = false }
+                setResumeInfo({ battleId: id, source: (snap as any)?.source, status: (snap as any)?.status })
+            } catch (e) {
+                console.error('[OnlineLobby] fetch resume snapshot failed', e)
+                clearPersistBattleId()
+                setResumeInfo(null)
+            } finally {
+                setResumeLoading(false)
+            }
+        }
+
+        loadResumeInfo()
+
+        // 定期刷新（每5秒检查一次对局是否已结束），确保对局自动结束后卡片消失
+        const timer = window.setInterval(loadResumeInfo, 5000)
+        return () => window.clearInterval(timer)
     }, [])
 
     return (

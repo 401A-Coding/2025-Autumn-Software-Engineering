@@ -89,7 +89,7 @@ export class BattlesService {
 
   // TTL 配置（开发默认）
   private static readonly WAITING_TTL_MS = 10 * 60 * 1000; // 10min
-  private static readonly DISCONNECT_TTL_MS = 15 * 60 * 1000; // 15min，无人在线时触发
+  private static readonly DISCONNECT_TTL_MS = 2 * 60 * 1000; // 2min，与前端grace resign保持一致
   private static readonly PROCESSED_REQ_TTL_MS = 5 * 60 * 1000; // 5min 去重记录 TTL
 
   constructor(

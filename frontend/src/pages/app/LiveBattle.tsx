@@ -9,7 +9,7 @@ import UserAvatar from '../../components/UserAvatar';
 import DropdownMenu from '../../components/DropdownMenu';
 
 export default function LiveBattle() {
-    const DISCONNECT_TTL_MINUTES = 15;
+    const DISCONNECT_TTL_MINUTES = 2;
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
     const action = searchParams.get('action'); // create | join | match | null
