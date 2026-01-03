@@ -73,8 +73,21 @@ export class BattlesGateway
       const { battleId, fromUserId, toUserId } = payload;
       try {
         const snapshot = this.battles.snapshot(battleId);
+        // 向整个房间广播快照更新
         this.server.to(`battle:${battleId}`).emit('battle.snapshot', snapshot);
-        this.server.to(`battle:${battleId}`).emit('battle.draw-offer', { fromUserId, toUserId });
+        // 只向对方发送提和通知（遍历房间中的socket，找到对方）
+        if (toUserId) {
+          const sockets = this.server.sockets.adapter.rooms.get(`battle:${battleId}`);
+          if (sockets) {
+            for (const socketId of sockets) {
+              const socket = this.server.sockets.sockets.get(socketId);
+              if (socket && this.users.get(socket) === toUserId) {
+                socket.emit('battle.draw-offer', { fromUserId, toUserId });
+                break;
+              }
+            }
+          }
+        }
       } catch {
         // ignore
       }
@@ -84,8 +97,19 @@ export class BattlesGateway
       const { battleId, byUserId, toUserId } = payload;
       try {
         const snapshot = this.battles.snapshot(battleId);
+        // 向整个房间广播快照更新
         this.server.to(`battle:${battleId}`).emit('battle.snapshot', snapshot);
-        this.server.to(`battle:${battleId}`).emit('battle.draw-declined', { byUserId, toUserId });
+        // 只向提和发起者发送拒绝通知
+        const sockets = this.server.sockets.adapter.rooms.get(`battle:${battleId}`);
+        if (sockets) {
+          for (const socketId of sockets) {
+            const socket = this.server.sockets.sockets.get(socketId);
+            if (socket && this.users.get(socket) === toUserId) {
+              socket.emit('battle.draw-declined', { byUserId, toUserId });
+              break;
+            }
+          }
+        }
       } catch {
         // ignore
       }
