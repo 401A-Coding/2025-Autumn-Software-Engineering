@@ -79,11 +79,14 @@ describe('LiveBattle interactions', () => {
             turn: 'red',
             createdAt: Date.now(),
             winnerId: null,
+            finishReason: null,
+            lastMove: null,
+            stateHash: 'abc123',
             onlineUserIds: [1],
             source: 'room',
             visibility: 'private',
             ownerId: 1,
-        });
+        } as any);
         // 心跳在进入房间且连接建立后触发；模拟连接事件
         // 触发 socket connect 回调
         socketOn.mock.calls.forEach(call => {
