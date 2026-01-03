@@ -55,6 +55,9 @@ export interface BattleState {
     fromUserId: number;
     timestamp: number;
   } | null;
+  // 提和和悔棋使用次数（每位玩家每局最多各3次）
+  drawOfferCount?: Map<number, number>;
+  undoRequestCount?: Map<number, number>;
 }
 
 @Injectable()
@@ -171,6 +174,8 @@ export class BattlesService {
       source,
       visibility,
       ownerId: creatorId,
+      drawOfferCount: new Map(),
+      undoRequestCount: new Map(),
     };
     // 同步 turnIndex 与初始先手
     state.turnIndex = state.turn === 'red' ? 0 : 1;
@@ -353,6 +358,8 @@ export class BattlesService {
       ownerId: b.ownerId ?? null,
       initialBoardId: b.initialBoardId ?? null,
       drawOffer: b.drawOffer ?? null,
+      drawOfferCount: b.drawOfferCount ? Object.fromEntries(b.drawOfferCount) : {},
+      undoRequestCount: b.undoRequestCount ? Object.fromEntries(b.undoRequestCount) : {},
     };
   }
 
@@ -618,6 +625,12 @@ export class BattlesService {
     if (!b.players.includes(userId)) {
       throw new UnauthorizedException('不在房间内');
     }
+    // 检查提和次数限制（每位玩家每局最多3次）
+    if (!b.drawOfferCount) b.drawOfferCount = new Map();
+    const userDrawCount = b.drawOfferCount.get(userId) || 0;
+    if (userDrawCount >= 3) {
+      throw new BadRequestException('您的提和次数已用完（每局最多3次）');
+    }
     // 如果已有提和请求，不能重复发起
     if (b.drawOffer && b.drawOffer.fromUserId === userId) {
       throw new BadRequestException('您已发起提和请求，请等待对方回应');
@@ -627,6 +640,8 @@ export class BattlesService {
       fromUserId: userId,
       timestamp: Date.now(),
     };
+    // 递增提和计数
+    b.drawOfferCount.set(userId, userDrawCount + 1);
     // 广播提和请求
     this.events?.emit('battle.draw-offer', {
       battleId,
@@ -698,6 +713,12 @@ export class BattlesService {
     if (!b.players.includes(userId)) {
       throw new UnauthorizedException('不在房间内');
     }
+    // 检查悔棋次数限制（每位玩家每局最多3次）
+    if (!b.undoRequestCount) b.undoRequestCount = new Map();
+    const userUndoCount = b.undoRequestCount.get(userId) || 0;
+    if (userUndoCount >= 3) {
+      throw new BadRequestException('您的悔棋次数已用完（每局最多3次）');
+    }
     if (b.moves.length === 0) {
       throw new BadRequestException('还没有落子，无法悔棋');
     }
@@ -715,6 +736,10 @@ export class BattlesService {
       fromUserId: userId,
       timestamp: Date.now(),
     };
+    // 递增悔棋计数
+    b.undoRequestCount.set(userId, userUndoCount + 1);
+    // 递增悔棋计数
+    b.undoRequestCount.set(userId, userUndoCount + 1);
     // 广播悔棋请求
     this.events?.emit('battle.undo-offer', {
       battleId,
@@ -746,6 +771,8 @@ export class BattlesService {
     const newState = this.recomputeBoardState(b);
     b.board = newState.board;
     b.turn = newState.turn;
+    // 同步 turnIndex（与 move 方法保持一致）
+    b.turnIndex = b.turn === 'red' ? 0 : 1;
     // 清除悔棋请求
     b.undoRequest = null;
     // 广播悔棋接受

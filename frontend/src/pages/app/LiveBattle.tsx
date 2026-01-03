@@ -190,7 +190,8 @@ export default function LiveBattle() {
                 const prevLast = prev.length ? prev[prev.length - 1].seq : 0;
                 const snapLast = snapMoves.length ? snapMoves[snapMoves.length - 1].seq : 0;
 
-                if (snapLast > prevLast) {
+                // 更新条件：快照有新增步数(snapLast > prevLast) 或 减少步数（悔棋：snapLast < prevLast）
+                if (snapLast !== prevLast) {
                     movesRef.current = snapMoves;
                     return snapMoves;
                 }
@@ -611,7 +612,8 @@ export default function LiveBattle() {
                         const snapMoves = next.moves || [];
                         const prevLast = prev.length ? prev[prev.length - 1].seq : 0;
                         const snapLast = snapMoves.length ? snapMoves[snapMoves.length - 1].seq : 0;
-                        if (snapLast > prevLast) {
+                        // 更新条件：快照有新增步数(snapLast > prevLast) 或 减少步数（悔棋：snapLast < prevLast）
+                        if (snapLast !== prevLast) {
                             movesRef.current = snapMoves;
                             return snapMoves;
                         }
@@ -938,14 +940,29 @@ export default function LiveBattle() {
 
                                                 {/* 我的头像在棋盘下方：头像右对齐，昵称在左 */}
                                                 {myProfile && mySide !== 'spectator' && (() => {
-                                                    // 判断是否可以悔棋：最后一步是自己下的
-                                                    const canUndo = snapshot && moves.length > 0 && myUserId && snapshot.players && (() => {
+                                                    // 判断是否可以悔棋：
+                                                    // 1. 有棋步存在（至少有一步）
+                                                    // 2. 最后一步是自己下的
+                                                    // 3. 当前轮到对方（即自己刚下完，对方还没下）
+                                                    const canUndo = (() => {
+                                                        // 优先检查：必须有棋步且基础条件满足
+                                                        if (!snapshot || !moves || moves.length === 0 || !myUserId || !snapshot.players || !isOpponentTurn) {
+                                                            return false;
+                                                        }
+                                                        // 检查最后一步是否是自己下的
                                                         const lastMoveIndex = moves.length - 1;
-                                                        // 奇数步（1,3,5...）是红方（players[0]），偶数步（0,2,4...）是黑方（players[1]）
-                                                        // 注意：moves数组是0-based，所以第1步是index 0
+                                                        // 第0步(index=0)是红方(players[0])，第1步(index=1)是黑方(players[1])，以此类推
                                                         const lastMovePlayer = lastMoveIndex % 2 === 0 ? snapshot.players[0] : snapshot.players[1];
                                                         return lastMovePlayer === myUserId;
                                                     })();
+
+                                                    // 计算剩余次数
+                                                    const myDrawCount = snapshot?.drawOfferCount?.[myUserId as number] || 0;
+                                                    const myUndoCount = snapshot?.undoRequestCount?.[myUserId as number] || 0;
+                                                    const drawRemaining = 3 - myDrawCount;
+                                                    const undoRemaining = 3 - myUndoCount;
+                                                    const canDraw = drawRemaining > 0;
+                                                    const canRequestUndo = canUndo && undoRemaining > 0;
 
                                                     return (
                                                         <div className="livebattle-board-wrapper" style={{ marginTop: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
@@ -968,8 +985,13 @@ export default function LiveBattle() {
                                                                         }
                                                                     },
                                                                     {
-                                                                        label: '🤝 提和',
+                                                                        label: `🤝 提和 (${drawRemaining}/3)`,
+                                                                        disabled: !canDraw,
                                                                         onClick: async () => {
+                                                                            if (!canDraw) {
+                                                                                alert('您的提和次数已用完（每局最多3次）');
+                                                                                return;
+                                                                            }
                                                                             try {
                                                                                 await battleApi.offerDraw(battleId);
                                                                                 alert('已向对方发起提和请求');
@@ -979,9 +1001,24 @@ export default function LiveBattle() {
                                                                         }
                                                                     },
                                                                     {
-                                                                        label: '↩️ 悔棋',
-                                                                        disabled: !canUndo,
+                                                                        label: `↩️ 悔棋 (${undoRemaining}/3)`,
+                                                                        disabled: !canRequestUndo,
                                                                         onClick: async () => {
+                                                                            // 前端校验：只有在满足悔棋条件时才发送请求
+                                                                            if (!canUndo) {
+                                                                                if (!moves || moves.length === 0) {
+                                                                                    alert('还没有走棋，无法悔棋');
+                                                                                } else if (isMyTurn) {
+                                                                                    alert('当前是您的回合，无法悔棋。只能在您走完一步且对方还未落子时悔棋');
+                                                                                } else {
+                                                                                    alert('无法悔棋：只能在您走完一步且对方还未落子时悔棋');
+                                                                                }
+                                                                                return;
+                                                                            }
+                                                                            if (undoRemaining <= 0) {
+                                                                                alert('您的悔棋次数已用完（每局最多3次）');
+                                                                                return;
+                                                                            }
                                                                             try {
                                                                                 await battleApi.offerUndo(battleId);
                                                                                 alert('已向对方发起悔棋请求');

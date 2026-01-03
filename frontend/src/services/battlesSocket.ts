@@ -36,6 +36,8 @@ export type BattleSnapshot = {
         fromUserId: number;
         timestamp: number;
     } | null;
+    drawOfferCount?: Record<number, number>;
+    undoRequestCount?: Record<number, number>;
 };
 
 export function connectBattle() {

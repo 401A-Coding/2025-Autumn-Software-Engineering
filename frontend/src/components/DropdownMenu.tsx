@@ -4,6 +4,7 @@ export interface MenuAction {
     label: string
     onClick: () => void
     danger?: boolean
+    disabled?: boolean
 }
 
 interface DropdownMenuProps {
@@ -63,7 +64,9 @@ export default function DropdownMenu({ actions, position = 'bottom' }: DropdownM
                     {actions.map((action, idx) => (
                         <button
                             key={idx}
+                            disabled={action.disabled}
                             onClick={() => {
+                                if (action.disabled) return
                                 action.onClick()
                                 setOpen(false)
                             }}
@@ -74,12 +77,15 @@ export default function DropdownMenu({ actions, position = 'bottom' }: DropdownM
                                 padding: '8px 12px',
                                 border: 'none',
                                 background: 'transparent',
-                                cursor: 'pointer',
+                                cursor: action.disabled ? 'not-allowed' : 'pointer',
                                 fontSize: 14,
-                                color: action.danger ? '#d32f2f' : '#333',
+                                color: action.disabled ? '#999' : (action.danger ? '#d32f2f' : '#333'),
+                                opacity: action.disabled ? 0.5 : 1,
                             }}
                             onMouseEnter={(e) => {
-                                e.currentTarget.style.backgroundColor = '#f5f5f5'
+                                if (!action.disabled) {
+                                    e.currentTarget.style.backgroundColor = '#f5f5f5'
+                                }
                             }}
                             onMouseLeave={(e) => {
                                 e.currentTarget.style.backgroundColor = 'transparent'
