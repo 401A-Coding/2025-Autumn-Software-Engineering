@@ -1138,7 +1138,7 @@ export default function LiveBattle() {
 
             {/* 提和请求对话框 */}
             {showDrawOfferDialog && drawOfferFromUserId !== null && (
-                <div className="modal-overlay" onClick={() => setShowDrawOfferDialog(false)}>
+                <div className="modal-overlay">
                     <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 400 }}>
                         <h3 style={{ marginBottom: 16 }}>提和请求</h3>
                         <p style={{ marginBottom: 24 }}>
