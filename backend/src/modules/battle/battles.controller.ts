@@ -297,11 +297,16 @@ export class BattlesController {
       // 如果 body 中没有 userId，无法标记谁离线，仅视为心跳信号
       return { ok: false };
     }
-    this.battles.setOnline(battleId, userId, false);
-    const snapshot = this.battles.snapshot(battleId);
-    // 发出事件，让 gateway 订阅并通过 WebSocket 广播给房间内的其他玩家
-    this.events.emit('battle.offline', { userId, battleId, snapshot });
-    return { ok: true };
+    try {
+      this.battles.setOnline(battleId, userId, false);
+      const snapshot = this.battles.snapshot(battleId);
+      // 发出事件，让 gateway 订阅并通过 WebSocket 广播给房间内的其他玩家
+      this.events.emit('battle.offline', { userId, battleId, snapshot });
+      return { ok: true };
+    } catch (err) {
+      // 即使发出事件失败，也返回 ok=true，因为 setOnline 已经执行
+      return { ok: true };
+    }
   }
 
   @Get('history')
