@@ -222,9 +222,9 @@ export default function RecordReplay() {
     return (
         <MobileFrame>
             <div>
-                <div className="row-between align-center mb-12" style={{ gap: 12 }}>
+                <div style={{ gap: 12, position: 'fixed', top: '48px', left: '50%', transform: 'translateX(-50%)', maxWidth: 'var(--mobile-max-width)', width: '100%', zIndex: 9, backgroundColor: '#fff', paddingTop: 8, paddingBottom: 8, paddingLeft: 16, paddingRight: 16, boxSizing: 'border-box', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     <button className="btn-ghost" onClick={() => navigate('/app/history')}>← 返回列表</button>
-                    <h2 className={`mt-0 mb-0 ${titleClass}`} style={{ margin: 0, flex: 1, textAlign: 'center' }}>{titleText}</h2>
+                    <h2 className={`mt-0 mb-0 ${titleClass}`} style={{ margin: 0, position: 'absolute', left: '50%', transform: 'translateX(-50%)', textAlign: 'center' }}>{titleText}</h2>
                     <button
                         className="btn-ghost"
                         title={record.favorite ? '取消收藏' : '收藏'}
@@ -246,137 +246,140 @@ export default function RecordReplay() {
                         {record.favorite ? '❤️' : '🤍'}
                     </button>
                 </div>
-                <section className="paper-card card-pad pos-rel">
-                    {/* 战果居中显示，两侧头像 */}
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 16, gap: 16 }}>
-                        <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-end' }}>
-                            {renderFramedAvatar(leftProfile, '#c8102e')}
-                        </div>
-                        <div className="fw-600" style={{ textAlign: 'center', fontSize: 18 }}>
-                            {result === 'red' ? '先胜' : result === 'black' ? '先负' : result === 'draw' ? '平局' : '未结束'}
-                        </div>
-                        <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-start' }}>
-                            {renderFramedAvatar(rightProfile, '#333')}
-                        </div>
-                    </div>
+                <div style={{ marginTop: 64 }}>
 
-                    <div className="muted text-13">
-                        开始：{new Date(record.startedAt).toLocaleString()} · 结束：{record.endedAt ? new Date(record.endedAt).toLocaleString() : '—'}
-                    </div>
-
-                    {/* 未结束操作区已移除（统一用“残局导出”流程） */}
-
-                    {/* 棋盘区域：上方黑方（棋盘上半），中间棋盘，下方红方（棋盘下半） */}
-                    <div className="mt-12" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
-                        {/* 上方：根据视角显示对应玩家 */}
-                        <div style={{ display: 'flex', justifyContent: 'center' }}>
-                            {renderFramedAvatar(shouldFlip ? leftProfile : rightProfile, shouldFlip ? '#c8102e' : '#333')}
-                        </div>
-
-                        {/* 中间：棋盘 */}
-                        <div>
-                            <BoardViewer
-                                moves={record.moves}
-                                step={step}
-                                flip={shouldFlip}
-                                initialLayout={
-                                    // 自定义模式优先使用 customLayout；若服务端未返回则回退到 initialLayout.pieces
-                                    record.mode === 'custom'
-                                        ? ((record as any).customLayout ?? (record.initialLayout as any))
-                                        : (record.initialLayout as any)
-                                }
-                            />
-                        </div>
-
-                        {/* 下方：根据视角显示对应玩家 */}
-                        <div style={{ display: 'flex', justifyContent: 'center' }}>
-                            {renderFramedAvatar(shouldFlip ? rightProfile : leftProfile, shouldFlip ? '#333' : '#c8102e')}
-                        </div>
-                    </div>
-
-                    {/* 步数控制 */}
-                    <div className="mt-12" style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'center' }}>
-                        {/* 第一行：左箭头 播放/暂停 右箭头 */}
-                        <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
-                            <button className="btn-ghost" disabled={step <= 0} onClick={() => setStep(s => Math.max(0, s - 1))}>◀</button>
-                            <button className="btn-ghost" onClick={() => setIsPlaying(p => !p)}>{isPlaying ? '⏸ 暂停' : '▶ 自动'}</button>
-                            <button className="btn-ghost" disabled={step >= total} onClick={() => setStep(s => Math.min(total, s + 1))}>▶</button>
-                        </div>
-                        {/* 第二行：开局 step/total 终局 */}
-                        <div style={{ display: 'flex', gap: 8, justifyContent: 'center', alignItems: 'center' }}>
-                            <button className="btn-ghost" onClick={() => setStep(0)}>开局</button>
-                            <div className="minw-80 text-center">{step}/{total}</div>
-                            <button className="btn-ghost" onClick={() => setStep(total)}>终局</button>
-                        </div>
-                        {/* 第三行：切换视角 速度 */}
-                        <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
-                            <button className="btn-ghost" onClick={() => setFlipOverride(f => !f)} title="切换视角">切换视角</button>
-                            <button className="btn-ghost" title="修改播放速度" onClick={() => setShowSpeedSheet(true)}>⚙ 速度</button>
-                        </div>
-                    </div>
-
-                    {/* 残局导出：将当前步的局面导出到布置残局 */}
-                    <div className="mt-12">
-                        <button className="btn-primary" onClick={handleExport}>残局导出</button>
-                    </div>
-
-                    {/* 书签操作：改为按钮 prompt 编辑 */}
-                    <div className="mt-16 row-start gap-12">
-                        <button
-                            className="btn-ghost"
-                            onClick={() => {
-                                setEditingBm(null)
-                                setBmLabel('')
-                                setShowBookmarkSheet(true)
-                            }}
-                        >添加书签</button>
-                    </div>
-
-                    {/* 已有书签 */}
-                    <div className="mt-16">
-                        <strong>书签 / 评论：</strong>
-                        {!(record.bookmarks && record.bookmarks.length) ? (
-                            <span className="muted"> 无</span>
-                        ) : (
-                            <div className="row-start wrap gap-6 mt-6">
-                                {record.bookmarks!.map(b => (
-                                    <div key={b.id} className="paper-card pad-4-8 inline-flex align-center gap-6">
-                                        <button
-                                            className="btn-ghost btn-xs"
-                                            onClick={() => jumpToBookmarkStep(b)}
-                                            title={b.note ? b.note : undefined}
-                                        >步 {b.step}{b.label ? ' · ' + b.label : ''}</button>
-                                        {b.note && (
-                                            <span className="text-12 muted">{b.note}</span>
-                                        )}
-                                        <button
-                                            className="btn-ghost btn-xs"
-                                            title="编辑"
-                                            onClick={() => {
-                                                setEditingBm(b)
-                                                setBmLabel(b.label || '')
-                                                setShowBookmarkSheet(true)
-                                            }}
-                                        >✎</button>
-                                        <button
-                                            className="btn-ghost btn-xs"
-                                            aria-label="删除书签"
-                                            title="删除"
-                                            onClick={async () => {
-                                                await recordStore.removeBookmark(record.id, b.id)
-                                                const updated = await recordStore.get(record.id)
-                                                if (updated) setRecord(updated)
-                                            }}
-                                        >✕</button>
-                                    </div>
-                                ))}
+                    <section className="paper-card card-pad pos-rel">
+                        {/* 战果居中显示，两侧头像 */}
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 16, gap: 16 }}>
+                            <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-end' }}>
+                                {renderFramedAvatar(leftProfile, '#c8102e')}
                             </div>
-                        )}
-                    </div>
+                            <div className="fw-600" style={{ textAlign: 'center', fontSize: 18 }}>
+                                {result === 'red' ? '先胜' : result === 'black' ? '先负' : result === 'draw' ? '平局' : '未结束'}
+                            </div>
+                            <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-start' }}>
+                                {renderFramedAvatar(rightProfile, '#333')}
+                            </div>
+                        </div>
 
-                    {/* 评论与书签合并展示，见上方书签列表 */}
+                        <div className="muted text-13">
+                            开始：{new Date(record.startedAt).toLocaleString()} · 结束：{record.endedAt ? new Date(record.endedAt).toLocaleString() : '—'}
+                        </div>
 
-                </section>
+                        {/* 未结束操作区已移除（统一用“残局导出”流程） */}
+
+                        {/* 棋盘区域：上方黑方（棋盘上半），中间棋盘，下方红方（棋盘下半） */}
+                        <div className="mt-12" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
+                            {/* 上方：根据视角显示对应玩家 */}
+                            <div style={{ display: 'flex', justifyContent: 'center' }}>
+                                {renderFramedAvatar(shouldFlip ? leftProfile : rightProfile, shouldFlip ? '#c8102e' : '#333')}
+                            </div>
+
+                            {/* 中间：棋盘 */}
+                            <div>
+                                <BoardViewer
+                                    moves={record.moves}
+                                    step={step}
+                                    flip={shouldFlip}
+                                    initialLayout={
+                                        // 自定义模式优先使用 customLayout；若服务端未返回则回退到 initialLayout.pieces
+                                        record.mode === 'custom'
+                                            ? ((record as any).customLayout ?? (record.initialLayout as any))
+                                            : (record.initialLayout as any)
+                                    }
+                                />
+                            </div>
+
+                            {/* 下方：根据视角显示对应玩家 */}
+                            <div style={{ display: 'flex', justifyContent: 'center' }}>
+                                {renderFramedAvatar(shouldFlip ? rightProfile : leftProfile, shouldFlip ? '#333' : '#c8102e')}
+                            </div>
+                        </div>
+
+                        {/* 步数控制 */}
+                        <div className="mt-12" style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'center' }}>
+                            {/* 第一行：左箭头 播放/暂停 右箭头 */}
+                            <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
+                                <button className="btn-ghost" disabled={step <= 0} onClick={() => setStep(s => Math.max(0, s - 1))}>◀</button>
+                                <button className="btn-ghost" onClick={() => setIsPlaying(p => !p)}>{isPlaying ? '⏸ 暂停' : '▶ 自动'}</button>
+                                <button className="btn-ghost" disabled={step >= total} onClick={() => setStep(s => Math.min(total, s + 1))}>▶</button>
+                            </div>
+                            {/* 第二行：开局 step/total 终局 */}
+                            <div style={{ display: 'flex', gap: 8, justifyContent: 'center', alignItems: 'center' }}>
+                                <button className="btn-ghost" onClick={() => setStep(0)}>开局</button>
+                                <div className="minw-80 text-center">{step}/{total}</div>
+                                <button className="btn-ghost" onClick={() => setStep(total)}>终局</button>
+                            </div>
+                            {/* 第三行：切换视角 速度 */}
+                            <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
+                                <button className="btn-ghost" onClick={() => setFlipOverride(f => !f)} title="切换视角">切换视角</button>
+                                <button className="btn-ghost" title="修改播放速度" onClick={() => setShowSpeedSheet(true)}>⚙ 速度</button>
+                            </div>
+                        </div>
+
+                        {/* 残局导出：将当前步的局面导出到布置残局 */}
+                        <div className="mt-12">
+                            <button className="btn-primary" onClick={handleExport}>残局导出</button>
+                        </div>
+
+                        {/* 书签操作：改为按钮 prompt 编辑 */}
+                        <div className="mt-16 row-start gap-12">
+                            <button
+                                className="btn-ghost"
+                                onClick={() => {
+                                    setEditingBm(null)
+                                    setBmLabel('')
+                                    setShowBookmarkSheet(true)
+                                }}
+                            >添加书签</button>
+                        </div>
+
+                        {/* 已有书签 */}
+                        <div className="mt-16">
+                            <strong>书签 / 评论：</strong>
+                            {!(record.bookmarks && record.bookmarks.length) ? (
+                                <span className="muted"> 无</span>
+                            ) : (
+                                <div className="row-start wrap gap-6 mt-6">
+                                    {record.bookmarks!.map(b => (
+                                        <div key={b.id} className="paper-card pad-4-8 inline-flex align-center gap-6">
+                                            <button
+                                                className="btn-ghost btn-xs"
+                                                onClick={() => jumpToBookmarkStep(b)}
+                                                title={b.note ? b.note : undefined}
+                                            >步 {b.step}{b.label ? ' · ' + b.label : ''}</button>
+                                            {b.note && (
+                                                <span className="text-12 muted">{b.note}</span>
+                                            )}
+                                            <button
+                                                className="btn-ghost btn-xs"
+                                                title="编辑"
+                                                onClick={() => {
+                                                    setEditingBm(b)
+                                                    setBmLabel(b.label || '')
+                                                    setShowBookmarkSheet(true)
+                                                }}
+                                            >✎</button>
+                                            <button
+                                                className="btn-ghost btn-xs"
+                                                aria-label="删除书签"
+                                                title="删除"
+                                                onClick={async () => {
+                                                    await recordStore.removeBookmark(record.id, b.id)
+                                                    const updated = await recordStore.get(record.id)
+                                                    if (updated) setRecord(updated)
+                                                }}
+                                            >✕</button>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* 评论与书签合并展示，见上方书签列表 */}
+
+                    </section>
+                </div>
                 {showBookmarkSheet && (
                     <div
                         role="dialog"
