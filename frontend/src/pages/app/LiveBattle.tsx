@@ -30,6 +30,7 @@ export default function LiveBattle() {
     const connRef = useRef<ReturnType<typeof connectBattle> | null>(null);
     const battleIdRef = useRef<number | null>(null);
     const [myUserId, setMyUserId] = useState<number | null>(null);
+    const myUserIdRef = useRef<number | null>(null);
     const latestSnapshotRef = useRef<BattleSnapshot | null>(null);
     const fallbackTimerRef = useRef<number | null>(null);
     const pendingSeqRef = useRef<number | null>(null);
@@ -264,8 +265,9 @@ export default function LiveBattle() {
         });
         // 监听提和请求
         c.onDrawOffer((p) => {
-            console.log('[DRAW] Received draw offer:', p, 'myUserId=', myUserId);
-            if (p.fromUserId !== myUserId) {
+            const currentUserId = myUserIdRef.current;
+            console.log('[DRAW] Received draw offer:', p, 'myUserId=', currentUserId);
+            if (p.fromUserId !== currentUserId) {
                 console.log('[DRAW] Showing dialog because fromUserId !== myUserId');
                 setDrawOfferFromUserId(p.fromUserId);
                 setShowDrawOfferDialog(true);
@@ -275,13 +277,14 @@ export default function LiveBattle() {
         });
         // 监听提和被拒绝
         c.onDrawDeclined((p) => {
-            console.log('[DRAW] Received draw declined:', p, 'myUserId=', myUserId);
-            if (p.toUserId === myUserId) {
+            const currentUserId = myUserIdRef.current;
+            console.log('[DRAW] Received draw declined:', p, 'myUserId=', currentUserId);
+            if (p.toUserId === currentUserId) {
                 alert('对方拒绝了您的提和请求');
             }
         });
         return c;
-    }, [myUserId]);
+    }, []);
 
     useEffect(() => {
         return () => {
@@ -318,10 +321,12 @@ export default function LiveBattle() {
                 const me = await userApi.getMe();
                 console.log('[ME] got user', me);
                 setMyUserId(me.id as number);
+                myUserIdRef.current = me.id as number;
                 setMyProfile({ id: me.id as number, nickname: (me as any).nickname, avatarUrl: (me as any).avatarUrl });
             } catch (e) {
                 console.error('[ME] getMe failed', e);
                 setMyUserId(null);
+                myUserIdRef.current = null;
             }
         })();
     }, []);
