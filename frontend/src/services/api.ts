@@ -676,6 +676,19 @@ export const userApi = {
     const res = await apiRequest<UserData>(`/api/v1/users/${userId}`)
     return res.data
   },
+
+  /** 搜索用户 */
+  async searchUsers(q: string) {
+    const url = `/api/v1/users/search?q=${encodeURIComponent(q)}`
+    try {
+      const res = await apiRequest<any[]>(url)
+      return res.data || []
+    } catch (e) {
+      // 如果搜索端点不存在，返回空数组
+      return []
+    }
+  },
+
   async getModerationActions() {
     const res = await apiRequest<any[]>('/api/v1/users/me/moderation')
     return res.data

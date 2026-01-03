@@ -1,7 +1,18 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useSearchParams, useNavigate, useLocation } from 'react-router-dom'
-import { communityApi } from '../../services/api'
+import { communityApi, userApi } from '../../services/api'
 import PostPreview from '../../features/community/PostPreview'
+
+interface MatchedTag {
+    name: string
+}
+
+interface MatchedUser {
+    id: number
+    username: string
+}
+
+type MatchResult = { type: 'tag'; data: MatchedTag } | { type: 'user'; data: MatchedUser } | null
 
 export default function CommunitySearch() {
     const [searchParams, setSearchParams] = useSearchParams()
@@ -15,8 +26,54 @@ export default function CommunitySearch() {
     const [hasSearched, setHasSearched] = useState(false)
     const [authorId, setAuthorId] = useState<number | null>(null)
     const [authorName, setAuthorName] = useState<string | null>(null)
+    const [availableTags, setAvailableTags] = useState<MatchedTag[]>([])
+    const [matchResult, setMatchResult] = useState<MatchResult>(null)
     const navigate = useNavigate()
     const location = useLocation()
+
+    // 模糊匹配标签或用户名
+    const fuzzyMatchTagsAndUsers = useCallback(async (input: string): Promise<MatchResult> => {
+        if (!input.trim()) return null
+
+        const lowerInput = input.toLowerCase()
+
+        // 先尝试匹配可用标签
+        const matchedTag = availableTags.find(t => t.name.toLowerCase().includes(lowerInput))
+        if (matchedTag) {
+            return { type: 'tag', data: matchedTag }
+        }
+
+        // 再尝试模糊匹配用户名
+        try {
+            const users = await userApi.searchUsers(input)
+            if (users && users.length > 0) {
+                return { type: 'user', data: { id: users[0].id, username: users[0].username } }
+            }
+        } catch (e) {
+            // ignore search errors
+        }
+
+        return null
+    }, [availableTags])
+
+    // 处理搜索，自动应用匹配的标签或用户
+    const handleSearch = async () => {
+        let finalTag = tag
+        let finalAuthorId = authorId
+
+        // 检查是否有匹配的标签或用户
+        const match = await fuzzyMatchTagsAndUsers(q)
+        if (match) {
+            if (match.type === 'tag') {
+                finalTag = match.data.name
+            } else if (match.type === 'user') {
+                finalAuthorId = match.data.id
+                setAuthorName(match.data.username)
+            }
+        }
+
+        doSearch({ page: 1, q, tag: finalTag, authorId: finalAuthorId, updateURL: true })
+    }
 
     const doSearch = useCallback(async (opts?: { page?: number; q?: string; tag?: string; authorId?: number | null; updateURL?: boolean }) => {
         try {
@@ -64,6 +121,26 @@ export default function CommunitySearch() {
             setLoading(false)
         }
     }, [q, tag, page, pageSize, setSearchParams, authorId, authorName])
+
+    // 加载可用标签列表
+    useEffect(() => {
+        const loadTags = async () => {
+            try {
+                // 暂时使用搜索获取标签，后续可改为专门的 API
+                const res = await communityApi.search({ pageSize: 1000 })
+                const tags = new Set<string>()
+                if (res && Array.isArray(res.items)) {
+                    // 这里假设返回的 SearchResultItem 包含标签信息
+                    // 如果实际结构不同需要调整
+                }
+                // TODO: 后续需要后端提供专门的获取标签列表接口
+                setAvailableTags([])
+            } catch (e) {
+                // ignore
+            }
+        }
+        loadTags()
+    }, [])
 
     // initial load from URL and react to searchParams changes (so back/forward works)
     useEffect(() => {
@@ -117,13 +194,33 @@ export default function CommunitySearch() {
                         className="flex-1 search-input-full"
                         placeholder={authorId && !hasSearched && !q ? `搜索${authorName || ''}的帖子` : '输入关键词后回车或点击搜索'}
                         value={q}
-                        onChange={(e) => setQ(e.target.value)}
-                        onKeyDown={(e) => { if (e.key === 'Enter') { doSearch({ page: 1, q, tag, updateURL: true }); } }}
+                        onChange={(e) => {
+                            setQ(e.target.value)
+                            // 实时更新匹配结果
+                            fuzzyMatchTagsAndUsers(e.target.value).then(setMatchResult)
+                        }}
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                                handleSearch()
+                            }
+                        }}
                         autoFocus
                     />
-                    <button className="btn-ghost" style={{ minWidth: 48 }} onClick={() => doSearch({ page: 1, q, tag, updateURL: true })}>🔍</button>
+                    <button className="btn-ghost" style={{ minWidth: 48 }} onClick={handleSearch}>🔍</button>
                 </div>
             </div>
+
+            {/* 显示匹配提示 */}
+            {matchResult && q && (
+                <div className="mb-4" style={{ padding: '8px 12px', backgroundColor: '#f0f8ff', borderRadius: '4px', borderLeft: '3px solid #1976d2' }}>
+                    <div className="text-12 muted">
+                        {matchResult.type === 'tag'
+                            ? `🏷️ 将按标签"${matchResult.data.name}"搜索`
+                            : `👤 将包含用户"${matchResult.data.username}"的结果`
+                        }
+                    </div>
+                </div>
+            )}
 
             <div>
                 {/* Search history tags (shown before/after) */}
