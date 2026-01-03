@@ -544,8 +544,8 @@ export default function LiveBattle() {
                     return;
                 }
                 setBattleId(id);
-                setSnapshot(snap as BattleSnapshot);
-                const snapMoves = (snap as BattleSnapshot).moves || [];
+                setSnapshot(snap as unknown as BattleSnapshot);
+                const snapMoves = (snap as unknown as BattleSnapshot).moves || [];
                 setMoves(snapMoves);
                 movesRef.current = snapMoves;
                 battleIdRef.current = id;
@@ -691,7 +691,7 @@ export default function LiveBattle() {
     }, [snapshot?.status]);
 
     useEffect(() => {
-        const handler = (e: PopStateEvent) => {
+        const handler = (_e: PopStateEvent) => {
             if (!popGuardActiveRef.current) return;
             if (!(battleIdRef.current && snapshot?.status === 'playing')) return;
 
@@ -1526,6 +1526,7 @@ export default function LiveBattle() {
                             <button
                                 className="btn-secondary"
                                 onClick={async () => {
+                                    if (battleId === '') return;
                                     try {
                                         await battleApi.declineDraw(battleId);
                                         setShowDrawOfferDialog(false);
@@ -1540,6 +1541,7 @@ export default function LiveBattle() {
                             <button
                                 className="btn-primary"
                                 onClick={async () => {
+                                    if (battleId === '') return;
                                     try {
                                         await battleApi.acceptDraw(battleId);
                                         setShowDrawOfferDialog(false);
@@ -1568,6 +1570,7 @@ export default function LiveBattle() {
                             <button
                                 className="btn-secondary"
                                 onClick={async () => {
+                                    if (battleId === '') return;
                                     try {
                                         await battleApi.declineUndo(battleId);
                                         setShowUndoOfferDialog(false);
@@ -1582,6 +1585,7 @@ export default function LiveBattle() {
                             <button
                                 className="btn-primary"
                                 onClick={async () => {
+                                    if (battleId === '') return;
                                     try {
                                         await battleApi.acceptUndo(battleId);
                                         setShowUndoOfferDialog(false);
