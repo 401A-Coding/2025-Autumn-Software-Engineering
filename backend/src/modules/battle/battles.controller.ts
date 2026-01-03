@@ -8,6 +8,7 @@ import {
   UseGuards,
   Req,
   ForbiddenException,
+  ParseIntPipe,
 } from '@nestjs/common';
 import { BattlesService } from './battles.service';
 import { BoardService } from '../board/board.service';
@@ -286,7 +287,7 @@ export class BattlesController {
 
   @Post(':battleId/offline')
   offline(
-    @Param('battleId') battleId: number,
+    @Param('battleId', ParseIntPipe) battleId: number,
     @Body() body: { userId?: number },
   ) {
     // offline 信号可以来自页面导航时的 REST fallback（无认证）或 WebSocket（已认证）
