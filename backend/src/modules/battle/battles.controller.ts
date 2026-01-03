@@ -19,7 +19,7 @@ export class BattlesController {
   constructor(
     private readonly battles: BattlesService,
     private readonly boards: BoardService,
-  ) { }
+  ) {}
 
   @Post()
   @UseGuards(JwtAuthGuard)
@@ -38,9 +38,9 @@ export class BattlesController {
     // 构造种子：优先使用 initialLayout，其次尝试 initialBoardId（模板表中的 layout）
     let seed:
       | {
-        board: import('../../shared/chess/types').Board;
-        turn: import('../../shared/chess/types').Side;
-      }
+          board: import('../../shared/chess/types').Board;
+          turn: import('../../shared/chess/types').Side;
+        }
       | undefined;
     const turn = body.initialLayout?.turn ?? 'red';
     if (

@@ -87,18 +87,24 @@ export class BattlesService {
     @Optional() private readonly events?: EventEmitter2,
     @Optional() private readonly records?: RecordService,
     @Optional() private readonly boards?: BoardService,
-  ) { }
+  ) {}
 
   private async ensureNotBanned(userId: number) {
-    const u = await this.prisma.user.findUnique({ where: { id: userId }, select: { isBanned: true, bannedUntil: true } });
+    const u = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { isBanned: true, bannedUntil: true },
+    });
     if (!u) return;
     if (u.isBanned) {
       const until = u.bannedUntil ? new Date(u.bannedUntil).getTime() : null;
       if (until && until <= Date.now()) {
         // expired: auto clear
         try {
-          await this.prisma.user.update({ where: { id: userId }, data: { isBanned: false, bannedUntil: null } });
-        } catch { }
+          await this.prisma.user.update({
+            where: { id: userId },
+            data: { isBanned: false, bannedUntil: null },
+          });
+        } catch {}
         return;
       }
       throw new ForbiddenException('您的账号已被封禁，暂时无法进行此操作');
@@ -250,7 +256,11 @@ export class BattlesService {
     this.tempReplayByBattle.delete(battleId);
   }
 
-  async joinBattle(userId: number, battleId: number, _password?: string | null) {
+  async joinBattle(
+    userId: number,
+    battleId: number,
+    _password?: string | null,
+  ) {
     void _password;
     await this.ensureNotBanned(userId);
     const b = this.battles.get(battleId);
