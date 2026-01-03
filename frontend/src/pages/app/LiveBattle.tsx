@@ -6,6 +6,7 @@ import { battleApi, userApi } from '../../services/api';
 import OnlineBoard from '../../features/chess/OnlineBoard';
 import './LiveBattle.css';
 import UserAvatar from '../../components/UserAvatar';
+import DropdownMenu from '../../components/DropdownMenu';
 
 export default function LiveBattle() {
     const [searchParams] = useSearchParams();
@@ -886,42 +887,77 @@ export default function LiveBattle() {
 
                                                 {/* 我的头像在棋盘下方：头像右对齐，昵称在左 */}
                                                 {myProfile && mySide !== 'spectator' && (
-                                                    <div className="livebattle-board-wrapper" style={{ marginTop: 8, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8 }}>
-                                                        <div
-                                                            className="cursor-pointer"
-                                                            onClick={() => setShowProfileModal({ userId: myProfile.id })}
-                                                            style={{ fontWeight: 600, fontSize: 14, color: '#333' }}
-                                                        >
-                                                            {myProfile.nickname || '匿名用户'}
+                                                    <div className="livebattle-board-wrapper" style={{ marginTop: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                                                        {/* 左侧菜单按钮 */}
+                                                        <div>
+                                                            <DropdownMenu actions={[
+                                                                {
+                                                                    label: '🏳️ 认输',
+                                                                    danger: true,
+                                                                    onClick: async () => {
+                                                                        if (!battleId || typeof battleId !== 'number') return;
+                                                                        if (!window.confirm('确定要认输吗？')) return;
+                                                                        try {
+                                                                            await battleApi.resign(battleId);
+                                                                            // 认输后重新获取快照
+                                                                            conn.snapshot(battleId);
+                                                                        } catch (e: any) {
+                                                                            alert(e?.message || '认输失败');
+                                                                        }
+                                                                    }
+                                                                },
+                                                                {
+                                                                    label: '🤝 提和',
+                                                                    onClick: () => {
+                                                                        alert('提和功能开发中');
+                                                                    }
+                                                                },
+                                                                {
+                                                                    label: '↩️ 悔棋',
+                                                                    onClick: () => {
+                                                                        alert('悔棋功能开发中');
+                                                                    }
+                                                                }
+                                                            ]} />
                                                         </div>
-                                                        <div
-                                                            className="cursor-pointer"
-                                                            onClick={() => setShowProfileModal({ userId: myProfile.id })}
-                                                            style={{
-                                                                width: avatarSize,
-                                                                height: avatarSize,
-                                                                borderRadius: '50%',
-                                                                border: `3px solid ${mySide === 'red' ? '#c8102e' : '#333'}`,
-                                                                overflow: 'hidden',
-                                                                flexShrink: 0,
-                                                                animation: isMyTurn ? 'pulse-border 1s infinite' : 'none',
-                                                                backgroundColor: myProfile.avatarUrl ? 'transparent' : '#e0e0e0',
-                                                                display: 'flex',
-                                                                alignItems: 'center',
-                                                                justifyContent: 'center'
-                                                            }}
-                                                        >
-                                                            {myProfile.avatarUrl ? (
-                                                                <img
-                                                                    src={myProfile.avatarUrl}
-                                                                    alt={myProfile.nickname || '我'}
-                                                                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                                                                />
-                                                            ) : (
-                                                                <span style={{ fontSize: 14, fontWeight: 600, color: '#666' }}>
-                                                                    {(myProfile.nickname || '?').slice(0, 2).toUpperCase()}
-                                                                </span>
-                                                            )}
+                                                        {/* 右侧昵称和头像 */}
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                                            <div
+                                                                className="cursor-pointer"
+                                                                onClick={() => setShowProfileModal({ userId: myProfile.id })}
+                                                                style={{ fontWeight: 600, fontSize: 14, color: '#333' }}
+                                                            >
+                                                                {myProfile.nickname || '匿名用户'}
+                                                            </div>
+                                                            <div
+                                                                className="cursor-pointer"
+                                                                onClick={() => setShowProfileModal({ userId: myProfile.id })}
+                                                                style={{
+                                                                    width: avatarSize,
+                                                                    height: avatarSize,
+                                                                    borderRadius: '50%',
+                                                                    border: `3px solid ${mySide === 'red' ? '#c8102e' : '#333'}`,
+                                                                    overflow: 'hidden',
+                                                                    flexShrink: 0,
+                                                                    animation: isMyTurn ? 'pulse-border 1s infinite' : 'none',
+                                                                    backgroundColor: myProfile.avatarUrl ? 'transparent' : '#e0e0e0',
+                                                                    display: 'flex',
+                                                                    alignItems: 'center',
+                                                                    justifyContent: 'center'
+                                                                }}
+                                                            >
+                                                                {myProfile.avatarUrl ? (
+                                                                    <img
+                                                                        src={myProfile.avatarUrl}
+                                                                        alt={myProfile.nickname || '我'}
+                                                                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                                                    />
+                                                                ) : (
+                                                                    <span style={{ fontSize: 14, fontWeight: 600, color: '#666' }}>
+                                                                        {(myProfile.nickname || '?').slice(0, 2).toUpperCase()}
+                                                                    </span>
+                                                                )}
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 )}
