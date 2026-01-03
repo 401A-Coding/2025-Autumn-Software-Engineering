@@ -45,6 +45,11 @@ export interface BattleState {
   ownerId?: number;
   // optional initial board id persisted at match start
   initialBoardId?: number | null;
+  // 提和请求状态
+  drawOffer?: {
+    fromUserId: number;
+    timestamp: number;
+  } | null;
 }
 
 @Injectable()
@@ -87,7 +92,7 @@ export class BattlesService {
     @Optional() private readonly events?: EventEmitter2,
     @Optional() private readonly records?: RecordService,
     @Optional() private readonly boards?: BoardService,
-  ) {}
+  ) { }
 
   private async ensureNotBanned(userId: number) {
     const u = await this.prisma.user.findUnique({
@@ -104,7 +109,7 @@ export class BattlesService {
             where: { id: userId },
             data: { isBanned: false, bannedUntil: null },
           });
-        } catch {}
+        } catch { }
         return;
       }
       throw new ForbiddenException('您的账号已被封禁，暂时无法进行此操作');
@@ -342,6 +347,7 @@ export class BattlesService {
       visibility: b.visibility,
       ownerId: b.ownerId ?? null,
       initialBoardId: b.initialBoardId ?? null,
+      drawOffer: b.drawOffer ?? null,
     };
   }
 
@@ -597,6 +603,87 @@ export class BattlesService {
       reason: 'resign',
     });
   }
+
+  // 提和：发起提和请求
+  offerDraw(userId: number, battleId: number) {
+    const b = this.getBattle(battleId);
+    if (b.status !== 'playing') {
+      throw new BadRequestException('当前对局未在进行中');
+    }
+    if (!b.players.includes(userId)) {
+      throw new UnauthorizedException('不在房间内');
+    }
+    // 如果已有提和请求，不能重复发起
+    if (b.drawOffer && b.drawOffer.fromUserId === userId) {
+      throw new BadRequestException('您已发起提和请求，请等待对方回应');
+    }
+    // 设置提和请求
+    b.drawOffer = {
+      fromUserId: userId,
+      timestamp: Date.now(),
+    };
+    // 广播提和请求
+    this.events?.emit('battle.draw-offer', {
+      battleId,
+      fromUserId: userId,
+      toUserId: b.players.find((id) => id !== userId),
+    });
+    return { ok: true, message: '提和请求已发送' };
+  }
+
+  // 接受提和
+  acceptDraw(userId: number, battleId: number) {
+    const b = this.getBattle(battleId);
+    if (b.status !== 'playing') {
+      throw new BadRequestException('当前对局未在进行中');
+    }
+    if (!b.players.includes(userId)) {
+      throw new UnauthorizedException('不在房间内');
+    }
+    if (!b.drawOffer) {
+      throw new BadRequestException('当前没有提和请求');
+    }
+    // 只有对方可以接受提和
+    if (b.drawOffer.fromUserId === userId) {
+      throw new BadRequestException('不能接受自己的提和请求');
+    }
+    // 清除提和请求
+    b.drawOffer = null;
+    // 结束对局，平局
+    return this.finish(battleId, {
+      winnerId: null,
+      reason: 'draw',
+    });
+  }
+
+  // 拒绝提和
+  declineDraw(userId: number, battleId: number) {
+    const b = this.getBattle(battleId);
+    if (b.status !== 'playing') {
+      throw new BadRequestException('当前对局未在进行中');
+    }
+    if (!b.players.includes(userId)) {
+      throw new UnauthorizedException('不在房间内');
+    }
+    if (!b.drawOffer) {
+      throw new BadRequestException('当前没有提和请求');
+    }
+    // 只有对方可以拒绝提和
+    if (b.drawOffer.fromUserId === userId) {
+      throw new BadRequestException('不能拒绝自己的提和请求');
+    }
+    // 清除提和请求
+    const fromUserId = b.drawOffer.fromUserId;
+    b.drawOffer = null;
+    // 广播提和被拒绝
+    this.events?.emit('battle.draw-declined', {
+      battleId,
+      byUserId: userId,
+      toUserId: fromUserId,
+    });
+    return { ok: true, message: '已拒绝提和请求' };
+  }
+
 
   async quickMatch(userId: number, mode = 'pvp') {
     await this.ensureNotBanned(userId);

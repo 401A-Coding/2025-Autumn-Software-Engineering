@@ -33,8 +33,7 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
   },
 })
 export class BattlesGateway
-  implements OnGatewayConnection, OnGatewayDisconnect
-{
+  implements OnGatewayConnection, OnGatewayDisconnect {
   private readonly logger = new Logger(BattlesGateway.name);
   // 简易限流：每用户每房间每秒最多 3 次 move；heartbeat 最少 10s 一次
   private static readonly MOVE_MAX_PER_SEC = 3;
@@ -67,6 +66,28 @@ export class BattlesGateway
         this.server.to(`battle:${battleId}`).emit('battle.snapshot', snapshot);
       } catch {
         // 房间可能已被删除，忽略错误
+      }
+    });
+    // 监听提和请求事件
+    this.events?.on('battle.draw-offer', (payload: { battleId: number; fromUserId: number; toUserId?: number }) => {
+      const { battleId, fromUserId, toUserId } = payload;
+      try {
+        const snapshot = this.battles.snapshot(battleId);
+        this.server.to(`battle:${battleId}`).emit('battle.snapshot', snapshot);
+        this.server.to(`battle:${battleId}`).emit('battle.draw-offer', { fromUserId, toUserId });
+      } catch {
+        // ignore
+      }
+    });
+    // 监听提和被拒绝事件
+    this.events?.on('battle.draw-declined', (payload: { battleId: number; byUserId: number; toUserId: number }) => {
+      const { battleId, byUserId, toUserId } = payload;
+      try {
+        const snapshot = this.battles.snapshot(battleId);
+        this.server.to(`battle:${battleId}`).emit('battle.snapshot', snapshot);
+        this.server.to(`battle:${battleId}`).emit('battle.draw-declined', { byUserId, toUserId });
+      } catch {
+        // ignore
       }
     });
   }

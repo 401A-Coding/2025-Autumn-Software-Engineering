@@ -41,6 +41,8 @@ export default function LiveBattle() {
     const [opponentProfile, setOpponentProfile] = useState<{ id: number; nickname?: string; avatarUrl?: string } | null>(null);
     const [showProfileModal, setShowProfileModal] = useState<{ userId: number } | null>(null);
     const [profileDetail, setProfileDetail] = useState<{ loading: boolean; data: any | null; error?: string }>({ loading: false, data: null });
+    const [showDrawOfferDialog, setShowDrawOfferDialog] = useState(false);
+    const [drawOfferFromUserId, setDrawOfferFromUserId] = useState<number | null>(null);
 
     const conn = useMemo(() => {
         const c = connectBattle();
@@ -258,6 +260,19 @@ export default function LiveBattle() {
             const id = battleIdRef.current;
             if (id && id > 0) {
                 c.snapshot(id);
+            }
+        });
+        // 监听提和请求
+        c.onDrawOffer((p) => {
+            if (p.fromUserId !== myUserId) {
+                setDrawOfferFromUserId(p.fromUserId);
+                setShowDrawOfferDialog(true);
+            }
+        });
+        // 监听提和被拒绝
+        c.onDrawDeclined((p) => {
+            if (p.toUserId === myUserId) {
+                alert('对方拒绝了您的提和请求');
             }
         });
         return c;
@@ -908,8 +923,13 @@ export default function LiveBattle() {
                                                                 },
                                                                 {
                                                                     label: '🤝 提和',
-                                                                    onClick: () => {
-                                                                        alert('提和功能开发中');
+                                                                    onClick: async () => {
+                                                                        try {
+                                                                            await battleApi.offerDraw(battleId);
+                                                                            alert('已向对方发起提和请求');
+                                                                        } catch (e: any) {
+                                                                            alert(e?.message || '提和请求失败');
+                                                                        }
                                                                     }
                                                                 },
                                                                 {
@@ -1101,6 +1121,48 @@ export default function LiveBattle() {
                                     </div>
                                 );
                             })()}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* 提和请求对话框 */}
+            {showDrawOfferDialog && drawOfferFromUserId !== null && (
+                <div className="modal-overlay" onClick={() => setShowDrawOfferDialog(false)}>
+                    <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 400 }}>
+                        <h3 style={{ marginBottom: 16 }}>提和请求</h3>
+                        <p style={{ marginBottom: 24 }}>
+                            对方请求和棋，是否接受？
+                        </p>
+                        <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
+                            <button
+                                className="btn-secondary"
+                                onClick={async () => {
+                                    try {
+                                        await battleApi.declineDraw(battleId);
+                                        setShowDrawOfferDialog(false);
+                                        setDrawOfferFromUserId(null);
+                                    } catch (e: any) {
+                                        alert(e?.message || '拒绝提和失败');
+                                    }
+                                }}
+                            >
+                                拒绝
+                            </button>
+                            <button
+                                className="btn-primary"
+                                onClick={async () => {
+                                    try {
+                                        await battleApi.acceptDraw(battleId);
+                                        setShowDrawOfferDialog(false);
+                                        setDrawOfferFromUserId(null);
+                                    } catch (e: any) {
+                                        alert(e?.message || '接受提和失败');
+                                    }
+                                }}
+                            >
+                                接受
+                            </button>
                         </div>
                     </div>
                 </div>
