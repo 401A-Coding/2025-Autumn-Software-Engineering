@@ -114,7 +114,7 @@ export default function MyPosts() {
     }, [])
 
     return (
-        <div className="app-page no-root-scroll">
+        <div className="app-page no-root-scroll community-page">
             <div ref={headerRef} className="app-page-header">
                 <button className="back-button btn-ghost" onClick={() => navigate('/app/profile')}>
                     ← 返回

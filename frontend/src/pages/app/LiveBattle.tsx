@@ -6,6 +6,7 @@ import { battleApi, userApi } from '../../services/api';
 import OnlineBoard from '../../features/chess/OnlineBoard';
 import './LiveBattle.css';
 import UserAvatar from '../../components/UserAvatar';
+import DropdownMenu from '../../components/DropdownMenu';
 
 export default function LiveBattle() {
     const [searchParams] = useSearchParams();
@@ -29,6 +30,7 @@ export default function LiveBattle() {
     const connRef = useRef<ReturnType<typeof connectBattle> | null>(null);
     const battleIdRef = useRef<number | null>(null);
     const [myUserId, setMyUserId] = useState<number | null>(null);
+    const myUserIdRef = useRef<number | null>(null);
     const latestSnapshotRef = useRef<BattleSnapshot | null>(null);
     const fallbackTimerRef = useRef<number | null>(null);
     const pendingSeqRef = useRef<number | null>(null);
@@ -40,6 +42,10 @@ export default function LiveBattle() {
     const [opponentProfile, setOpponentProfile] = useState<{ id: number; nickname?: string; avatarUrl?: string } | null>(null);
     const [showProfileModal, setShowProfileModal] = useState<{ userId: number } | null>(null);
     const [profileDetail, setProfileDetail] = useState<{ loading: boolean; data: any | null; error?: string }>({ loading: false, data: null });
+    const [showDrawOfferDialog, setShowDrawOfferDialog] = useState(false);
+    const [drawOfferFromUserId, setDrawOfferFromUserId] = useState<number | null>(null);
+    const [showUndoOfferDialog, setShowUndoOfferDialog] = useState(false);
+    const [undoOfferFromUserId, setUndoOfferFromUserId] = useState<number | null>(null);
 
     const conn = useMemo(() => {
         const c = connectBattle();
@@ -184,7 +190,8 @@ export default function LiveBattle() {
                 const prevLast = prev.length ? prev[prev.length - 1].seq : 0;
                 const snapLast = snapMoves.length ? snapMoves[snapMoves.length - 1].seq : 0;
 
-                if (snapLast > prevLast) {
+                // 更新条件：快照有新增步数(snapLast > prevLast) 或 减少步数（悔棋：snapLast < prevLast）
+                if (snapLast !== prevLast) {
                     movesRef.current = snapMoves;
                     return snapMoves;
                 }
@@ -259,8 +266,52 @@ export default function LiveBattle() {
                 c.snapshot(id);
             }
         });
+        // 监听提和请求
+        c.onDrawOffer((p) => {
+            const currentUserId = myUserIdRef.current;
+            console.log('[DRAW] Received draw offer:', p, 'myUserId=', currentUserId);
+            if (p.fromUserId !== currentUserId) {
+                console.log('[DRAW] Showing dialog because fromUserId !== myUserId');
+                setDrawOfferFromUserId(p.fromUserId);
+                setShowDrawOfferDialog(true);
+            } else {
+                console.log('[DRAW] Ignoring because I am the sender');
+            }
+        });
+        // 监听提和被拒绝
+        c.onDrawDeclined((p) => {
+            const currentUserId = myUserIdRef.current;
+            console.log('[DRAW] Received draw declined:', p, 'myUserId=', currentUserId);
+            if (p.toUserId === currentUserId) {
+                alert('对方拒绝了您的提和请求');
+            }
+        });
+        // 监听悔棋请求
+        c.onUndoOffer((p) => {
+            const currentUserId = myUserIdRef.current;
+            console.log('[UNDO] Received undo offer:', p, 'myUserId=', currentUserId);
+            if (p.fromUserId !== currentUserId) {
+                console.log('[UNDO] Showing dialog because fromUserId !== myUserId');
+                setUndoOfferFromUserId(p.fromUserId);
+                setShowUndoOfferDialog(true);
+            } else {
+                console.log('[UNDO] Ignoring because I am the sender');
+            }
+        });
+        // 监听悔棋接受
+        c.onUndoAccepted(() => {
+            console.log('[UNDO] Undo accepted, board will be updated via snapshot');
+        });
+        // 监听悔棋被拒绝
+        c.onUndoDeclined((p) => {
+            const currentUserId = myUserIdRef.current;
+            console.log('[UNDO] Received undo declined:', p, 'myUserId=', currentUserId);
+            if (p.toUserId === currentUserId) {
+                alert('对方拒绝了您的悔棋请求');
+            }
+        });
         return c;
-    }, [myUserId]);
+    }, []);
 
     useEffect(() => {
         return () => {
@@ -297,10 +348,12 @@ export default function LiveBattle() {
                 const me = await userApi.getMe();
                 console.log('[ME] got user', me);
                 setMyUserId(me.id as number);
+                myUserIdRef.current = me.id as number;
                 setMyProfile({ id: me.id as number, nickname: (me as any).nickname, avatarUrl: (me as any).avatarUrl });
             } catch (e) {
                 console.error('[ME] getMe failed', e);
                 setMyUserId(null);
+                myUserIdRef.current = null;
             }
         })();
     }, []);
@@ -559,7 +612,8 @@ export default function LiveBattle() {
                         const snapMoves = next.moves || [];
                         const prevLast = prev.length ? prev[prev.length - 1].seq : 0;
                         const snapLast = snapMoves.length ? snapMoves[snapMoves.length - 1].seq : 0;
-                        if (snapLast > prevLast) {
+                        // 更新条件：快照有新增步数(snapLast > prevLast) 或 减少步数（悔棋：snapLast < prevLast）
+                        if (snapLast !== prevLast) {
                             movesRef.current = snapMoves;
                             return snapMoves;
                         }
@@ -885,46 +939,138 @@ export default function LiveBattle() {
                                                 </div>
 
                                                 {/* 我的头像在棋盘下方：头像右对齐，昵称在左 */}
-                                                {myProfile && mySide !== 'spectator' && (
-                                                    <div className="livebattle-board-wrapper" style={{ marginTop: 8, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8 }}>
-                                                        <div
-                                                            className="cursor-pointer"
-                                                            onClick={() => setShowProfileModal({ userId: myProfile.id })}
-                                                            style={{ fontWeight: 600, fontSize: 14, color: '#333' }}
-                                                        >
-                                                            {myProfile.nickname || '匿名用户'}
+                                                {myProfile && mySide !== 'spectator' && (() => {
+                                                    // 判断是否可以悔棋：
+                                                    // 1. 有棋步存在（至少有一步）
+                                                    // 2. 最后一步是自己下的
+                                                    // 3. 当前轮到对方（即自己刚下完，对方还没下）
+                                                    const canUndo = (() => {
+                                                        // 优先检查：必须有棋步且基础条件满足
+                                                        if (!snapshot || !moves || moves.length === 0 || !myUserId || !snapshot.players || !isOpponentTurn) {
+                                                            return false;
+                                                        }
+                                                        // 检查最后一步是否是自己下的
+                                                        const lastMoveIndex = moves.length - 1;
+                                                        // 第0步(index=0)是红方(players[0])，第1步(index=1)是黑方(players[1])，以此类推
+                                                        const lastMovePlayer = lastMoveIndex % 2 === 0 ? snapshot.players[0] : snapshot.players[1];
+                                                        return lastMovePlayer === myUserId;
+                                                    })();
+
+                                                    // 计算剩余次数
+                                                    const myDrawCount = snapshot?.drawOfferCount?.[myUserId as number] || 0;
+                                                    const myUndoCount = snapshot?.undoRequestCount?.[myUserId as number] || 0;
+                                                    const drawRemaining = 3 - myDrawCount;
+                                                    const undoRemaining = 3 - myUndoCount;
+                                                    const canDraw = drawRemaining > 0;
+                                                    const canRequestUndo = canUndo && undoRemaining > 0;
+
+                                                    return (
+                                                        <div className="livebattle-board-wrapper" style={{ marginTop: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                                                            {/* 左侧菜单按钮 */}
+                                                            <div>
+                                                                <DropdownMenu position="top" actions={[
+                                                                    {
+                                                                        label: '🏳️ 认输',
+                                                                        danger: true,
+                                                                        onClick: async () => {
+                                                                            if (!battleId || typeof battleId !== 'number') return;
+                                                                            if (!window.confirm('确定要认输吗？')) return;
+                                                                            try {
+                                                                                await battleApi.resign(battleId);
+                                                                                // 认输后重新获取快照
+                                                                                conn.snapshot(battleId);
+                                                                            } catch (e: any) {
+                                                                                alert(e?.message || '认输失败');
+                                                                            }
+                                                                        }
+                                                                    },
+                                                                    {
+                                                                        label: `🤝 提和 (${drawRemaining}/3)`,
+                                                                        disabled: !canDraw,
+                                                                        onClick: async () => {
+                                                                            if (!canDraw) {
+                                                                                alert('您的提和次数已用完（每局最多3次）');
+                                                                                return;
+                                                                            }
+                                                                            try {
+                                                                                await battleApi.offerDraw(battleId);
+                                                                                alert('已向对方发起提和请求');
+                                                                            } catch (e: any) {
+                                                                                alert(e?.message || '提和请求失败');
+                                                                            }
+                                                                        }
+                                                                    },
+                                                                    {
+                                                                        label: `↩️ 悔棋 (${undoRemaining}/3)`,
+                                                                        disabled: !canRequestUndo,
+                                                                        onClick: async () => {
+                                                                            // 前端校验：只有在满足悔棋条件时才发送请求
+                                                                            if (!canUndo) {
+                                                                                if (!moves || moves.length === 0) {
+                                                                                    alert('还没有走棋，无法悔棋');
+                                                                                } else if (isMyTurn) {
+                                                                                    alert('当前是您的回合，无法悔棋。只能在您走完一步且对方还未落子时悔棋');
+                                                                                } else {
+                                                                                    alert('无法悔棋：只能在您走完一步且对方还未落子时悔棋');
+                                                                                }
+                                                                                return;
+                                                                            }
+                                                                            if (undoRemaining <= 0) {
+                                                                                alert('您的悔棋次数已用完（每局最多3次）');
+                                                                                return;
+                                                                            }
+                                                                            try {
+                                                                                await battleApi.offerUndo(battleId);
+                                                                                alert('已向对方发起悔棋请求');
+                                                                            } catch (e: any) {
+                                                                                alert(e?.message || '悔棋请求失败');
+                                                                            }
+                                                                        }
+                                                                    }
+                                                                ]} />
+                                                            </div>
+                                                            {/* 右侧昵称和头像 */}
+                                                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                                                <div
+                                                                    className="cursor-pointer"
+                                                                    onClick={() => setShowProfileModal({ userId: myProfile.id })}
+                                                                    style={{ fontWeight: 600, fontSize: 14, color: '#333' }}
+                                                                >
+                                                                    {myProfile.nickname || '匿名用户'}
+                                                                </div>
+                                                                <div
+                                                                    className="cursor-pointer"
+                                                                    onClick={() => setShowProfileModal({ userId: myProfile.id })}
+                                                                    style={{
+                                                                        width: avatarSize,
+                                                                        height: avatarSize,
+                                                                        borderRadius: '50%',
+                                                                        border: `3px solid ${mySide === 'red' ? '#c8102e' : '#333'}`,
+                                                                        overflow: 'hidden',
+                                                                        flexShrink: 0,
+                                                                        animation: isMyTurn ? 'pulse-border 1s infinite' : 'none',
+                                                                        backgroundColor: myProfile.avatarUrl ? 'transparent' : '#e0e0e0',
+                                                                        display: 'flex',
+                                                                        alignItems: 'center',
+                                                                        justifyContent: 'center'
+                                                                    }}
+                                                                >
+                                                                    {myProfile.avatarUrl ? (
+                                                                        <img
+                                                                            src={myProfile.avatarUrl}
+                                                                            alt={myProfile.nickname || '我'}
+                                                                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                                                        />
+                                                                    ) : (
+                                                                        <span style={{ fontSize: 14, fontWeight: 600, color: '#666' }}>
+                                                                            {(myProfile.nickname || '?').slice(0, 2).toUpperCase()}
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                            </div>
                                                         </div>
-                                                        <div
-                                                            className="cursor-pointer"
-                                                            onClick={() => setShowProfileModal({ userId: myProfile.id })}
-                                                            style={{
-                                                                width: avatarSize,
-                                                                height: avatarSize,
-                                                                borderRadius: '50%',
-                                                                border: `3px solid ${mySide === 'red' ? '#c8102e' : '#333'}`,
-                                                                overflow: 'hidden',
-                                                                flexShrink: 0,
-                                                                animation: isMyTurn ? 'pulse-border 1s infinite' : 'none',
-                                                                backgroundColor: myProfile.avatarUrl ? 'transparent' : '#e0e0e0',
-                                                                display: 'flex',
-                                                                alignItems: 'center',
-                                                                justifyContent: 'center'
-                                                            }}
-                                                        >
-                                                            {myProfile.avatarUrl ? (
-                                                                <img
-                                                                    src={myProfile.avatarUrl}
-                                                                    alt={myProfile.nickname || '我'}
-                                                                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                                                                />
-                                                            ) : (
-                                                                <span style={{ fontSize: 14, fontWeight: 600, color: '#666' }}>
-                                                                    {(myProfile.nickname || '?').slice(0, 2).toUpperCase()}
-                                                                </span>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                )}
+                                                    );
+                                                })()}
                                             </>
                                         );
                                     })()}
@@ -1065,6 +1211,90 @@ export default function LiveBattle() {
                                     </div>
                                 );
                             })()}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* 提和请求对话框 */}
+            {showDrawOfferDialog && drawOfferFromUserId !== null && (
+                <div className="modal-overlay">
+                    <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 400 }}>
+                        <h3 style={{ marginBottom: 16 }}>提和请求</h3>
+                        <p style={{ marginBottom: 24 }}>
+                            对方请求和棋，是否接受？
+                        </p>
+                        <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
+                            <button
+                                className="btn-secondary"
+                                onClick={async () => {
+                                    try {
+                                        await battleApi.declineDraw(battleId);
+                                        setShowDrawOfferDialog(false);
+                                        setDrawOfferFromUserId(null);
+                                    } catch (e: any) {
+                                        alert(e?.message || '拒绝提和失败');
+                                    }
+                                }}
+                            >
+                                拒绝
+                            </button>
+                            <button
+                                className="btn-primary"
+                                onClick={async () => {
+                                    try {
+                                        await battleApi.acceptDraw(battleId);
+                                        setShowDrawOfferDialog(false);
+                                        setDrawOfferFromUserId(null);
+                                    } catch (e: any) {
+                                        alert(e?.message || '接受提和失败');
+                                    }
+                                }}
+                            >
+                                接受
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* 悔棋请求对话框 */}
+            {showUndoOfferDialog && undoOfferFromUserId !== null && (
+                <div className="modal-overlay">
+                    <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 400 }}>
+                        <h3 style={{ marginBottom: 16 }}>悔棋请求</h3>
+                        <p style={{ marginBottom: 24 }}>
+                            对方请求悔棋，是否同意？
+                        </p>
+                        <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
+                            <button
+                                className="btn-secondary"
+                                onClick={async () => {
+                                    try {
+                                        await battleApi.declineUndo(battleId);
+                                        setShowUndoOfferDialog(false);
+                                        setUndoOfferFromUserId(null);
+                                    } catch (e: any) {
+                                        alert(e?.message || '拒绝悔棋失败');
+                                    }
+                                }}
+                            >
+                                拒绝
+                            </button>
+                            <button
+                                className="btn-primary"
+                                onClick={async () => {
+                                    try {
+                                        await battleApi.acceptUndo(battleId);
+                                        setShowUndoOfferDialog(false);
+                                        setUndoOfferFromUserId(null);
+                                    } catch (e: any) {
+                                        alert(e?.message || '同意悔棋失败');
+                                    }
+                                }}
+                            >
+                                同意
+                            </button>
                         </div>
                     </div>
                 </div>

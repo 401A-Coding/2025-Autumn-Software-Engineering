@@ -19,7 +19,7 @@ export class BattlesController {
   constructor(
     private readonly battles: BattlesService,
     private readonly boards: BoardService,
-  ) {}
+  ) { }
 
   @Post()
   @UseGuards(JwtAuthGuard)
@@ -38,9 +38,9 @@ export class BattlesController {
     // 构造种子：优先使用 initialLayout，其次尝试 initialBoardId（模板表中的 layout）
     let seed:
       | {
-          board: import('../../shared/chess/types').Board;
-          turn: import('../../shared/chess/types').Side;
-        }
+        board: import('../../shared/chess/types').Board;
+        turn: import('../../shared/chess/types').Side;
+      }
       | undefined;
     const turn = body.initialLayout?.turn ?? 'red';
     if (
@@ -226,6 +226,60 @@ export class BattlesController {
     @Req() req: Request & { user?: { sub: number } },
   ) {
     return this.battles.resign(req.user!.sub, body.battleId);
+  }
+
+  @Post('draw/offer')
+  @UseGuards(JwtAuthGuard)
+  offerDraw(
+    @Body() body: { battleId: number },
+    @Req() req: Request & { user?: { sub: number } },
+  ) {
+    return this.battles.offerDraw(req.user!.sub, body.battleId);
+  }
+
+  @Post('draw/accept')
+  @UseGuards(JwtAuthGuard)
+  acceptDraw(
+    @Body() body: { battleId: number },
+    @Req() req: Request & { user?: { sub: number } },
+  ) {
+    return this.battles.acceptDraw(req.user!.sub, body.battleId);
+  }
+
+  @Post('draw/decline')
+  @UseGuards(JwtAuthGuard)
+  declineDraw(
+    @Body() body: { battleId: number },
+    @Req() req: Request & { user?: { sub: number } },
+  ) {
+    return this.battles.declineDraw(req.user!.sub, body.battleId);
+  }
+
+  @Post('undo/offer')
+  @UseGuards(JwtAuthGuard)
+  offerUndo(
+    @Body() body: { battleId: number },
+    @Req() req: Request & { user?: { sub: number } },
+  ) {
+    return this.battles.offerUndo(req.user!.sub, body.battleId);
+  }
+
+  @Post('undo/accept')
+  @UseGuards(JwtAuthGuard)
+  acceptUndo(
+    @Body() body: { battleId: number },
+    @Req() req: Request & { user?: { sub: number } },
+  ) {
+    return this.battles.acceptUndo(req.user!.sub, body.battleId);
+  }
+
+  @Post('undo/decline')
+  @UseGuards(JwtAuthGuard)
+  declineUndo(
+    @Body() body: { battleId: number },
+    @Req() req: Request & { user?: { sub: number } },
+  ) {
+    return this.battles.declineUndo(req.user!.sub, body.battleId);
   }
 
   @Get('history')

@@ -294,6 +294,60 @@ export const battleApi = {
     return res.data
   },
 
+  /** 发起提和请求 */
+  async offerDraw(battleId: number): Promise<{ ok: boolean; message: string }> {
+    const res = await apiRequest<{ ok: boolean; message: string }>('/api/v1/battles/draw/offer', {
+      method: 'POST',
+      body: JSON.stringify({ battleId }),
+    })
+    return res.data
+  },
+
+  /** 接受提和请求 */
+  async acceptDraw(battleId: number): Promise<any> {
+    const res = await apiRequest<any>('/api/v1/battles/draw/accept', {
+      method: 'POST',
+      body: JSON.stringify({ battleId }),
+    })
+    return res.data
+  },
+
+  /** 拒绝提和请求 */
+  async declineDraw(battleId: number): Promise<{ ok: boolean; message: string }> {
+    const res = await apiRequest<{ ok: boolean; message: string }>('/api/v1/battles/draw/decline', {
+      method: 'POST',
+      body: JSON.stringify({ battleId }),
+    })
+    return res.data
+  },
+
+  /** 发起悔棋请求 */
+  async offerUndo(battleId: number): Promise<{ ok: boolean; message: string }> {
+    const res = await apiRequest<{ ok: boolean; message: string }>('/api/v1/battles/undo/offer', {
+      method: 'POST',
+      body: JSON.stringify({ battleId }),
+    })
+    return res.data
+  },
+
+  /** 接受悔棋请求 */
+  async acceptUndo(battleId: number): Promise<{ ok: boolean; message: string }> {
+    const res = await apiRequest<{ ok: boolean; message: string }>('/api/v1/battles/undo/accept', {
+      method: 'POST',
+      body: JSON.stringify({ battleId }),
+    })
+    return res.data
+  },
+
+  /** 拒绝悔棋请求 */
+  async declineUndo(battleId: number): Promise<{ ok: boolean; message: string }> {
+    const res = await apiRequest<{ ok: boolean; message: string }>('/api/v1/battles/undo/decline', {
+      method: 'POST',
+      body: JSON.stringify({ battleId }),
+    })
+    return res.data
+  },
+
   /** 获取当前对局最新快照（用于兜底轮询） */
   async snapshot(battleId: number): Promise<
     NonNullable<operations['battlesGet']['responses'][200]['content']['application/json']['data']>

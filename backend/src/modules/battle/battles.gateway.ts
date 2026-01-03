@@ -33,8 +33,7 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
   },
 })
 export class BattlesGateway
-  implements OnGatewayConnection, OnGatewayDisconnect
-{
+  implements OnGatewayConnection, OnGatewayDisconnect {
   private readonly logger = new Logger(BattlesGateway.name);
   // 简易限流：每用户每房间每秒最多 3 次 move；heartbeat 最少 10s 一次
   private static readonly MOVE_MAX_PER_SEC = 3;
@@ -67,6 +66,66 @@ export class BattlesGateway
         this.server.to(`battle:${battleId}`).emit('battle.snapshot', snapshot);
       } catch {
         // 房间可能已被删除，忽略错误
+      }
+    });
+    // 监听提和请求事件
+    this.events?.on('battle.draw-offer', (payload: { battleId: number; fromUserId: number; toUserId?: number }) => {
+      const { battleId, fromUserId, toUserId } = payload;
+      try {
+        const snapshot = this.battles.snapshot(battleId);
+        // 向整个房间广播快照更新和提和通知
+        this.server.to(`battle:${battleId}`).emit('battle.snapshot', snapshot);
+        this.server.to(`battle:${battleId}`).emit('battle.draw-offer', { fromUserId, toUserId });
+      } catch (err) {
+        this.logger.error(`[draw-offer] Error: ${err}`);
+      }
+    });
+    // 监听提和被拒绝事件
+    this.events?.on('battle.draw-declined', (payload: { battleId: number; byUserId: number; toUserId: number }) => {
+      const { battleId, byUserId, toUserId } = payload;
+      try {
+        const snapshot = this.battles.snapshot(battleId);
+        // 向整个房间广播快照更新和拒绝通知
+        this.server.to(`battle:${battleId}`).emit('battle.snapshot', snapshot);
+        this.server.to(`battle:${battleId}`).emit('battle.draw-declined', { byUserId, toUserId });
+      } catch (err) {
+        this.logger.error(`[draw-declined] Error: ${err}`);
+      }
+    });
+    // 监听悔棋请求事件
+    this.events?.on('battle.undo-offer', (payload: { battleId: number; fromUserId: number; toUserId?: number }) => {
+      const { battleId, fromUserId, toUserId } = payload;
+      try {
+        const snapshot = this.battles.snapshot(battleId);
+        // 向整个房间广播快照更新和悔棋通知
+        this.server.to(`battle:${battleId}`).emit('battle.snapshot', snapshot);
+        this.server.to(`battle:${battleId}`).emit('battle.undo-offer', { fromUserId, toUserId });
+      } catch (err) {
+        this.logger.error(`[undo-offer] Error: ${err}`);
+      }
+    });
+    // 监听悔棋接受事件
+    this.events?.on('battle.undo-accepted', (payload: { battleId: number }) => {
+      const { battleId } = payload;
+      try {
+        const snapshot = this.battles.snapshot(battleId);
+        // 向整个房间广播快照更新
+        this.server.to(`battle:${battleId}`).emit('battle.snapshot', snapshot);
+        this.server.to(`battle:${battleId}`).emit('battle.undo-accepted', {});
+      } catch (err) {
+        this.logger.error(`[undo-accepted] Error: ${err}`);
+      }
+    });
+    // 监听悔棋被拒绝事件
+    this.events?.on('battle.undo-declined', (payload: { battleId: number; byUserId: number; toUserId: number }) => {
+      const { battleId, byUserId, toUserId } = payload;
+      try {
+        const snapshot = this.battles.snapshot(battleId);
+        // 向整个房间广播快照更新和拒绝通知
+        this.server.to(`battle:${battleId}`).emit('battle.snapshot', snapshot);
+        this.server.to(`battle:${battleId}`).emit('battle.undo-declined', { byUserId, toUserId });
+      } catch (err) {
+        this.logger.error(`[undo-declined] Error: ${err}`);
       }
     });
   }

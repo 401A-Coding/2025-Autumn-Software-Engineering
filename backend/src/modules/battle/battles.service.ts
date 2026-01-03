@@ -45,6 +45,19 @@ export interface BattleState {
   ownerId?: number;
   // optional initial board id persisted at match start
   initialBoardId?: number | null;
+  // 提和请求状态
+  drawOffer?: {
+    fromUserId: number;
+    timestamp: number;
+  } | null;
+  // 悔棋请求状态
+  undoRequest?: {
+    fromUserId: number;
+    timestamp: number;
+  } | null;
+  // 提和和悔棋使用次数（每位玩家每局最多各3次）
+  drawOfferCount?: Map<number, number>;
+  undoRequestCount?: Map<number, number>;
 }
 
 @Injectable()
@@ -87,7 +100,7 @@ export class BattlesService {
     @Optional() private readonly events?: EventEmitter2,
     @Optional() private readonly records?: RecordService,
     @Optional() private readonly boards?: BoardService,
-  ) {}
+  ) { }
 
   private async ensureNotBanned(userId: number) {
     const u = await this.prisma.user.findUnique({
@@ -104,7 +117,7 @@ export class BattlesService {
             where: { id: userId },
             data: { isBanned: false, bannedUntil: null },
           });
-        } catch {}
+        } catch { }
         return;
       }
       throw new ForbiddenException('您的账号已被封禁，暂时无法进行此操作');
@@ -161,6 +174,8 @@ export class BattlesService {
       source,
       visibility,
       ownerId: creatorId,
+      drawOfferCount: new Map(),
+      undoRequestCount: new Map(),
     };
     // 同步 turnIndex 与初始先手
     state.turnIndex = state.turn === 'red' ? 0 : 1;
@@ -342,6 +357,9 @@ export class BattlesService {
       visibility: b.visibility,
       ownerId: b.ownerId ?? null,
       initialBoardId: b.initialBoardId ?? null,
+      drawOffer: b.drawOffer ?? null,
+      drawOfferCount: b.drawOfferCount ? Object.fromEntries(b.drawOfferCount) : {},
+      undoRequestCount: b.undoRequestCount ? Object.fromEntries(b.undoRequestCount) : {},
     };
   }
 
@@ -597,6 +615,222 @@ export class BattlesService {
       reason: 'resign',
     });
   }
+
+  // 提和：发起提和请求
+  offerDraw(userId: number, battleId: number) {
+    const b = this.getBattle(battleId);
+    if (b.status !== 'playing') {
+      throw new BadRequestException('当前对局未在进行中');
+    }
+    if (!b.players.includes(userId)) {
+      throw new UnauthorizedException('不在房间内');
+    }
+    // 检查提和次数限制（每位玩家每局最多3次）
+    if (!b.drawOfferCount) b.drawOfferCount = new Map();
+    const userDrawCount = b.drawOfferCount.get(userId) || 0;
+    if (userDrawCount >= 3) {
+      throw new BadRequestException('您的提和次数已用完（每局最多3次）');
+    }
+    // 如果已有提和请求，不能重复发起
+    if (b.drawOffer && b.drawOffer.fromUserId === userId) {
+      throw new BadRequestException('您已发起提和请求，请等待对方回应');
+    }
+    // 设置提和请求
+    b.drawOffer = {
+      fromUserId: userId,
+      timestamp: Date.now(),
+    };
+    // 递增提和计数
+    b.drawOfferCount.set(userId, userDrawCount + 1);
+    // 广播提和请求
+    this.events?.emit('battle.draw-offer', {
+      battleId,
+      fromUserId: userId,
+      toUserId: b.players.find((id) => id !== userId),
+    });
+    return { ok: true, message: '提和请求已发送' };
+  }
+
+  // 接受提和
+  acceptDraw(userId: number, battleId: number) {
+    const b = this.getBattle(battleId);
+    if (b.status !== 'playing') {
+      throw new BadRequestException('当前对局未在进行中');
+    }
+    if (!b.players.includes(userId)) {
+      throw new UnauthorizedException('不在房间内');
+    }
+    if (!b.drawOffer) {
+      throw new BadRequestException('当前没有提和请求');
+    }
+    // 只有对方可以接受提和
+    if (b.drawOffer.fromUserId === userId) {
+      throw new BadRequestException('不能接受自己的提和请求');
+    }
+    // 清除提和请求
+    b.drawOffer = null;
+    // 结束对局，平局
+    return this.finish(battleId, {
+      winnerId: null,
+      reason: 'draw',
+    });
+  }
+
+  // 拒绝提和
+  declineDraw(userId: number, battleId: number) {
+    const b = this.getBattle(battleId);
+    if (b.status !== 'playing') {
+      throw new BadRequestException('当前对局未在进行中');
+    }
+    if (!b.players.includes(userId)) {
+      throw new UnauthorizedException('不在房间内');
+    }
+    if (!b.drawOffer) {
+      throw new BadRequestException('当前没有提和请求');
+    }
+    // 只有对方可以拒绝提和
+    if (b.drawOffer.fromUserId === userId) {
+      throw new BadRequestException('不能拒绝自己的提和请求');
+    }
+    // 清除提和请求
+    const fromUserId = b.drawOffer.fromUserId;
+    b.drawOffer = null;
+    // 广播提和被拒绝
+    this.events?.emit('battle.draw-declined', {
+      battleId,
+      byUserId: userId,
+      toUserId: fromUserId,
+    });
+    return { ok: true, message: '已拒绝提和请求' };
+  }
+
+  // 悔棋：发起悔棋请求
+  offerUndo(userId: number, battleId: number) {
+    const b = this.getBattle(battleId);
+    if (b.status !== 'playing') {
+      throw new BadRequestException('当前对局未在进行中');
+    }
+    if (!b.players.includes(userId)) {
+      throw new UnauthorizedException('不在房间内');
+    }
+    // 检查悔棋次数限制（每位玩家每局最多3次）
+    if (!b.undoRequestCount) b.undoRequestCount = new Map();
+    const userUndoCount = b.undoRequestCount.get(userId) || 0;
+    if (userUndoCount >= 3) {
+      throw new BadRequestException('您的悔棋次数已用完（每局最多3次）');
+    }
+    if (b.moves.length === 0) {
+      throw new BadRequestException('还没有落子，无法悔棋');
+    }
+    // 检查最后一步是否是该用户下的
+    const lastMovePlayer = b.moves.length % 2 === 1 ? b.players[0] : b.players[1];
+    if (lastMovePlayer !== userId) {
+      throw new BadRequestException('最后一步不是您下的，无法悔棋');
+    }
+    // 如果已有悔棋请求，不能重复发起
+    if (b.undoRequest && b.undoRequest.fromUserId === userId) {
+      throw new BadRequestException('您已发起悔棋请求，请等待对方回应');
+    }
+    // 设置悔棋请求
+    b.undoRequest = {
+      fromUserId: userId,
+      timestamp: Date.now(),
+    };
+    // 递增悔棋计数
+    b.undoRequestCount.set(userId, userUndoCount + 1);
+    // 递增悔棋计数
+    b.undoRequestCount.set(userId, userUndoCount + 1);
+    // 广播悔棋请求
+    this.events?.emit('battle.undo-offer', {
+      battleId,
+      fromUserId: userId,
+      toUserId: b.players.find((id) => id !== userId),
+    });
+    return { ok: true, message: '悔棋请求已发送' };
+  }
+
+  // 接受悔棋
+  acceptUndo(userId: number, battleId: number) {
+    const b = this.getBattle(battleId);
+    if (b.status !== 'playing') {
+      throw new BadRequestException('当前对局未在进行中');
+    }
+    if (!b.players.includes(userId)) {
+      throw new UnauthorizedException('不在房间内');
+    }
+    if (!b.undoRequest) {
+      throw new BadRequestException('当前没有悔棋请求');
+    }
+    // 只有对方可以接受悔棋
+    if (b.undoRequest.fromUserId === userId) {
+      throw new BadRequestException('不能接受自己的悔棋请求');
+    }
+    // 删除最后一步
+    b.moves.pop();
+    // 重新计算棋盘状态
+    const newState = this.recomputeBoardState(b);
+    b.board = newState.board;
+    b.turn = newState.turn;
+    // 同步 turnIndex（与 move 方法保持一致）
+    b.turnIndex = b.turn === 'red' ? 0 : 1;
+    // 清除悔棋请求
+    b.undoRequest = null;
+    // 广播悔棋接受
+    this.events?.emit('battle.undo-accepted', {
+      battleId,
+    });
+    return { ok: true, message: '已同意悔棋' };
+  }
+
+  // 拒绝悔棋
+  declineUndo(userId: number, battleId: number) {
+    const b = this.getBattle(battleId);
+    if (b.status !== 'playing') {
+      throw new BadRequestException('当前对局未在进行中');
+    }
+    if (!b.players.includes(userId)) {
+      throw new UnauthorizedException('不在房间内');
+    }
+    if (!b.undoRequest) {
+      throw new BadRequestException('当前没有悔棋请求');
+    }
+    // 只有对方可以拒绝悔棋
+    if (b.undoRequest.fromUserId === userId) {
+      throw new BadRequestException('不能拒绝自己的悔棋请求');
+    }
+    // 清除悔棋请求
+    const fromUserId = b.undoRequest.fromUserId;
+    b.undoRequest = null;
+    // 广播悔棋被拒绝
+    this.events?.emit('battle.undo-declined', {
+      battleId,
+      byUserId: userId,
+      toUserId: fromUserId,
+    });
+    return { ok: true, message: '已拒绝悔棋请求' };
+  }
+
+  // 从初始局面重放所有moves，重新计算棋盘状态
+  private recomputeBoardState(b: BattleState): { board: any; turn: 'red' | 'black' } {
+    // 从初始棋盘开始（重新创建标准棋盘）
+    let board = this.engine.createInitialBoard();
+    let turn: 'red' | 'black' = 'red';
+
+    // 重放所有moves
+    for (const move of b.moves) {
+      // 应用移动（坐标是x, y而不是row, col）
+      const piece = board[move.from.y]?.[move.from.x];
+      if (piece) {
+        board[move.to.y][move.to.x] = piece;
+        board[move.from.y][move.from.x] = null;
+      }
+      // 切换回合
+      turn = turn === 'red' ? 'black' : 'red';
+    }
+
+    return { board, turn };
+  }
+
 
   async quickMatch(userId: number, mode = 'pvp') {
     await this.ensureNotBanned(userId);
