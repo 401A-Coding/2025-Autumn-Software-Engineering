@@ -89,7 +89,7 @@ export class BattlesService {
 
   // TTL 配置（开发默认）
   private static readonly WAITING_TTL_MS = 10 * 60 * 1000; // 10min
-  private static readonly DISCONNECT_TTL_MS = 15 * 60 * 1000; // 15min，无人在线时触发
+  private static readonly DISCONNECT_TTL_MS = 2 * 60 * 1000; // 2min，与前端grace resign保持一致
   private static readonly PROCESSED_REQ_TTL_MS = 5 * 60 * 1000; // 5min 去重记录 TTL
 
   constructor(
@@ -834,6 +834,11 @@ export class BattlesService {
 
   async quickMatch(userId: number, mode = 'pvp') {
     await this.ensureNotBanned(userId);
+    // 若用户已有进行中的对局，优先返回原对局，避免刷新后重复开新局
+    const active = this.findActiveBattle(userId);
+    if (active) {
+      return { battleId: active };
+    }
     const selfWaiting = this.findUserWaiting(userId, mode);
     if (selfWaiting) {
       return { battleId: selfWaiting };
@@ -932,6 +937,16 @@ export class BattlesService {
         b.players.length === 1 &&
         b.players[0] === userId
       ) {
+        return bid;
+      }
+    }
+    return undefined;
+  }
+
+  // 查找用户已有的进行中对局（playing 状态）
+  private findActiveBattle(userId: number): number | undefined {
+    for (const [bid, b] of this.battles.entries()) {
+      if (b && b.status === 'playing' && b.players.includes(userId)) {
         return bid;
       }
     }

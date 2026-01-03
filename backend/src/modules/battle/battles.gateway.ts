@@ -58,6 +58,18 @@ export class BattlesGateway
     private readonly battles: BattlesService,
     @Optional() private readonly events?: EventEmitter2,
   ) {
+    // 监听离线事件（来自 REST offline 端点），向房间广播 snapshot 和 offline_notice
+    this.events?.on('battle.offline', (payload: { userId: number; battleId: number; snapshot?: any }) => {
+      const { userId, battleId } = payload;
+      try {
+        const snapshot = this.battles.snapshot(battleId);
+        this.logger.log(`[offline event] broadcasting for userId=${userId}, battleId=${battleId}`);
+        this.server.to(`battle:${battleId}`).emit('battle.snapshot', snapshot);
+        this.server.to(`battle:${battleId}`).emit('battle.offline_notice', { userId, battleId });
+      } catch (err) {
+        this.logger.error(`[offline event] Error: ${err}`);
+      }
+    });
     // 监听对局结束事件，向房间广播最新 snapshot
     this.events?.on('battle.finished', (payload: { battleId: number }) => {
       const { battleId } = payload;
@@ -257,6 +269,33 @@ export class BattlesGateway
     }
 
     return m;
+  }
+
+  // 主动告知暂离：不结算对局，只更新在线状态并广播快照
+  @SubscribeMessage('battle.offline')
+  async onOffline(
+    @MessageBody() body: { battleId?: number },
+    @ConnectedSocket() client: Socket,
+  ) {
+    try {
+      this.logger.log(`[offline] received: userId=${this.users.get(client)}, battleId=${body?.battleId}`);
+      const userId = this.users.get(client);
+      const battleId = body?.battleId || this.joinedBattle.get(client);
+      this.logger.log(`[offline] resolved: userId=${userId}, battleId=${battleId}`);
+      if (!userId || !battleId) return { ok: false };
+      this.battles.setOnline(battleId, userId, false);
+      const snapshot = this.battles.snapshot(battleId);
+      this.logger.log(`[offline] broadcast snapshot to battle:${battleId}, onlineUserIds=${JSON.stringify(snapshot.onlineUserIds)}`);
+      this.server.to(`battle:${battleId}`).emit('battle.snapshot', snapshot);
+      this.server
+        .to(`battle:${battleId}`)
+        .emit('battle.offline_notice', { userId, battleId });
+      this.logger.log(`[offline] emitted offline_notice for userId=${userId}, battleId=${battleId}`);
+      return { ok: true };
+    } catch (err) {
+      this.logger.error(`[offline] Error: ${err}`);
+      return { ok: false };
+    }
   }
 
   @SubscribeMessage('battle.snapshot')
