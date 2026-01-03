@@ -268,9 +268,9 @@ export default function RecordReplay() {
 
                     {/* 棋盘区域：上方黑方（棋盘上半），中间棋盘，下方红方（棋盘下半） */}
                     <div className="mt-12" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
-                        {/* 上方：黑方玩家（棋盘上半部分）- 黑色边框 */}
+                        {/* 上方：根据视角显示对应玩家 */}
                         <div style={{ display: 'flex', justifyContent: 'center' }}>
-                            {renderFramedAvatar(rightProfile, '#333')}
+                            {renderFramedAvatar(shouldFlip ? leftProfile : rightProfile, shouldFlip ? '#c8102e' : '#333')}
                         </div>
 
                         {/* 中间：棋盘 */}
@@ -288,22 +288,29 @@ export default function RecordReplay() {
                             />
                         </div>
 
-                        {/* 下方：红方玩家（棋盘下半部分）- 红色边框 */}
+                        {/* 下方：根据视角显示对应玩家 */}
                         <div style={{ display: 'flex', justifyContent: 'center' }}>
-                            {renderFramedAvatar(leftProfile, '#c8102e')}
+                            {renderFramedAvatar(shouldFlip ? rightProfile : leftProfile, shouldFlip ? '#333' : '#c8102e')}
                         </div>
                     </div>
 
                     {/* 步数控制 */}
-                    <div className="mt-12 inline-controls">
-                        <button className="btn-ghost" disabled={step <= 0} onClick={() => setStep(s => Math.max(0, s - 1))}>◀</button>
-                        <button className="btn-ghost" disabled={step >= total} onClick={() => setStep(s => Math.min(total, s + 1))}>▶</button>
-                        <div className="minw-80 text-center">{step}/{total}</div>
-                        <button className="btn-ghost" onClick={() => setStep(0)}>开局</button>
-                        <button className="btn-ghost" onClick={() => setStep(total)}>终局</button>
-                        <button className="btn-ghost" onClick={() => setIsPlaying(p => !p)}>{isPlaying ? '⏸ 暂停' : '▶ 自动'}</button>
-                        <button className="btn-ghost" onClick={() => setFlipOverride(f => !f)} title="切换视角">切换视角</button>
-                        <div className="ml-auto">
+                    <div className="mt-12" style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'center' }}>
+                        {/* 第一行：左箭头 播放/暂停 右箭头 */}
+                        <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
+                            <button className="btn-ghost" disabled={step <= 0} onClick={() => setStep(s => Math.max(0, s - 1))}>◀</button>
+                            <button className="btn-ghost" onClick={() => setIsPlaying(p => !p)}>{isPlaying ? '⏸ 暂停' : '▶ 自动'}</button>
+                            <button className="btn-ghost" disabled={step >= total} onClick={() => setStep(s => Math.min(total, s + 1))}>▶</button>
+                        </div>
+                        {/* 第二行：开局 step/total 终局 */}
+                        <div style={{ display: 'flex', gap: 8, justifyContent: 'center', alignItems: 'center' }}>
+                            <button className="btn-ghost" onClick={() => setStep(0)}>开局</button>
+                            <div className="minw-80 text-center">{step}/{total}</div>
+                            <button className="btn-ghost" onClick={() => setStep(total)}>终局</button>
+                        </div>
+                        {/* 第三行：切换视角 速度 */}
+                        <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
+                            <button className="btn-ghost" onClick={() => setFlipOverride(f => !f)} title="切换视角">切换视角</button>
                             <button className="btn-ghost" title="修改播放速度" onClick={() => setShowSpeedSheet(true)}>⚙ 速度</button>
                         </div>
                     </div>
