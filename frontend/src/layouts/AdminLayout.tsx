@@ -31,6 +31,9 @@ export default function AdminLayout() {
                     <NavLink to="/app/admin/logs" className={({ isActive }) => `admin-link ${isActive ? 'active' : ''}`}>
                         操作日志
                     </NavLink>
+                    <NavLink to="/app/admin/docs" className={({ isActive }) => `admin-link ${isActive ? 'active' : ''}`}>
+                        API 文档
+                    </NavLink>
                 </aside>
 
                 <section className="admin-content">

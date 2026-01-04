@@ -36,6 +36,7 @@ import AdminUsers from './pages/app/AdminUsers'
 import AdminPosts from './pages/app/AdminPosts'
 import AdminLogs from './pages/app/AdminLogs'
 import AdminReports from './pages/app/AdminReports'
+import AdminDocs from './pages/app/AdminDocs'
 import AdminRoute from './routes/AdminRoute'
 import AdminLayout from './layouts/AdminLayout'
 import AdminUserView from './pages/app/AdminUserView'
@@ -90,6 +91,7 @@ function App() {
                 <Route path="posts/:postId" element={<AdminPostDetail />} />
                 <Route path="reports" element={<AdminReports />} />
                 <Route path="logs" element={<AdminLogs />} />
+                <Route path="docs" element={<AdminDocs />} />
               </Route>
             </Route>
           </Route>
