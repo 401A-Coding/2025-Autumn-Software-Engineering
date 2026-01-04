@@ -3,6 +3,7 @@ import { BattlesService } from './battles.service';
 import { JwtService } from '@nestjs/jwt';
 import { ChessEngineService } from './engine.service';
 import { BadRequestException } from '@nestjs/common';
+import { PrismaService } from '../../prisma/prisma.service';
 
 // 使用真实的引擎服务，避免 any 带来的 ESLint 报错
 
@@ -15,16 +16,25 @@ describe('BattlesService', () => {
         BattlesService,
         { provide: JwtService, useValue: { verify: jest.fn() } },
         ChessEngineService,
+        {
+          provide: PrismaService,
+          useValue: {
+            user: {
+              findUnique: jest.fn().mockResolvedValue(null),
+              update: jest.fn().mockResolvedValue(null),
+            },
+          },
+        },
       ],
     }).compile();
 
     service = module.get<BattlesService>(BattlesService);
   });
 
-  it('quickMatch should create waiting room first time and reuse on duplicate', () => {
+  it('quickMatch should create waiting room first time and reuse on duplicate', async () => {
     const userId = 101;
-    const first = service.quickMatch(userId, 'pvp');
-    const second = service.quickMatch(userId, 'pvp');
+    const first = await service.quickMatch(userId, 'pvp');
+    const second = await service.quickMatch(userId, 'pvp');
     expect(first.battleId).toBeDefined();
     expect(second.battleId).toBe(first.battleId); // reuse
     const snap = service.snapshot(first.battleId);
@@ -32,20 +42,20 @@ describe('BattlesService', () => {
     expect(snap.players).toEqual([userId]);
   });
 
-  it('quickMatch with two distinct users should pair them into same battle', () => {
+  it('quickMatch with two distinct users should pair them into same battle', async () => {
     const u1 = 201;
     const u2 = 202;
-    const m1 = service.quickMatch(u1, 'pvp');
-    const m2 = service.quickMatch(u2, 'pvp');
+    const m1 = await service.quickMatch(u1, 'pvp');
+    const m2 = await service.quickMatch(u2, 'pvp');
     expect(m1.battleId).toBe(m2.battleId);
     const snap = service.snapshot(m1.battleId);
     expect(snap.status).toBe('playing');
     expect(snap.players.sort()).toEqual([u1, u2].sort());
   });
 
-  it('cancelWaiting should delete waiting battle by creator', () => {
+  it('cancelWaiting should delete waiting battle by creator', async () => {
     const uid = 301;
-    const { battleId } = service.quickMatch(uid, 'pvp');
+    const { battleId } = await service.quickMatch(uid, 'pvp');
     const snapBefore = service.snapshot(battleId);
     expect(snapBefore.status).toBe('waiting');
     const res = service.cancelWaiting(uid, battleId);
@@ -56,11 +66,11 @@ describe('BattlesService', () => {
     expect(res2).toEqual({ battleId, cancelled: true });
   });
 
-  it('cancelWaiting should fail after second player joins', () => {
+  it('cancelWaiting should fail after second player joins', async () => {
     const a = 401;
     const b = 402;
-    const matchA = service.quickMatch(a, 'pvp');
-    service.quickMatch(b, 'pvp'); // joins A's battle
+    const matchA = await service.quickMatch(a, 'pvp');
+    await service.quickMatch(b, 'pvp'); // joins A's battle
     const snap = service.snapshot(matchA.battleId);
     expect(snap.status).toBe('playing');
     expect(() => service.cancelWaiting(a, matchA.battleId)).toThrow(
@@ -68,11 +78,11 @@ describe('BattlesService', () => {
     );
   });
 
-  it('leaveBattle should be idempotent and convert to waiting when one remains', () => {
+  it('leaveBattle should be idempotent and convert to waiting when one remains', async () => {
     const u1 = 611,
       u2 = 612;
-    const m1 = service.quickMatch(u1, 'pvp');
-    service.quickMatch(u2, 'pvp');
+    const m1 = await service.quickMatch(u1, 'pvp');
+    await service.quickMatch(u2, 'pvp');
     const snapPlaying = service.snapshot(m1.battleId);
     expect(snapPlaying.status).toBe('playing');
     // u2 离开
@@ -86,9 +96,9 @@ describe('BattlesService', () => {
     expect(r2.left).toBe(false);
   });
 
-  it('leaveBattle should delete room when last user leaves', () => {
+  it('leaveBattle should delete room when last user leaves', async () => {
     const u1 = 701;
-    const { battleId } = service.quickMatch(u1, 'pvp');
+    const { battleId } = await service.quickMatch(u1, 'pvp');
     const r = service.leaveBattle(u1, battleId);
     expect(r).toEqual({ battleId, left: true });
     expect(() => service.snapshot(battleId)).toThrow(BadRequestException);
@@ -97,10 +107,10 @@ describe('BattlesService', () => {
     expect(r2.left).toBe(false);
   });
 
-  it('cancelWaiting should fail if non-creator tries to cancel waiting battle', () => {
+  it('cancelWaiting should fail if non-creator tries to cancel waiting battle', async () => {
     const creator = 501;
     const other = 502;
-    const { battleId } = service.quickMatch(creator, 'pvp');
+    const { battleId } = await service.quickMatch(creator, 'pvp');
     // other user has not joined yet
     expect(() => service.cancelWaiting(other, battleId)).toThrow(
       BadRequestException,

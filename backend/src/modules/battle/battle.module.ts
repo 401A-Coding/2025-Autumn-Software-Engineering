@@ -26,4 +26,4 @@ import { PrismaModule } from '../../prisma/prisma.module';
   providers: [BattlesService, BattlesGateway, ChessEngineService, JwtAuthGuard],
   exports: [BattlesService],
 })
-export class BattleModule { }
+export class BattleModule {}

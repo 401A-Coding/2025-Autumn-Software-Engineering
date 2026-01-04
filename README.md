@@ -24,6 +24,11 @@ postgresql://postgres:postgres@127.0.0.1:5432/mydb?schema=public
 
 使用 docker。
 
+端口与服务：
+- 前端（Vite SPA）：5173
+- 后端（NestJS REST）：3000
+- 数据库（PostgreSQL）：5432
+
 ### 设计工具
 
 - 使用 **pixso** 进行 UI 设计，官网网址：[Pixso官网 - 新一代UI设计工具，替代Sketch，Figma，支持在线实时协作](https://pixso.cn/)。设计图转代码功能可以参考 [【不会写代码也能做网页？Pixso AI 5 分钟搞定！| AI 设计指南】](https://www.bilibili.com/video/BV1QEsuztEzP/?share_source=copy_web&vd_source=44759ea33f56b7a9846e4290e821662c)。
@@ -51,6 +56,49 @@ postgresql://postgres:postgres@127.0.0.1:5432/mydb?schema=public
 
 数据库可以安装到本地，可以参考 [MySQL 安装 | 菜鸟教程](https://www.runoob.com/mysql/mysql-install.html)；也可以像上次大作业一样，不在本地安装只在 Docker 部署时直接使用镜像。
 
+> 说明：本项目数据库统一使用 PostgreSQL。若文档中出现与 MySQL 相关的旧描述，请以本 README 与 docs/STARTUP.md 为准。
+
+### 快速开始（推荐）
+
+本地开发建议使用仓库提供的启动脚本，自动写入必要的环境变量并拉起对应服务。
+
+- macOS：
+
+```bash
+# 在仓库根目录
+./scripts/start-all-macos.sh              # 启动前后端与本地数据库
+./scripts/start-backend-macos.sh          # 仅启动后端（会自动 prisma generate & migrate）
+./scripts/start-frontend-macos.sh         # 仅启动前端（会写入 frontend/.env 的 VITE_API_BASE）
+```
+
+- Windows（PowerShell）：
+
+```powershell
+# 在仓库根目录
+./scripts/start-all.ps1                    # 启动前后端与本地数据库（可加 -ResetDb 清空开发库）
+./scripts/start-backend.ps1                # 仅启动后端
+./scripts/start-frontend.ps1               # 仅启动前端
+```
+
+手动方式（可选）：
+
+```bash
+# 1) 启动本地 PostgreSQL（Docker）
+cd infra/docker && docker compose up -d
+
+# 2) 配置后端环境变量
+# 在 backend/prisma/.env 写入 DATABASE_URL 与 JWT_SECRET
+
+# 3) 生成 Prisma 客户端并迁移数据库
+cd ../../backend && npm install && npm run prisma:generate && npm run prisma:migrate
+
+# 4) 启动后端
+npm run start:dev
+
+# 5) 启动前端
+cd ../frontend && npm install && echo "VITE_API_BASE=http://localhost:3000" > .env && npm run dev
+```
+
 ## 开发者须知
 
 - 本项目数据库统一为 PostgreSQL（非 MySQL）。如需本地快速启动数据库，见 `infra/docker/docker-compose.yml` 或按 `docs/STARTUP.md` 操作（执行 `docker compose up -d`）。
@@ -69,7 +117,7 @@ postgresql://postgres:postgres@127.0.0.1:5432/mydb?schema=public
 ```txt
 quwan-chess/
 ├── frontend/                # 前端（React + TypeScript + Vite）
-├── backend/                 # 后端（NestJS + Prisma + Redis）
+├── backend/                 # 后端（NestJS + Prisma）
 ├── ai-service/              # AI 教学与棋局分析子服务（FastAPI）
 ├── infra/                   # 基础设施层（Docker、Nginx、CI/CD）
 ├── docs/                    # 需求、设计、接口、部署文档
@@ -128,20 +176,19 @@ backend/
 │   ├── config/                      # 环境变量与配置模块（dotenv + ConfigModule）
 │   ├── modules/
 │   │   ├── user/                    # 用户模块（注册、登录、认证）
-│   │   ├── game/                    # 对局模块（走棋、状态、回放）
-│   │   ├── chat/                    # 聊天与观战频道（Socket.IO Gateway）
-│   │   ├── match/                   # 匹配与大厅逻辑
-│   │   ├── ai/                      # 调用 FastAPI 分析接口
-│   │   ├── upload/                  # 文件上传（Cloud OSS）
-│   │   └── rank/                    # 排行榜与战绩系统
+│   │   ├── board/                   # 棋盘与自定义布局/规则
+│   │   ├── battle/                  # 对局模块（走棋、状态、实时）
+│   │   ├── record/                  # 棋谱与复盘记录
+│   │   ├── community/               # 社区帖子/评论/点赞
+│   │   └── metrics/                 # 监控指标（Prometheus）
 │   ├── prisma/                      # Prisma ORM 配置与迁移
 │   │   ├── schema.prisma
 │   │   └── migrations/
-│   ├── websocket/                   # WebSocket Gateway 实现
+│   ├── websocket/                   # Socket.IO 网关（实时对战占位）
 │   ├── guards/                      # 权限与JWT验证守卫
 │   ├── filters/                     # 全局异常捕获
 │   ├── logger/                      # Winston日志封装
-│   └── main.gateway.ts              # Socket.IO 主网关
+│   └── main.gateway.ts              # Socket.IO 主网关（开发占位）
 ├── test/                            # Jest单元测试
 ├── .env.example
 ├── Dockerfile
@@ -152,10 +199,9 @@ backend/
 **✅ 说明：**
 
 - 每个功能模块独立成文件夹（符合 NestJS 模块化架构）；
-- `game/` 与 `chat/` 模块通过 Gateway 实现实时通信；
-- `ai/` 模块调用 Python FastAPI；
-- `upload/` 模块负责文件上传至 Cloud OSS；
-- `logger/` 集成 Winston + Logstash；
+- `battle/` 与 `websocket/` 通过 Socket.IO 实现实时通信（网关仍需完善服务端校验逻辑）；
+- `board/` 支持自定义布局与规则 JSON；`record/` 以 JSON 存储走子序列用于回放与分析；
+- 统一响应封装与异常处理已启用；
 - `prisma/` 提供数据库模型与迁移命令；
 - `filters/` 与 `guards/` 实现安全与错误控制。
 
@@ -198,11 +244,10 @@ infra/
 │   ├── default.conf               # Nginx 反向代理配置
 │   └── ssl/                       # HTTPS 证书（.crt / .key）
 ├── docker/
-│   ├── docker-compose.yml         # 全系统容器编排
-│   ├── Dockerfile.frontend        # 前端构建镜像
-│   ├── Dockerfile.backend         # 后端构建镜像
-│   ├── Dockerfile.ai-service      # AI服务镜像
-│   └── Dockerfile.log             # ELK 日志服务镜像
+│   ├── docker-compose.yml         # 本地开发容器编排（PostgreSQL、可选Nginx等）
+│   ├── docker-compose.server.yml  # 服务器部署编排
+│   ├── Caddyfile                  # 反向代理（开发/演示）
+│   └── Dockerfile                 # 视具体服务使用仓库各自 Dockerfile
 ├── ci-cd/
 │   └── github-actions.yml         # CI/CD 流水线定义
 ├── logs/
@@ -216,7 +261,7 @@ infra/
 
 **✅ 说明：**
 
-- `docker-compose.yml` 启动所有服务（frontend、backend、redis、mysql、log、nginx）；
+- `docker-compose.yml` 主要用于启动 PostgreSQL 等本地依赖；
 - `ci-cd/` 存放 GitHub Actions 自动化脚本；
 - `logs/` 集成 ELK Stack；
 - `monitoring/` 用于性能监控。
@@ -247,7 +292,7 @@ scripts/
 - 数据库统一为 PostgreSQL，本地通过 `infra/docker/docker-compose.yml` 启动；Prisma 模型与迁移已就绪（见 `backend/prisma/schema.prisma` 与 `backend/prisma/migrations/*`）。
 - 后端（NestJS + Prisma）：
    - 已实现基于「手机号 + 密码」的注册与登录（JWT + 刷新令牌），`CORS` 放开本地 Vite 开发域（5173）。
-   - 模块已包含 `user`、`board`、`battle`、`record`、`metrics` 等；统一响应封装与异常处理已启用，路由与契约参考 `docs/API_SPEC.md` 与模块内 `controller/service`。
+   - 模块已包含 `user`、`board`、`battle`、`record`、`community`、`metrics` 等；统一响应封装与异常处理已启用，路由与契约参考 `docs/API_SPEC.md` 与模块内 `controller/service`。
    - 迁移记录完整，脚本支持快速启动与（开发环境）重置。
 - 前端（Vite + React + TypeScript）：
    - 登录、注册已对接后端 `/user/login` 与 `/user/register`；登录后 `accessToken` 存入 `localStorage.token`，`/app/*` 路由由 `ProtectedRoute` 护航。
@@ -257,7 +302,34 @@ scripts/
 - 运维与脚本：
    - 提供 macOS 与 Windows 启动脚本：`scripts/start-all.*`、`start-backend.*`、`start-frontend.*`；后端环境变量集中在 `backend/prisma/.env`，前端 `.env` 使用 `VITE_API_BASE`。
 
-## 五、开发规范
+## 五、测试与验证
+
+### 后端测试
+
+```bash
+cd backend
+npm install
+npm run test            # 单元测试
+npm run test:e2e        # e2e 集成测试（配置见 backend/test/jest-e2e.json）
+```
+
+### 前端本地运行
+
+```bash
+cd frontend
+npm install
+echo "VITE_API_BASE=http://localhost:3000" > .env
+npm run dev             # http://localhost:5173
+```
+
+### 接口约定与类型
+
+- 统一响应封装：详见 [backend/src/common/interceptors/response-envelope.interceptor.ts](backend/src/common/interceptors/response-envelope.interceptor.ts)
+- 前端请求封装与自动刷新 Token：见 [frontend/src/lib/http.ts](frontend/src/lib/http.ts)
+- OpenAPI/接口说明：见 [docs/API_SPEC.md](docs/API_SPEC.md) 与 [docs/openapi.yaml](docs/openapi.yaml)
+
+
+## 六、开发规范
 
 ### 一、分支命名规范
 

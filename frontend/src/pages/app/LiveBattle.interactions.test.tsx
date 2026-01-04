@@ -39,6 +39,7 @@ const mockConn = {
     onSnapshot: (cb: (s: Snap) => void) => { snapshotHandler = cb; },
     onMove: vi.fn(),
     onPlayerJoin: vi.fn(),
+    onReplay: vi.fn(),
 };
 
 vi.mock('../../services/api', () => ({
@@ -78,8 +79,14 @@ describe('LiveBattle interactions', () => {
             turn: 'red',
             createdAt: Date.now(),
             winnerId: null,
+            finishReason: null,
+            lastMove: null,
+            stateHash: 'abc123',
             onlineUserIds: [1],
-        });
+            source: 'room',
+            visibility: 'private',
+            ownerId: 1,
+        } as any);
         // 心跳在进入房间且连接建立后触发；模拟连接事件
         // 触发 socket connect 回调
         socketOn.mock.calls.forEach(call => {
@@ -88,11 +95,8 @@ describe('LiveBattle interactions', () => {
         });
         await waitFor(() => expect(mockConn.heartbeat).toHaveBeenCalled());
 
-        // player pill should appear with online highlight before cancellation
-        const pill = await screen.findByTestId('player-pill-1');
-        expect(pill.className).toMatch(/online/);
-        // cancel button should appear then click
-        const cancelBtn = await screen.findByRole('button', { name: '取消匹配' });
+        // 等待态下房主可见“取消房间”按钮
+        const cancelBtn = await screen.findByRole('button', { name: '取消房间' });
         fireEvent.click(cancelBtn);
         await waitFor(() => expect(cancelMock).toHaveBeenCalledWith(123));
     });

@@ -141,4 +141,24 @@ describe('Battles E2E', () => {
       .expect(201);
     expect((l2.body as { left: boolean }).left).toBe(false);
   });
+
+  it('offline endpoint accepts userId in body and returns ok', async () => {
+    const t1 = makeToken(9010);
+
+    // Create a battle first
+    const m1 = await request(app.getHttpServer())
+      .post('/api/v1/battles/match')
+      .set('Authorization', `Bearer ${t1}`)
+      .send({ mode: 'pvp' })
+      .expect(201);
+    const battleId = (m1.body as { battleId: number }).battleId;
+
+    // Call offline endpoint with userId in body (no auth required)
+    const offline = await request(app.getHttpServer())
+      .post(`/api/v1/battles/${battleId}/offline`)
+      .send({ userId: 9010 })
+      .expect(201);
+    expect((offline.body as { ok: boolean }).ok).toBe(true);
+  });
 });
+

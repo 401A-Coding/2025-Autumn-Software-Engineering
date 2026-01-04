@@ -27,10 +27,12 @@ describe('Register page', () => {
 
         const phoneInput = screen.getByPlaceholderText('请输入手机号')
         const passwordInput = screen.getByPlaceholderText('请输入密码')
+        const confirmInput = screen.getByPlaceholderText('请再次输入密码')
         const submitBtn = screen.getByRole('button', { name: '注册' })
 
         fireEvent.change(phoneInput, { target: { value: '13800000000' } })
         fireEvent.change(passwordInput, { target: { value: 'password123' } })
+        fireEvent.change(confirmInput, { target: { value: 'password123' } })
         fireEvent.click(submitBtn)
 
         await waitFor(() => {
@@ -49,12 +51,14 @@ describe('Register page', () => {
 
         const phoneInput = screen.getByPlaceholderText('请输入手机号')
         const passwordInput = screen.getByPlaceholderText('请输入密码')
+        const confirmInput = screen.getByPlaceholderText('请再次输入密码')
         const submitBtn = screen.getByRole('button', { name: '注册' })
 
         fireEvent.change(phoneInput, { target: { value: '13800000000' } })
         fireEvent.change(passwordInput, { target: { value: 'password123' } })
+        fireEvent.change(confirmInput, { target: { value: 'password123' } })
         fireEvent.click(submitBtn)
 
-        expect(await screen.findByText(/注册失败|错误：注册失败/)).toBeInTheDocument()
+        expect(await screen.findByText(/网络或跨域配置异常|注册失败/)).toBeInTheDocument()
     })
 })

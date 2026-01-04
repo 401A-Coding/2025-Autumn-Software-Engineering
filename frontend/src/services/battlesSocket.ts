@@ -32,6 +32,12 @@ export type BattleSnapshot = {
     source: 'match' | 'room';
     visibility: 'match' | 'private' | 'public';
     ownerId: number | null;
+    drawOffer?: {
+        fromUserId: number;
+        timestamp: number;
+    } | null;
+    drawOfferCount?: Record<number, number>;
+    undoRequestCount?: Record<number, number>;
 };
 
 export function connectBattle() {
@@ -87,6 +93,24 @@ export function connectBattle() {
         });
     };
     const snapshot = (battleId: number) => socket.emit('battle.snapshot', { battleId });
+    const offline = (battleId: number) => new Promise<{ ok: boolean }>((resolve) => {
+        console.log('[offline] emitting battle.offline for battleId=', battleId, 'connected=', socket.connected, 'readyState=', socket.io?.engine?.readyState);
+        let settled = false;
+        const timer = setTimeout(() => {
+            if (!settled) {
+                settled = true;
+                console.log('[offline] timeout (2s), no ack, resolving with false');
+                resolve({ ok: false });
+            }
+        }, 2000);
+        socket.emit('battle.offline', { battleId }, (ack: { ok?: boolean }) => {
+            console.log('[offline] got ack:', ack, 'settled=', settled);
+            if (settled) return;
+            settled = true;
+            clearTimeout(timer);
+            resolve({ ok: !!ack?.ok });
+        });
+    });
     const heartbeat = (battleId: number, cb?: (ack: { ok: boolean; ts: number }) => void) => {
         socket.emit('battle.heartbeat', { battleId }, cb);
     };
@@ -95,6 +119,12 @@ export function connectBattle() {
     const onSnapshot = (cb: (s: BattleSnapshot) => void) => socket.on('battle.snapshot', cb);
     const onReplay = (cb: (r: { battleId: number; fromSeq: number; moves: BattleMove[]; stateHash?: string }) => void) => socket.on('battle.replay', cb);
     const onPlayerJoin = (cb: (p: { userId: number }) => void) => socket.on('battle.player_join', cb);
+    const onOfflineNotice = (cb: (p: { userId: number; battleId: number }) => void) => socket.on('battle.offline_notice', cb);
+    const onDrawOffer = (cb: (p: { fromUserId: number; toUserId?: number }) => void) => socket.on('battle.draw-offer', cb);
+    const onDrawDeclined = (cb: (p: { byUserId: number; toUserId: number }) => void) => socket.on('battle.draw-declined', cb);
+    const onUndoOffer = (cb: (p: { fromUserId: number; toUserId?: number }) => void) => socket.on('battle.undo-offer', cb);
+    const onUndoAccepted = (cb: () => void) => socket.on('battle.undo-accepted', cb);
+    const onUndoDeclined = (cb: (p: { byUserId: number; toUserId: number }) => void) => socket.on('battle.undo-declined', cb);
 
-    return { socket, join, move, snapshot, heartbeat, onMove, onSnapshot, onReplay, onPlayerJoin };
+    return { socket, join, move, snapshot, heartbeat, offline, onMove, onSnapshot, onReplay, onPlayerJoin, onOfflineNotice, onDrawOffer, onDrawDeclined, onUndoOffer, onUndoAccepted, onUndoDeclined };
 }

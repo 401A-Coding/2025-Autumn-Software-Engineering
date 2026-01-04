@@ -1,0 +1,23 @@
+{
+    "name": "socketio-load-test",
+    "version": "1.0.0",
+    "description": "Socket.IO load testing for chess battle system",
+    "main": "load-test.js",
+    "scripts": {
+        "test": "node load-test.js",
+        "test:light": "CLIENTS=10 DURATION=30 node load-test.js",
+        "test:medium": "CLIENTS=50 DURATION=60 node load-test.js",
+        "test:heavy": "CLIENTS=100 DURATION=120 node load-test.js"
+    },
+    "keywords": [
+        "socket.io",
+        "load-test",
+        "performance"
+    ],
+    "author": "",
+    "license": "MIT",
+    "dependencies": {
+        "axios": "^1.6.0",
+        "socket.io-client": "^4.7.0"
+    }
+}

@@ -1,0 +1,59 @@
+config:
+  target: "http://101.42.118.61" # override with --target if needed
+  variables:
+    phone: "13053083296"
+    password: "123456"
+  http:
+    timeout: 30 # 增加超时到30秒，避免慢请求被误判
+  phases:
+    # 改为低负载模式：每秒1个新VU，最多到3个/秒，总并发可控
+    - duration: 30
+      arrivalRate: 1
+      rampTo: 3
+      name: "ramp-up"
+    - duration: 60
+      arrivalRate: 3
+      name: "hold"
+    - duration: 30
+      arrivalRate: 3
+      rampTo: 0
+      name: "ramp-down"
+  processor: "./http-processor.js"
+
+scenarios:
+  - name: "HTTP Flow: Login → Create Battle → List"
+    flow:
+      - post:
+          url: "/api/v1/auth/login"
+          json:
+            phone: "{{ phone }}"
+            password: "{{ password }}"
+          capture:
+            json: "$.data.accessToken"
+            as: "token"
+          expect:
+            - statusCode: 200
+      - get:
+          url: "/api/v1/boards/templates"
+          headers:
+            Authorization: "Bearer {{ token }}"
+          expect:
+            - statusCode: 200
+      - post:
+          url: "/api/v1/battles"
+          headers:
+            Authorization: "Bearer {{ token }}"
+          json:
+            mode: "pvp"
+          expect:
+            - statusCode: [200, 201]
+      - get:
+          url: "/api/v1/records"
+          headers:
+            Authorization: "Bearer {{ token }}"
+          expect:
+            - statusCode: 200
+      - get:
+          url: "/api/v1/community/posts"
+          expect:
+            - statusCode: 200

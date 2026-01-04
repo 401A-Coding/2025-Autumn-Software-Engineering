@@ -8,17 +8,20 @@ import {
   UseGuards,
   Req,
   ForbiddenException,
+  ParseIntPipe,
 } from '@nestjs/common';
 import { BattlesService } from './battles.service';
 import { BoardService } from '../board/board.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { Request } from 'express';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 
 @Controller('api/v1/battles')
 export class BattlesController {
   constructor(
     private readonly battles: BattlesService,
     private readonly boards: BoardService,
+    private readonly events: EventEmitter2,
   ) { }
 
   @Post()
@@ -226,6 +229,84 @@ export class BattlesController {
     @Req() req: Request & { user?: { sub: number } },
   ) {
     return this.battles.resign(req.user!.sub, body.battleId);
+  }
+
+  @Post('draw/offer')
+  @UseGuards(JwtAuthGuard)
+  offerDraw(
+    @Body() body: { battleId: number },
+    @Req() req: Request & { user?: { sub: number } },
+  ) {
+    return this.battles.offerDraw(req.user!.sub, body.battleId);
+  }
+
+  @Post('draw/accept')
+  @UseGuards(JwtAuthGuard)
+  acceptDraw(
+    @Body() body: { battleId: number },
+    @Req() req: Request & { user?: { sub: number } },
+  ) {
+    return this.battles.acceptDraw(req.user!.sub, body.battleId);
+  }
+
+  @Post('draw/decline')
+  @UseGuards(JwtAuthGuard)
+  declineDraw(
+    @Body() body: { battleId: number },
+    @Req() req: Request & { user?: { sub: number } },
+  ) {
+    return this.battles.declineDraw(req.user!.sub, body.battleId);
+  }
+
+  @Post('undo/offer')
+  @UseGuards(JwtAuthGuard)
+  offerUndo(
+    @Body() body: { battleId: number },
+    @Req() req: Request & { user?: { sub: number } },
+  ) {
+    return this.battles.offerUndo(req.user!.sub, body.battleId);
+  }
+
+  @Post('undo/accept')
+  @UseGuards(JwtAuthGuard)
+  acceptUndo(
+    @Body() body: { battleId: number },
+    @Req() req: Request & { user?: { sub: number } },
+  ) {
+    return this.battles.acceptUndo(req.user!.sub, body.battleId);
+  }
+
+  @Post('undo/decline')
+  @UseGuards(JwtAuthGuard)
+  declineUndo(
+    @Body() body: { battleId: number },
+    @Req() req: Request & { user?: { sub: number } },
+  ) {
+    return this.battles.declineUndo(req.user!.sub, body.battleId);
+  }
+
+  @Post(':battleId/offline')
+  offline(
+    @Param('battleId', ParseIntPipe) battleId: number,
+    @Body() body: { userId?: number },
+  ) {
+    // offline 信号可以来自页面导航时的 REST fallback（无认证）或 WebSocket（已认证）
+    // 我们从 body 中尝试读取 userId，如果没有则跳过
+    const userId = body?.userId;
+    if (!userId || !battleId) {
+      // 如果 body 中没有 userId，无法标记谁离线，仅视为心跳信号
+      return { ok: false };
+    }
+    try {
+      this.battles.setOnline(battleId, userId, false);
+      const snapshot = this.battles.snapshot(battleId);
+      // 发出事件，让 gateway 订阅并通过 WebSocket 广播给房间内的其他玩家
+      this.events.emit('battle.offline', { userId, battleId, snapshot });
+      return { ok: true };
+    } catch (err) {
+      // 即使发出事件失败，也返回 ok=true，因为 setOnline 已经执行
+      return { ok: true };
+    }
   }
 
   @Get('history')
